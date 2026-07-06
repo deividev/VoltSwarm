@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body { margin: 0; background: #151a22; padding: 40px; font-family: 'Segoe UI', system-ui, sans-serif; color: #e8e3d5; }
+      #build-panel { display: flex; flex-direction: column; gap: 3px; max-width: 210px; }
+      .build-row { display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; background: rgba(20, 24, 30, 0.7); border: 1px solid rgba(90, 100, 115, 0.5); border-radius: 4px; padding: 4px 8px; }
+      .build-row.weapon { border-color: rgba(63, 169, 245, 0.6); }
+      .build-icon { font-size: 15px; width: 20px; text-align: center; }
+      .build-icon-img { height: 32px; width: 32px; object-fit: contain; flex-shrink: 0; background: #444e5e; border-radius: 5px; padding: 2px; box-sizing: border-box; }
+      .build-value { margin-left: auto; color: #8a94a2; }
+      .build-value.raised { color: #f2b632; }
+    </style>
+  </head>
+  <body>
+    <div id="build-panel">
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-bolt.png" alt="" />
+        <span>Bolt Cannon</span><span class="build-value raised">Lv 3</span>
+      </div>
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-pulse.png" alt="" />
+        <span>Volt Pulse</span><span class="build-value raised">Lv 2</span>
+      </div>
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-blades.png" alt="" />
+        <span>Orbital Blades</span><span class="build-value raised">Lv 1</span>
+      </div>
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-welder-v2.png" alt="" />
+        <span>Arc Welder v2</span><span class="build-value raised">Lv 4</span>
+      </div>
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-press-v2.png" alt="" />
+        <span>Hydraulic Press v2</span><span class="build-value raised">Lv 2</span>
+      </div>
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-tire.png" alt="" />
+        <span>Tire Fire</span><span class="build-value raised">Lv 3</span>
+      </div>
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-oil-v2.png" alt="" />
+        <span>Oil Sprayer v2</span><span class="build-value raised">Lv 1</span>
+      </div>
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-corrosive-drum-v2.png" alt="" />
+        <span>Corrosive Drum</span><span class="build-value raised">Lv 2</span>
+      </div>
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-turbine-v2.png" alt="" />
+        <span>Turbine Fan v2</span><span class="build-value raised">Lv 1</span>
+      </div>
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-ricochet-v3.png" alt="" />
+        <span>Junk Ricochet v3</span><span class="build-value raised">Lv 1</span>
+      </div>
+      <div class="build-row weapon">
+        <img class="build-icon build-icon-img" src="../public/assets/2d/icon-weapon-dismantler.png" alt="" />
+        <span>Dismantler</span><span class="build-value raised">Lv 1</span>
+      </div>
+    </div>
+  </body>
+</html>

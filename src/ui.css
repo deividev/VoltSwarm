@@ -1,0 +1,497 @@
+#hud {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #e8e3d5;
+  user-select: none;
+}
+
+#xp-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 10px;
+  background: rgba(20, 24, 30, 0.85);
+}
+#xp-bar-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #3fa9f5, #7ee0ff);
+  transition: width 0.15s ease-out;
+}
+
+#timer {
+  position: absolute;
+  top: 38px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+
+#level-badge {
+  position: absolute;
+  top: 22px;
+  left: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+#kills {
+  position: absolute;
+  top: 22px;
+  right: 20px;
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* Player HP sits right under the XP bar so both resources read together. */
+#hp-bar {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 320px;
+  height: 14px;
+  background: rgba(20, 24, 30, 0.85);
+  border: 2px solid #3d444f;
+  border-radius: 4px;
+  overflow: hidden;
+}
+#hp-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #c0392b, #e74c3c);
+  transition: width 0.1s ease-out;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: rgba(8, 10, 14, 0.82);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #e8e3d5;
+  text-align: center;
+  z-index: 10;
+}
+.overlay.hidden {
+  display: none;
+}
+
+#version-tag {
+  position: absolute;
+  bottom: 14px;
+  right: 18px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.45;
+  letter-spacing: 0.5px;
+}
+.overlay h1 {
+  font-size: 52px;
+  margin: 0;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+}
+.overlay h2 {
+  font-size: 30px;
+  margin: 0;
+  letter-spacing: 2px;
+}
+.overlay p {
+  margin: 0;
+  font-size: 17px;
+  opacity: 0.85;
+  max-width: 520px;
+  line-height: 1.5;
+}
+
+.overlay button {
+  pointer-events: auto;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+  padding: 14px 42px;
+  border: 2px solid #f2b632;
+  border-radius: 6px;
+  background: rgba(242, 182, 50, 0.12);
+  color: #f2b632;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+.overlay button:hover {
+  background: rgba(242, 182, 50, 0.3);
+  transform: translateY(-2px);
+}
+
+.settings-row {
+  pointer-events: auto;
+  width: min(440px, calc(100vw - 48px));
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 14px;
+  border: 1px solid rgba(126, 224, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(20, 30, 42, 0.72);
+  text-align: left;
+}
+.settings-row span {
+  font-weight: 700;
+  color: #7ee0ff;
+}
+.settings-row select,
+.settings-row input {
+  pointer-events: auto;
+  min-width: 0;
+}
+.settings-row select {
+  padding: 8px 10px;
+  border: 1px solid #3fa9f5;
+  border-radius: 6px;
+  background: #141e2a;
+  color: #e8e3d5;
+}
+
+#upgrade-cards,
+#draft-cards {
+  display: flex;
+  gap: 20px;
+}
+.upgrade-card {
+  pointer-events: auto;
+  cursor: pointer;
+  width: 210px;
+  padding: 22px 18px;
+  border: 2px solid #3fa9f5;
+  border-radius: 8px;
+  background: rgba(20, 30, 42, 0.95);
+  transition:
+    transform 0.12s,
+    border-color 0.12s;
+}
+.upgrade-card:hover {
+  transform: translateY(-6px);
+  border-color: #7ee0ff;
+}
+.upgrade-card h3 {
+  margin: 0 0 10px;
+  font-size: 19px;
+  color: #7ee0ff;
+}
+.upgrade-card .rarity-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  opacity: 0.85;
+}
+.upgrade-card.common {
+  border-color: #8a94a2;
+}
+.upgrade-card.common .rarity-tag {
+  color: #8a94a2;
+}
+.upgrade-card.rare {
+  border-color: #3fa9f5;
+}
+.upgrade-card.rare .rarity-tag {
+  color: #7ee0ff;
+}
+.upgrade-card.epic {
+  border-color: #b069ff;
+  box-shadow: 0 0 18px rgba(176, 105, 255, 0.35);
+}
+.upgrade-card.epic .rarity-tag {
+  color: #d0a0ff;
+}
+.upgrade-card.epic h3 {
+  color: #d0a0ff;
+}
+.upgrade-card p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.85;
+  line-height: 1.4;
+}
+
+.stats-line {
+  font-size: 15px;
+  opacity: 0.75;
+}
+
+/* Crate slot machine: lighter backdrop than menus — it is a quick beat,
+   not a full pause screen. */
+.overlay.chest {
+  background: rgba(8, 10, 14, 0.55);
+}
+.overlay.chest h2 {
+  color: #ffd76a;
+}
+#chest-slot {
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 24, 30, 0.95);
+  border: 3px solid #f2b632;
+  border-radius: 12px;
+  box-shadow: 0 0 24px rgba(242, 182, 50, 0.35);
+}
+#chest-slot.landed {
+  animation: chest-land 0.35s ease-out;
+  border-color: #ffd76a;
+  box-shadow: 0 0 42px rgba(255, 215, 106, 0.7);
+}
+#chest-icon {
+  font-size: 64px;
+  line-height: 1;
+}
+#chest-label {
+  min-height: 24px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #ffd76a;
+}
+@keyframes chest-land {
+  0% {
+    transform: scale(1.35);
+  }
+  60% {
+    transform: scale(0.95);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.toast {
+  position: absolute;
+  bottom: 96px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 17px;
+  font-weight: 700;
+  color: #ffd76a;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7);
+  letter-spacing: 1px;
+  animation: toast-rise 2.4s ease-out forwards;
+  white-space: nowrap;
+}
+/* Boss HP owns the bottom-center of the screen while it lives. */
+#boss-bar {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 420px;
+  text-align: center;
+}
+#boss-bar.hidden {
+  display: none;
+}
+#boss-name {
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #ff3355;
+  margin-bottom: 4px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+#boss-bar-track {
+  height: 12px;
+  background: rgba(20, 24, 30, 0.85);
+  border: 2px solid #55202a;
+  border-radius: 4px;
+  overflow: hidden;
+}
+#boss-bar-fill {
+  height: 100%;
+  width: 100%;
+  background: linear-gradient(90deg, #a1153a, #ff3355);
+  transition: width 0.15s ease-out;
+}
+
+/* Above the level-up overlay (z 10) on purpose: the player compares the
+   sheet against the offered cards before choosing. */
+#build-panel {
+  position: fixed;
+  top: 60px;
+  left: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 210px;
+  z-index: 11;
+  pointer-events: none;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  color: #e8e3d5;
+}
+.build-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  background: rgba(20, 24, 30, 0.7);
+  border: 1px solid rgba(90, 100, 115, 0.5);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+.build-row.weapon {
+  border-color: rgba(63, 169, 245, 0.6);
+}
+.build-icon {
+  font-size: 15px;
+  width: 20px;
+  text-align: center;
+}
+.build-icon-img {
+  height: 32px;
+  width: 32px;
+  object-fit: cover;
+  flex-shrink: 0;
+  /* Dark-toned icons (metal joints, dark bodies) need a lighter chip behind
+   * them or they vanish into the row's own dark background — bumped lighter
+   * again after Oil Sprayer proved near-invisible at HUD scale. */
+  background: #444e5e;
+  border-radius: 5px;
+  padding: 2px;
+  box-sizing: border-box;
+}
+.build-value {
+  margin-left: auto;
+  color: #8a94a2;
+}
+.build-value.raised {
+  color: #ffd24a;
+}
+
+#summon-prompt {
+  position: absolute;
+  bottom: 150px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+  font-weight: 700;
+  color: #ff8095;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  letter-spacing: 1px;
+  background: rgba(20, 24, 30, 0.8);
+  border: 2px solid #ff3355;
+  border-radius: 6px;
+  padding: 10px 22px;
+}
+#summon-prompt.hidden {
+  display: none;
+}
+
+#totem-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
+  will-change: transform;
+}
+#totem-indicator.hidden {
+  display: none;
+}
+#totem-indicator .arrow {
+  font-size: 22px;
+  color: #ff3355;
+  text-shadow: 0 0 8px rgba(255, 51, 85, 0.8);
+  line-height: 1;
+}
+#totem-indicator .label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #ff8095;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+#summon-prompt .key {
+  display: inline-block;
+  background: #ff3355;
+  color: #11151c;
+  border-radius: 4px;
+  padding: 1px 9px;
+  margin: 0 4px;
+}
+
+#damage-layer {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 5;
+}
+.damage-number {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  will-change: transform, opacity;
+}
+.damage-number.crit {
+  font-size: 21px;
+  color: #ffd24a;
+}
+
+@keyframes toast-rise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 12px);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -24px);
+  }
+}
+
+#fps-counter {
+  position: fixed;
+  bottom: 12px;
+  right: 16px;
+  font-family: 'Consolas', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: #7ee0ff;
+  opacity: 0.7;
+  z-index: 12;
+  pointer-events: none;
+}
