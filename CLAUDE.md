@@ -9,7 +9,8 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 | Fix de un bug puntual | `docs/PRD.md` (¿qué debería hacer este sistema?) | Números en `src/config.ts`, nunca hardcodeados |
 | Arma / mejora / stat nueva | `docs/METODO_DISENO.md` (proceso) → `docs/DESIGN_MEJORAS.md` (¿ya está diseñada? estado ✅/🟢/🟡/🔴) | Sin apuntado manual · anti-clon de Megabonk |
 | Enemigo / mapa / prop nuevo | `docs/DIRECCION_ARTE.md` (silueta, paleta, arco de mapas) | Silueta única por tipo · InstancedMesh por tipo |
-| Modelo 3D de personaje (nuevo o existente) | `docs/PROMPTS_IMAGENES.md` §6 (prompt maestro) → `docs/DIRECCION_ARTE.md` (pipeline 2D→3D) | Ref frontal plana contigua → entrada en `src/models/registry.ts` · validar enjambre 400+ |
+| Modelo 3D de personaje/prop (nuevo o existente) | `docs/PROMPTS_IMAGENES.md` §6-7 (prompt maestro) → `docs/DIRECCION_ARTE.md` (pipeline 2D→3D) | **3 vistas SIEMPRE** (frontal/lateral/trasera, regla 2026-07-06) contiguas y planas → entrada en `src/models/registry.ts` · validar enjambre 400+ |
+| Suelo/ambiente de mapa | `docs/PROMPTS_IMAGENES.md` §7b (pipeline distinto: textura cenital, no se voxeliza) | Vista top-down estricta, sin props/personajes en la imagen · mosaico vía `RepeatWrapping` · `litMaterial()` para no desentonar con el resto |
 | Cualquier imagen a generar (icono, logo, HUD) | `docs/PROMPTS_IMAGENES.md` | Regla voxel SIEMPRE explícita en el prompt |
 | Efecto visual / shader / partículas / sonido | `docs/DIRECCION_ARTE.md` (sección VFX y audio) → `docs/REFERENCIAS_VISUALES.md` | Partículas = cubos voxel de paleta · audio mecánico de juguete, cero gore · validar con 400+ enemigos |
 | Balance (números que se sienten mal) | `docs/ROADMAP_STEAM.md` (¿existe ya el instrumento de medición?) | Un cambio numérico por playtest — no varios a la vez |
@@ -45,13 +46,16 @@ Regla general: si el pedido no encaja claro en una fila, `docs/PRD.md` primero (
 
 Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio", "revisa el proyecto"): skill `judgment-day`, dos jueces ciegos en paralelo. Nunca aplicar fixes de Ronda 1 sin confirmación del usuario.
 
-## Estado del proyecto (foto a 2026-07-05)
+## Estado del proyecto (foto a 2026-07-06)
 
 - **Elenco 3D completo**: 6 enemigos + 3 bosses (Volt Warden nuevo, sin gameplay) + jugador, todos voxelizados desde referencias 2D e in-game vía `src/models/registry.ts`.
-- **Fase 1 visual completa**: bloom + vignette (composer con OutputPass), sombras blob, toon 3 escalones, suelo procedural, partículas de muerte, screen shake, cielo degradado, cámara 52°, animación de caminata del jugador. Wobble de enemigos desactivado (decisión usuario). Todo en `config.VISUAL`. ~120 FPS validados con enjambre masivo.
-- **Icono de app final aprobado** (`public/assets/2d/app-icon-test.png` → `build/icon.ico`).
+- **Fase 1 visual completa**: bloom + vignette (composer con OutputPass), sombras blob, toon 3 escalones, partículas de muerte, screen shake, cielo degradado, cámara 52°, animación de caminata del jugador. Wobble de enemigos desactivado (decisión usuario). Todo en `config.VISUAL`. ~120 FPS validados con enjambre masivo.
+- **Icono de app final aprobado** (`public/assets/2d/app-icon-test.png` → `build/icon.ico`). **Logo final aprobado** (`logo-voltswarm-v3.png`). **Las 11 armas tienen icono de HUD aprobado y cableado** (`src/hud.ts`).
+- **Mapa 1 redefinido (2026-07-06)**: pasa de "scrapyard" a **fábrica abandonada, industrial con toque futurista** (ver `DIRECCION_ARTE.md`). Suelo final: `ground-factory-floor.png` generado con IA en vista cenital, en mosaico (`config.VISUAL.ground`), reemplazando el intento procedural por código que el usuario rechazó.
+- **Regla de proceso nueva (2026-07-06): toda referencia 2D para voxelizar un personaje/prop se genera en 3 VISTAS** (frontal/lateral/trasera), no solo frontal — el boss final de prueba salió "masa lisa" de lado por depender solo de la vista frontal. Detalle en `PROMPTS_IMAGENES.md` §6.
 - **Balance**: i-frames 0.85→0.4 validado (la horda ya mata).
-- **Siguiente**: checklist del gate de captura v1 en `ROADMAP_STEAM.md` (VFX de combate, props tácticos, iconos HUD, logo, nombre final).
+- **Siguiente (acción concreta inmediata)**: **voxelizar el contenedor industrial** — referencia de 3 vistas ya APROBADA (`prop-container-front-v3.png`/`-side-v3.png`/`-back-v3.png`, ver `PROMPTS_IMAGENES.md` §7). Falta: entrada en el pipeline de voxelización (decidir si necesita un "kind" nuevo tipo prop en `src/models/registry.ts` o una función standalone) + colocarlo en `world.ts` como obstáculo con collider en posiciones deliberadas (chokepoint sutil). Después: más props (pila de chatarra, grúa) con el mismo proceso de 3 vistas + construcción multi-bloque (regla nueva, ver abajo); después iconos de 19 stats + ornamentos de rareza; después VFX de combate.
+- **Regla de proceso reforzada (2026-07-06)**: al generar CUALQUIER prop/objeto nuevo (no personaje), referenciar explícitamente 1-2 iconos de arma ya aprobados (`icon-weapon-press-v2.png`, `icon-weapon-tire.png`) en el prompt y pedir la construcción "many individual visible cubic blocks with flat per-face shading" — decir solo "voxel" no basta, salió como ilustración vectorial plana la primera vez. Detalle completo y ejemplo de iteración en `PROMPTS_IMAGENES.md` §7 (caso del contenedor: 3 intentos hasta llegar a la v3 aprobada).
 
 ## Nombre, precio, stack
 

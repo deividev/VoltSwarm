@@ -25,19 +25,20 @@ Lista completa en `docs/PROMPTS_IMAGENES.md`. **Estado 2026-07-05:**
 - ✅ Icono de la app — APROBADO como final (`public/assets/2d/app-icon-test.png` → `build/icon.ico` multi-res vía `tools/make-app-icon.mjs`)
 - ✅ Los 10 modelos voxel (6 enemigos + 3 bosses incl. Volt Warden + jugador) — pipeline 2D→3D congelado, todos in-game
 - ✅ Logo/wordmark (2026-07-05): `logo-voltswarm-v3.png`, amarillo + transparencia real
-- 🔴 Iconos de armas (11) y stats (19), ornamentos de rareza, props de escenario, key art — PENDIENTES (bloquean la sesión de captura, ver checklist del gate)
+- ✅ Iconos de armas (11 de 11, 2026-07-05) · ✅ props de escenario Mapa 1 (contenedor 3 colores + bidón 3 colores, 2026-07-08)
+- 🔴 Iconos de stats (19), ornamentos de rareza, cofre/portal voxel, menú+UI, key art — PENDIENTES (bloquean la sesión de captura, ver checklist del gate)
 
 ## Fase 1 — Visual (plan en REFERENCIAS_VISUALES.md)
 
 1. ✅ Bloom selectivo (2026-07-05: umbral sobre emisivos, validado 121 FPS con enjambre masivo; contador FPS dev en `VISUAL.showFps`)
 2. ✅ Sombras blob instanciadas (2026-07-05)
 3. ✅ Toon shading 3 escalones (2026-07-05)
-4. ✅ Suelo con carácter (2026-07-05; repaso fino cuando estén los props nuevos)
+4. ✅ Suelo con carácter — **REHECHO 2026-07-06**: Mapa 1 redefinido como fábrica abandonada (ver `DIRECCION_ARTE.md`); el suelo procedural por código se descartó (no convenció) y se reemplazó por `ground-factory-floor.png` generado con IA (vista cenital, pipeline nuevo en `PROMPTS_IMAGENES.md` §7b), en mosaico vía `RepeatWrapping` (`config.VISUAL.ground.worldSizePerRepeat: 18`), material `litMaterial()` unificado con el resto de entidades. Aprobado en playtest real.
 5. ✅ Partículas de muerte voxel burst (2026-07-05; chispas de golpe → pase VFX de armas)
 6. ✅ Screen shake y cielo degradado + vignette (2026-07-05) · wobble de enemigos ⏸️ desactivado por decisión del usuario, revisar tras VFX
 7. ✅ Modelos voxel IA — **ELENCO COMPLETO (2026-07-05)**: 6 enemigos + 3 bosses + jugador in-game (Volt Warden con gameplay pendiente); refs en `public/assets/2d/`; 121 FPS validados con todo activo
 8. ✅ **Icono final de la app** (2026-07-05): `app-icon-test.png` aprobado como final → `build/icon.ico` multi-res
-9. **GATE de la sesión de captura — lo que falta para las capturas v1** (detalle abajo): VFX de armas/tótem/ataques enemigos · props nuevos con colisión táctica · iconos 2D de armas/stats en HUD (hoy emojis) · logo · decisión de nombre final
+9. **GATE de la sesión de captura — lo que falta para las capturas v1** (detalle abajo, actualizado 2026-07-08): iconos de stats (19) + ornamentos de rareza · cofre voxelizado · portal de boss (reemplaza al tótem) · VFX de armas/portal/ataques enemigos · menú inicial · pase de UI voxel
 10. **Sesión de captura**: cápsulas, screenshots, GIFs del enjambre
 
 ## Checklist del gate de captura v1 (definido 2026-07-05 con el usuario)
@@ -45,7 +46,11 @@ Lista completa en `docs/PROMPTS_IMAGENES.md`. **Estado 2026-07-05:**
 Lo que falta para que las capturas/GIFs vendan la página de Steam:
 
 1. **Pase de VFX de combate** — armas (Acid Drum, Hydraulic Press, Volt Pulse, todas), tótem (invocación telegrafiada más espectacular) y ataques enemigos (proyectiles Gunner/Tesla): alinear con voxel+toon+bloom; chispas de golpe. Regla: partículas = cubos de paleta. **Coherencia icono↔VFX (2026-07-05): el VFX del ataque de cada arma en el mundo debe usar el mismo acento de color que su icono de HUD** (p. ej. Bolt Cannon = amarillo `#ffe066`, Volt Pulse = cian `#7ee0ff`, Orbital Blades = gris claro `#c9d4de`) — si el jugador ve el icono en el panel y el efecto en pantalla, tiene que poder asociarlos al instante sin leer el nombre. **Pendiente de revisión específica: Junk Ricochet (2026-07-05)** — el icono v3 (chatarra + zigzag morado `#c060ff`) quedó aprobado para seguir avanzando, pero el usuario no queda convencido de cómo se ve/lee la habilidad EN JUEGO (el rebote entre enemigos) comparado con lo que el icono promete. Al llegar a este punto del pase, revisar si hay que rehacer el VFX in-game del rebote, o el icono, o ambos, para que se entiendan como la misma cosa.
-2. **Props del mapa con rol táctico** — modelos nuevos vía pipeline 2D→3D (prompts §7) que ADEMÁS canalicen oleadas: colisión que corte el paso a enemigos y jugador (chatarra grande, muros de contenedores) para poder llevar la horda a donde quieres. Diseño de layout con chokepoints; el repaso fino del suelo va junto.
+2. **Props del mapa con rol táctico** — EN CURSO. Modelos nuevos vía pipeline 2D→3D CON LA REGLA NUEVA DE 3 VISTAS + construcción multi-bloque (frontal/lateral/trasera, `PROMPTS_IMAGENES.md` §6-7) que ADEMÁS canalicen oleadas: colisión que corte el paso a enemigos y jugador (muros de contenedores volcados, pilas de chatarra/maquinaria altas, esqueletos de grúa) para poder llevar la horda a donde quieres. Densidad confirmada por el usuario: **sutil** — pocos embudos grandes en puntos clave, el enjambre se sigue viendo casi todo el tiempo (rechazadas las opciones "moderado" y "denso/táctico"). Las franjas de peligro del suelo nuevo ya sugieren dónde alinear los chokepoints.
+   - ✅ **Contenedor industrial** (2026-07-08): voxelizado desde las 3 vistas, in-game como gates-chokepoint con collider, 3 variantes de color (teal/naranja/mauve) con anti-repetición entre vecinos, 13-17 gates por run con scatter uniforme por área. 120 FPS validados.
+   - ✅ **Bidón industrial** (2026-07-08): voxelizado, 3 variantes (mostaza/negro/blanco), 60-85 por run con collider.
+   - ⏸️ Andamio: voxelizado pero retirado del mapa (2026-07-06, el color/escala no convenció tras dos pases).
+   - ⚪ Pila de chatarra / grúa: **NO bloquean las capturas v1** (densidad actual validada por el usuario 2026-07-08) — se reevalúan después.
 3. **Iconos 2D en el HUD**:
    - ✅ **Armas (11 de 11) — CERRADO 2026-07-05**, cableadas en `src/hud.ts`, verificado en vivo a 120 FPS. Pendiente no bloqueante: revisar Junk Ricochet cuando exista el VFX de combate (ver punto 1).
    - 🔴 Stats (19) y ornamentos de rareza en cartas — pendientes (§4-5 de PROMPTS_IMAGENES). Un HUD con emojis en los stats todavía no puede salir en capturas de tienda.
@@ -53,6 +58,10 @@ Lo que falta para que las capturas/GIFs vendan la página de Steam:
 5. ✅ **Nombre final** — Voltswarm, confirmado 2026-07-05 (no reabrir)
 6. **Key art / cápsula** — con el logo cerrado (§8; preferencia: capturas reales del motor).
 7. (Recomendado) **Pantalla de Game Over/victoria con el desglose de daño por arma** — es de Fase 3, pero si las capturas incluyen el final de run, mejor que luzca.
+8. 🔴 **Cofre voxelizado** (añadido 2026-07-08) — los cofres de élite/boss salen en cualquier captura de mid-run y hoy son geometría primitiva. Prop sólido → pipeline de 3 vistas (`PROMPTS_IMAGENES.md` §6-7), referenciando los iconos de arma aprobados en el prompt (regla multi-bloque).
+9. 🔴 **Portal futurista/industrial reemplazando el tótem** (decisión 2026-07-08) — el tótem con calavera no encaja con fábrica/robots; se sustituye por un portal industrial-futurista como invocador del boss. Si el diseño es un marco abierto (see-through), va por el pipeline de vista única como el andamio, no el de 3 vistas. El VFX de invocación telegrafiada (punto 1) se diseña sobre el portal, no sobre el tótem — no hacer el VFX dos veces.
+10. 🔴 **Menú inicial en condiciones** (añadido 2026-07-08) — pantalla de inicio con el logo aprobado, estética voxel/industrial; es la primera imagen del juego en vídeos y streams.
+11. 🔴 **Pase de UI al estilo voxel** (añadido 2026-07-08) — cartas de mejora, paneles del HUD y overlays alineados con la dirección de arte (hoy son cajas CSS genéricas); incluye los ornamentos de rareza del punto 3.
 
 ## Fase 2 — Página de Steam ARRIBA (inmediatamente tras la captura)
 

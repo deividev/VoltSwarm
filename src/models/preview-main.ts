@@ -15,6 +15,7 @@ const FRAMING = {
   enemy: { heroScale: 2.2, cameraHeight: 1.2, showRing: true },
   boss: { heroScale: 0.95, cameraHeight: 1.6, showRing: false },
   player: { heroScale: 2.2, cameraHeight: 1.2, showRing: false },
+  prop: { heroScale: 1.4, cameraHeight: 1.2, showRing: false },
 } as const;
 
 const params = new URLSearchParams(location.search);

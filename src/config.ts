@@ -5,6 +5,97 @@ export const ARENA_HALF_SIZE = 90;
 
 export const RUN_DURATION_S = 10 * 60;
 
+/** Map-1 tactical prop: shipping-container chokepoints. Each gate is a pair
+ *  of containers forming a wall with an opening — a subtle funnel; user
+ *  picked "sutil" over "moderado"/"denso" (2026-07-06): few large funnels,
+ *  swarm stays visible almost all the time. `gapHalf` is half the opening
+ *  between the two containers' inner ends (shared by every gate; position
+ *  and facing are randomized per run — see `world.ts:buildContainerProps`,
+ *  user request 2026-07-06: different count/layout every playthrough). */
+export const CONTAINER_PROP = {
+  /** Approx world footprint of the voxel model (front width / side length
+   *  in voxels × voxelSize) — sizes the primitive placeholder shown before
+   *  the async voxel model loads. Long axis is Z (side-sheet depth). */
+  width: 3.1,
+  height: 3.0,
+  length: 6.0,
+  /** Capsule-approx collision: circles spaced along the long axis. */
+  colliderRadius: 1.6,
+  colliderOffsets: [-2.1, 0, 2.1],
+  gapHalf: 2.6,
+  /** Random gate count per run, inclusive — raised ~30% from [10,14]
+   *  (2026-07-08, user request) after area-uniform scatter fixed the
+   *  center-heavy distribution, so extra gates now land in the sparse ring. */
+  countRange: [13, 17] as [number, number],
+  /** Keep clear of the arena center (player spawn) and the outer edge. */
+  minDistFromCenter: 18,
+  maxDistFromCenter: ARENA_HALF_SIZE - 10,
+  /** Minimum distance between gate centers so two funnels never overlap.
+   *  Lowered from 22 to fit the higher count comfortably around the ring. */
+  minSeparation: 18,
+  /** Clearance kept from the boss totem (placed independently per run in
+   *  boss.ts) — a gate must never wall off the totem's summon zone. */
+  totemClearance: 10,
+  /** Color variants (2026-07-06 user request) — same model, different
+   *  registry palette, so the map doesn't read as the same object repeated.
+   *  world.ts picks one at random per gate. */
+  variants: ['container', 'container-orange', 'container-mauve'] as const,
+};
+
+/** Map-1 tactical prop: steel scaffold towers — deliberate CONTRAST to the
+ *  container (2026-07-06 user pick): a see-through X-braced lattice landmark
+ *  instead of a solid wall, so the swarm stays visible through it. Placed as
+ *  single landmarks (not chokepoint gates) away from the container gates. */
+export const SCAFFOLD_PROP = {
+  /** Pulled from the map 2026-07-06 (user didn't like the read after two
+   *  retint/rescale passes) — kept configured, just not spawned for now. */
+  enabled: false,
+  /** Approx world footprint of the voxel model — sizes the placeholder. */
+  width: 1.4,
+  height: 3.4,
+  /** Non-uniform X/Z stretch (height untouched) — user playtest 2026-07-06
+   *  felt the tower read too thin/narrow next to the container; depth was
+   *  added in a second pass so the proportions read right from every angle,
+   *  not just widened front-on. */
+  widthScale: 1.4,
+  depthScale: 1.6,
+  /** Thin single-post collider: presence, not a real blocker. */
+  colliderRadius: 0.6,
+  placements: [
+    { x: 0, z: 34, rotationY: 0 },
+    { x: 40, z: -22, rotationY: Math.PI / 3 },
+    { x: -36, z: -8, rotationY: -Math.PI / 5 },
+  ],
+};
+
+/** Map-1 prop (docs/PROMPTS_IMAGENES.md §7): industrial drums. Bigger and
+ *  with a collider (2026-07-06 user request) — small obstacle, not a
+ *  chokepoint gate, so count/position are randomized per run just like the
+ *  containers (same request: more of both, different every playthrough). */
+export const BARREL_PROP = {
+  width: 1.3,
+  height: 1.5,
+  colliderRadius: 0.55,
+  /** Random count per run, inclusive — raised ~30% from [45,65]
+   *  (2026-07-08, user request) alongside the area-uniform scatter fix. */
+  countRange: [60, 85] as [number, number],
+  minDistFromCenter: 8,
+  maxDistFromCenter: ARENA_HALF_SIZE - 4,
+  /** Minimum distance between barrels. */
+  minSeparation: 4,
+  /** Clearance kept from a container gate's center — bigger than
+   *  minSeparation because a gate's real footprint (2 containers + the
+   *  opening) extends well past its center point. */
+  containerClearance: 10,
+  /** Clearance kept from the boss totem. */
+  totemClearance: 8,
+  /** Color variants (2026-07-06 user request) — same model, different
+   *  registry palette. world.ts picks one at random per drum. Skipped blue:
+   *  the scaffold's blue-gray steel already blended into the cool factory
+   *  floor palette (same lesson, not repeating the mistake). */
+  variants: ['barrel', 'barrel-black', 'barrel-white'] as const,
+};
+
 export const PLAYER = {
   maxHp: 100,
   moveSpeed: 11,
@@ -81,6 +172,13 @@ export const VISUAL = {
     wearBlobs: 46,
     paintStains: 22,
     scuffs: 170,
+    /** Map 1 factory floor: AI-generated top-down panel texture (2026-07-06),
+     *  tiled via RepeatWrapping across the arena. worldSizePerRepeat is how
+     *  many world units one texture repeat covers — tune so plates read at
+     *  a similar scale to the voxel bots (~1u tall). Falls back to the
+     *  procedural canvas texture above if the image fails to load. */
+    aiTextureUrl: '/assets/2d/ground-factory-floor.png',
+    worldSizePerRepeat: 18,
   },
   /** Enemy walk wobble: side-to-side rock while chasing (Crossy Road-style
    *  life). Phase offset per pool slot so the swarm never rocks in sync.
@@ -550,6 +648,12 @@ export const BOSS = {
   respawnDelayS: 25,
   respawnHpGrowth: 1.6,
   chestsOnKill: 3,
+  /** Chests spawn wherever the boss happens to die — a position that can't
+   *  be known in advance, so unlike containers/barrels/totem it can't be
+   *  avoided ahead of time. Instead, `world.ts:findClearSpot` nudges each
+   *  chest away from any obstacle it lands inside of (2026-07-06 user ask:
+   *  chests shouldn't spawn overlapping props). */
+  chestClearMargin: 0.6,
   contactDamage: 25,
   crusher: {
     speed: 3,

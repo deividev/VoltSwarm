@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { ARENA_HALF_SIZE, CAMERA, VISUAL } from './config';
+import { ARENA_HALF_SIZE, BARREL_PROP, CAMERA, CONTAINER_PROP, SCAFFOLD_PROP, VISUAL } from './config';
+import { buildModelGrid, VOXEL_MODELS } from './models/registry';
+import { buildGridGeometry } from './models/voxel-builder';
 import { litMaterial } from './toon';
 
 // Fixed isometric-style follow camera offset. Top-down enough to read the
@@ -21,7 +23,38 @@ export interface Obstacle {
   radius: number;
 }
 
-export function createScene(): { scene: THREE.Scene; obstacles: Obstacle[] } {
+/** Nudges (x, z) directly away from any obstacle it's currently inside of,
+ *  by `margin` past the obstacle's edge — for things that can't be planned
+ *  around in advance (chests spawn wherever the boss happens to die, so
+ *  unlike containers/barrels/the totem they can't avoid props ahead of
+ *  time; instead this pushes the chest out after the fact). Iterates a few
+ *  times in case pushing clear of one obstacle lands inside another. */
+export function findClearSpot(
+  x: number,
+  z: number,
+  obstacles: Obstacle[],
+  margin: number,
+): { x: number; z: number } {
+  let px = x;
+  let pz = z;
+  for (let attempt = 0; attempt < 8; attempt++) {
+    const hit = obstacles.find((o) => Math.hypot(o.x - px, o.z - pz) < o.radius + margin);
+    if (!hit) break;
+    const dx = px - hit.x;
+    const dz = pz - hit.z;
+    const dist = Math.hypot(dx, dz) || 1;
+    const push = hit.radius + margin - dist + 0.1;
+    px += (dx / dist) * push;
+    pz += (dz / dist) * push;
+  }
+  return { x: px, z: pz };
+}
+
+export function createScene(): {
+  scene: THREE.Scene;
+  obstacles: Obstacle[];
+  propMeshes: THREE.Object3D[];
+} {
   const scene = new THREE.Scene();
   if (VISUAL.sky.enabled) {
     scene.background = createSkyTexture();
@@ -38,20 +71,84 @@ export function createScene(): { scene: THREE.Scene; obstacles: Obstacle[] } {
   scene.add(sun);
 
   buildGround(scene);
-  const obstacles = scatterScrap(scene);
-  return { scene, obstacles };
+  // Nothing to avoid yet at construction time — the boss totem doesn't exist
+  // until the first startRun(). Real per-run regeneration (avoiding the
+  // totem) happens via placeRandomProps(), called again from game.ts.
+  const props = placeRandomProps(scene, []);
+  return { scene, obstacles: props.obstacles, propMeshes: props.meshes };
+}
+
+/** Builds a fresh random layout of container gates + barrels, avoiding
+ *  whatever's in `avoid` (the boss totem, once it's placed) — user request
+ *  2026-07-06: different count/position every playthrough, never walling
+ *  off the totem or overlapping between the two prop types. Returns every
+ *  mesh added so a caller can `clearProps()` them before regenerating. */
+export function placeRandomProps(
+  scene: THREE.Scene,
+  avoid: AvoidPoint[],
+): { obstacles: Obstacle[]; meshes: THREE.Object3D[] } {
+  const containers = buildContainerProps(scene, avoid);
+  const barrelAvoid: AvoidPoint[] = [
+    ...avoid,
+    ...containers.centers.map((c) => ({ x: c.x, z: c.z, radius: BARREL_PROP.containerClearance })),
+  ];
+  const barrels = buildBarrelProps(scene, barrelAvoid);
+  const scaffold = SCAFFOLD_PROP.enabled ? buildScaffoldProps(scene) : { obstacles: [], meshes: [] };
+  return {
+    obstacles: [...containers.obstacles, ...barrels.obstacles, ...scaffold.obstacles],
+    meshes: [...containers.meshes, ...barrels.meshes, ...scaffold.meshes],
+  };
+}
+
+/** Removes and disposes every mesh from a previous placeRandomProps() call —
+ *  call before regenerating so the old layout doesn't linger in the scene. */
+export function clearProps(scene: THREE.Scene, meshes: THREE.Object3D[]): void {
+  for (const mesh of meshes) {
+    scene.remove(mesh);
+    if (mesh instanceof THREE.Mesh) {
+      mesh.geometry.dispose();
+      const material = mesh.material;
+      if (Array.isArray(material)) material.forEach((m) => m.dispose());
+      else material.dispose();
+    }
+  }
 }
 
 function buildGround(scene: THREE.Scene): void {
   // The ground is EXACTLY the playable area: where the floor ends, movement
   // ends. Invisible walls before the visual edge read as a bug.
   const size = ARENA_HALF_SIZE * 2;
+  // litMaterial() (not plain Lambert) so the floor gets the same 3-step
+  // toon quantization as bots/player/props — a lit-but-not-toon floor under
+  // toon-shaded entities was the mismatch risk the user flagged.
   const ground = new THREE.Mesh(
     new THREE.PlaneGeometry(size, size),
-    new THREE.MeshLambertMaterial({ map: createGroundTexture() }),
+    litMaterial({ map: createGroundTexture() }),
   );
   ground.rotation.x = -Math.PI / 2;
   scene.add(ground);
+
+  // AI-generated top-down factory floor loads async and swaps in over the
+  // procedural placeholder; on failure the procedural texture simply stays.
+  void upgradeGroundTexture(ground);
+}
+
+async function upgradeGroundTexture(ground: THREE.Mesh): Promise<void> {
+  try {
+    const texture = await new THREE.TextureLoader().loadAsync(VISUAL.ground.aiTextureUrl);
+    texture.colorSpace = THREE.SRGBColorSpace;
+    texture.anisotropy = 4;
+    texture.wrapS = THREE.RepeatWrapping;
+    texture.wrapT = THREE.RepeatWrapping;
+    const repeats = (ARENA_HALF_SIZE * 2) / VISUAL.ground.worldSizePerRepeat;
+    texture.repeat.set(repeats, repeats);
+    const material = ground.material as THREE.MeshToonMaterial | THREE.MeshLambertMaterial;
+    material.map?.dispose();
+    material.map = texture;
+    material.needsUpdate = true;
+  } catch (error) {
+    console.warn('AI ground texture unavailable, keeping procedural floor:', error);
+  }
 }
 
 /** Screen-space vertical gradient used as the scene background: night navy
@@ -153,48 +250,289 @@ function createGroundTexture(): THREE.CanvasTexture {
   return texture;
 }
 
-/** Decorative low-poly junk. Large pieces get circular colliders. */
-function scatterScrap(scene: THREE.Scene): Obstacle[] {
-  // Painted-machine mid-tones: colorful but duller than enemies so the swarm
-  // always pops over the set dressing.
-  const palette = [0x8a7a3a, 0x3f6e6a, 0x7a5560, 0x5a6a7e, 0x6e7a52];
-  const rng = mulberry32(1337);
-  const obstacles: Obstacle[] = [];
+/** A point to steer clear of, with its own clearance radius (e.g. the boss
+ *  totem needs more berth than one barrel needs from another). */
+export interface AvoidPoint {
+  x: number;
+  z: number;
+  radius: number;
+}
 
-  for (let i = 0; i < 90; i++) {
-    const kind = Math.floor(rng() * 3);
-    const color = palette[Math.floor(rng() * palette.length)] ?? 0x5a5f66;
-    const material = litMaterial({ color });
-    let mesh: THREE.Mesh;
-    let colliderRadius = 0;
-    if (kind === 0) {
-      const s = 0.6 + rng() * 1.8;
-      mesh = new THREE.Mesh(new THREE.BoxGeometry(s, s * (0.4 + rng() * 0.8), s), material);
-      mesh.position.y = mesh.scale.y * 0.3;
-      if (s > 1.6) colliderRadius = s * 0.65;
-    } else if (kind === 1) {
-      const r = 0.4 + rng() * 1.0;
-      mesh = new THREE.Mesh(new THREE.ConeGeometry(r, r * 2, 5), material);
-      mesh.position.y = r;
-      if (r > 1.0) colliderRadius = r * 0.9;
-    } else {
-      const r = 0.3 + rng() * 0.7;
-      mesh = new THREE.Mesh(new THREE.CylinderGeometry(r, r, r * 2.5, 7), material);
-      mesh.position.y = r * 1.25;
-      mesh.rotation.z = rng() > 0.5 ? Math.PI / 2 : 0;
+/** Random point within one angular slice of the ring — true per-run
+ *  randomness (Math.random(), not a fixed seed). */
+function randomPointInSector(
+  sectorStart: number,
+  sectorSize: number,
+  minDist: number,
+  maxDist: number,
+): { x: number; z: number } {
+  const angle = sectorStart + Math.random() * sectorSize;
+  // Area-uniform sampling: lerp on r^2, not r. Uniform-in-radius bunches
+  // points near the center (ring area grows with r^2) and leaves the outer
+  // map visibly sparse (user report 2026-07-08).
+  const dist = Math.sqrt(
+    minDist * minDist + Math.random() * (maxDist * maxDist - minDist * minDist),
+  );
+  return { x: Math.cos(angle) * dist, z: Math.sin(angle) * dist };
+}
+
+/** Scatters `count` points inside [minDist, maxDist] from center, ONE PER
+ *  ANGULAR SECTOR (stratified around the full circle) so the map can't end
+ *  up with a crowded quadrant and an empty one just by chance — purely
+ *  independent random points did exactly that (user report 2026-07-06).
+ *  Each point still lands at a random angle+distance WITHIN its own slice,
+ *  and keeps at least `minSeparation` from every other generated point and
+ *  `radius` from every point in `avoid` (container gates, the boss totem,
+ *  ...) — best-effort (20 retries per point), so a crowded arena just ends
+ *  up a bit closer rather than hanging. */
+function scatterPoints(
+  count: number,
+  minDist: number,
+  maxDist: number,
+  minSeparation: number,
+  avoid: AvoidPoint[],
+): { x: number; z: number }[] {
+  const points: { x: number; z: number }[] = [];
+  const sectorSize = (Math.PI * 2) / count;
+  // Randomize which sector goes first so it's not always the same compass
+  // direction that gets first pick when retries push points to sector edges.
+  const sectorOffset = Math.random() * Math.PI * 2;
+  for (let i = 0; i < count; i++) {
+    const sectorStart = sectorOffset + i * sectorSize;
+    let point = randomPointInSector(sectorStart, sectorSize, minDist, maxDist);
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const tooCloseToAvoid = avoid.some((p) => Math.hypot(p.x - point.x, p.z - point.z) < p.radius);
+      const tooCloseToOwn = points.some(
+        (p) => Math.hypot(p.x - point.x, p.z - point.z) < minSeparation,
+      );
+      if (!tooCloseToAvoid && !tooCloseToOwn) break;
+      point = randomPointInSector(sectorStart, sectorSize, minDist, maxDist);
     }
-    // Keep a clear spawn zone around the arena center; stay inside the floor.
-    const angle = rng() * Math.PI * 2;
-    const dist = 12 + rng() * (ARENA_HALF_SIZE - 4 - 12);
-    mesh.position.x = Math.cos(angle) * dist;
-    mesh.position.z = Math.sin(angle) * dist;
-    mesh.rotation.y = rng() * Math.PI * 2;
-    scene.add(mesh);
-    if (colliderRadius > 0 && dist < ARENA_HALF_SIZE) {
-      obstacles.push({ x: mesh.position.x, z: mesh.position.z, radius: colliderRadius });
+    points.push(point);
+  }
+  return points;
+}
+
+/** Random variant key, excluding up to two already-used neighbor variants so
+ *  the same color never appears on adjacent props. Falls back to the full
+ *  pool if the exclusions would leave nothing to pick from. */
+function pickVariant(
+  variants: readonly string[],
+  ...exclude: (string | undefined)[]
+): string {
+  const pool = variants.filter((v) => !exclude.includes(v));
+  const source = pool.length > 0 ? pool : variants;
+  return source[Math.floor(Math.random() * source.length)] ?? variants[0]!;
+}
+
+/** Deliberate chokepoint props: primitive box gates go up immediately (so
+ *  colliders are correct from frame one), then swap to the voxelized
+ *  container model async — same upgrade pattern as bots/player/ground.
+ *  Gate count and layout are randomized per run (user request 2026-07-06),
+ *  avoiding whatever's in `avoid` (the boss totem, once it's placed). */
+function buildContainerProps(
+  scene: THREE.Scene,
+  avoid: AvoidPoint[],
+): { obstacles: Obstacle[]; centers: { x: number; z: number }[]; meshes: THREE.Object3D[] } {
+  const {
+    width,
+    height,
+    length,
+    colliderRadius,
+    colliderOffsets,
+    gapHalf,
+    countRange,
+    minDistFromCenter,
+    maxDistFromCenter,
+    minSeparation,
+    variants,
+  } = CONTAINER_PROP;
+  const obstacles: Obstacle[] = [];
+  const meshesByVariant = new Map<string, THREE.Mesh[]>();
+  const placeholderMaterial = litMaterial({ color: 0x286b68 });
+
+  const gateCount = Math.floor(
+    countRange[0] + Math.random() * (countRange[1] - countRange[0] + 1),
+  );
+  const centers = scatterPoints(gateCount, minDistFromCenter, maxDistFromCenter, minSeparation, avoid);
+  // Both containers in a gate share one variant so the wall reads as one
+  // consistent structure, not two mismatched halves. Angular neighbors never
+  // share a color (2026-07-08 user request): `centers` comes out of
+  // scatterPoints in sector order, so the previous gate in the array is the
+  // angular neighbor — exclude its variant (and the first gate's, for the
+  // last one, since the ring wraps around).
+  const gates: { x: number; z: number; angleRad: number; gapHalf: number; variant: string }[] = [];
+  for (let i = 0; i < centers.length; i++) {
+    const c = centers[i]!;
+    gates.push({
+      x: c.x,
+      z: c.z,
+      angleRad: Math.random() * Math.PI * 2,
+      gapHalf,
+      variant: pickVariant(
+        variants,
+        gates[i - 1]?.variant,
+        i === centers.length - 1 ? gates[0]?.variant : undefined,
+      ),
+    });
+  }
+
+  for (const gate of gates) {
+    // The wall runs perpendicular to the corridor's facing direction; each
+    // container's long axis (model +Z) lies along the wall.
+    const perpX = -Math.sin(gate.angleRad);
+    const perpZ = Math.cos(gate.angleRad);
+    const wallYaw = Math.atan2(perpX, perpZ);
+    // Inner ends sit gapHalf from the corridor center line.
+    const centerDist = gate.gapHalf + length / 2;
+    for (const side of [1, -1]) {
+      const x = gate.x + perpX * centerDist * side;
+      const z = gate.z + perpZ * centerDist * side;
+      const yaw = wallYaw + side * 0.06;
+      const mesh = new THREE.Mesh(
+        new THREE.BoxGeometry(width, height, length),
+        placeholderMaterial,
+      );
+      mesh.position.set(x, height / 2, z);
+      mesh.rotation.y = yaw;
+      scene.add(mesh);
+      const list = meshesByVariant.get(gate.variant) ?? [];
+      list.push(mesh);
+      meshesByVariant.set(gate.variant, list);
+      // Capsule-approx collision: circles spaced along the long axis.
+      for (const offset of colliderOffsets) {
+        obstacles.push({
+          x: x + Math.sin(yaw) * offset,
+          z: z + Math.cos(yaw) * offset,
+          radius: colliderRadius,
+        });
+      }
     }
   }
-  return obstacles;
+
+  void upgradeVariantModels(meshesByVariant, placeholderMaterial);
+  return { obstacles, centers, meshes: [...meshesByVariant.values()].flat() };
+}
+
+/** Builds each variant's voxel geometry once and assigns it to every mesh
+ *  registered under that variant key — shared across container/barrel
+ *  variants (2026-07-06 user request: same model, a few different colors
+ *  so the map doesn't read as the same object copy-pasted everywhere). */
+async function upgradeVariantModels(
+  meshesByVariant: Map<string, THREE.Mesh[]>,
+  placeholderMaterial: THREE.Material,
+): Promise<void> {
+  await Promise.all(
+    [...meshesByVariant.entries()].map(async ([key, meshes]) => {
+      const def = VOXEL_MODELS[key];
+      if (!def) return;
+      try {
+        const grid = await buildModelGrid(key);
+        const geometry = buildGridGeometry(grid, def.voxelSize);
+        const voxelMaterial = litMaterial({ vertexColors: true });
+        for (const mesh of meshes) {
+          mesh.geometry.dispose();
+          mesh.geometry = geometry;
+          mesh.material = voxelMaterial;
+          mesh.position.y = 0;
+        }
+      } catch (error) {
+        console.warn(`Voxel model '${key}' unavailable, keeping primitive:`, error);
+      }
+    }),
+  );
+  placeholderMaterial.dispose();
+}
+
+/** Landmark scaffold towers: thin single-post placeholder up front (mostly
+ *  presence, not a real blocker — see-through by design), swapped async to
+ *  the voxel lattice model. */
+function buildScaffoldProps(scene: THREE.Scene): { obstacles: Obstacle[]; meshes: THREE.Object3D[] } {
+  const { width, height, widthScale, depthScale, colliderRadius, placements } = SCAFFOLD_PROP;
+  const obstacles: Obstacle[] = [];
+  const meshes: THREE.Mesh[] = [];
+  const placeholderMaterial = litMaterial({ color: 0x93463a });
+
+  for (const p of placements) {
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(width, height, width), placeholderMaterial);
+    mesh.position.set(p.x, height / 2, p.z);
+    mesh.rotation.y = p.rotationY;
+    mesh.scale.set(widthScale, 1, depthScale);
+    scene.add(mesh);
+    meshes.push(mesh);
+    obstacles.push({ x: p.x, z: p.z, radius: colliderRadius * Math.max(widthScale, depthScale) });
+  }
+
+  void upgradeScaffoldModels(meshes, placeholderMaterial);
+  return { obstacles, meshes };
+}
+
+async function upgradeScaffoldModels(
+  meshes: THREE.Mesh[],
+  placeholderMaterial: THREE.Material,
+): Promise<void> {
+  const def = VOXEL_MODELS['scaffold'];
+  if (!def) return;
+  try {
+    const grid = await buildModelGrid('scaffold');
+    const geometry = buildGridGeometry(grid, def.voxelSize);
+    const voxelMaterial = litMaterial({ vertexColors: true });
+    for (const mesh of meshes) {
+      mesh.geometry.dispose();
+      mesh.geometry = geometry;
+      mesh.material = voxelMaterial;
+      mesh.position.y = 0;
+      mesh.scale.set(SCAFFOLD_PROP.widthScale, 1, SCAFFOLD_PROP.depthScale);
+    }
+    placeholderMaterial.dispose();
+  } catch (error) {
+    console.warn('Scaffold voxel model unavailable, keeping primitive boxes:', error);
+  }
+}
+
+/** Industrial drums scattered around the map — small obstacles, count and
+ *  layout randomized per run (user request 2026-07-06), avoiding whatever's
+ *  in `avoid` (container gates, the boss totem). */
+function buildBarrelProps(
+  scene: THREE.Scene,
+  avoid: AvoidPoint[],
+): { obstacles: Obstacle[]; meshes: THREE.Object3D[] } {
+  const {
+    width,
+    height,
+    colliderRadius,
+    countRange,
+    minDistFromCenter,
+    maxDistFromCenter,
+    minSeparation,
+    variants,
+  } = BARREL_PROP;
+  const obstacles: Obstacle[] = [];
+  const meshesByVariant = new Map<string, THREE.Mesh[]>();
+  const placeholderMaterial = litMaterial({ color: 0x7c631b });
+
+  const barrelCount = Math.floor(
+    countRange[0] + Math.random() * (countRange[1] - countRange[0] + 1),
+  );
+  const points = scatterPoints(barrelCount, minDistFromCenter, maxDistFromCenter, minSeparation, avoid);
+
+  for (const p of points) {
+    const mesh = new THREE.Mesh(
+      new THREE.CylinderGeometry(width / 2, width / 2, height, 10),
+      placeholderMaterial,
+    );
+    mesh.position.set(p.x, height / 2, p.z);
+    mesh.rotation.y = Math.random() * Math.PI * 2;
+    scene.add(mesh);
+    const variant = variants[Math.floor(Math.random() * variants.length)] ?? variants[0];
+    const list = meshesByVariant.get(variant) ?? [];
+    list.push(mesh);
+    meshesByVariant.set(variant, list);
+    obstacles.push({ x: p.x, z: p.z, radius: colliderRadius });
+  }
+
+  void upgradeVariantModels(meshesByVariant, placeholderMaterial);
+  return { obstacles, meshes: [...meshesByVariant.values()].flat() };
 }
 
 export function createCamera(): THREE.PerspectiveCamera {

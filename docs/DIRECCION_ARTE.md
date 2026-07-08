@@ -46,12 +46,14 @@ Regla: cada mapa nuevo se ve MÁS "futuro" que el anterior — empezás en la f�
 4. **El ojo/visor siempre mira al frente (+Z del modelo).** Es lo que hace que el enjambre se sienta vivo: todos te miran.
 5. **Rendimiento primero**: cada tipo de enemigo = 1 `InstancedMesh` (geometría voxel fusionada con colores por vértice, tinte por instancia para el flash de daño). Presupuesto: 3-6 draw calls para todo el enjambre.
 
-## Pipeline de modelos voxel (CONGELADO 2026-07-04, validado con Voltling in-game)
+## Pipeline de modelos voxel (CONGELADO 2026-07-04, actualizado 2026-07-06: referencia de 3 vistas)
 
-El pipeline es **2D → 3D en dos pasos**. La calidad del modelo la decide la referencia 2D: una ilustración con perspectiva o sombreado se voxeliza en papilla; una vista frontal plana y contigua se voxeliza con fidelidad.
+El pipeline es **2D → 3D en dos pasos**. La calidad del modelo la decide la referencia 2D: una ilustración con perspectiva o sombreado se voxeliza en papilla; una vista plana y contigua se voxeliza con fidelidad.
 
-1. **Referencia 2D**: vista frontal ortográfica plana del personaje, generada con gpt-image (prompt maestro en `PROMPTS_IMAGENES.md` §6) → `assets/2d/ref-<nombre>-front.png`. Restricciones DURAS del prompt: silueta única contigua (cero piezas flotantes), simetría perfecta, cero perspectiva/sombreado/gradientes/outlines, formas grandes simples, paleta exacta en hex.
+1. **Referencia 2D — AHORA 3 VISTAS** (regla nueva 2026-07-06): frontal, lateral y trasera, todas ortográficas planas, generadas con gpt-image (prompt maestro en `PROMPTS_IMAGENES.md` §6) → `assets/2d/ref-<nombre>-front.png` / `-side.png` / `-back.png`. Motivo del cambio: con solo referencia frontal, la extrusión algorítmica ADIVINA la profundidad (perfil elíptico) — funciona bien para siluetas simples pero el boss final de prueba salió como una masa lisa de lado/atrás porque nunca hubo un dato real de esa profundidad. Restricciones DURAS del prompt (las 3 vistas): silueta única contigua (cero piezas flotantes), simetría perfecta, cero perspectiva/sombreado/gradientes/outlines, formas grandes simples, paleta exacta en hex. **Estado técnico actual (2026-07-06)**: `icon-voxelizer.ts` ya lee las 3 vistas programáticamente vía `voxelizeMultiView` (visual hull: frontal = silueta X/Y + cara frontal, lateral = silueta Z/Y real + caras laterales, trasera = cara trasera espejada), activado con `refSide`/`refBack` en el registry — estrenado con el prop contenedor. Los personajes existentes siguen en el camino original de una vista (`voxelizeIcon` con `depthFactor`/`segments`); migrar cada uno solo si su lateral real lo justifica.
 2. **Voxelización**: entrada en `src/models/registry.ts` (ref + paleta + `armorColors` — qué colores son casco vs detalle, clave en personajes bicolor como el jugador — + resolución + bandas de extrusión) → `src/models/icon-voxelizer.ts` la convierte automáticamente (cuantización a paleta → simetrizado → extrusión por segmentos con relieve: visor hundido, rejillas encajadas, vents de cresta orgullosos). `EnemySystem` intercambia la geometría de cualquier tipo cuyo nombre (kebab-case) tenga entrada en el registro — bosses incluidos; sin entrada, se quedan las primitivas.
+
+**Suelos/ambientes son un pipeline DISTINTO** (nuevo 2026-07-06, ver `PROMPTS_IMAGENES.md` §7b): no se voxelizan, se generan como textura 2D vista cenital (top-down estricta, sin personajes/props en la imagen) y se usan directamente como textura repetida en mosaico sobre el plano del suelo.
 
 Reglas de presupuesto y validación:
 

@@ -65,7 +65,21 @@ export interface IconVoxelizeOptions {
   raisedColors?: number[];
 }
 
-export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): Promise<VoxelGrid> {
+/** A reference image quantized to the palette, with its content bbox. */
+interface ClassifiedImage {
+  classified: Int32Array;
+  width: number;
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+}
+
+async function classifyImage(
+  url: string,
+  background: number[],
+  palette: number[],
+): Promise<ClassifiedImage> {
   const image = await loadImage(url);
   const canvas = document.createElement('canvas');
   canvas.width = image.naturalWidth;
@@ -76,8 +90,8 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
   const { data, width, height } = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
   const swatches = [
-    ...options.background.map((color) => ({ color, isBackground: true })),
-    ...options.palette.map((color) => ({ color, isBackground: false })),
+    ...background.map((color) => ({ color, isBackground: true })),
+    ...palette.map((color) => ({ color, isBackground: false })),
   ].map((entry) => ({ ...entry, rgb: splitRgb(entry.color) }));
 
   // Classify every pixel, tracking the content bounding box.
@@ -112,13 +126,16 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
     }
   }
   if (maxX < 0) throw new Error(`Image at ${url} has no foreground pixels after quantization`);
+  return { classified, width, minX, maxX, minY, maxY };
+}
 
-  // Downsample the bounding box to the voxel resolution by majority vote.
+/** Downsamples a classified image's content bbox to gridW × gridH by
+ *  majority vote per cell. */
+function downsampleMap(img: ClassifiedImage, gridW: number, gridH: number): FrontMap {
+  const { classified, width, minX, maxX, minY, maxY } = img;
   const bboxW = maxX - minX + 1;
   const bboxH = maxY - minY + 1;
-  const gridW = options.targetWidth;
-  const gridH = Math.max(1, Math.round((bboxH / bboxW) * gridW));
-  const front: FrontMap = [];
+  const map: FrontMap = [];
   for (let gy = 0; gy < gridH; gy++) {
     const row: (number | null)[] = [];
     for (let gx = 0; gx < gridW; gx++) {
@@ -128,8 +145,18 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
       const y1 = minY + Math.max(y0 - minY + 1, Math.floor(((gy + 1) / gridH) * bboxH));
       row.push(majorityColor(classified, width, x0, x1, y0, y1));
     }
-    front.push(row);
+    map.push(row);
   }
+  return map;
+}
+
+export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): Promise<VoxelGrid> {
+  const image = await classifyImage(url, options.background, options.palette);
+  const gridW = options.targetWidth;
+  const bboxW = image.maxX - image.minX + 1;
+  const bboxH = image.maxY - image.minY + 1;
+  const gridH = Math.max(1, Math.round((bboxH / bboxW) * gridW));
+  const front = downsampleMap(image, gridW, gridH);
 
   cleanupFront(front);
   symmetrizeFront(front);
@@ -273,6 +300,110 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
         const isFrontShell = dz >= frontDepth - 1;
         const isBackShell = options.mirrorBack === true && dz <= -halfDepth + 1;
         gridRow[gx] = isFrontShell || isBackShell ? color : sideColor;
+      }
+    }
+  }
+  return grid;
+}
+
+export interface MultiViewVoxelizeOptions {
+  /** Target voxel width of the FRONT view; height and depth follow the
+   *  images' aspect ratios. */
+  targetWidth: number;
+  background: number[];
+  palette: number[];
+}
+
+/**
+ * Builds a voxel model from three orthographic reference sheets — front,
+ * side (profile) and back — by visual-hull carving: a voxel exists where the
+ * front silhouette (x, y) AND the side silhouette (z, y) both have content.
+ * Each shell is painted from the view that actually shows it (front face
+ * from the front sheet, back face from the back sheet, everything between
+ * from the side sheet), so side detail is real data instead of the guessed
+ * elliptical falloff that voxelizeIcon uses for single-view characters.
+ *
+ * Sheet conventions: all three views share the same vertical extent (rows
+ * align by height fraction); the side view depicts the object's profile
+ * with the FRONT of the object at the RIGHT edge of the image.
+ *
+ * LIMITATION (found 2026-07-06, scaffold prop): this is a row-wise cross
+ * product of "any filled front column" × "any filled side column", which is
+ * only correct for objects that are genuinely SOLID through their depth (a
+ * container's doors flush against a filled box). For a HOLLOW object whose
+ * front/back and side faces each carry their OWN independent surface pattern
+ * (e.g. a lattice tower with an X-brace on each face and open air between),
+ * the cross product fills phantom combinations wherever both views happen to
+ * have ANY content in that row, producing a solid interior even though each
+ * sheet's own silhouette has real open gaps. For that shape family, use
+ * voxelizeIcon (single front view, shallow depthFactor + mirrorBack) instead
+ * — it only ever draws material directly behind an actual front pixel, so
+ * gaps in the front sheet stay genuinely empty all the way through.
+ */
+export async function voxelizeMultiView(
+  refs: { front: string; side: string; back?: string },
+  options: MultiViewVoxelizeOptions,
+): Promise<VoxelGrid> {
+  const [frontImg, sideImg, backImg] = await Promise.all([
+    classifyImage(refs.front, options.background, options.palette),
+    classifyImage(refs.side, options.background, options.palette),
+    refs.back
+      ? classifyImage(refs.back, options.background, options.palette)
+      : Promise.resolve(null),
+  ]);
+
+  const gridW = options.targetWidth;
+  const frontBboxW = frontImg.maxX - frontImg.minX + 1;
+  const frontBboxH = frontImg.maxY - frontImg.minY + 1;
+  const gridH = Math.max(1, Math.round((frontBboxH / frontBboxW) * gridW));
+  // Depth comes from the side view's aspect against the SHARED height.
+  const sideBboxW = sideImg.maxX - sideImg.minX + 1;
+  const sideBboxH = sideImg.maxY - sideImg.minY + 1;
+  const gridD = Math.max(2, Math.round((sideBboxW / sideBboxH) * gridH));
+
+  const front = downsampleMap(frontImg, gridW, gridH);
+  const side = downsampleMap(sideImg, gridD, gridH);
+  const back = backImg ? downsampleMap(backImg, gridW, gridH) : null;
+
+  cleanupFront(front);
+  symmetrizeFront(front);
+  cleanupFront(side);
+  if (back) {
+    cleanupFront(back);
+    symmetrizeFront(back);
+  }
+
+  const grid = emptyGrid(gridW, gridH, gridD);
+  for (let gy = 0; gy < gridH; gy++) {
+    const frontRow = front[gy];
+    const sideRow = side[gy];
+    if (!frontRow || !sideRow) continue;
+    // The filled depth run of this row is read straight off the side sheet.
+    let zMin = -1;
+    let zMax = -1;
+    for (let gz = 0; gz < gridD; gz++) {
+      if (sideRow[gz] != null) {
+        if (zMin === -1) zMin = gz;
+        zMax = gz;
+      }
+    }
+    if (zMin === -1) continue;
+    const vy = gridH - 1 - gy; // grid y is up; image y is down
+    for (let gx = 0; gx < gridW; gx++) {
+      const frontColor = frontRow[gx];
+      if (frontColor == null) continue;
+      for (let gz = zMin; gz <= zMax; gz++) {
+        const sideColor = sideRow[gz];
+        if (sideColor == null) continue; // side-sheet gaps carve through
+        // Paint each voxel from the sheet that shows it: the mid-depth run
+        // only ever exposes side/top/bottom faces, so it wears the side
+        // sheet's colors (corrugation ridges, hazard stripes). The back
+        // sheet is horizontally mirrored — it is drawn looking at the back.
+        let color = sideColor;
+        if (gz === zMax) color = frontColor;
+        else if (gz === zMin) color = back?.[gy]?.[gridW - 1 - gx] ?? frontColor;
+        const gridRow = grid[vy]?.[gz];
+        if (gridRow) gridRow[gx] = color;
       }
     }
   }

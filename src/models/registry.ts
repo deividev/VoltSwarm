@@ -1,4 +1,4 @@
-import { voxelizeIcon } from './icon-voxelizer';
+import { voxelizeIcon, voxelizeMultiView } from './icon-voxelizer';
 import type { VoxelGrid } from './voxel-builder';
 
 /**
@@ -13,9 +13,18 @@ import type { VoxelGrid } from './voxel-builder';
  */
 
 export interface VoxelModelDef {
-  kind: 'enemy' | 'boss' | 'player';
+  kind: 'enemy' | 'boss' | 'player' | 'prop';
   /** Flat front-view reference sheet URL (served from assets/2d/). */
   ref: string;
+  /**
+   * Side (profile) and back reference sheets. When refSide is present the
+   * model is built by 3-view hull carving (voxelizeMultiView) — real depth
+   * and side/back detail from the sheets — instead of front-view extrusion
+   * with a guessed depth profile. Extrusion-only options below (segments,
+   * depthFactor, frontOnly, ...) are ignored on that path.
+   */
+  refSide?: string;
+  refBack?: string;
   /** Voxel columns across. Enemies stay low (swarm triangle budget). */
   targetWidth: number;
   /** World size of one voxel — controls the final model footprint. */
@@ -47,6 +56,19 @@ export interface VoxelModelDef {
   raisedColors?: number[];
   /** Overrides the per-kind hero scale in the preview viewer. */
   previewScale?: number;
+  /**
+   * Post-classification color swap: `{sourceHex: targetHex}`, applied to the
+   * finished grid AFTER classification/extrusion. This is how color variants
+   * (2026-07-06) are built — swapping the PALETTE itself before classifying
+   * does NOT reliably recolor, because the classifier picks the nearest
+   * color to the REFERENCE IMAGE's actual (unchanged) pixels; an unrelated
+   * new hue often loses to an existing palette entry it wasn't meant to
+   * compete with (a container recolored teal→orange collapsed almost
+   * entirely to the frame gray, since orange was numerically farther from
+   * the teal pixels than gray was). Recoloring the OUTPUT instead keeps
+   * classification identical to the base model and only changes render color.
+   */
+  recolorMap?: Record<number, number>;
 }
 
 export const YELLOW = 0xffb400;
@@ -63,6 +85,60 @@ export const GREEN = 0x7dd94a;
 export const MUZZLE_RED = 0xff5533;
 export const PINK = 0xff9de2;
 export const GOLD = 0xf2b632;
+// Container teal ramp — MEASURED from prop-container-*-v3.png (not guessed):
+// the reference doors span a wide luminance range and a single teal made the
+// shadowed recesses snap to the blue-gray frame (read as "too dark/blue").
+// A 3-step teal ramp keeps green shadows green. Frame gray is the real
+// measured 0x373d43 (lighter than DARK); DARK stays for the deepest seams.
+export const TEAL_LIGHT = 0x347976;
+export const TEAL = 0x286b68;
+export const TEAL_DARK = 0x174946;
+export const CONTAINER_FRAME = 0x373d43;
+// Scaffold steel ramp — RETINTED TWICE 2026-07-06 (user playtest feedback).
+// 1st: measured blue-gray steel (0x667799/0x465778/0x343c56) blended into
+// the factory floor's own cool blue-gray palette. Shifted warm bronze/
+// mustard — fixed the contrast, but user then asked for reddish instead of
+// mustard. 2nd (current): muted oxide-red painted steel (deliberately duller
+// than the saturated enemy reds SIGNAL_RED/MUZZLE_RED — props must stay
+// under enemy saturation per DIRECCION_ARTE). Same 3-step ramp shape each
+// time (only final render color changes, classification buckets unaffected).
+// Rivets stay CYAN — already popped fine against both body colors.
+export const STEEL_LIGHT = 0xc06a52;
+export const STEEL = 0x93463a;
+export const STEEL_DARK = 0x5e2a24;
+export const SCAFFOLD_JOINT = 0x2a1512;
+export const RIVET = CYAN;
+// Barrel mustard ramp — MEASURED from prop-barrel-front-v1.png. Reuses the
+// established prop mustard family (docs/PROMPTS_IMAGENES.md §7 mustard/
+// teal/mauve trio) rather than colliding with the container's teal or any
+// enemy color. Label tone is a warm tan, distinct enough from BONE to need
+// its own constant (measured, not reused, to stay faithful to the ref).
+export const BARREL_LIGHT = 0x957a2a;
+export const BARREL = 0x7c631b;
+export const BARREL_DARK = 0x58450c;
+export const BARREL_LABEL = 0xd7c49c;
+// Color variants (2026-07-06, user request): same 3D model, different
+// palette, so a run doesn't look like the same 6 objects copy-pasted.
+// Container orange keeps the SAME ramp shape (3 luminance steps) as the
+// measured teal, just hue-shifted — same technique as the scaffold retint.
+export const CONTAINER_ORANGE_LIGHT = 0xd97a3a;
+export const CONTAINER_ORANGE = 0xb5602c;
+export const CONTAINER_ORANGE_DARK = 0x7a3f1d;
+// Container mauve (2026-07-08): third variant, completing the established
+// mustard/teal/mauve prop trio (PROMPTS_IMAGENES §7). Muted painted-steel
+// mauve, deliberately far below enemy PURPLE saturation. Each step is
+// luminance-matched to the measured teal ramp (~100/87/58 luma) so shading
+// depth reads identically across all three container colors.
+export const CONTAINER_MAUVE_LIGHT = 0x7d5674;
+export const CONTAINER_MAUVE = 0x6b4a63;
+export const CONTAINER_MAUVE_DARK = 0x4a3145;
+// Barrel black/white ramps, same 3-step shape as the mustard original.
+export const BARREL_BLACK_LIGHT = 0x4a4d52;
+export const BARREL_BLACK = 0x33353a;
+export const BARREL_BLACK_DARK = 0x1c1e21;
+export const BARREL_WHITE_LIGHT = 0xe8e4da;
+export const BARREL_WHITE = 0xc9c4b6;
+export const BARREL_WHITE_DARK = 0x8f8a7c;
 
 /** Background swatches shared by every reference sheet. */
 const BACKGROUND = [0x10141d, 0x151a22, 0x000000];
@@ -280,6 +356,159 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
     raisedTopFraction: 0.12,
     previewScale: 1.5,
   },
+  // Map 1 tactical prop (approved refs 2026-07-06, see PROMPTS_IMAGENES §7):
+  // static chokepoint obstacle, not tied to any enemy/boss type name — world.ts
+  // places multiple instances of this one model directly by key 'container'.
+  // First model built from ALL 3 reference views (front/side/back hull
+  // carving): the elongated body and side corrugation come from the side
+  // sheet, not from a guessed depth profile.
+  container: {
+    kind: 'prop',
+    ref: '/assets/2d/prop-container-front-v3.png',
+    refSide: '/assets/2d/prop-container-side-v3.png',
+    refBack: '/assets/2d/prop-container-back-v3.png',
+    targetWidth: 26,
+    voxelSize: 0.12,
+    bodyColor: TEAL,
+    // 3-step teal ramp + measured frame gray + deep-seam dark + stripe bone.
+    // More entries = the quantizer keeps shadowed teal in the green family
+    // instead of collapsing it to the blue-gray frame.
+    palette: [TEAL_LIGHT, TEAL, TEAL_DARK, CONTAINER_FRAME, DARK, BONE],
+    frontOnly: [],
+    previewScale: 0.55,
+  },
+  // Color variant of `container` (2026-07-06) — identical geometry/refs,
+  // orange ramp instead of teal so the map doesn't read as one repeated
+  // object; world.ts picks a variant at random per gate.
+  'container-orange': {
+    kind: 'prop',
+    ref: '/assets/2d/prop-container-front-v3.png',
+    refSide: '/assets/2d/prop-container-side-v3.png',
+    refBack: '/assets/2d/prop-container-back-v3.png',
+    targetWidth: 26,
+    voxelSize: 0.12,
+    bodyColor: TEAL,
+    // Classify with the SAME teal palette as `container` (the reference
+    // image IS teal; recoloring the palette itself instead of the output
+    // fails, see recolorMap doc) — recolorMap swaps the render color after.
+    palette: [TEAL_LIGHT, TEAL, TEAL_DARK, CONTAINER_FRAME, DARK, BONE],
+    frontOnly: [],
+    recolorMap: {
+      [TEAL_LIGHT]: CONTAINER_ORANGE_LIGHT,
+      [TEAL]: CONTAINER_ORANGE,
+      [TEAL_DARK]: CONTAINER_ORANGE_DARK,
+    },
+    previewScale: 0.55,
+  },
+  // Third container variant (2026-07-08): mauve ramp, same recolor-the-output
+  // technique as `container-orange` (see recolorMap doc above).
+  'container-mauve': {
+    kind: 'prop',
+    ref: '/assets/2d/prop-container-front-v3.png',
+    refSide: '/assets/2d/prop-container-side-v3.png',
+    refBack: '/assets/2d/prop-container-back-v3.png',
+    targetWidth: 26,
+    voxelSize: 0.12,
+    bodyColor: TEAL,
+    palette: [TEAL_LIGHT, TEAL, TEAL_DARK, CONTAINER_FRAME, DARK, BONE],
+    frontOnly: [],
+    recolorMap: {
+      [TEAL_LIGHT]: CONTAINER_MAUVE_LIGHT,
+      [TEAL]: CONTAINER_MAUVE,
+      [TEAL_DARK]: CONTAINER_MAUVE_DARK,
+    },
+    previewScale: 0.55,
+  },
+  // Second 3-view multi-view prop (2026-07-06): tall thin steel scaffold
+  // tower, chosen deliberately as a contrast to the container — see-through
+  // X-braced lattice instead of a solid wall, so the swarm stays visible
+  // through it (docs/PROMPTS_IMAGENES.md §7). Back is byte-identical to
+  // front by construction (the object is front-to-back symmetric).
+  // Single-view extrusion, NOT multi-view (see icon-voxelizer.ts LIMITATION
+  // note): the front/side visual-hull cross product filled the X-brace's
+  // real open gaps with phantom solid combinations, since a lattice's faces
+  // are independent hollow patterns, not a solid volume like the container.
+  // A shallow single-view extrusion only ever draws material behind an
+  // actual front pixel, so the diamond gaps stay genuinely open. mirrorBack
+  // paints the identical pattern on the back shell (front=back by design).
+  scaffold: {
+    kind: 'prop',
+    ref: '/assets/2d/prop-scaffold-front-v1.png',
+    targetWidth: 34,
+    voxelSize: 0.042,
+    bodyColor: STEEL,
+    palette: [STEEL_LIGHT, STEEL, STEEL_DARK, SCAFFOLD_JOINT, RIVET],
+    frontOnly: [],
+    armorColors: [STEEL, STEEL_LIGHT, STEEL_DARK],
+    depthFactor: 0.16,
+    mirrorBack: true,
+    raisedTopFraction: 0,
+    previewScale: 0.7,
+  },
+  // Small decorative prop (2026-07-06, no collision — docs/PROMPTS_IMAGENES
+  // §7 "variantes menores"): a solid rounded drum, unlike the scaffold's
+  // lattice, so the default single-view column-cylinder extrusion (no
+  // sphericalDepth, no mirrorBack) gives it the right round silhouette; the
+  // hazard label is a detail color, automatically front-face-only via the
+  // existing interior-detail backfill (armorColors covers only the 3 body
+  // tones, so the label never wraps around the sides).
+  barrel: {
+    kind: 'prop',
+    ref: '/assets/2d/prop-barrel-front-v1.png',
+    targetWidth: 22,
+    // Bigger + collision (2026-07-06 user request): world footprint now
+    // matches config.BARREL_PROP (~1.3m wide) instead of the original
+    // decorative-only ~0.77m.
+    voxelSize: 0.059,
+    bodyColor: BARREL,
+    palette: [BARREL_LIGHT, BARREL, BARREL_DARK, DARK, BARREL_LABEL],
+    frontOnly: [],
+    armorColors: [BARREL_LIGHT, BARREL, BARREL_DARK],
+    depthFactor: 0.48,
+    raisedTopFraction: 0,
+    previewScale: 1.6,
+  },
+  // Color variants of `barrel` (2026-07-06) — identical geometry/ref, same
+  // 3-step ramp shape, different hue; world.ts picks one at random per drum.
+  'barrel-black': {
+    kind: 'prop',
+    ref: '/assets/2d/prop-barrel-front-v1.png',
+    targetWidth: 22,
+    voxelSize: 0.059,
+    bodyColor: BARREL,
+    // Classify with the SAME mustard palette as `barrel` (the reference IS
+    // mustard; see recolorMap doc for why palette-swap-before-classify
+    // fails) — recolorMap swaps the render color after classification.
+    palette: [BARREL_LIGHT, BARREL, BARREL_DARK, DARK, BARREL_LABEL],
+    frontOnly: [],
+    armorColors: [BARREL_LIGHT, BARREL, BARREL_DARK],
+    depthFactor: 0.48,
+    raisedTopFraction: 0,
+    recolorMap: {
+      [BARREL_LIGHT]: BARREL_BLACK_LIGHT,
+      [BARREL]: BARREL_BLACK,
+      [BARREL_DARK]: BARREL_BLACK_DARK,
+    },
+    previewScale: 1.6,
+  },
+  'barrel-white': {
+    kind: 'prop',
+    ref: '/assets/2d/prop-barrel-front-v1.png',
+    targetWidth: 22,
+    voxelSize: 0.059,
+    bodyColor: BARREL,
+    palette: [BARREL_LIGHT, BARREL, BARREL_DARK, DARK, BARREL_LABEL],
+    frontOnly: [],
+    armorColors: [BARREL_LIGHT, BARREL, BARREL_DARK],
+    depthFactor: 0.48,
+    raisedTopFraction: 0,
+    recolorMap: {
+      [BARREL_LIGHT]: BARREL_WHITE_LIGHT,
+      [BARREL]: BARREL_WHITE,
+      [BARREL_DARK]: BARREL_WHITE_DARK,
+    },
+    previewScale: 1.6,
+  },
 };
 
 /** Enemy type name (config.ts) → registry key. */
@@ -290,18 +519,38 @@ export function modelKeyForTypeName(name: string): string {
 export async function buildModelGrid(key: string): Promise<VoxelGrid> {
   const def = VOXEL_MODELS[key];
   if (!def) throw new Error(`No voxel model registered as '${key}'`);
-  return voxelizeIcon(def.ref, {
-    targetWidth: def.targetWidth,
-    depthFactor: def.depthFactor,
-    raisedTopFraction: def.raisedTopFraction,
-    segments: def.segments,
-    background: BACKGROUND,
-    palette: def.palette,
-    frontOnly: def.frontOnly,
-    armorColors: def.armorColors,
-    mirrorBack: def.mirrorBack,
-    sphericalDepth: def.sphericalDepth,
-    raisedColors: def.raisedColors,
-    bodyColor: def.bodyColor,
-  });
+  const grid = def.refSide
+    ? await voxelizeMultiView(
+        { front: def.ref, side: def.refSide, back: def.refBack },
+        { targetWidth: def.targetWidth, background: BACKGROUND, palette: def.palette },
+      )
+    : await voxelizeIcon(def.ref, {
+        targetWidth: def.targetWidth,
+        depthFactor: def.depthFactor,
+        raisedTopFraction: def.raisedTopFraction,
+        segments: def.segments,
+        background: BACKGROUND,
+        palette: def.palette,
+        frontOnly: def.frontOnly,
+        armorColors: def.armorColors,
+        mirrorBack: def.mirrorBack,
+        sphericalDepth: def.sphericalDepth,
+        raisedColors: def.raisedColors,
+        bodyColor: def.bodyColor,
+      });
+  if (def.recolorMap) recolorGrid(grid, def.recolorMap);
+  return grid;
+}
+
+/** Applies a post-classification color swap in place (see `recolorMap` on
+ *  VoxelModelDef for why this happens after classification, not before). */
+function recolorGrid(grid: VoxelGrid, recolorMap: Record<number, number>): void {
+  for (const slice of grid) {
+    for (const row of slice) {
+      for (let x = 0; x < row.length; x++) {
+        const color = row[x];
+        if (color != null && color in recolorMap) row[x] = recolorMap[color] ?? color;
+      }
+    }
+  }
 }

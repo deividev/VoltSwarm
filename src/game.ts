@@ -28,7 +28,17 @@ import { DamageNumbers } from './damage-numbers';
 import { BossSystem } from './boss';
 import { VoxelBurst } from './particles';
 import { Hud } from './hud';
-import { createRenderer, createScene, createCamera, updateCamera, type Obstacle } from './world';
+import {
+  createRenderer,
+  createScene,
+  createCamera,
+  updateCamera,
+  placeRandomProps,
+  clearProps,
+  findClearSpot,
+  type Obstacle,
+} from './world';
+import { CONTAINER_PROP } from './config';
 import { applyWindowSettings, loadSettings, saveSettings, type GameSettings } from './settings';
 
 type GameState = 'menu' | 'playing' | 'paused' | 'levelup' | 'chest' | 'ended';
@@ -40,6 +50,10 @@ export class Game {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly clock = new THREE.Clock();
   private readonly obstacles: Obstacle[];
+  /** Meshes from the last placeRandomProps() call, so startRun() can clear
+   *  them before generating a fresh layout (user request 2026-07-06: a
+   *  different container/barrel layout every playthrough). */
+  private propMeshes: THREE.Object3D[];
 
   private readonly input = new KeyboardInput();
   private readonly player: Player;
@@ -81,6 +95,7 @@ export class Game {
     const world = createScene();
     this.scene = world.scene;
     this.obstacles = world.obstacles;
+    this.propMeshes = world.propMeshes;
     this.camera = createCamera();
     if (VISUAL.bloom.enabled || VISUAL.vignette.enabled) {
       this.composer = new EffectComposer(this.renderer);
@@ -169,7 +184,10 @@ export class Game {
     this.stats = defaultStats();
     this.weaponLevels = emptyWeaponLevels();
     this.weaponLevels[startingWeapon] = 1;
+    // Totem first: container/barrel placement below reads its position so
+    // the layout never walls it off (user request 2026-07-06).
     this.boss.startRun();
+    this.regenerateProps();
     this.elapsedS = 0;
     this.frenzyS = 0;
     this.hasteS = 0;
@@ -274,6 +292,22 @@ export class Game {
     this.damageNumbers.reset();
     this.boss.reset();
     this.burst.reset();
+  }
+
+  /** Clears the previous container/barrel layout and rolls a fresh one,
+   *  avoiding the boss totem (must be placed via boss.startRun() first) —
+   *  user request 2026-07-06: different count/position every playthrough,
+   *  not just every app launch. */
+  private regenerateProps(): void {
+    clearProps(this.scene, this.propMeshes);
+    const totem = this.boss.totemTarget();
+    const avoid = totem
+      ? [{ x: totem.x, z: totem.z, radius: CONTAINER_PROP.totemClearance }]
+      : [];
+    const props = placeRandomProps(this.scene, avoid);
+    this.obstacles.length = 0;
+    this.obstacles.push(...props.obstacles);
+    this.propMeshes = props.meshes;
   }
 
   private update(dt: number): void {
@@ -505,7 +539,8 @@ export class Game {
     );
     this.orbs.spawn(death.x, death.z, death.xp);
     if (death.elite) {
-      this.pickups.spawnAt(death.x, death.z);
+      const spot = findClearSpot(death.x, death.z, this.obstacles, BOSS.chestClearMargin);
+      this.pickups.spawnAt(spot.x, spot.z);
       this.hud.toast('Elite down! It dropped a crate.');
     }
     if (this.boss.isBossType(death.typeIndex)) {
@@ -516,7 +551,17 @@ export class Game {
       this.shakeAmp = Math.max(this.shakeAmp, VISUAL.screenShake.bossKillAmp);
       for (let i = 0; i < BOSS.chestsOnKill; i++) {
         const a = (i / BOSS.chestsOnKill) * Math.PI * 2;
-        this.pickups.spawnAt(death.x + Math.cos(a) * 3, death.z + Math.sin(a) * 3);
+        // Chests spawn wherever the boss happened to die — unlike
+        // containers/barrels/the totem, that position can't be known ahead
+        // of time, so nudge each chest clear of anything it lands inside of
+        // instead (user request 2026-07-06).
+        const spot = findClearSpot(
+          death.x + Math.cos(a) * 3,
+          death.z + Math.sin(a) * 3,
+          this.obstacles,
+          BOSS.chestClearMargin,
+        );
+        this.pickups.spawnAt(spot.x, spot.z);
       }
       this.boss.onBossDefeated();
     }
