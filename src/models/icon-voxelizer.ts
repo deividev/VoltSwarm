@@ -58,11 +58,36 @@ export interface IconVoxelizeOptions {
    */
   sphericalDepth?: boolean;
   /**
+   * Gradual vertical dome (0..1): tapers depth toward the model's top and
+   * bottom rows so side/back views read ROUNDED instead of slab-sided —
+   * the "square from behind" complaint (2026-07-09). 0/absent keeps the
+   * legacy column-cylinder (approved models unchanged); 1 equals the full
+   * sphericalDepth falloff. The 0.15 roundness floor below still guarantees
+   * thin rows never collapse to paper.
+   */
+  verticalRoundness?: number;
+  /**
    * Colors that protrude from the armor instead of sinking in — muzzle
    * rings, raised plates. A frontal drawing can't express depth; this is
    * how "this part pokes out" is annotated.
    */
   raisedColors?: number[];
+  /**
+   * FLAT side-profile sheet (object's front at the image's RIGHT edge, same
+   * vertical extent as the front sheet). When given, each row's depth is
+   * MEASURED from the sheet's real filled span instead of the parametric
+   * segment/dome guess — hunches, backpacks and hoods come from data
+   * (2026-07-09). Columns still fall off toward the silhouette edges (1−t²)
+   * so bodies stay rounded left-to-right. Unlike voxelizeMultiView this only
+   * MODULATES the front extrusion, so it cannot phantom-fill hollow shapes.
+   */
+  sideProfileRef?: string;
+  /**
+   * FLAT back sheet (same vertical extent as the front). When given, the
+   * back shell is painted from it (mirrored) instead of armor backfill —
+   * the back view becomes real reference detail (2026-07-09).
+   */
+  backPaintRef?: string;
 }
 
 /** A reference image quantized to the palette, with its content bbox. */
@@ -193,7 +218,36 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
     segment.halfW = Math.max(1, (segMaxX - segMinX + 1) / 2);
     segment.maxHalfDepth = Math.max(2, Math.round(segment.halfW * 2 * segment.depthFactor));
   }
-  const deepest = Math.max(...segments.map((s) => s.maxHalfDepth));
+
+  // Side-profile sheet: per-row half-depth measured from the real profile.
+  // Rows align by height fraction; the depth scale follows from cubic voxels
+  // (side sheet width px → voxels at the same px-per-voxel as its height).
+  let rowHalfDepth: number[] | null = null;
+  if (options.sideProfileRef) {
+    const side = await classifyImage(options.sideProfileRef, options.background, options.palette);
+    const sideBboxW = side.maxX - side.minX + 1;
+    const sideBboxH = side.maxY - side.minY + 1;
+    const sideGridW = Math.max(2, Math.round((sideBboxW / sideBboxH) * gridH));
+    const sideMap = downsampleMap(side, sideGridW, gridH);
+    rowHalfDepth = sideMap.map((row) => {
+      let filled = 0;
+      for (const cell of row) if (cell != null) filled++;
+      return Math.max(2, Math.round(filled / 2));
+    });
+  }
+
+  // Back sheet: colors for the back shell, mirrored (a back view shows the
+  // object's left on the image's right).
+  let backMap: FrontMap | null = null;
+  if (options.backPaintRef) {
+    const back = await classifyImage(options.backPaintRef, options.background, options.palette);
+    backMap = downsampleMap(back, gridW, gridH);
+  }
+
+  const deepest = Math.max(
+    ...segments.map((s) => s.maxHalfDepth),
+    ...(rowHalfDepth ?? [0]),
+  );
   // Extra front slots for raised details (crest vents, muzzle rings).
   const gridD = deepest * 2 + 3;
   const grid = emptyGrid(gridW, gridH, gridD);
@@ -225,15 +279,18 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
       if (color == null) continue;
       const t = Math.min(1, Math.abs(gx - segment.cx) / segment.halfW);
       let roundness = 1 - t * t;
-      if (options.sphericalDepth) {
-        const ny = Math.min(1, Math.abs(gy - (gridH - 1) / 2) / (gridH / 2));
-        roundness -= ny * ny;
+      // With a measured side profile the vertical shape IS the data — the
+      // parametric dome only applies on the legacy path.
+      if (!rowHalfDepth) {
+        const verticalDome = options.sphericalDepth ? 1 : (options.verticalRoundness ?? 0);
+        if (verticalDome > 0) {
+          const ny = Math.min(1, Math.abs(gy - (gridH - 1) / 2) / (gridH / 2));
+          roundness -= ny * ny * verticalDome;
+        }
       }
-      const rawDepth = segment.maxHalfDepth * Math.sqrt(Math.max(0.15, roundness));
-      const halfDepth = Math.min(
-        segment.maxHalfDepth,
-        Math.max(2, Math.round(rawDepth / 2) * 2),
-      );
+      const rowMaxHalf = rowHalfDepth?.[gy] ?? segment.maxHalfDepth;
+      const rawDepth = rowMaxHalf * Math.sqrt(Math.max(0.15, roundness));
+      const halfDepth = Math.min(rowMaxHalf, Math.max(2, Math.round(rawDepth / 2) * 2));
 
       // Face relief: visor glass and dark grilles sink into the armor so the
       // armor brow/jaw overhangs read like the icon; dark details on the
@@ -282,7 +339,7 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
       else if (isInteriorDetail) inset = isCrestRow ? -1 : 1;
       const frontDepth = Math.max(
         -halfDepth + 1,
-        Math.min(segment.maxHalfDepth + 2, halfDepth - inset),
+        Math.min(rowMaxHalf + 2, halfDepth - inset),
       );
 
       // Interior details (visor, grilles, vents) are surface features: the
@@ -292,14 +349,19 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
       // the depth.
       const backfills = frontOnly.has(color) || isInteriorDetail;
       const sideColor = backfills ? (nearestArmor(row, gx) ?? options.bodyColor) : color;
+      // Back-sheet paint for this column (mirrored horizontally).
+      const backPaint = backMap ? (backMap[gy]?.[gridW - 1 - gx] ?? null) : null;
       // Grid y is up; image y is down.
       const vy = gridH - 1 - gy;
       for (let dz = -halfDepth; dz <= frontDepth; dz++) {
         const gridRow = grid[vy]?.[deepest + dz];
         if (!gridRow) continue;
         const isFrontShell = dz >= frontDepth - 1;
-        const isBackShell = options.mirrorBack === true && dz <= -halfDepth + 1;
-        gridRow[gx] = isFrontShell || isBackShell ? color : sideColor;
+        const isBackShell = dz <= -halfDepth + 1;
+        if (isFrontShell) gridRow[gx] = color;
+        else if (isBackShell && backPaint != null) gridRow[gx] = backPaint;
+        else if (isBackShell && options.mirrorBack === true) gridRow[gx] = color;
+        else gridRow[gx] = sideColor;
       }
     }
   }

@@ -29,18 +29,48 @@ function settingsFile(): string {
   return path.join(app.getPath('userData'), 'settings.json');
 }
 
+function initialWindowSettings(): { fullscreen: boolean; width: number; height: number } {
+  try {
+    const settings = JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) as {
+      displayMode?: string;
+      resolution?: string;
+    };
+    const match = /^(\d+)x(\d+)$/.exec(settings.resolution ?? '');
+    return {
+      fullscreen: settings.displayMode === 'fullscreen',
+      width: match ? Number(match[1]) : 1280,
+      height: match ? Number(match[2]) : 720,
+    };
+  } catch {
+    return { fullscreen: false, width: 1280, height: 720 };
+  }
+}
+
 /** Applies the window mode + resolution to the native window. */
 function applyWindowMode(mode: string, width: number, height: number): void {
   if (!mainWindow) return;
+  const safeWidth = Number.isFinite(width) && width > 0 ? Math.round(width) : 1280;
+  const safeHeight = Number.isFinite(height) && height > 0 ? Math.round(height) : 720;
   if (mode === 'fullscreen') {
     mainWindow.setFullScreen(true);
     return;
   }
-  mainWindow.setFullScreen(false);
-  mainWindow.setResizable(true);
-  if (width > 0 && height > 0) {
-    mainWindow.setSize(width, height);
+
+  const resizeWindow = (): void => {
+    if (!mainWindow) return;
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    mainWindow.setResizable(true);
+    // Resolution means gameplay viewport, not outer OS frame. setSize() sizes
+    // the whole window, so the canvas ends up smaller by the titlebar/borders.
+    mainWindow.setContentSize(safeWidth, safeHeight);
     mainWindow.center();
+  };
+
+  if (mainWindow.isFullScreen()) {
+    mainWindow.once('leave-full-screen', resizeWindow);
+    mainWindow.setFullScreen(false);
+  } else {
+    resizeWindow();
   }
   // 'borderless' vs 'windowed' frame can only be chosen at creation time in
   // Electron; it is applied on next launch from the persisted setting.
@@ -50,11 +80,14 @@ function createWindow(): void {
   // Production hardening: no default Electron menu (its Reload accelerator
   // would silently wipe a run) and no devtools in packaged builds.
   Menu.setApplicationMenu(null);
+  const initial = initialWindowSettings();
 
   mainWindow = new BrowserWindow({
     title: APP_TITLE,
-    width: 1280,
-    height: 720,
+    width: initial.width,
+    height: initial.height,
+    fullscreen: initial.fullscreen,
+    useContentSize: true,
     backgroundColor: '#0b0d12',
     show: false,
     autoHideMenuBar: true,

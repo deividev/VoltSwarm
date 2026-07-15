@@ -160,12 +160,235 @@
   pointer-events: auto;
   min-width: 0;
 }
+/* Settings layout: full menu-view screen (key-art backdrop, no game behind),
+ * title pinned high, section sidebar at the far LEFT edge, wide centered
+ * content, horizontal footer (Back left · Apply right). */
+#settings-overlay {
+  justify-content: flex-start;
+  padding-top: 5vh;
+  gap: 26px;
+}
+#settings-overlay h1 {
+  margin: 0;
+}
+#settings-panel {
+  pointer-events: auto;
+  position: relative;
+  width: 100%;
+}
+/* Shared frame chrome for the settings blocks: the same panel language as
+ * chest/shop/unlocks (dark plate, 2px border, 8px pixel notches) so nothing
+ * floats bare over the key-art backdrop. */
+#settings-sidebar,
+#settings-frame {
+  background: rgba(12, 16, 22, 0.96);
+  border: 2px solid #2b3340;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.05), inset 0 -3px 0 rgba(0, 0, 0, 0.5);
+  clip-path: polygon(
+    0 8px, 8px 8px, 8px 0,
+    calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px,
+    100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%,
+    8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px)
+  );
+}
+/* Sidebar top-aligned with the content frame (both start at the panel's
+ * top edge), pinned to the screen's left. */
+#settings-sidebar {
+  position: absolute;
+  left: 28px;
+  top: 0;
+  width: 190px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+#settings-frame {
+  width: min(880px, calc(100vw - 460px));
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 22px;
+}
+#settings-sidebar .settings-tab {
+  width: 100%;
+  opacity: 0.55;
+}
+#settings-sidebar .settings-tab.active {
+  opacity: 1;
+  border-color: #7ee0ff;
+  color: #7ee0ff;
+}
+#settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 300px;
+  width: 100%;
+}
+#settings-page-general,
+#settings-page-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+#settings-page-general.hidden,
+#settings-page-controls.hidden {
+  display: none;
+}
+#settings-content .settings-row {
+  width: 100%;
+}
+#settings-footer {
+  pointer-events: auto;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+/* Over menu views (key-art backdrop) every framed panel goes near-opaque —
+ * the busy art must never bleed through text (user rule 2026-07-13). */
+.menu-view .overlay-panel {
+  background: rgba(12, 16, 22, 0.96);
+}
+#settings-footer #settings-reset-bindings.hidden {
+  display: none;
+}
+.binding-row {
+  grid-template-columns: 160px 1fr;
+}
+.binding-button {
+  font-size: 9px;
+  padding: 8px 6px;
+  min-width: 0;
+  justify-self: end;
+  width: 220px;
+}
+.binding-button.capturing {
+  border-color: #f2b632;
+  color: #f2b632;
+  animation: binding-pulse 0.8s ease-in-out infinite alternate;
+}
+@keyframes binding-pulse {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+#settings-controls-hint {
+  font-size: 8px;
+  line-height: 1.6;
+  text-align: left;
+}
+/* Panel entry beat for the mid-run overlays (chest reel, level-up draft,
+ * scrapper shop): quick pop-in that masks the one-frame layout cost of
+ * building their card DOM and reads as intentional showmanship — same cure
+ * as the chest hitch (2026-07-13). */
+#chest-overlay:not(.hidden) #chest-panel,
+#levelup-overlay:not(.hidden) #levelup-panel,
+#shop-overlay:not(.hidden) #shop-panel {
+  animation: overlay-panel-pop 0.32s cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+/* Keyframes must carry the panel's own translateX(-50%) centering — a bare
+ * scale() would override it and teleport the panel sideways. */
+@keyframes overlay-panel-pop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.86);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}
+
+/* Gamepad menu focus: bright ring on the element the d-pad points at.
+ * Border swap instead of outline — outlines get eaten by the notch
+ * clip-paths. */
+.pad-focus {
+  border-color: #7ee0ff !important;
+  color: #7ee0ff;
+  filter: brightness(1.25);
+}
+/* Bottom-right corner notice (device events: gamepad connected, etc.).
+ * Fixed to the viewport on document.body so it shows over menu views too. */
+.corner-notice {
+  position: fixed;
+  right: 18px;
+  bottom: 44px;
+  z-index: 40;
+  font-family: var(--pixel-font);
+  padding: 10px 14px;
+  border: 1px solid #7ee0ff;
+  background: rgba(20, 30, 42, 0.92);
+  color: #7ee0ff;
+  font-size: 10px;
+  letter-spacing: 1px;
+  animation: notice-fade 3.2s ease-out forwards;
+}
+@keyframes notice-fade {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
 .settings-row select {
-  padding: 8px 10px;
-  border: 1px solid #3fa9f5;
-  border-radius: 6px;
-  background: #141e2a;
+  min-height: 42px;
+  padding: 11px 38px 11px 14px;
+  border: 2px solid #2b5f78;
+  border-radius: 0;
+  background:
+    linear-gradient(135deg, transparent 0 8px, #141e2a 8px) top left,
+    linear-gradient(225deg, transparent 0 8px, #141e2a 8px) top right,
+    linear-gradient(315deg, transparent 0 8px, #141e2a 8px) bottom right,
+    linear-gradient(45deg, transparent 0 8px, #141e2a 8px) bottom left;
+  background-size: 51% 51%;
+  background-repeat: no-repeat;
   color: #e8e3d5;
+  line-height: 1.45;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.45);
+  outline: none;
+  cursor: pointer;
+}
+.settings-row select.pad-select-open {
+  border-color: #f2b632;
+  min-height: 0;
+  padding: 10px 12px;
+  background: #111923;
+  box-shadow:
+    0 0 0 2px rgba(242, 182, 50, 0.3),
+    0 0 18px rgba(242, 182, 50, 0.18),
+    inset 0 2px 0 rgba(255, 255, 255, 0.05),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.55);
+  color: #fff2b8;
+}
+.settings-row select option {
+  min-height: 34px;
+  padding: 10px 14px;
+  background: #111923;
+  color: #e8e3d5;
+  line-height: 1.6;
+}
+.settings-row select option:checked {
+  background: #2b3340;
+  color: #f2b632;
 }
 
 #upgrade-cards,
@@ -203,33 +426,58 @@
   margin-bottom: 8px;
   opacity: 0.85;
 }
-.upgrade-card.common {
+.upgrade-card.gray {
   border-color: #8a94a2;
 }
-.upgrade-card.common .rarity-tag {
+.upgrade-card.gray .rarity-tag {
   color: #8a94a2;
 }
-.upgrade-card.rare {
+.upgrade-card.green {
+  border-color: #5fd068;
+}
+.upgrade-card.green .rarity-tag {
+  color: #8ce996;
+}
+.upgrade-card.blue {
   border-color: #3fa9f5;
 }
-.upgrade-card.rare .rarity-tag {
+.upgrade-card.blue .rarity-tag {
   color: #7ee0ff;
 }
-.upgrade-card.epic {
+.upgrade-card.purple {
   border-color: #b069ff;
   box-shadow: 0 0 18px rgba(176, 105, 255, 0.35);
 }
-.upgrade-card.epic .rarity-tag {
+.upgrade-card.purple .rarity-tag {
   color: #d0a0ff;
 }
-.upgrade-card.epic h3 {
+.upgrade-card.purple h3 {
   color: #d0a0ff;
+}
+.upgrade-card.gold {
+  border-color: #f2b632;
+  box-shadow: 0 0 24px rgba(242, 182, 50, 0.45);
+}
+.upgrade-card.gold .rarity-tag {
+  color: #ffd97a;
+}
+.upgrade-card.gold h3 {
+  color: #ffd97a;
 }
 .upgrade-card p {
   margin: 0;
   font-size: 14px;
   opacity: 0.85;
   line-height: 1.4;
+}
+/* Approved voxel icon of the stat/weapon the card affects (2026-07-08). */
+/* Icon sizes bumped globally (2026-07-09 user rule: the art must be SEEN). */
+.upgrade-card .card-icon {
+  display: block;
+  width: 116px;
+  height: 116px;
+  margin: 0 auto 8px;
+  object-fit: contain;
 }
 
 .stats-line {
@@ -239,49 +487,224 @@
 
 /* Crate slot machine: lighter backdrop than menus — it is a quick beat,
    not a full pause screen. */
+/* Vignette focus: the world dims toward the edges, spotlight on the crate
+   ceremony (VS/Megabonk opening language, 2026-07-10). */
 .overlay.chest {
-  background: rgba(8, 10, 14, 0.55);
+  background: radial-gradient(
+    circle at 50% 42%,
+    rgba(8, 10, 14, 0.3) 0%,
+    rgba(8, 10, 14, 0.92) 78%
+  );
+}
+/* 2-frame white flash at the burst moment. */
+#chest-overlay::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+}
+#chest-overlay.landed::after {
+  animation: chest-flash 0.22s steps(2) forwards;
+}
+@keyframes chest-flash {
+  0% { opacity: 0.85; }
+  100% { opacity: 0; }
 }
 .overlay.chest h2 {
   color: #ffd76a;
 }
+/* The reel lives inside a REAL upgrade-card (2026-07-10): tier border+glow,
+   rarity tag and notched corners come from the shared card language. Per-tier
+   burst color for the reveal animation. */
+#chest-card {
+  cursor: default;
+  width: 330px;
+}
+#chest-card:hover {
+  transform: none;
+}
+#chest-card.gray { --burst: #8a94a2; }
+#chest-card.green { --burst: #5fd068; }
+#chest-card.blue { --burst: #3fa9f5; }
+#chest-card.purple { --burst: #b069ff; }
+#chest-card.gold { --burst: #f2b632; }
+/* Inner reel window: neutral dark plate — the TIER color lives on the card
+   border, same as every other card. Sized so the 116px icon (the standard
+   card-icon size) always sits centered INSIDE the frame. */
 #chest-slot {
-  width: 120px;
-  height: 120px;
+  position: relative;
+  width: 220px;
+  height: 220px;
+  margin: 6px auto 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(20, 24, 30, 0.95);
-  border: 3px solid #f2b632;
-  border-radius: 12px;
-  box-shadow: 0 0 24px rgba(242, 182, 50, 0.35);
+  background: rgba(16, 20, 29, 0.95);
+  border: 2px solid #3d444f;
+  overflow: hidden;
 }
-#chest-slot.landed {
-  animation: chest-land 0.35s ease-out;
-  border-color: #ffd76a;
-  box-shadow: 0 0 42px rgba(255, 215, 106, 0.7);
+/* God-rays: tier-colored ray fan spinning slowly behind the risen reward —
+   the sacred-loot aura, clipped to the slot window. */
+#chest-rays {
+  position: absolute;
+  inset: -80%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    var(--burst, #f2b632) 0deg 13deg,
+    transparent 13deg 34deg
+  );
+  opacity: 0;
+  pointer-events: none;
+  -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0) 62%);
+  mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0) 62%);
+}
+#chest-card.landed #chest-rays {
+  opacity: 0.34;
+  animation: rays-spin 9s linear infinite;
+}
+@keyframes rays-spin {
+  to { transform: rotate(360deg); }
+}
+/* Spark rain: voxel-square sparks falling continuously over the reward. */
+#chest-slot .spark {
+  position: absolute;
+  top: -8px;
+  width: 5px;
+  height: 5px;
+  background: var(--burst, #f2b632);
+  opacity: 0;
+  pointer-events: none;
+}
+#chest-card.landed .spark {
+  animation: spark-fall 1.4s linear infinite;
+}
+#chest-slot .spark:nth-of-type(1) { left: 8%; animation-delay: 0s; }
+#chest-slot .spark:nth-of-type(2) { left: 22%; animation-delay: 0.5s; width: 4px; height: 4px; }
+#chest-slot .spark:nth-of-type(3) { left: 34%; animation-delay: 0.9s; }
+#chest-slot .spark:nth-of-type(4) { left: 45%; animation-delay: 0.25s; width: 6px; height: 6px; }
+#chest-slot .spark:nth-of-type(5) { left: 55%; animation-delay: 1.1s; width: 4px; height: 4px; }
+#chest-slot .spark:nth-of-type(6) { left: 64%; animation-delay: 0.65s; }
+#chest-slot .spark:nth-of-type(7) { left: 73%; animation-delay: 0.15s; width: 4px; height: 4px; }
+#chest-slot .spark:nth-of-type(8) { left: 82%; animation-delay: 0.8s; }
+#chest-slot .spark:nth-of-type(9) { left: 90%; animation-delay: 0.4s; width: 6px; height: 6px; }
+#chest-slot .spark:nth-of-type(10) { left: 15%; animation-delay: 1.25s; }
+@keyframes spark-fall {
+  0% { transform: translateY(0); opacity: 0; }
+  12% { opacity: 0.9; }
+  100% { transform: translateY(228px); opacity: 0; }
+}
+/* Rattle while the reel spins — the crate straining to burst open. */
+/* Vertical slot-machine strip: icons scroll down through the window and
+   decelerate onto the prize (the transform is driven from hud.ts). */
+#chest-reel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1;
+  will-change: transform;
+}
+.chest-cell {
+  position: relative;
+  height: var(--cell-h, 216px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Mystery pass: while the reel spins, icons show as DARK shaded shapes —
+   grayscale keeps the internal voxel detail (flat silhouettes turned splashy
+   mods into paint blobs), brightness hides the color read, and a faint
+   tier-colored halo keeps the anticipation. Full color is the reveal payoff. */
+.chest-cell .chest-icon-img,
+.chest-cell .chest-cell-emoji {
+  filter: grayscale(1) brightness(0.5) drop-shadow(0 0 10px var(--burst, #f2b632));
+  opacity: 0.95;
+}
+.chest-cell-emoji {
+  font-size: 110px;
+  line-height: 1;
+}
+/* Contract-locked mods teased in the reel: the icon sinks further back and a
+   padlock rides on top, so the player reads "exists, unlock it via a contract"
+   without the reel ever landing on it. */
+.chest-cell.locked .chest-icon-img,
+.chest-cell.locked .chest-cell-emoji {
+  opacity: 0.4;
+  filter: grayscale(1) brightness(0.35);
+}
+.chest-cell-lock {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.95));
+  z-index: 2;
+  pointer-events: none;
+}
+#chest-card.landed #chest-reel {
+  display: none;
 }
 #chest-icon {
-  font-size: 64px;
+  position: relative;
+  z-index: 1;
+  font-size: 110px;
   line-height: 1;
+}
+.chest-icon-img {
+  width: 180px;
+  height: 180px;
+  object-fit: contain;
+  display: block;
+}
+/* Reveal on landing: the reward RISES out of the crate with overshoot
+   (stepped, keeps the pixel language) + expanding tier ring. */
+#chest-card.landed #chest-icon {
+  animation: chest-rise 0.6s steps(8);
+}
+#chest-card.landed #chest-slot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 3px solid var(--burst, #f2b632);
+  animation: chest-burst 0.55s steps(5) forwards;
+  pointer-events: none;
+}
+#chest-card.landed #chest-slot {
+  border-color: var(--burst, #f2b632);
+  box-shadow: 0 0 34px var(--burst, #f2b632);
 }
 #chest-label {
   min-height: 24px;
+  margin: 0;
   font-size: 20px;
   font-weight: 700;
   letter-spacing: 1px;
   color: #ffd76a;
 }
-@keyframes chest-land {
-  0% {
-    transform: scale(1.35);
-  }
-  60% {
-    transform: scale(0.95);
-  }
-  100% {
-    transform: scale(1);
-  }
+/* What the landed reward actually does (shown on landing only). */
+#chest-desc {
+  min-height: 40px;
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: #e8e3d5;
+  opacity: 0.85;
+  text-align: center;
+}
+@keyframes chest-rise {
+  0% { transform: translateY(110px) scale(0.4); opacity: 0; }
+  55% { transform: translateY(-12px) scale(1.12); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+@keyframes chest-burst {
+  0% { transform: scale(0.25); opacity: 1; }
+  100% { transform: scale(1.05); opacity: 0; }
 }
 
 .toast {
@@ -332,20 +755,236 @@
   transition: width 0.15s ease-out;
 }
 
-/* Above the level-up overlay (z 10) on purpose: the player compares the
-   sheet against the offered cards before choosing. */
+/* In-run panel: owned weapons only (build caps at 2 weapons). The full stat
+   sheet moved into #stat-sheet inside the level-up overlay (2026-07-08) —
+   20 stat rows overflowed the screen when listed here permanently. Still
+   above the overlay (z 11) so the weapon levels stay readable while picking. */
+/* Encapsulated inventory (2026-07-11 rework): a framed panel of icon TILES,
+   shown ONLY inside the level-up / chest / shop overlays (hidden in-run). */
+/* In-run: ONLY the weapon + core tiles show, UNFRAMED, so the map and enemies
+   stay visible behind a glanceable build readout (header, section labels and
+   the Mods section are hidden). The full framed inventory is revealed only
+   inside the level-up / chest / shop overlays. */
 #build-panel {
   position: fixed;
-  top: 60px;
+  top: 120px;
   left: 16px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  max-width: 210px;
+  gap: 2px;
+  /* Sized so a section row holds AT MOST 4 tiles (cores cap at 4); a 5th wraps.
+     Keeps the panel narrow → more centre room for the shop. */
+  width: 294px;
+  max-height: calc(100vh - 140px);
+  overflow: hidden;
   z-index: 11;
   pointer-events: none;
-  font-family: 'Segoe UI', system-ui, sans-serif;
   color: #e8e3d5;
+}
+#build-panel .panel-header,
+#build-panel .panel-title,
+#build-panel .mods {
+  display: none;
+}
+/* Overlays: add the frame + reveal the header, section labels and Mods. */
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #build-panel {
+  padding: 10px 14px 14px;
+  background: rgba(16, 20, 27, 0.86);
+  border: 2px solid #2b3340;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.05), inset 0 -3px 0 rgba(0, 0, 0, 0.5);
+  clip-path: polygon(
+    0 8px, 8px 8px, 8px 0,
+    calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px,
+    100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%,
+    8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px)
+  );
+}
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #build-panel .panel-header,
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #build-panel .panel-title,
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #build-panel .build-empty.mods {
+  display: block;
+}
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #build-panel .rig-section.mods {
+  display: flex;
+}
+/* Encapsulating title bar — shared by the RIG and STATS panels (2026-07-11). */
+.panel-header {
+  grid-column: 1 / -1;
+  font-family: var(--pixel-font);
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #ffd24a;
+  text-align: center;
+  padding: 2px 0 8px;
+  margin-bottom: 2px;
+  border-bottom: 2px solid #2b3340;
+}
+#build-panel .build-empty {
+  padding: 2px 4px 6px;
+  font-size: 11px;
+  font-style: italic;
+  opacity: 0.4;
+}
+/* A section's tiles: a wrapping row of equal icon squares (no names). */
+.rig-section {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 6px;
+}
+.rig-tile {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #444e5e;
+  border: 1px solid #2b3340;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.05), inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+.rig-tile .rig-icon {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+.rig-icon-emoji {
+  font-size: 32px;
+  line-height: 1;
+}
+/* Mod tiles are tinted by tier (darkened fill + vivid tier border), so the
+   inventory reads tier at a glance without washing out the icon. */
+.rig-tile.mod.gray {
+  background: #3f4653;
+  border-color: #8a94a2;
+}
+.rig-tile.mod.green {
+  background: #2c4a33;
+  border-color: #5fd068;
+}
+.rig-tile.mod.blue {
+  background: #26405c;
+  border-color: #3fa9f5;
+}
+.rig-tile.mod.purple {
+  background: #3d2f55;
+  border-color: #b069ff;
+}
+.rig-tile.mod.gold {
+  background: #5a4718;
+  border-color: #f2b632;
+}
+.rig-tile.empty {
+  opacity: 0.4;
+}
+/* Buy feedback: the just-bought mod's tile flashes gold in the RIG. */
+.rig-tile.flash {
+  animation: rig-flash 0.7s steps(3);
+}
+@keyframes rig-flash {
+  50% {
+    border-color: #f2b632;
+    box-shadow: 0 0 14px rgba(242, 182, 50, 0.85);
+  }
+}
+.rig-tile.locked {
+  opacity: 0.7;
+}
+.rig-empty {
+  font-size: 26px;
+  color: #8a94a2;
+}
+/* Level / count stuck to the icon's bottom-right. */
+.rig-badge {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  line-height: 1;
+  color: #f2b632;
+  background: rgba(8, 11, 16, 0.92);
+  border: 1px solid #2b3340;
+  padding: 2px 3px;
+}
+/* Section headers for the level-up screen lists (WEAPONS / ITEMS / STATS). */
+.panel-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8a94a2;
+  margin: 6px 0 2px;
+}
+/* The inventory sections (Weapons / Cores / Mods) are always visible now
+   (2026-07-11 rework) — the left panel is a permanent framed inventory,
+   in-run and inside every overlay. */
+/* Full 20-stat sheet, right side of the level-up overlay. Slightly more
+   compact rows than the weapon panel (28px chips) so all 20 fit a 1080p
+   window with room to spare; scrolls only as a last resort on tiny windows. */
+#stat-sheet {
+  position: fixed;
+  /* Framed to match the RIG panel (2026-07-11 user request): same top edge,
+     same border + header, so the two side columns read as ONE encapsulated
+     system. Hidden by default; revealed inside the level-up / chest / shop
+     overlays. */
+  display: none;
+  top: 120px;
+  right: 16px;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 6px;
+  width: 440px;
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  padding: 10px 14px 14px;
+  background: rgba(16, 20, 27, 0.86);
+  border: 2px solid #2b3340;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.05), inset 0 -3px 0 rgba(0, 0, 0, 0.5);
+  clip-path: polygon(
+    0 8px, 8px 8px, 8px 0,
+    calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px,
+    100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%,
+    8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px)
+  );
+  pointer-events: none;
+  color: #e8e3d5;
+  z-index: 11;
+}
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #stat-sheet {
+  display: grid;
+}
+#chest-continue.hidden {
+  display: none;
+}
+/* Discard is the SECONDARY action: dim steel, never competing with the
+   gold-bordered cards above it. */
+#levelup-discard {
+  border-color: #8a94a2;
+  color: #8a94a2;
+  background: rgba(138, 148, 162, 0.08);
+  font-size: 14px;
+  padding: 10px 28px;
+}
+#levelup-discard:hover {
+  background: rgba(138, 148, 162, 0.22);
+}
+#levelup-discard.hidden {
+  display: none;
+}
+#stat-sheet .panel-title {
+  grid-column: 1 / -1;
+}
+#stat-sheet .build-row {
+  font-size: 12px;
+  padding: 3px 6px;
+  /* No per-row plate (2026-07-11 user request): the STATS panel frame is the
+     only encuadre — each stat is just its icon chip + name + value. */
+  background: none;
+  border: none;
+  box-shadow: none;
+  clip-path: none;
 }
 .build-row {
   display: flex;
@@ -362,13 +1001,13 @@
   border-color: rgba(63, 169, 245, 0.6);
 }
 .build-icon {
-  font-size: 15px;
-  width: 20px;
+  font-size: 20px;
+  width: 26px;
   text-align: center;
 }
 .build-icon-img {
-  height: 32px;
-  width: 32px;
+  height: 44px;
+  width: 44px;
   object-fit: cover;
   flex-shrink: 0;
   /* Dark-toned icons (metal joints, dark bodies) need a lighter chip behind
@@ -383,8 +1022,63 @@
   margin-left: auto;
   color: #8a94a2;
 }
+/* Socket states (2026-07-09): every possible slot is always visible —
+   empty = usable now (dashed invite), locked = a future contract's promise. */
+.build-row.socket-empty {
+  border-style: dashed;
+  border-color: rgba(138, 148, 162, 0.5);
+  color: #8a94a2;
+}
+.build-row.socket-locked {
+  opacity: 0.55;
+  border-color: rgba(90, 100, 115, 0.35);
+  color: #6a7482;
+}
+.build-row.socket-locked .build-value {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
 .build-value.raised {
   color: #ffd24a;
+}
+/* Inline UI glyph icons (padlock / coin / skull) replacing the old emoji
+   glyphs — sized to sit inline with text, no chip behind them. */
+img.ui-glyph {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+  vertical-align: -4px;
+}
+/* HUD counters: flex so the glyph and its number are always vertically
+   centered as a pair, with a bigger glyph so the art reads. */
+#kills,
+#gold-counter {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+#gold-counter img.ui-glyph,
+#kills img.ui-glyph {
+  width: 28px;
+  height: 28px;
+}
+#shop-gold {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+#shop-gold img.ui-glyph {
+  width: 17px;
+  height: 17px;
+}
+#interact-prompt img.ui-glyph,
+.shop-price img.ui-glyph {
+  width: 14px;
+  height: 14px;
+  vertical-align: -3px;
+  margin-right: 2px;
 }
 
 #summon-prompt {
@@ -404,6 +1098,38 @@
 }
 #summon-prompt.hidden {
   display: none;
+}
+
+/* Chest/merchant interaction prompt: amber "friendly" twin of the totem's. */
+#interact-prompt {
+  position: absolute;
+  bottom: 150px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffd97a;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  letter-spacing: 1px;
+  background: rgba(20, 24, 30, 0.8);
+  border: 2px solid #f2b632;
+  border-radius: 6px;
+  padding: 10px 22px;
+}
+#interact-prompt.hidden {
+  display: none;
+}
+#interact-prompt.cant-afford {
+  color: #c76b6b;
+  border-color: #a23b3b;
+}
+#interact-prompt .key {
+  display: inline-block;
+  background: #f2b632;
+  color: #11151c;
+  border-radius: 4px;
+  padding: 1px 9px;
+  font-weight: 800;
 }
 
 #totem-indicator {
@@ -432,6 +1158,259 @@
   letter-spacing: 2px;
   color: #ff8095;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* Merchant indicator: same anatomy as the totem arrow, amber = friendly. */
+#merchant-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  pointer-events: none;
+  will-change: transform;
+}
+#merchant-indicator.hidden {
+  display: none;
+}
+#merchant-indicator .arrow {
+  font-size: 22px;
+  color: #f2b632;
+  text-shadow: 0 0 8px rgba(242, 182, 50, 0.8);
+  line-height: 1;
+}
+#merchant-indicator .label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #ffd97a;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+
+/* In-run currency counter, under the kill counter. */
+#gold-counter {
+  position: absolute;
+  top: 58px;
+  right: 18px;
+  font-size: 16px;
+  font-weight: 800;
+  color: #f2b632;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+}
+#gold-counter.hidden {
+  display: none;
+}
+
+/* Shared framed CENTER panel for the overlays (shop / level-up / chest), 2026-
+   07-11 user request: the same encuadre matching RIG/STATS. Hugs its content
+   (fit-content), centred in the gap between the side panels (gap centre =
+   50% - 73px from RIG 294+16 / STATS 440+16), capped so it never overlaps them
+   on narrow screens. */
+.overlay-panel {
+  position: absolute;
+  top: 120px;
+  left: calc(50% - 73px);
+  transform: translateX(-50%);
+  width: fit-content;
+  max-width: calc(100vw - 798px);
+  max-height: calc(100vh - 140px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 22px 18px;
+  background: rgba(16, 20, 27, 0.86);
+  border: 2px solid #2b3340;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.05), inset 0 -3px 0 rgba(0, 0, 0, 0.5);
+  clip-path: polygon(
+    0 8px, 8px 8px, 8px 0,
+    calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px,
+    100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%,
+    8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px)
+  );
+  pointer-events: auto;
+}
+/* Level-up and chest give the cards extra breathing room from the frame. */
+#levelup-panel,
+#chest-panel {
+  padding: 14px 40px 28px;
+  gap: 16px;
+}
+/* Headers span the full panel width so their underline runs edge to edge. */
+.overlay-panel > .panel-header,
+.overlay-panel > .shop-header {
+  align-self: stretch;
+}
+.overlay-panel .overlay-panel-sub {
+  margin: -2px 0 4px;
+  font-size: 14px;
+  letter-spacing: 0.5px;
+  opacity: 0.72;
+}
+/* Scrapper identity header: emblem portrait + name + flavour line. */
+.shop-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 2px 0 8px;
+  margin-bottom: 2px;
+  border-bottom: 2px solid #2b3340;
+}
+.shop-portrait {
+  width: 54px;
+  height: 54px;
+  flex-shrink: 0;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: #2b3340;
+  border: 1px solid #3a4658;
+  padding: 2px;
+}
+.shop-header-text {
+  text-align: left;
+}
+.shop-name {
+  font-family: var(--pixel-font);
+  font-size: 13px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #ffd24a;
+}
+.shop-flavor {
+  font-size: 10px;
+  font-style: italic;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+#shop-gold {
+  align-self: center;
+  margin: 0 0 2px;
+}
+#shop-perks {
+  align-self: center;
+  margin: -2px 0 2px;
+  font-family: var(--pixel-font);
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #ffc44d;
+}
+#shop-perks.hidden {
+  display: none;
+}
+.shop-soldout {
+  text-align: center;
+  opacity: 0.6;
+  font-style: italic;
+  padding: 20px 0;
+}
+#shop-cards {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: stretch;
+  gap: 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+/* Vertical cards, level-up style: icon on top, name, desc, price stacked. The
+   .upgrade-card shell supplies the tier border/glow + notch + hover. */
+.shop-vcard {
+  width: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  transition: filter 0.1s ease-out, box-shadow 0.1s ease-out;
+}
+.shop-vcard h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.shop-vcard p {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.4;
+  opacity: 0.85;
+}
+.shop-vcard.unaffordable {
+  cursor: default;
+}
+/* Dim the contents but keep the price BRIGHT RED, so the reason reads. */
+.shop-vcard.unaffordable .shop-card-icon,
+.shop-vcard.unaffordable h3,
+.shop-vcard.unaffordable p {
+  opacity: 0.45;
+}
+.shop-vcard.unaffordable .shop-price {
+  color: #ff4433;
+}
+.shop-vcard.unaffordable:hover {
+  transform: none;
+}
+/* Hover feedback (no lift — the upgrade-card's translateY clipped the top):
+   brighten + a cyan glow ring so it's clearly "pickable". */
+.shop-vcard:hover {
+  transform: none;
+  filter: brightness(1.16);
+  box-shadow: 0 0 22px rgba(126, 224, 255, 0.5);
+}
+.shop-vcard.unaffordable:hover {
+  filter: none;
+  box-shadow: none;
+}
+/* Buy feedback: the bought card pops gold before the shop re-renders. */
+.shop-vcard.buying {
+  animation: shop-buy 0.22s ease-out;
+}
+@keyframes shop-buy {
+  0% { filter: brightness(1); }
+  40% { filter: brightness(2.3); box-shadow: 0 0 34px rgba(242, 182, 50, 0.85); }
+  100% { filter: brightness(1.4); box-shadow: 0 0 20px rgba(242, 182, 50, 0.5); }
+}
+.shop-card-icon {
+  width: 76px;
+  height: 76px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #444e5e;
+  border: 1px solid #2b3340;
+}
+.shop-card-img {
+  width: 68px;
+  height: 68px;
+  object-fit: contain;
+}
+.shop-card-emoji {
+  font-size: 40px;
+  line-height: 1;
+}
+.shop-price {
+  margin-top: auto;
+  font-size: 16px;
+  font-weight: 800;
+  color: #f2b632;
+}
+/* Tinted icon chip by tier (matches the RIG mod tiles). */
+.shop-card-icon.gray { background: #3f4653; border-color: #8a94a2; }
+.shop-card-icon.green { background: #2c4a33; border-color: #5fd068; }
+.shop-card-icon.blue { background: #26405c; border-color: #3fa9f5; }
+.shop-card-icon.purple { background: #3d2f55; border-color: #b069ff; }
+.shop-card-icon.gold { background: #5a4718; border-color: #f2b632; }
+.card-icon-emoji {
+  font-size: 64px;
+  line-height: 1;
+  margin: 6px auto;
+}
+#shop-leave-button {
+  align-self: center;
+  margin: 4px 0 0;
 }
 #summon-prompt .key {
   display: inline-block;
@@ -494,4 +1473,707 @@
   opacity: 0.7;
   z-index: 12;
   pointer-events: none;
+}
+
+/* ==========================================================================
+   Pixel font pass (2026-07-10): Press Start 2P (bundled, OFL) on titles,
+   numbers and buttons — the blocky arcade face that matches the voxel art.
+   Body/description text stays on Segoe UI for readability at small sizes.
+   PS2P renders ~30% larger per px, so every size below is recalibrated. */
+@font-face {
+  font-family: 'PressStart2P';
+  src: url('/fonts/press-start-2p.woff2') format('woff2');
+  font-display: swap;
+}
+:root {
+  --pixel-font: 'PressStart2P', 'Segoe UI', monospace;
+}
+#timer {
+  font-family: var(--pixel-font);
+  font-size: 22px;
+  letter-spacing: 0;
+}
+#level-badge,
+#kills,
+#gold-counter {
+  font-family: var(--pixel-font);
+  font-size: 12px;
+}
+.overlay h1 {
+  font-family: var(--pixel-font);
+  font-weight: 400;
+  letter-spacing: 2px;
+}
+.overlay h2 {
+  font-family: var(--pixel-font);
+  font-weight: 400;
+  font-size: 22px;
+  letter-spacing: 1px;
+}
+.overlay button {
+  font-family: var(--pixel-font);
+  font-size: 13px;
+  font-weight: 400;
+}
+.panel-title {
+  font-family: var(--pixel-font);
+  font-size: 9px;
+  letter-spacing: 2px;
+}
+.upgrade-card h3 {
+  font-family: var(--pixel-font);
+  font-weight: 400;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.upgrade-card .rarity-tag {
+  font-family: var(--pixel-font);
+  font-size: 8px;
+}
+#chest-label {
+  font-family: var(--pixel-font);
+  font-size: 14px;
+}
+.shop-price {
+  font-family: var(--pixel-font);
+  font-size: 13px;
+}
+#totem-indicator .label,
+#merchant-indicator .label {
+  font-family: var(--pixel-font);
+  font-size: 8px;
+}
+#version-tag {
+  font-family: var(--pixel-font);
+  font-size: 8px;
+}
+
+/* Full pixel-font pass (2026-07-10 user call): EVERY text and number in the
+   game uses Press Start 2P — not just titles. Body sizes recalibrated (PS2P
+   runs wide) with looser line-height so paragraphs stay readable. */
+#hud,
+.overlay,
+#build-panel,
+#stat-sheet,
+.damage-number,
+#fps-counter {
+  font-family: var(--pixel-font);
+}
+.overlay p {
+  font-size: 11px;
+  line-height: 1.9;
+}
+.upgrade-card p {
+  font-size: 9px;
+  line-height: 1.8;
+}
+.stats-line {
+  font-size: 9px;
+}
+.build-row {
+  font-size: 9px;
+}
+#stat-sheet .build-row {
+  font-size: 9px;
+}
+.toast {
+  font-size: 11px;
+}
+#chest-desc {
+  font-size: 9px;
+  line-height: 1.8;
+}
+#chest-label {
+  font-size: 13px;
+}
+#boss-name {
+  font-size: 11px;
+}
+#summon-prompt,
+#interact-prompt {
+  font-size: 11px;
+}
+.settings-row {
+  font-size: 10px;
+}
+.settings-row select,
+.settings-row input {
+  font-family: var(--pixel-font);
+  font-size: 10px;
+}
+.damage-number {
+  font-size: 11px;
+  font-weight: 400;
+}
+.damage-number.crit {
+  font-size: 15px;
+}
+#fps-counter {
+  font-size: 10px;
+}
+.shop-price {
+  font-size: 12px;
+}
+#shop-gold {
+  font-size: 12px;
+}
+.build-value {
+  white-space: nowrap;
+}
+.build-row > span:not(.build-value):not(.build-icon) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Voxel-plate UI pass (2026-07-10): bars, panels, cards and buttons drop the
+   smooth web look — segmented cell bars, notched pixel corners (clip-path),
+   flat per-face bevels. No new art: pure CSS, matches the icon language. */
+
+/* Notched pixel corners — the voxel signature. */
+.upgrade-card,
+.overlay button,
+#hp-bar,
+#boss-bar-track,
+#chest-slot,
+.build-row,
+#summon-prompt,
+#interact-prompt,
+.settings-row {
+  border-radius: 0;
+  clip-path: polygon(
+    0 6px, 6px 6px, 6px 0,
+    calc(100% - 6px) 0, calc(100% - 6px) 6px, 100% 6px,
+    100% calc(100% - 6px), calc(100% - 6px) calc(100% - 6px), calc(100% - 6px) 100%,
+    6px 100%, 6px calc(100% - 6px), 0 calc(100% - 6px)
+  );
+}
+.build-row,
+.build-icon-img {
+  border-radius: 0;
+}
+.build-row {
+  clip-path: polygon(
+    0 4px, 4px 4px, 4px 0,
+    calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px,
+    100% calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) 100%,
+    4px 100%, 4px calc(100% - 4px), 0 calc(100% - 4px)
+  );
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.05), inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+
+/* Player HP: segmented battery cells, bright top face, dark seams. */
+#hp-bar {
+  height: 18px;
+  border: 3px solid #232830;
+  background: #10141d;
+  overflow: hidden;
+}
+#hp-bar-fill {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0 3px, rgba(0, 0, 0, 0) 3px calc(100% - 3px), rgba(0, 0, 0, 0.35) calc(100% - 3px)),
+    repeating-linear-gradient(90deg, #e74c3c 0 12px, #b93125 12px 14px, #10141d 14px 16px);
+  background-color: #e74c3c;
+  transition: width 0.15s steps(4);
+}
+
+/* XP: same cell language, thin cyan strip pinned to the top edge. */
+#xp-bar {
+  height: 12px;
+  background: #10141d;
+  border-bottom: 3px solid #232830;
+}
+#xp-bar-fill {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.35) 0 2px, rgba(0, 0, 0, 0) 2px),
+    repeating-linear-gradient(90deg, #3fa9f5 0 10px, #2e7fc0 10px 12px, #10141d 12px 14px);
+  background-color: #3fa9f5;
+  transition: width 0.15s steps(4);
+}
+
+/* Boss bar: big red cells framed by hazard-stripe end caps (the chest/portal
+   motif) — unmistakably THE danger bar. */
+#boss-bar-track {
+  position: relative;
+  height: 22px;
+  border: 3px solid #232830;
+  background:
+    repeating-linear-gradient(45deg, #e8e3d5 0 8px, #232830 8px 16px);
+  overflow: hidden;
+  padding: 0 14px;
+}
+#boss-bar-track::before {
+  content: '';
+  position: absolute;
+  inset: 0 14px;
+  background: #10141d;
+}
+#boss-bar-fill {
+  position: relative;
+  height: 100%;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.3) 0 3px, rgba(0, 0, 0, 0) 3px calc(100% - 3px), rgba(0, 0, 0, 0.35) calc(100% - 3px)),
+    repeating-linear-gradient(90deg, #ff3355 0 14px, #c21f3a 14px 16px, #10141d 16px 18px);
+  background-color: #ff3355;
+  transition: width 0.15s steps(4);
+}
+
+/* Buttons: chunky plates that physically press down. */
+.overlay button {
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.12), inset 0 -4px 0 rgba(0, 0, 0, 0.35);
+}
+.overlay button:hover {
+  transform: none;
+}
+.overlay button:active {
+  transform: translateY(3px);
+  box-shadow: inset 0 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+/* Cards keep their tier border/glow but sit on notched plates with a bevel. */
+.upgrade-card {
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.06), inset 0 -4px 0 rgba(0, 0, 0, 0.4);
+}
+.upgrade-card.purple {
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.06), inset 0 -4px 0 rgba(0, 0, 0, 0.4), 0 0 18px rgba(176, 105, 255, 0.35);
+}
+.upgrade-card.gold {
+  box-shadow: inset 0 3px 0 rgba(255, 255, 255, 0.06), inset 0 -4px 0 rgba(0, 0, 0, 0.4), 0 0 24px rgba(242, 182, 50, 0.45);
+}
+#chest-slot {
+  border-radius: 0;
+}
+
+/* Bar value readouts + taller XP strip (2026-07-10 user asks). */
+#xp-bar {
+  height: 18px;
+}
+#hp-bar {
+  height: 22px;
+}
+#hp-text,
+#boss-hp-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--pixel-font);
+  font-size: 9px;
+  color: #ffffff;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.9), 0 0 4px rgba(0, 0, 0, 0.7);
+  pointer-events: none;
+}
+#hp-bar,
+#boss-bar-track {
+  position: relative;
+}
+#timer {
+  top: 48px;
+}
+
+/* Top-band spacing rework (2026-07-10): the taller XP strip squeezed LV/kills
+   and overlapped the HP bar — everything below it steps down with real gaps.
+   Stack: XP strip (0-21) → LV/kills (30) → HP bar (34) → timer (70). */
+#level-badge,
+#kills {
+  top: 30px;
+}
+#hp-bar {
+  top: 34px;
+}
+#timer {
+  top: 70px;
+  font-size: 18px;
+}
+#gold-counter {
+  top: 64px;
+}
+
+/* Arcade event banner: hazard stripes + PS2P headline, in-hold-out ~1.8s. */
+#event-banner {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  pointer-events: none;
+  opacity: 0;
+}
+#event-banner.hidden {
+  display: none;
+}
+#event-banner.play {
+  animation: banner-pop 1.9s steps(60) forwards;
+}
+#event-banner-text {
+  font-family: var(--pixel-font);
+  font-size: 26px;
+  color: #ffffff;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.8), 0 0 18px rgba(255, 51, 85, 0.5);
+  letter-spacing: 2px;
+  padding: 6px 26px;
+  text-align: center;
+  white-space: nowrap;
+}
+.banner-stripe {
+  height: 8px;
+  background: repeating-linear-gradient(45deg, #e8e3d5 0 10px, #232830 10px 20px);
+}
+@keyframes banner-pop {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.6); }
+  8% { opacity: 1; transform: translateX(-50%) scale(1.06); }
+  12% { transform: translateX(-50%) scale(1); }
+  82% { opacity: 1; transform: translateX(-50%) scale(1); }
+  100% { opacity: 0; transform: translateX(-50%) scale(1.02); }
+}
+
+/* HP damage feedback: white cell flash per hit + red pulse under 25%. */
+#hp-bar.hit #hp-bar-fill {
+  animation: hp-hit 0.18s steps(2);
+}
+@keyframes hp-hit {
+  0%, 100% { filter: none; }
+  50% { filter: brightness(3) saturate(0.2); }
+}
+#hp-bar.low {
+  animation: hp-low 0.7s steps(2) infinite;
+}
+@keyframes hp-low {
+  0%, 100% { border-color: #232830; }
+  50% { border-color: #ff3355; }
+}
+
+/* Gold counter bump on every pickup. */
+#gold-counter.bump {
+  animation: gold-bump 0.22s steps(3);
+}
+@keyframes gold-bump {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.25); }
+}
+
+/* Legibility round (2026-07-10): diegetic prompt, LV chip in the XP strip,
+   picked-row flash. */
+#interact-prompt {
+  bottom: auto;
+  top: 0;
+  left: 0;
+  will-change: transform;
+  white-space: nowrap;
+  font-size: 10px;
+  padding: 7px 14px;
+}
+#level-badge {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: #232830;
+  border-right: 3px solid #10141d;
+  font-size: 9px;
+  opacity: 1;
+  z-index: 1;
+}
+#xp-bar.level-flash #xp-bar-fill {
+  animation: xp-blaze 0.6s steps(3);
+}
+@keyframes xp-blaze {
+  0%, 100% { filter: none; }
+  50% { filter: brightness(2.4); }
+}
+.build-row.flash {
+  animation: row-flash 0.7s steps(3);
+}
+@keyframes row-flash {
+  0%, 100% { border-color: rgba(90, 100, 115, 0.5); }
+  50% { border-color: #f2b632; box-shadow: 0 0 12px rgba(242, 182, 50, 0.5); }
+}
+
+/* Top-band uniform sizing (2026-07-10): LV chip centered UNDER the XP strip;
+   LV / kills / gold share the same type size. Stack: XP (0-21) → LV chip →
+   HP (50) → timer (88). */
+#level-badge {
+  top: calc(100% + 5px);
+  bottom: auto;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  padding: 5px 16px;
+  border: 2px solid #10141d;
+  border-right-width: 2px;
+  font-size: 13px;
+  z-index: 1;
+}
+/* Counter pairs (2026-07-10): 28px glyph + 15px number, flex-centered.
+   Both live top-LEFT on one horizontal line (between the XP strip and the
+   build panel): gold first, kills second with a wide gap — kill counts grow
+   much larger than gold, so kills gets the open right side to expand into. */
+#kills,
+#gold-counter {
+  font-size: 15px;
+  top: 26px;
+  right: auto;
+}
+#gold-counter {
+  left: 16px;
+}
+#kills {
+  left: 200px;
+}
+#hp-bar {
+  top: 52px;
+}
+#timer {
+  top: 90px;
+}
+
+/* Identity round (2026-07-10): boss portrait plate + socket pop-in. */
+#boss-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+#boss-portrait {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  background: rgba(20, 24, 30, 0.8);
+  border: 2px solid #ff3355;
+  padding: 2px;
+}
+.build-row.installed {
+  animation: socket-fill 0.55s steps(4);
+}
+@keyframes socket-fill {
+  0% { transform: scale(0.85); border-color: #7ee0ff; box-shadow: 0 0 16px rgba(126, 224, 255, 0.7); }
+  60% { transform: scale(1.06); border-color: #7ee0ff; }
+  100% { transform: scale(1); }
+}
+
+/* Menu views (main menu, weapon draft, unlocks, loading) render OUTSIDE the
+   game — the 3D isn't drawn behind them (game.ts skips the render in 'menu'),
+   so each carries its OWN opaque backdrop: the key-art image + a scrim for
+   legibility. Swap public/assets/2d/menu-bg.png to change the background. */
+.menu-view {
+  background:
+    linear-gradient(rgba(6, 8, 12, 0.4), rgba(6, 8, 12, 0.82)),
+    /* ABSOLUTE public path on purpose: CSS relative urls resolve against
+       src/ui.css (broken), and Vite rebases absolute public urls at build
+       time anyway. JS-string asset paths are the opposite — those must be
+       RELATIVE or file:// breaks them in Electron (2026-07-13 lesson). */
+    url('/assets/2d/menu-bg.png') center / cover no-repeat,
+    #0b0d12;
+}
+
+/* The in-run HUD (bars, timer, kills, FPS, build panel) stays hidden while any
+   menu view is up, so those screens read as clean key art — and so the build
+   panel populated during the loading build doesn't leak over the loading art. */
+body:has(.menu-view:not(.hidden)) #hud,
+body:has(.menu-view:not(.hidden)) #fps-counter,
+body:has(.menu-view:not(.hidden)) #build-panel {
+  display: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Main menu: key-art backdrop (menu-bg.png) + button list at the bottom.
+   The capsule backdrop already carries the mascot + wordmark, so the separate
+   lockup is hidden. If the background becomes title-less, flip #menu-lockup
+   back to display:flex and #menu-overlay back to justify-content:center.
+   ───────────────────────────────────────────────────────────────────────── */
+#menu-overlay {
+  justify-content: flex-end;
+  padding-bottom: 9vh;
+  gap: 26px;
+}
+#menu-lockup {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 10px;
+}
+#menu-logo-mascot {
+  width: clamp(110px, 19vh, 200px);
+  height: auto;
+  object-fit: contain;
+  image-rendering: pixelated;
+  /* Blue halo behind the head, echoing the capsule glow. */
+  filter: drop-shadow(0 0 26px rgba(80, 180, 255, 0.55));
+  margin-bottom: -4px;
+}
+#menu-logo-wordmark {
+  width: clamp(280px, 44vw, 620px);
+  height: auto;
+  object-fit: contain;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.6));
+}
+#menu-buttons {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  pointer-events: auto;
+}
+#menu-buttons button {
+  box-sizing: border-box;
+  width: 260px;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Loading view — covers the world build + warmup renders (game.ts) so the
+   reveal is smooth. Placeholder animation; a richer one can replace it later.
+   ───────────────────────────────────────────────────────────────────────── */
+#loading-overlay {
+  gap: 22px;
+}
+#loading-mascot {
+  width: clamp(84px, 13vh, 140px);
+  height: auto;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 26px rgba(80, 180, 255, 0.55));
+  animation: loading-bob 1.1s ease-in-out infinite;
+}
+@keyframes loading-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+#loading-bar {
+  display: flex;
+  gap: 9px;
+}
+#loading-bar i {
+  width: 16px;
+  height: 16px;
+  background: #f2b632;
+  clip-path: polygon(3px 0, 100% 0, 100% calc(100% - 3px), calc(100% - 3px) 100%, 0 100%, 0 3px);
+  animation: loading-pulse 0.9s ease-in-out infinite;
+}
+#loading-bar i:nth-child(2) { animation-delay: 0.12s; }
+#loading-bar i:nth-child(3) { animation-delay: 0.24s; }
+#loading-bar i:nth-child(4) { animation-delay: 0.36s; }
+#loading-bar i:nth-child(5) { animation-delay: 0.48s; }
+@keyframes loading-pulse {
+  0%, 100% { opacity: 0.25; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1); }
+}
+#loading-text {
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: #f2b632;
+  text-transform: uppercase;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   Unlocks panel — TEMPORARY dev tool (the Contracts system replaces it).
+   Three columns (Weapons / Orbs / Mods), each row unlocks on click.
+   ───────────────────────────────────────────────────────────────────────── */
+#unlocks-panel {
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  width: min(1040px, calc(100vw - 48px));
+  max-width: min(1040px, calc(100vw - 48px));
+  max-height: calc(100vh - 90px);
+}
+#unlocks-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+.unlocks-column {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.unlocks-column-head {
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: #7ee0ff;
+  padding-bottom: 4px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid rgba(126, 224, 255, 0.25);
+  position: sticky;
+  top: 0;
+  background: rgba(16, 20, 27, 0.96);
+  z-index: 1;
+}
+#unlocks-columns .unlock-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  font-weight: 400;
+  border: 1px solid rgba(126, 224, 255, 0.18);
+  border-radius: 4px;
+  background: rgba(20, 30, 42, 0.7);
+  color: #e8e3d5;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.12s, border-color 0.12s, transform 0.1s;
+}
+#unlocks-columns .unlock-row:hover:not(:disabled) {
+  background: rgba(242, 182, 50, 0.22);
+  border-color: #f2b632;
+  transform: translateX(2px);
+}
+#unlocks-columns .unlock-row.unlocked {
+  opacity: 0.5;
+  cursor: default;
+}
+#unlocks-columns .unlock-row .card-icon,
+#unlocks-columns .unlock-row .card-icon-img {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  flex: 0 0 auto;
+  image-rendering: pixelated;
+}
+#unlocks-columns .unlock-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#unlocks-columns .unlock-state {
+  color: #5fd068;
+  font-weight: 700;
+  flex: 0 0 auto;
+}
+#unlocks-columns .unlock-state-lock {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  opacity: 0.8;
+  flex: 0 0 auto;
+  image-rendering: pixelated;
+}
+#unlocks-actions {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
 }

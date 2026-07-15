@@ -1,15 +1,23 @@
-import { MAX_WEAPON_LEVEL, PLAYER, WEAPON_INFO, xpForLevel, type WeaponId } from './config';
+import { ACCOUNT, MAX_WEAPON_LEVEL, PLAYER, TIERS, WEAPON_INFO, describeWeaponLevel, xpForLevel, type WeaponId } from './config';
 import type { PlayerStats } from './stats';
 import type { Player } from './player';
 
-// Level-up card pool: stat upgrades with rarity tiers plus weapon cards
-// (unlock / level up). Rarity weights shift with Luck — Megabonk's base rule,
-// our numbers.
+// Level-up card pool: core cards (permanent player stats) with 5-tier
+// rarities plus weapon cards (unlock / level up). Tier weights shift with
+// Luck — Megabonk's base rule, our numbers.
+//
+// Sockets (2026-07-09): the chassis holds a limited number of DISTINCT cores.
+// The first pick of a stat installs its core; later picks level it inside its
+// socket. With sockets full the draft only offers installed cores — no swap,
+// early picks are a run-long commitment.
 
-export type Rarity = 'common' | 'rare' | 'epic';
+export type Rarity = 'gray' | 'green' | 'blue' | 'purple' | 'gold';
 
 /** Weapon inventory: 0 = locked, 1..MAX_WEAPON_LEVEL = owned level. */
 export type WeaponLevels = Record<WeaponId, number>;
+
+/** Installed cores by stat-card id → level (times picked). */
+export type CoreLevels = Partial<Record<string, number>>;
 
 export function emptyWeaponLevels(): WeaponLevels {
   return {
@@ -32,14 +40,14 @@ export interface UpgradeCard {
   title: string;
   description: string;
   rarity: Rarity;
-  apply(stats: PlayerStats, player: Player, weapons: WeaponLevels): void;
+  apply(stats: PlayerStats, player: Player, weapons: WeaponLevels, cores: CoreLevels): void;
 }
 
 interface StatCardDef {
   id: string;
   title: string;
-  /** Magnitude per rarity: [common, rare, epic]. */
-  magnitudes: [number, number, number];
+  /** Magnitude per tier: [gray, green, blue, purple, gold]. */
+  magnitudes: [number, number, number, number, number];
   describe(value: number): string;
   apply(stats: PlayerStats, player: Player, value: number): void;
   /** Optional gate: card only offered while this returns true. */
@@ -52,7 +60,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'damage',
     title: 'Power Coupling',
-    magnitudes: [0.1, 0.18, 0.3],
+    magnitudes: [0.1, 0.14, 0.18, 0.3, 0.42],
     describe: (v) => `${pct(v)} Damage`,
     apply: (s, _p, v) => {
       s.damage += v;
@@ -61,7 +69,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'attack-speed',
     title: 'Overclock',
-    magnitudes: [0.1, 0.16, 0.25],
+    magnitudes: [0.1, 0.13, 0.16, 0.25, 0.35],
     describe: (v) => `${pct(v)} Attack Speed`,
     apply: (s, _p, v) => {
       s.attackSpeed += v;
@@ -70,7 +78,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'crit-chance',
     title: 'Targeting Chip',
-    magnitudes: [0.04, 0.07, 0.12],
+    magnitudes: [0.04, 0.05, 0.07, 0.12, 0.17],
     describe: (v) => `${pct(v)} Crit Chance`,
     apply: (s, _p, v) => {
       s.critChance += v;
@@ -79,7 +87,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'crit-damage',
     title: 'Piercing Rounds',
-    magnitudes: [0.15, 0.25, 0.4],
+    magnitudes: [0.15, 0.2, 0.25, 0.4, 0.55],
     describe: (v) => `${pct(v)} Crit Damage`,
     apply: (s, _p, v) => {
       s.critDamage += v;
@@ -88,7 +96,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'move-speed',
     title: 'Servo Tune-Up',
-    magnitudes: [0.06, 0.1, 0.16],
+    magnitudes: [0.06, 0.08, 0.1, 0.16, 0.22],
     describe: (v) => `${pct(v)} Move Speed`,
     apply: (s, _p, v) => {
       s.moveSpeed += v;
@@ -97,7 +105,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'attack-range',
     title: 'Long Barrel',
-    magnitudes: [0.08, 0.14, 0.22],
+    magnitudes: [0.08, 0.11, 0.14, 0.22, 0.3],
     describe: (v) => `${pct(v)} Attack Range`,
     apply: (s, _p, v) => {
       s.attackRange += v;
@@ -106,7 +114,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'pickup-range',
     title: 'Magnet Coil',
-    magnitudes: [0.2, 0.35, 0.6],
+    magnitudes: [0.2, 0.28, 0.35, 0.6, 0.85],
     describe: (v) => `${pct(v)} Pickup Range`,
     apply: (s, _p, v) => {
       s.pickupRange *= 1 + v;
@@ -115,7 +123,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'projectile-speed',
     title: 'Ballistics Kit',
-    magnitudes: [0.1, 0.18, 0.3],
+    magnitudes: [0.1, 0.14, 0.18, 0.3, 0.42],
     describe: (v) => `${pct(v)} Projectile Speed`,
     apply: (s, _p, v) => {
       s.projectileSpeed += v;
@@ -124,7 +132,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'area',
     title: 'Expansion Module',
-    magnitudes: [0.08, 0.14, 0.22],
+    magnitudes: [0.08, 0.11, 0.14, 0.22, 0.3],
     describe: (v) => `${pct(v)} Area`,
     apply: (s, _p, v) => {
       s.area += v;
@@ -133,7 +141,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'armor',
     title: 'Deflector Plates',
-    magnitudes: [8, 15, 25],
+    magnitudes: [8, 11, 15, 25, 35],
     describe: (v) => `+${v} Armor`,
     apply: (s, _p, v) => {
       s.armor += v;
@@ -142,7 +150,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'regen',
     title: 'Nanobot Swarm',
-    magnitudes: [1, 2, 4],
+    magnitudes: [1, 2, 3, 4, 6],
     describe: (v) => `+${v} HP Regen per tick`,
     apply: (s, _p, v) => {
       s.regen += v;
@@ -151,7 +159,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'max-hp',
     title: 'Hull Plates',
-    magnitudes: [15, 25, 45],
+    magnitudes: [15, 20, 25, 45, 65],
     describe: (v) => `+${v} Max HP (and heal ${v})`,
     apply: (_s, p, v) => {
       p.maxHp += v;
@@ -161,7 +169,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'evasion',
     title: 'Ghost Plating',
-    magnitudes: [8, 14, 22],
+    magnitudes: [8, 11, 14, 22, 30],
     describe: (v) => `+${v} Evasion (chance to dodge hits)`,
     apply: (s, _p, v) => {
       s.evasion += v;
@@ -170,7 +178,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'thorns',
     title: 'Rusty Spikes',
-    magnitudes: [6, 12, 20],
+    magnitudes: [6, 9, 12, 20, 28],
     describe: (v) => `+${v} Thorns (reflect on contact)`,
     apply: (s, _p, v) => {
       s.thorns += v;
@@ -179,7 +187,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'shield',
     title: 'Barrier Cell',
-    magnitudes: [1, 1, 1],
+    magnitudes: [1, 1, 1, 1, 1],
     describe: () => '+1 Shield Charge: blocks one full hit, regenerates over time (max 3)',
     apply: (s) => {
       s.shield = Math.min(PLAYER.maxShieldCharges, s.shield + 1);
@@ -189,7 +197,7 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'lifesteal',
     title: 'Leech Coil',
-    magnitudes: [3, 6, 10],
+    magnitudes: [3, 4, 6, 10, 14],
     describe: (v) => `+${v}% Lifesteal (chance to steal 1 HP per hit)`,
     apply: (s, _p, v) => {
       s.lifesteal += v;
@@ -198,15 +206,38 @@ const STAT_CARDS: StatCardDef[] = [
   {
     id: 'duration',
     title: 'Capacitor Bank',
-    magnitudes: [0.1, 0.16, 0.25],
+    magnitudes: [0.1, 0.13, 0.16, 0.25, 0.35],
     describe: (v) => `${pct(v)} Effect Duration`,
     apply: (s, _p, v) => {
       s.duration += v;
     },
   },
+  // Migrated from chest rewards (2026-07-09): permanent stats live in the
+  // core draft, chests hold consumables only.
+  {
+    id: 'luck',
+    title: 'Lucky Gear',
+    magnitudes: [6, 8, 10, 14, 20],
+    describe: (v) => `+${v} Luck (better tier rolls)`,
+    apply: (s, _p, v) => {
+      s.luck += v;
+    },
+  },
+  {
+    id: 'cursed',
+    title: 'Cursed Core',
+    magnitudes: [0.06, 0.08, 0.1, 0.14, 0.2],
+    describe: (v) =>
+      `+${Math.round(v * 100)}% difficulty, +${Math.round(v * 160)}% XP gain`,
+    apply: (s, _p, v) => {
+      s.cursedDifficulty += v;
+      s.xpGain += v * 1.6;
+    },
+  },
 ];
 
-/** Chaos: applies a random stat card's effect at this card's rarity. */
+/** Chaos: applies a random stat card's effect at this card's rarity. It is a
+ *  core like any other — it installs into (and levels inside) one socket. */
 function makeChaosCard(rarity: Rarity): UpgradeCard {
   const index = RARITY_INDEX[rarity];
   return {
@@ -214,35 +245,56 @@ function makeChaosCard(rarity: Rarity): UpgradeCard {
     title: 'Chaos Module',
     description: 'Boosts a random stat. Feeling lucky?',
     rarity,
-    apply: (stats, player) => {
+    apply: (stats, player, _weapons, cores) => {
       const def = STAT_CARDS[Math.floor(Math.random() * STAT_CARDS.length)];
       def?.apply(stats, player, def.magnitudes[index]);
+      cores['chaos'] = (cores['chaos'] ?? 0) + 1;
     },
   };
 }
 
-/** Epic-only card: flat extra projectile for volley weapons. */
+/** High-tier-only card: +1 unit of whichever weapon (projectile/tire/blade/
+ *  tornado) — the sole quantity scaler past the Lv3/Lv5 weapon milestones. */
 const PROJECTILE_CARD: StatCardDef = {
   id: 'projectile-count',
   title: 'Ammo Feeder',
-  magnitudes: [1, 1, 1],
+  magnitudes: [1, 1, 1, 1, 1],
   describe: () => '+1 Projectile',
   apply: (s) => {
     s.projectileCount += 1;
   },
 };
 
-function rollRarity(luck: number): Rarity {
-  const epicW = 8 + luck * 0.5;
-  const rareW = 30 + luck * 0.5;
-  const commonW = 62;
-  const roll = Math.random() * (epicW + rareW + commonW);
-  if (roll < epicW) return 'epic';
-  if (roll < epicW + rareW) return 'rare';
-  return 'common';
+const TIER_ORDER: Rarity[] = ['gold', 'purple', 'blue', 'green', 'gray'];
+
+/** Card id → display title, for the HUD's core-socket rows. */
+export const CORE_TITLES: Record<string, string> = Object.fromEntries(
+  STAT_CARDS.map((def) => [def.id, def.title]),
+);
+CORE_TITLES['chaos'] = 'Chaos Module';
+CORE_TITLES['projectile-count'] = 'Ammo Feeder';
+
+/** Luck-weighted tier roll — shared by the card draft, the chest reel and
+ *  the merchant stock. */
+export function rollRarity(luck: number): Rarity {
+  const weights = TIER_ORDER.map(
+    (tier) => TIERS.weights[tier] + luck * TIERS.luckShift[tier],
+  );
+  let roll = Math.random() * weights.reduce((a, b) => a + b, 0);
+  for (let i = 0; i < TIER_ORDER.length; i++) {
+    roll -= weights[i]!;
+    if (roll < 0) return TIER_ORDER[i]!;
+  }
+  return 'gray';
 }
 
-const RARITY_INDEX: Record<Rarity, 0 | 1 | 2> = { common: 0, rare: 1, epic: 2 };
+const RARITY_INDEX: Record<Rarity, 0 | 1 | 2 | 3 | 4> = {
+  gray: 0,
+  green: 1,
+  blue: 2,
+  purple: 3,
+  gold: 4,
+};
 
 function makeStatCard(def: StatCardDef, rarity: Rarity): UpgradeCard {
   const value = def.magnitudes[RARITY_INDEX[rarity]];
@@ -251,49 +303,68 @@ function makeStatCard(def: StatCardDef, rarity: Rarity): UpgradeCard {
     title: def.title,
     description: def.describe(value),
     rarity,
-    apply: (stats, player) => def.apply(stats, player, value),
+    apply: (stats, player, _weapons, cores) => {
+      def.apply(stats, player, value);
+      cores[def.id] = (cores[def.id] ?? 0) + 1;
+    },
   };
 }
 
-function makeWeaponCard(weaponId: WeaponId, owned: boolean): UpgradeCard {
+function makeWeaponCard(weaponId: WeaponId, level: number): UpgradeCard {
   const info = WEAPON_INFO[weaponId];
+  const owned = level > 0;
   return {
     id: `weapon-${weaponId}`,
     title: owned ? `${info.title} +1` : `Unlock: ${info.title}`,
-    description: owned ? `Level up ${info.title}.` : info.description,
-    rarity: 'rare',
+    // Owned cards show the concrete gains of the NEXT level, generated from
+    // the same config the weapon reads (Opción A, docs/DESIGN_MEJORAS.md).
+    description: owned ? describeWeaponLevel(weaponId, level + 1) : info.description,
+    rarity: 'blue',
     apply: (_stats, _player, weapons) => {
       weapons[weaponId] = Math.min(MAX_WEAPON_LEVEL, weapons[weaponId] + 1);
     },
   };
 }
 
-/** Maximum weapons a build can hold: the draft pick plus one unlock. */
-export const MAX_WEAPONS = 2;
-
 export function ownedWeaponCount(weapons: WeaponLevels): number {
   return (Object.keys(weapons) as WeaponId[]).filter((id) => weapons[id] > 0).length;
 }
 
+export function installedCoreCount(cores: CoreLevels): number {
+  return Object.values(cores).filter((level) => (level ?? 0) > 0).length;
+}
+
 /** Rolls `count` distinct cards for a level-up choice.
- *  While the build holds fewer than MAX_WEAPONS, one new-weapon unlock is
- *  guaranteed among the options; at the cap, unlock cards disappear and only
- *  stat cards + owned-weapon level-ups remain. */
+ *  Everything is double-gated (2026-07-09): by the ACCOUNT unlock state
+ *  (contract-locked weapons/cores never enter the pool) and by the sockets
+ *  (weapon slots cap the unlock cards; core sockets full → only installed
+ *  cores appear — no swap). */
 export function rollUpgradeChoices(
   stats: PlayerStats,
   weapons: WeaponLevels,
+  cores: CoreLevels,
   count = 3,
 ): UpgradeCard[] {
-  const atWeaponCap = ownedWeaponCount(weapons) >= MAX_WEAPONS;
+  const atWeaponCap = ownedWeaponCount(weapons) >= ACCOUNT.weaponSockets;
+  const atCoreCap = installedCoreCount(cores) >= ACCOUNT.coreSockets;
+  const coreOffered = (id: string): boolean =>
+    ACCOUNT.unlockedCores.includes(id) && (!atCoreCap || (cores[id] ?? 0) > 0);
 
   const candidates: UpgradeCard[] = [];
   for (const def of STAT_CARDS) {
     if (def.available && !def.available(stats)) continue;
+    if (!coreOffered(def.id)) continue;
     candidates.push(makeStatCard(def, rollRarity(stats.luck)));
   }
-  candidates.push(makeChaosCard(rollRarity(stats.luck)));
-  if (rollRarity(stats.luck) === 'epic') {
-    candidates.push(makeStatCard(PROJECTILE_CARD, 'epic'));
+  if (coreOffered('chaos')) {
+    candidates.push(makeChaosCard(rollRarity(stats.luck)));
+  }
+  const projectileTier = rollRarity(stats.luck);
+  if (
+    (projectileTier === 'purple' || projectileTier === 'gold') &&
+    coreOffered(PROJECTILE_CARD.id)
+  ) {
+    candidates.push(makeStatCard(PROJECTILE_CARD, projectileTier));
   }
 
   const unlockCards: UpgradeCard[] = [];
@@ -301,9 +372,9 @@ export function rollUpgradeChoices(
     const level = weapons[weaponId];
     if (level >= MAX_WEAPON_LEVEL) continue;
     if (level > 0) {
-      candidates.push(makeWeaponCard(weaponId, true));
-    } else if (!atWeaponCap) {
-      unlockCards.push(makeWeaponCard(weaponId, false));
+      candidates.push(makeWeaponCard(weaponId, level));
+    } else if (!atWeaponCap && ACCOUNT.unlockedWeapons.includes(weaponId)) {
+      unlockCards.push(makeWeaponCard(weaponId, 0));
     }
   }
 

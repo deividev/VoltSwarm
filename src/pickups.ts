@@ -1,37 +1,35 @@
 import * as THREE from 'three';
-import { ARENA_HALF_SIZE, PICKUPS } from './config';
+import { ARENA_HALF_SIZE, CHEST, PICKUPS } from './config';
 import { litMaterial } from './toon';
+import { rollRarity, type Rarity } from './upgrades';
+import { resolveChestTier, TIER_COLORS } from './mods';
+import { buildGridGeometry } from './models/voxel-builder';
+import { buildModelGrid, VOXEL_MODELS } from './models/registry';
 
 // Scrap crates that spawn around the map, separate from level-up choices.
-// They give the player a reason to move somewhere instead of kiting in
-// circles: walk over a crate to collect its reward.
-
-// Chests mix instant rewards with Megabonk-style general stat boosts (luck,
-// area, cursed difficulty) that never appear in the level-up pool.
-export type PickupReward =
-  | 'repair'
-  | 'scrap-cache'
-  | 'frenzy'
-  | 'haste'
-  | 'luck'
-  | 'area'
-  | 'cursed';
-
-const REWARD_WEIGHTS: [PickupReward, number][] = [
-  ['repair', 3],
-  ['scrap-cache', 3],
-  ['frenzy', 2],
-  ['haste', 2],
-  ['luck', 2],
-  ['area', 2],
-  ['cursed', 1],
-];
-
+// They give the player a reason to move somewhere and spend gold.
+//
+// 2026-07-09: crates are now PAID and opened with E. Each pins a TIER at spawn
+// (so the price is known before opening) and colors its beam by that tier so
+// the player reads what they're walking toward. This system owns presence and
+// the tier; game.ts owns the E-interaction, the charge and the reel.
 interface PickupSlot {
   active: boolean;
-  reward: PickupReward;
+  tier: Rarity;
   group: THREE.Group;
   crate: THREE.Mesh;
+  crateMat: THREE.MeshLambertMaterial | THREE.MeshToonMaterial;
+  beamMat: THREE.MeshBasicMaterial;
+  /** Bob origin: primitive box floats at 0.8; the voxel model sits lower. */
+  baseY: number;
+}
+
+export interface OpenableChest {
+  index: number;
+  tier: Rarity;
+  /** World position, for the floating interact prompt. */
+  x: number;
+  z: number;
 }
 
 export class PickupSystem {
@@ -39,77 +37,131 @@ export class PickupSystem {
   // First crate shows up early so the mechanic is discovered in minute one.
   private spawnTimer = PICKUPS.spawnIntervalS * 0.4;
   private bobPhase = 0;
+  /** Voxel chest geometry per tier — built async, swapped over the primitive. */
+  private readonly voxelGeoms = new Map<Rarity, THREE.BufferGeometry>();
+  private voxelMat: THREE.Material | null = null;
 
   constructor(scene: THREE.Scene) {
     const crateGeometry = new THREE.BoxGeometry(1, 1, 1);
-    const crateMaterial = litMaterial({
-      color: 0xf2b632,
-      emissive: 0x6b4d0e,
-    });
     // Tall additive beam so crates read from the top-down camera at a distance.
     const beamGeometry = new THREE.CylinderGeometry(0.35, 0.35, 14, 8, 1, true);
-    const beamMaterial = new THREE.MeshBasicMaterial({
-      color: 0xffd76a,
-      transparent: true,
-      opacity: 0.25,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.DoubleSide,
-    });
 
     for (let i = 0; i < PICKUPS.maxActive; i++) {
       const group = new THREE.Group();
-      const crate = new THREE.Mesh(crateGeometry, crateMaterial);
+      // Per-slot materials so each crate can be tinted by its tier.
+      const crateMat = litMaterial({ color: 0xf2b632, emissive: 0x6b4d0e });
+      const crate = new THREE.Mesh(crateGeometry, crateMat);
       crate.position.y = 0.8;
-      const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+      const beamMat = new THREE.MeshBasicMaterial({
+        color: 0xffd76a,
+        transparent: true,
+        opacity: 0.25,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      });
+      const beam = new THREE.Mesh(beamGeometry, beamMat);
       beam.position.y = 7;
       group.add(crate, beam);
       group.visible = false;
       scene.add(group);
-      this.slots.push({ active: false, reward: 'repair', group, crate });
+      this.slots.push({ active: false, tier: 'gray', group, crate, crateMat, beamMat, baseY: 0.8 });
+    }
+
+    // Image-derived voxel chests load async and swap over the primitives.
+    void this.buildVoxelChests();
+  }
+
+  private async buildVoxelChests(): Promise<void> {
+    const def = VOXEL_MODELS['chest-gray'];
+    if (!def) return;
+    try {
+      const tiers: Rarity[] = ['gray', 'green', 'blue', 'purple', 'gold'];
+      for (const tier of tiers) {
+        const grid = await buildModelGrid(`chest-${tier}`);
+        this.voxelGeoms.set(tier, buildGridGeometry(grid, def.voxelSize));
+      }
+      this.voxelMat = litMaterial({ vertexColors: true });
+      for (const slot of this.slots) {
+        if (slot.active) this.applyVoxel(slot);
+      }
+    } catch (error) {
+      console.warn('Chest voxel model unavailable, keeping primitive crates:', error);
     }
   }
 
-  update(
-    dt: number,
-    px: number,
-    pz: number,
-    onCollect: (reward: PickupReward) => void,
-  ): void {
+  /** Swaps a slot's primitive box for the tier-colored voxel chest. */
+  private applyVoxel(slot: PickupSlot): void {
+    const geometry = this.voxelGeoms.get(slot.tier);
+    if (!geometry || !this.voxelMat) return;
+    slot.crate.geometry = geometry;
+    slot.crate.material = this.voxelMat;
+    slot.baseY = 0.1;
+  }
+
+  /** Advances timers/animation and spawns the periodic crate. Collection is
+   *  no longer automatic — game.ts opens chests via nearestOpenable + open. */
+  update(dt: number, px: number, pz: number, luck: number): void {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer = PICKUPS.spawnIntervalS;
-      this.spawn(px, pz);
+      this.spawn(px, pz, luck);
     }
 
     this.bobPhase += dt;
     for (const slot of this.slots) {
       if (!slot.active) continue;
       slot.crate.rotation.y += dt * 1.2;
-      slot.crate.position.y = 0.8 + Math.sin(this.bobPhase * 2.5) * 0.15;
-
-      const dx = slot.group.position.x - px;
-      const dz = slot.group.position.z - pz;
-      if (dx * dx + dz * dz <= PICKUPS.collectRadius * PICKUPS.collectRadius) {
-        slot.active = false;
-        slot.group.visible = false;
-        onCollect(slot.reward);
-      }
+      slot.crate.position.y = slot.baseY + Math.sin(this.bobPhase * 2.5) * 0.15;
     }
   }
 
-  private spawn(px: number, pz: number): void {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = THREE.MathUtils.lerp(PICKUPS.spawnDistMin, PICKUPS.spawnDistMax, Math.random());
-    this.spawnAt(px + Math.cos(angle) * dist, pz + Math.sin(angle) * dist);
+  /** Nearest active crate within interaction range of the player, or null. */
+  nearestOpenable(px: number, pz: number): OpenableChest | null {
+    let best: OpenableChest | null = null;
+    let bestSq = CHEST.interactRadius * CHEST.interactRadius;
+    for (let i = 0; i < this.slots.length; i++) {
+      const slot = this.slots[i];
+      if (!slot || !slot.active) continue;
+      const dx = slot.group.position.x - px;
+      const dz = slot.group.position.z - pz;
+      const dSq = dx * dx + dz * dz;
+      if (dSq <= bestSq) {
+        bestSq = dSq;
+        best = { index: i, tier: slot.tier, x: slot.group.position.x, z: slot.group.position.z };
+      }
+    }
+    return best;
   }
 
-  /** Drops a crate at an exact position (elite kills, boss rewards). */
-  spawnAt(x: number, z: number): void {
+  /** Consumes a crate after a successful purchase. */
+  open(index: number): void {
+    const slot = this.slots[index];
+    if (!slot) return;
+    slot.active = false;
+    slot.group.visible = false;
+  }
+
+  private spawn(px: number, pz: number, luck: number): void {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = THREE.MathUtils.lerp(PICKUPS.spawnDistMin, PICKUPS.spawnDistMax, Math.random());
+    this.spawnAt(px + Math.cos(angle) * dist, pz + Math.sin(angle) * dist, luck);
+  }
+
+  /** Drops a crate at an exact position (elite kills, boss rewards), rolling
+   *  its tier so its price and color are fixed from the moment it appears. */
+  spawnAt(x: number, z: number, luck: number): void {
     const slot = this.slots.find((s) => !s.active);
-    if (!slot) return; // All crates on the field; wait for one to be collected.
+    if (!slot) return; // All crates on the field; wait for one to be opened.
     slot.active = true;
-    slot.reward = rollReward();
+    // Cap the rolled tier to one that has unlocked mods, so the beam/price a
+    // player reads always matches the reward they'll get (no gold chest paying
+    // out a purple mod). Self-heals as contracts unlock higher tiers.
+    slot.tier = resolveChestTier(rollRarity(luck));
+    const color = TIER_COLORS[slot.tier];
+    slot.crateMat.color.setHex(color); // primitive fallback tint
+    slot.beamMat.color.setHex(color); // the tier light — readable at distance
+    this.applyVoxel(slot);
     slot.group.position.set(
       THREE.MathUtils.clamp(x, -ARENA_HALF_SIZE, ARENA_HALF_SIZE),
       0,
@@ -125,14 +177,4 @@ export class PickupSystem {
     }
     this.spawnTimer = PICKUPS.spawnIntervalS * 0.4;
   }
-}
-
-function rollReward(): PickupReward {
-  const total = REWARD_WEIGHTS.reduce((sum, [, w]) => sum + w, 0);
-  let roll = Math.random() * total;
-  for (const [reward, weight] of REWARD_WEIGHTS) {
-    roll -= weight;
-    if (roll <= 0) return reward;
-  }
-  return 'repair';
 }

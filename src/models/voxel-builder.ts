@@ -81,7 +81,8 @@ function cellAt(grid: VoxelGrid, x: number, y: number, z: number): number | null
  * vertex colors, per-instance tint left to InstancedMesh).
  *
  * Triangle control: interior voxels (no empty neighbor) are dropped, then
- * adjacent same-color surface voxels along X merge into single boxes.
+ * same-color surface voxels greedily merge into rectangles per Z slice
+ * (grow along X first, then extend the run down +Y) — one box per rectangle.
  */
 export function buildGridGeometry(grid: VoxelGrid, voxelSize: number): THREE.BufferGeometry {
   const height = grid.length;
@@ -116,23 +117,53 @@ export function buildGridGeometry(grid: VoxelGrid, voxelSize: number): THREE.Buf
   }
 
   const parts: THREE.BufferGeometry[] = [];
-  for (let y = 0; y < height; y++) {
-    for (let z = 0; z < depth; z++) {
+  const used = emptyGrid(width, height, depth);
+  for (let z = 0; z < depth; z++) {
+    for (let y = 0; y < height; y++) {
       let x = 0;
       while (x < width) {
         const color = cellAt(shell, x, y, z);
-        if (color === null) {
+        if (color === null || cellAt(used, x, y, z) !== null) {
           x++;
           continue;
         }
         let runEnd = x + 1;
-        while (runEnd < width && cellAt(shell, runEnd, y, z) === color) runEnd++;
+        while (
+          runEnd < width &&
+          cellAt(shell, runEnd, y, z) === color &&
+          cellAt(used, runEnd, y, z) === null
+        ) {
+          runEnd++;
+        }
         const runLength = runEnd - x;
 
-        const geometry = new THREE.BoxGeometry(runLength * voxelSize, voxelSize, voxelSize);
+        // Grow the X run upward through identical unclaimed rows.
+        let runHeight = 1;
+        grow: while (y + runHeight < height) {
+          for (let gx = x; gx < runEnd; gx++) {
+            if (
+              cellAt(shell, gx, y + runHeight, z) !== color ||
+              cellAt(used, gx, y + runHeight, z) !== null
+            ) {
+              break grow;
+            }
+          }
+          runHeight++;
+        }
+        for (let gy = y; gy < y + runHeight; gy++) {
+          const usedRow = used[gy]?.[z];
+          if (!usedRow) continue;
+          for (let gx = x; gx < runEnd; gx++) usedRow[gx] = 1;
+        }
+
+        const geometry = new THREE.BoxGeometry(
+          runLength * voxelSize,
+          runHeight * voxelSize,
+          voxelSize,
+        );
         geometry.translate(
           (x + runLength / 2) * voxelSize - offsetX,
-          (y + 0.5) * voxelSize,
+          (y + runHeight / 2) * voxelSize,
           (z + 0.5) * voxelSize - offsetZ,
         );
         applyVertexColor(geometry, color);

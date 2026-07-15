@@ -22,3 +22,32 @@ Thumbs.db
 
 # Skill registry cache (regenerated locally, not source of truth)
 .atl/.skill-registry.cache.json
+
+# ─────────────────────────────────────────────────────────────────────────
+# Imágenes y assets del juego — SOLO LOCAL (mantienen el repo liviano; ~1.8GB
+# de art/ + assets no entran al repo). Decisión del usuario 2026-07-12.
+# ⚠️ Consecuencia: un clon fresco del repo NO tendrá los assets → no correrá
+#    ni se empaquetará sin restaurarlos desde el backup local. Es intencional.
+# ─────────────────────────────────────────────────────────────────────────
+# Carpetas de assets
+/art/
+/public/assets/
+/public/fonts/
+/assets/
+/tmp/
+/build/
+# Media suelta en cualquier parte (red de seguridad)
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.bmp
+*.ico
+*.mp4
+*.mov
+*.webm
+*.wav
+*.mp3
+*.ogg
+*.woff2

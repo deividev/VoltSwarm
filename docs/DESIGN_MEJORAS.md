@@ -24,6 +24,19 @@ Nuestra regla derivada: **cada elemento nuevo debe interactuar con algo que ya e
 
 ---
 
+## Sistema de consumo — 3 categorías, sockets y tiers (cerrado 2026-07-08)
+
+Decisiones que enmarcan todas las listas (proceso completo: sesión de diseño 2026-07-08 sobre los canales de consumo de Megabonk):
+
+- **Taxonomía sin excepciones (v2, 2026-07-08)**: stat permanente → **Core** (draft de level-up, ocupa socket) · todo lo demás → **Mod**: un ÚNICO pool (consumibles + comportamientos permanentes) con dos puertas — la **ruleta del cofre** (gratis, pesada por tier) y el **chatarrero** (pagando oro). El "jackpot" no es mecánica aparte: es la tirada rara de tier alto en el cofre.
+- **Sockets** (estado de cuenta, se amplían por Contratos de Desguace): armas **1 de inicio → 2** · cores **2 de inicio → 4**. **Sin swap en v1**: un core instalado es compromiso de todo el run. Números a revisitar con datos de playtest. Los primeros contratos de socket deben caer rápido (runs 1-3) para que el estado mínimo no se alargue.
+- **5 tiers de rareza**: gris → verde → azul → morado → dorado. Las magnitudes de cores pasan a arrays de 5 en `upgrades.ts`; el roll por Luck se recalibra a 5 pesos; el tier regula precio del chatarrero y peso del jackpot. (Arte: ornamentos de rareza pasan de 3 a 4 — gris va limpio.)
+- **Carta de arma con identidad (Opción A)**: la carta "+1 nivel" muestra la mejora concreta que da ese nivel (curvas deterministas en config). Opción B (roll del pool propio del arma, estilo Megabonk) diferida — revisar antes de lanzar.
+- **Migración de recompensas de cofre (2026-07-08)**: **Lucky Gear** y **Cursed Core** pasan a CORES del draft (Lucky Gear = core de Luck, el core "meta" que mejora tus tiers; Cursed Core = core tradeoff +dificultad/+XP por nivel — paridad con el Cursed Tome). **Expansion Core se elimina** (redundante con Expansion Module). **Repair Kit, Volt Cache, Frenzy y Overdrive se integran en la lista de Mods como consumibles** — la ruleta del cofre tira del pool de mods completo, pesada por tier.
+- **Desbloqueo v1**: sin moneda meta — Contratos de Desguace como único motor. Cada lista lleva columna default/contrato. HUD: sockets de cores en lista bajo la sección de armas.
+
+---
+
 ## Lista 1 — Stats del personaje (la ficha)
 
 Núcleo genérico inevitable del género + stats propios que solo tienen sentido en NUESTRO juego.
@@ -80,6 +93,13 @@ La base Megabonk: pasivas que suben la ficha. Nuestra vuelta: la mitad del pool 
 | Emergency Battery | Al llegar a 0 HP: explosión masiva y sobrevivís con 1 HP | Una vez por run; ocupa una elección | 🟡 |
 | Siren Protocol | +1 carta para elegir en cada level-up (4 en vez de 3) | +10% velocidad de rampa de dificultad | 🟢 |
 
+### Cores v1 — reparto default/contrato (cerrado 2026-07-09)
+
+Los 21 cores = 17 cartas de stat existentes + Chaos Module + Ammo Feeder + Lucky Gear y Cursed Core (migrados de cofre). Lógica: default = kit coherente para aprender; contrato = capas que definen builds avanzadas. Las condiciones concretas de cada contrato se diseñan en Fase 5.
+
+- **Default (10)**: Power Coupling · Overclock · Servo Tune-Up · Hull Plates · Deflector Plates · Nanobot Swarm · Long Barrel · Magnet Coil · Ballistics Kit · Expansion Module
+- **Por contrato (11)**: Targeting Chip + Piercing Rounds (la rama crit completa se GANA — decisión 2026-07-09: media rama suelta se percibe inútil aunque el crit base pegue +50%) · Ghost Plating · Rusty Spikes · Barrier Cell · Leech Coil (cadena de build tanque) · Capacitor Bank · Chaos Module · Ammo Feeder (power-spike tardío) · Lucky Gear · Cursed Core (rama de codicia/riesgo)
+
 ### Mecánicas del pool (base Megabonk, adopción directa)
 
 - **Reroll** (N por run) y **Skip** — 🟡
@@ -107,6 +127,33 @@ La base Megabonk que adoptamos: cada arma tiene **su propia lista de stats mejor
 | Junk Ricochet ✅ | Chatarra cargada que rebota entre enemigos | Power, Cycle, +Rebote |
 | Dismantler ✅ | Garra pesada; EJECUTA enemigos no-boss bajo 15% HP | Power, Cycle, Umbral de ejecución |
 
+### Progresión por nivel y desbloqueo (v2, cerrado 2026-07-09)
+
+- **Nivel máximo de arma: 20** (antes 5, `MAX_WEAPON_LEVEL`).
+- **Todo escalado por nivel en % del valor BASE** (aditivo, no compuesto — Lv20 ≈ x2.9 daño). La carta muestra la mejora concreta del nivel, **auto-generada desde los campos per-level de config** (`describeWeaponLevel(weaponId, level)` + mapa de etiquetas) — nunca strings a mano, cero drift.
+- **Cantidad SOLO en Lv3 y Lv5**; desde Lv5 solo stats. **Ammo Feeder se redefine: "+1 unidad" del arma correspondiente** (proyectil/neumático/hoja/tornado) — el único escalador de cantidad post-Lv5, y está tras contrato (sinergia). El bounce del Ricochet queda solo de milestone.
+- Blades y Turbine ganan milestones como el resto (decisión 2026-07-09): +1 hoja / +1 tornado en dirección distinta.
+- Topes de diseño: execute threshold ≤30% (Dismantler) · slow con suelo ~25% de velocidad mínima (Oil — a nivel alto no puede congelar el enjambre).
+- Números iniciales (regla de balance: un cambio por playtest):
+
+| Arma | Cada nivel (%) | Lv3 y Lv5 (cantidad) | Desbloqueo |
+| --- | --- | --- | --- |
+| Bolt Cannon | +10% damage | +1 projectile | ✅ Default |
+| Volt Pulse | +10% damage · +6% radius | — | ✅ Default |
+| Orbital Blades | +10% damage | +1 blade | ✅ Default |
+| Hydraulic Press | +12% damage · +5% width | — | ✅ Default |
+| Tire Fire | +10% damage | +1 tire | ✅ Default |
+| Arc Welder | +10% damage · +8% ramp rate | — | 🔒 Contrato |
+| Oil Sprayer | +6% puddle radius · +4% slow | — | 🔒 Contrato |
+| Acid Drum | +10% DoT DPS · +5% zone radius | — | 🔒 Contrato |
+| Turbine Fan | +10% damage | +1 tornado | 🔒 Contrato |
+| Junk Ricochet | +10% damage | +1 bounce | 🔒 Contrato |
+| Dismantler | +12% damage · +0.5pt threshold | — | 🔒 Contrato |
+
+Reparto **5 default / 6 contrato** (espeja el ~5-6 del roadmap): los 5 default cubren un arquetipo básico cada uno y TODOS se sostienen solos — con 1 socket de arma en cuenta nueva, un arma de 0 daño en el pool default sería una trampa (por eso Oil Sprayer va tras contrato). Los contratos enseñan mecánicas avanzadas: ramp, control, DoT, rebote, ejecución.
+
+**Revisión pendiente (apuntada 2026-07-09, post-arte v1)**: cuando la v1 de arte + capturas + página Steam esté cerrada, pase a fondo del elenco de armas — si todas tienen sentido y qué ideas nuevas bien ambientadas merecen entrar.
+
 ### Ideas descartadas / no implementadas (quedaban en el backlog original, no forman parte del draft de 11 shippeado)
 
 | Arma | Patrón | Interacción que la hace nuestra |
@@ -121,6 +168,59 @@ La base Megabonk que adoptamos: cada arma tiene **su propia lista de stats mejor
 ### Regla de evolución (fase 2, 🔴)
 
 Arma al máximo + stat relacionado alto → forma evolucionada (ej. Oil Sprayer max + Spark Plug max → **Inferno Refinery**: los charcos arden permanentemente). Base del género que Megabonk también usa; solo cuando las armas base estén validadas.
+
+---
+
+## Lista 4 — Mods (pool único de cofre + chatarrero, aprobada 2026-07-08)
+
+La base Megabonk que adoptamos: items = categoría separada del draft, obtenida explorando/gastando (sus cofres + Shady Guy → nuestra ruleta de cofre + chatarrero). El contenido es nuestro. Reglas de la categoría:
+
+- **Un único pool, dos puertas**: la **ruleta del cofre** lo tira gratis (pesada por tier) y el **chatarrero** lo vende por **oro in-run** (dropean los kills), apareciendo periódicamente cerca del jugador con 2-3 mods.
+- Dos naturalezas dentro del pool: **consumibles** (efecto al momento, re-obtenibles siempre) y **permanentes** (comportamientos que duran el run).
+- **Nunca "+stat permanente"** (eso es un core) — la regla que mantiene las categorías distintas.
+- **Sin límite de cantidad ni de copias del mismo mod** → cada permanente DEBE stackear sano: suelo/tope interno en su propio diseño.
+- El tier fija precio en el chatarrero y peso en la ruleta. Reparto: 11 default / 5 por contrato.
+
+| Mod | Tier | Efecto (in-game, EN) | Stack por copia | Icono | Origen |
+| --- | --- | --- | --- | --- | --- |
+| Repair Kit | ⚪ Gris | Restores 40% of max HP | n/a — consumible | ✅ ya aprobado (`icon-item-repair`) | Default |
+| Overdrive | ⚪ Gris | x1.5 move speed for 8s | n/a — consumible | ✅ ya aprobado (`icon-item-overdrive`) | Default |
+| Volt Cache | 🟢 Verde | Instantly grants 50% of the XP for next level | n/a — consumible | ✅ ya aprobado (`icon-item-volt-cache`) | Default |
+| Frenzy | 🟢 Verde | x2 damage for 10s | n/a — consumible | ✅ ya aprobado (`icon-item-frenzy`) | Default |
+| Stun Bumper | ⚪ Gris | Every 8s, the next enemy that touches you is zapped and stunned 1.5s | −1s cooldown (mín. 3s) | Parachoques goma oscura + chispa cian | Default |
+| Kick Plate | ⚪ Gris | Enemies that hit you are knocked back | +fuerza/radio | Placa de acero + flechas de empuje | Default |
+| Loose Bolts | ⚪ Gris | Taking a hit scatters 3 damaging bolts around you | +2 pernos | Pernos hexagonales volando | Default |
+| Detonator Rig | 🟢 Verde | Every 25 kills, the next kill explodes in an AoE | −5 kills (mín. 10) | Caja detonadora con émbolo | Default |
+| Coolant Burst | 🟢 Verde | When a shield charge breaks, coolant freezes nearby enemies 2s | +radio | Bidón cian agrietado | Contrato |
+| Orb Siphon | 🟢 Verde | Opening a chest pulls every XP orb on the map to you | +2s haste por cofre | Cofre + chorro de orbes azules | Default |
+| Chain Relay | 🔵 Azul | Critical hits arc lightning to up to 3 nearby enemies | +1 salto | Relé industrial + arco bifurcado | Contrato |
+| Piston Stompers | 🔵 Azul | Every 12 steps, stomp: AoE damage scaling with Move Speed | −2 pasos (mín. 6) | Bota con suela de pistón | Default |
+| Overload Trigger | 🔵 Azul | Elite and boss kills overcharge you: +100% attack speed 5s | +2s | Interruptor industrial rojo en ON | Contrato |
+| Phase Chassis | 🟣 Morado | After taking damage, phase 1s: enemies pass through you | +0.4s | Silueta de robot translúcida | Contrato |
+| Foreman's Whistle | 🟣 Morado | The scrapper visits twice as often and stocks +1 mod | −10% precios (tope 50%) | Silbato de latón de fábrica | Default |
+| Magnetron Heart | 🟡 Dorado | Every 45s: drags the whole horde toward you 2s, then a nova deals damage per enemy dragged | +daño por enemigo, −5s ciclo (mín. 30s) | Núcleo magnetrón con flechas de atracción | Contrato |
+
+Notas: **Piston Stompers** recicla la idea descartada Piston Boots (Lista 3). Iconos de mods = familia visual propia con regla de "rima" contra el stat que tocan (nunca reusar el icono del stat). Pendiente de diseño: números de la economía de oro (drop rate, precios por tier) y el personaje del chatarrero.
+
+---
+
+## Economía in-run y el chatarrero (cerrado 2026-07-09)
+
+**La moneda** (decisión 2026-07-09: **icono primero, nombre después** — se representa solo visualmente en v1; "scrap" y "cogs" descartados, candidatos vivos: Watts/Flux/Credits):
+
+- **Drop in-world**: ficha hexagonal PLANA de oro (token voxel, oro cálido #f2b632 — el dorado ya usado en HUD), **girando sobre su eje Y** (lenguaje universal de moneda), brillo emisivo suave. Diferenciación por forma+color+movimiento: orbes XP = esferas AZULES flotando · cofres = beacon dorado GRANDE con beam · moneda = token plano diminuto girando.
+- **Icono UI** (contador + precios): el hexágono de frente con un **rayo/volt grabado** al centro y borde oscuro — neutral al nombre futuro, ata con la marca Voltswarm. Precio en tienda: `[icono] 45`. ✅ **IMPLEMENTADO 2026-07-10**: `icon-ui-coin-v2.png`, rayo en el cian de marca `#63ecfd` (medido del logo — decisión del usuario para atar HUD y marca), cableado en contador/tienda/precios/prompt de cofre vía `coinHtml()` (hud.ts). Detalle en `PROMPTS_IMAGENES.md` §4b-bis.
+
+- Drop: **25% de los kills → 1 unidad** · elites **10** · boss **50** (20%→25% en el pase de generosidad económica 2026-07-10, junto con XP orbe ×1.3 — `XP_ORBS.valueMult` — y cofres a `tierPrice × 0.5`; los tres se juzgan como UN cambio en el próximo playtest, precios de tienda intactos a propósito). Obligatorio reusar el merge de los orbes de XP (pickups cercanos se funden) — con 400+ enemigos no se llena el suelo de monedas. Ingreso objetivo: ~400-500 por run de 10 min.
+- **Los precios ESCALAN con el tiempo de run** (decisión 2026-07-09: la densidad de enemigos crece → el ingreso crece → precios fijos regalarían los tiers altos): `precio = base del tier × (1 + 0.12 × minuto)`. Bases: gris 25 · verde 45 · azul 80 · morado 140 · dorado 240. Todo en `config.ts`, un cambio por playtest.
+
+**El chatarrero** (vendedor futurista, misma estética del elenco):
+
+- Visitas: **2:00, 5:00, 8:00** (cada 3 min desde la primera).
+- Posición **random tipo totem del boss**, con `findClearSpot` — nunca dentro de props/totem/cofres.
+- **Indicador de posición en pantalla** que guía al jugador, con **countdown de 60 s** (el tiempo que el chatarrero permanece) mostrado en el propio indicador.
+- Stock: **3 mods**, tier pesado por Luck. **Sin reroll en v1** (apuntado: reroll de tienda para versiones avanzadas post-v1). El mod Foreman's Whistle dobla frecuencia y +1 stock (ya en Lista 4).
+- Look (para las refs de 3 vistas): robot vendedor encorvado con **mochila-crate gigante** llena de piezas colgando — silueta única del elenco (regla de silueta por tipo). Señales de no-hostil: farol ámbar cálido, formas más redondas que los enemigos, quieto o con vaivén lento. Juguete industrial; paleta medida de la ref aprobada (regla estándar).
 
 ---
 

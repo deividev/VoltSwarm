@@ -50,6 +50,10 @@ export interface Enemy {
   // Status effects.
   slowTimer: number;
   slowFactor: number;
+  /** Current state-tint index (see TINTS) — edge-detected each frame. */
+  tintState: number;
+  /** Flavor of the current full stop: true = frost (Coolant), false = zap. */
+  iceStun: boolean;
   dotTimer: number;
   dotDps: number;
   dotTick: number;
@@ -75,6 +79,22 @@ const BASE_TINT = new THREE.Color(1, 1, 1);
 // Values above 1 brighten the vertex colors — used as the damage flash.
 const FLASH_TINT = new THREE.Color(2.5, 2.5, 2.5);
 const ELITE_TINT = new THREE.Color(1.6, 0.45, 2.1);
+// State tints, multiplicative over the voxel vertex colors (values past 1
+// brighten). Index = the enemy's tintState: 0 base, 1 electric stun (Stun
+// Bumper), 2 frost stop (Coolant), 3 acid DoT (corroding), 4 elite.
+const STUN_TINT = new THREE.Color(0.35, 2.2, 2.4);
+const FROST_TINT = new THREE.Color(1.3, 1.9, 2.6);
+const ACID_TINT = new THREE.Color(0.45, 2.0, 0.55);
+// Oil slow (index 5): a DARK, cool oily slick. The energy states own the bright
+// hues (cyan/blue/green/purple) and a multiplicative hue-tint can't converge
+// warm anyway (it preserves each body's base ratio), so Oil instead DARKENS
+// every slowed enemy uniformly — they read as heavy, gunked, sluggish, the same
+// on any body colour. It does NOT blink (a coating, not an energy pulse), so it
+// adds no strobe (which the user dislikes). Gives Oil the missing "something is
+// happening" signal (user feedback).
+const OIL_TINT = new THREE.Color(0.4, 0.42, 0.55);
+
+const TINTS = [BASE_TINT, STUN_TINT, FROST_TINT, ACID_TINT, ELITE_TINT, OIL_TINT];
 
 const ELITE_AURA_CAPACITY = 64;
 
@@ -90,17 +110,28 @@ export class EnemySystem {
   private readonly grid = new Map<number, number[]>();
 
   constructor(scene: THREE.Scene) {
-    // Uniform elite marker: a pulsing magenta ground ring under every elite.
-    // The body tint alone shifts with each type's base color, so the ring is
-    // the one signal that always reads the same.
-    const auraGeometry = new THREE.RingGeometry(0.75, 1.05, 24);
+    // Uniform elite marker: a rotating SEGMENTED magenta ring under every
+    // elite. The body tint alone shifts with each type's base color, so the
+    // ring is the one signal that always reads the same; the segmented spin
+    // keeps it distinct from the boss's solid double ring.
+    const auraCfg = ELITES.aura;
+    const arcParts: THREE.BufferGeometry[] = [];
+    for (let i = 0; i < auraCfg.arcs; i++) {
+      const start = (i / auraCfg.arcs) * Math.PI * 2;
+      const length = ((Math.PI * 2) / auraCfg.arcs) * auraCfg.arcFill;
+      arcParts.push(
+        new THREE.RingGeometry(auraCfg.innerRadius, auraCfg.outerRadius, 10, 1, start, length)
+          .toNonIndexed(),
+      );
+    }
+    const auraGeometry = mergeGeometries(arcParts);
     auraGeometry.rotateX(-Math.PI / 2);
     this.eliteAura = new THREE.InstancedMesh(
       auraGeometry,
       new THREE.MeshBasicMaterial({
-        color: 0xdd55ff,
+        color: auraCfg.color,
         transparent: true,
-        opacity: 0.8,
+        opacity: auraCfg.opacity,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
         side: THREE.DoubleSide,
@@ -192,6 +223,8 @@ export class EnemySystem {
           hitFlash: 0,
           slowTimer: 0,
           slowFactor: 1,
+          tintState: 0,
+          iceStun: false,
           dotTimer: 0,
           dotDps: 0,
           dotTick: 0,
@@ -259,6 +292,38 @@ export class EnemySystem {
         e.slowTimer -= dt;
         e.speed = baseSpeed * e.slowFactor;
       }
+      // State tint (two-halves rule): full stop wears electric/frost, an
+      // active DoT wears acid green, elites keep their purple — the victim
+      // of every sustained effect is unmistakable for its whole duration.
+      // Status tints BLINK (~5Hz between tint and natural body) so a state
+      // never camouflages on a same-hue enemy (green Gunner vs acid, teal
+      // Sparkrunner vs electric stun); the brightened frames also cross the
+      // bloom threshold, so blinking = glowing. Elite purple stays steady —
+      // identity, not status.
+      const stunned = e.slowTimer > 0 && e.slowFactor === 0;
+      // Oil slow = a partial slow (0 < factor < 1); a full stop is a stun.
+      const slowed = e.slowTimer > 0 && e.slowFactor > 0 && e.slowFactor < 1;
+      const stateTint = stunned
+        ? e.iceStun
+          ? 2
+          : 1
+        : e.dotTimer > 0
+          ? 3
+          : slowed
+            ? 5
+            : 0;
+      const restTint = e.elite ? 4 : 0;
+      const blinkOn = Math.floor(elapsedS * 10) % 2 === 0;
+      // Energy states (stun/frost/acid) blink to avoid same-hue camouflage and
+      // to glow; the Oil slow shows STEADILY (a coating, not an energy pulse).
+      const desiredTint =
+        stateTint === 5 ? 5 : stateTint !== 0 && blinkOn ? stateTint : restTint;
+      if (desiredTint !== e.tintState) {
+        e.tintState = desiredTint;
+        if (e.hitFlash <= 0) {
+          this.meshes[e.typeIndex]?.setColorAt(e.slot, TINTS[desiredTint] ?? BASE_TINT);
+        }
+      }
 
       switch (type.behavior) {
         case 'chase':
@@ -298,7 +363,7 @@ export class EnemySystem {
       if (e.hitFlash > 0) {
         e.hitFlash -= dt;
         if (e.hitFlash <= 0) {
-          this.meshes[e.typeIndex]?.setColorAt(e.slot, e.elite ? ELITE_TINT : BASE_TINT);
+          this.meshes[e.typeIndex]?.setColorAt(e.slot, TINTS[e.tintState] ?? BASE_TINT);
         }
       }
     }
@@ -463,8 +528,9 @@ export class EnemySystem {
         this.bossAura.setMatrixAt(bossAuraCount, tmpMatrix);
         bossAuraCount++;
       } else if (e.elite && auraCount < ELITE_AURA_CAPACITY) {
-        const r = e.radius * 1.5 * auraPulse;
-        tmpMatrix.makeScale(r, 1, r);
+        const r = e.radius * ELITES.aura.scale * auraPulse;
+        tmpMatrix.makeRotationY(elapsedS * Math.PI * 2 * ELITES.aura.rotateHz);
+        tmpMatrix.scale(tmpScale.set(r, 1, r));
         tmpMatrix.setPosition(e.x, 0.07, e.z);
         this.eliteAura.setMatrixAt(auraCount, tmpMatrix);
         auraCount++;
@@ -589,6 +655,8 @@ export class EnemySystem {
     e.hitFlash = 0;
     e.slowTimer = 0;
     e.slowFactor = 1;
+    e.tintState = elite ? 4 : 0;
+    e.iceStun = false;
     e.dotTimer = 0;
     e.dotDps = 0;
     e.dotTick = 0;

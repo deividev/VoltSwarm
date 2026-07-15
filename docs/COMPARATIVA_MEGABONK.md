@@ -78,8 +78,8 @@ Además tenemos **Attack Range** y **Crit Damage** como mejoras propias que Mega
 ### Diferencia de sistema en rarezas
 
 - Megabonk: **5 rarezas** (Común 1x → Legendaria 2x) y las cartas de ARMA eligen 1-2 stats del pool propio del arma según rareza.
-- Nosotros: **3 rarezas** (Común/Rara/Épica) y la carta de arma es un "+1 nivel" fijo.
-- Veredicto: 3 rarezas está BIEN para el prototipo (más legible). El hueco real es que nuestras cartas de arma no tienen identidad por arma: en Megabonk subir la Shotgun te ofrece perdigones o crit, subir el Black Hole te ofrece duración o tamaño. Nuestra mejora equivalente: que la carta "+1 nivel de arma" muestre QUÉ mejora concreta da a ese arma en ese nivel (ya es determinista en config) — barato, y a futuro, 2 opciones de mejora distintas por arma.
+- Nosotros (ACTUALIZADO 2026-07-08): **5 tiers — gris → verde → azul → morado → dorado** (ya no las 3 viejas Común/Rara/Épica). Aplican distinto por categoría — **definición canónica en `PRD.md` punto 2**: los **Orbes/Cores** tiran el tier por carta (fija la magnitud); los **Mods** tienen tier fijo por mod (16 repartidos 5/5/3/2/1); las **Armas** NO tienen tier, suben por nivel (Lv1-20).
+- Veredicto: alineado con Megabonk en nº de tiers. El hueco de identidad de las cartas de arma **YA se cerró (Opción A, 2026-07-09)**: la carta "+1 nivel de arma" muestra la mejora concreta de ese nivel vía `describeWeaponLevel` (determinista desde config). La Opción B (que la carta ELIJA qué stat del arma sube según tier, como Megabonk) queda DIFERIDA — revisar antes del launch si vale la pena.
 
 ---
 

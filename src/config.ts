@@ -177,7 +177,7 @@ export const VISUAL = {
      *  many world units one texture repeat covers — tune so plates read at
      *  a similar scale to the voxel bots (~1u tall). Falls back to the
      *  procedural canvas texture above if the image fails to load. */
-    aiTextureUrl: '/assets/2d/ground-factory-floor.png',
+    aiTextureUrl: 'assets/2d/ground-factory-floor.png',
     worldSizePerRepeat: 18,
   },
   /** Enemy walk wobble: side-to-side rock while chasing (Crossy Road-style
@@ -211,6 +211,89 @@ export const VISUAL = {
     upwardSpeed: 6,
     gravity: 18,
     lifeS: 0.6,
+  },
+  /** Weapon hit sparks (2026-07-11): every landed weapon hit pops voxel cubes
+   *  in the weapon's icon accent at the victim (WEAPON_ACCENT in weapons.ts).
+   *  Counts stay tiny — hits are the most frequent event in the game and the
+   *  burst pool is shared with deaths/mods. */
+  hitSparks: {
+    enabled: true,
+    count: 2,
+    critCount: 5,
+  },
+  /** Per-weapon in-world VFX knobs (weapon accents live in weapons.ts). */
+  weaponVfx: {
+    /** Burning-tire flame trail cadence per rolling tire. */
+    tireFlameIntervalS: 0.07,
+    /** Acid-zone bubbling cadence per active pool. */
+    acidBubbleIntervalS: 0.22,
+    /** Tornado scrap-debris trail cadence per active tornado. */
+    turbineDebrisIntervalS: 0.09,
+    /** Ricochet zigzag trail cadence (shared tick, one cube per chunk). */
+    ricochetTrailIntervalS: 0.07,
+    /** Arc Welder beam: a smooth traveling wave replaces the old per-frame
+     *  random jitter (user: the cubes "spun" too fast and hurt to look at).
+     *  The arc now undulates like a real welding arc instead of boiling. */
+    welderWaveHz: 4.5,
+    welderWaveAmp: 0.24,
+    /** Phase offset per cube so the wave travels along the beam. */
+    welderWavePhase: 0.8,
+    /** Acid pool breathes in opacity so it reads as a live corrosive puddle
+     *  instead of a flat neon sticker (user feedback). */
+    acidPoolOpacityBase: 0.28,
+    acidPoolOpacityPulse: 0.14,
+    acidPoolPulseHz: 1.3,
+    /** Oil drip cadence: a slowed enemy sheds dark oil cubes (+a hazard glint)
+     *  so the debuff is unmistakable, not just a subtle body dimming. One drip
+     *  event per interval hops across the slowed swarm (perf-safe at 400+). */
+    oilDripIntervalS: 0.09,
+  },
+  /** Mod-behavior VFX (2026-07-11): every permanent mod speaks the VoxelBurst
+   *  language (palette cubes, the user-approved style anchor) in ITS icon's
+   *  accent color — colors MEASURED from the approved icon PNGs, never
+   *  hand-picked (icon↔VFX coherence rule, ROADMAP capture-gate point 1). */
+  modVfx: {
+    stunBumper: {
+      color: 0x40f0f0,
+      count: 10,
+      /** Continuous crackle while the victim stays stunned. */
+      sparkIntervalS: 0.14,
+      sparksPerTick: 1,
+    },
+    /** Amber debris + white-hot core cubes (the icon-recipe mix) so the
+     *  impact still pops on yellow-bodied enemies. */
+    kickPlate: { color: 0xf0b000, count: 6, hotColor: 0xfff6dc, hotCount: 3 },
+    /** Two halves: steel bolts off the player, steel pop per victim — the
+     *  bolt IS what hits them (de-collided from Kick Plate's amber, both
+     *  trigger on the same "you got hit" event). */
+    looseBolts: { boltColor: 0xc9d4de, boltCount: 6, hitColor: 0xc9d4de, hitCount: 4 },
+    /** WHITE-ice nova + pop (frost = white family; electric cyan stays the
+     *  Stun Bumper's alone). Victims wear the FROST tint + ice crackle. */
+    coolantBurst: { color: 0xcfeeff, count: 12, hotColor: 0xeafaff, hotCount: 4, hitCount: 3 },
+    /** Lightning-white trail + signal-RED pop on the chained victim — the
+     *  trigger IS the crit, so the pop speaks the crit family (the icon's
+     *  red reticle emblem), not the shared brand cyan. */
+    chainRelay: { color: 0xf8fbff, trailCubes: 4, hitColor: 0xe02010, hitCount: 3 },
+    /** Orb-blue burst at the chest when the siphon vacuums the map. */
+    orbSiphon: { color: 0x10a0f0, count: 12 },
+    /** Signal-red burst + sustained crackle ON THE PLAYER while overcharged. */
+    overloadTrigger: { color: 0xe02010, count: 12 },
+    /** Violet burst + sustained shimmer ON THE PLAYER while phased out. */
+    phaseChassis: { color: 0xb060f0, count: 10 },
+    /** Player-state auras (overload/phase) pulse denser than enemy crackle —
+     *  a sustained buff on YOU must read at a glance. */
+    playerAura: { sparkIntervalS: 0.07, sparksPerTick: 2 },
+    /** Brass toot at the player when the scrapper answers the whistle. */
+    foremansWhistle: { color: 0xf0c040, count: 10 },
+    /** Amber blast + signal-red core (its red T-plunger) — de-collided from
+     *  Kick Plate's amber+white by the red accent and the blast size. */
+    detonatorRig: { color: 0xffb400, hotColor: 0xe02010, hotCount: 5 },
+    /** The stomp is a RING of cubes at the damage radius edge — the only
+     *  ring-shaped effect, and it shows the real AoE (gameplay legibility). */
+    pistonStompers: { color: 0xffc44d, ringCubes: 12 },
+    /** GOLD nova + red core (the icon's coils and crimson heart — the blue
+     *  it shipped with predates the coherence rule) + gold pull aura. */
+    magnetronHeart: { color: 0xf2b632, hotColor: 0xe02010, hotCount: 6 },
   },
   /** Blob shadows: one dark disc under every entity, anchoring it to the
    *  ground. Radius multiplies the entity's collision radius. */
@@ -414,6 +497,24 @@ export const ELITES = {
   tint: 0xdd55ff,
   /** Behaviors that can roll elite. */
   behaviors: ['chase', 'roller'] as EnemyBehavior[],
+  /** Uniform elite marker: a segmented magenta ring rotating under every
+   *  elite — the ONE signal that reads identically on every enemy type.
+   *  Pattern language: elite = rotating segmented magenta, boss = solid
+   *  double red (never mix them). */
+  aura: {
+    color: 0xff6bff,
+    opacity: 1,
+    innerRadius: 0.62,
+    outerRadius: 1.0,
+    /** Number of arc segments around the ring. */
+    arcs: 4,
+    /** Filled fraction of each arc slot (the rest is gap). */
+    arcFill: 0.62,
+    /** Full rotations per second. */
+    rotateHz: 0.3,
+    /** Ring radius as a multiple of the enemy's collision radius. */
+    scale: 1.7,
+  },
 };
 
 export const XP_ORBS = {
@@ -423,6 +524,10 @@ export const XP_ORBS = {
   collectRadius: 0.8,
   flySpeed: 22,
   orbRadius: 0.28,
+  /** Global multiplier on every dropped orb's value — the single tuning knob
+   *  for run-wide XP income (per-enemy xp values stay canonical). Part of the
+   *  2026-07-10 economy-generosity pass, judge as one change. */
+  valueMult: 1.3,
 };
 
 export const WEAPONS = {
@@ -436,9 +541,7 @@ export const WEAPONS = {
     projectileRadius: 0.25,
     maxProjectiles: 128,
     lifetimeS: 1.4,
-    /** Extra projectiles gained at these weapon levels. */
-    projectilePerLevels: 2,
-    damagePerLevel: 4,
+    damagePctPerLevel: 0.1,
     /** Hit-test radius multiplier (scaled by stats.area) for target search. */
     hitRadius: 1.0,
   },
@@ -446,8 +549,8 @@ export const WEAPONS = {
     cooldownS: 2.4,
     damage: 10,
     radius: 6,
-    radiusPerLevel: 0.8,
-    damagePerLevel: 6,
+    radiusPctPerLevel: 0.06,
+    damagePctPerLevel: 0.1,
   },
   blades: {
     orbitRadius: 3.4,
@@ -456,7 +559,8 @@ export const WEAPONS = {
     bladeRadius: 0.7,
     hitCooldownS: 0.5,
     maxBlades: 6,
-    damagePerLevel: 6,
+    baseBlades: 2,
+    damagePctPerLevel: 0.1,
   },
   welder: {
     range: 14,
@@ -466,8 +570,8 @@ export const WEAPONS = {
     /** Damage multiplier gained per second locked on the same target. */
     rampPerSecond: 0.5,
     rampCap: 4,
-    rampPerLevel: 0.25,
-    damagePerLevel: 2.5,
+    rampPctPerLevel: 0.08,
+    damagePctPerLevel: 0.1,
   },
   press: {
     cooldownS: 1.8,
@@ -475,8 +579,8 @@ export const WEAPONS = {
     /** Crush zone in front of the player (length x width). */
     length: 5,
     width: 3.5,
-    widthPerLevel: 0.7,
-    damagePerLevel: 12,
+    widthPctPerLevel: 0.05,
+    damagePctPerLevel: 0.12,
   },
   tire: {
     cooldownS: 3.2,
@@ -485,9 +589,7 @@ export const WEAPONS = {
     radius: 0.8,
     lifetimeS: 2.6,
     maxTires: 12,
-    damagePerLevel: 8,
-    /** Extra tires thrown at these weapon levels. */
-    tirePerLevels: 2,
+    damagePctPerLevel: 0.1,
     /** Max distance to search for an aim target when launching. */
     targetRange: 40,
   },
@@ -498,20 +600,23 @@ export const WEAPONS = {
     dropIntervalS: 0.45,
     puddleLifeS: 4,
     puddleRadius: 1.7,
-    radiusPerLevel: 0.3,
+    radiusPctPerLevel: 0.06,
     slowFactor: 0.55,
-    slowFactorPerLevel: -0.06,
+    /** Slow strengthens by this fraction of base per level, down to the floor
+     *  (a fully-leveled oil must never freeze the swarm outright). */
+    slowPctPerLevel: 0.04,
+    slowFactorFloor: 0.25,
     slowDurationS: 1.0,
     maxPuddles: 24,
   },
   acid: {
     cooldownS: 3.5,
     zoneRadius: 3,
-    radiusPerLevel: 0.4,
+    radiusPctPerLevel: 0.05,
     zoneLifeS: 3,
     dotDps: 10,
     dotDurationS: 2,
-    dpsPerLevel: 4,
+    dpsPctPerLevel: 0.1,
     maxZones: 6,
     /** Max distance to search for a target zone location. */
     targetRange: 20,
@@ -524,7 +629,7 @@ export const WEAPONS = {
     lifetimeS: 2.2,
     knockbackForce: 12,
     maxTornadoes: 6,
-    damagePerLevel: 4,
+    damagePctPerLevel: 0.1,
     /** Max distance to search for a launch target. */
     targetRange: 30,
   },
@@ -533,10 +638,8 @@ export const WEAPONS = {
     damage: 14,
     speed: 26,
     bounces: 3,
-    /** Extra bounce gained at these weapon levels. */
-    bouncePerLevels: 2,
     bounceRange: 9,
-    damagePerLevel: 5,
+    damagePctPerLevel: 0.1,
     maxProjectiles: 32,
     hitRadius: 0.9,
     /** Max distance to search for a launch target. */
@@ -550,10 +653,29 @@ export const WEAPONS = {
     damage: 30,
     range: 12,
     executeThreshold: 0.15,
-    thresholdPerLevel: 0.02,
-    damagePerLevel: 12,
+    thresholdPerLevel: 0.005,
+    /** Executing at a third of max HP is already very strong — hard ceiling. */
+    thresholdCap: 0.3,
+    damagePctPerLevel: 0.12,
   },
 };
+
+/** Weapon levels that grant +1 unit (projectile/blade/tire/tornado/bounce).
+ *  Quantity freezes past these — the Ammo Feeder core is the only scaler
+ *  beyond (docs/DESIGN_MEJORAS.md, Progresión v2). */
+export const QUANTITY_MILESTONE_LEVELS = [3, 5];
+
+/** +1 unit per quantity milestone reached at this level. */
+export function quantityBonus(level: number): number {
+  let bonus = 0;
+  for (const l of QUANTITY_MILESTONE_LEVELS) if (level >= l) bonus++;
+  return bonus;
+}
+
+/** Additive percent-of-base scaling: level 1 = base, each level adds pct. */
+export function levelScale(base: number, pctPerLevel: number, level: number): number {
+  return base * (1 + pctPerLevel * (level - 1));
+}
 
 /** Status effects: the layer that unlocks control weapons. */
 export const STATUS = {
@@ -610,7 +732,80 @@ export const WEAPON_INFO: Record<WeaponId, { title: string; description: string 
   },
 };
 
-export const MAX_WEAPON_LEVEL = 5;
+export const MAX_WEAPON_LEVEL = 20;
+
+/** Countable unit gained at QUANTITY_MILESTONE_LEVELS, per weapon. Weapons
+ *  absent here scale stats only. */
+export const WEAPON_QUANTITY_UNIT: Partial<Record<WeaponId, string>> = {
+  bolt: 'projectile',
+  blades: 'blade',
+  tire: 'tire',
+  turbine: 'tornado',
+  ricochet: 'bounce',
+};
+
+/** Card text for reaching `level`: the concrete gains of THAT level, built
+ *  from the same config fields the weapons read — never hand-written. */
+export function describeWeaponLevel(id: WeaponId, level: number): string {
+  const pct = (v: number): string => `+${Math.round(v * 100)}%`;
+  const parts: string[] = [];
+  switch (id) {
+    case 'bolt':
+      parts.push(`${pct(WEAPONS.bolt.damagePctPerLevel)} damage`);
+      break;
+    case 'pulse':
+      parts.push(
+        `${pct(WEAPONS.pulse.damagePctPerLevel)} damage`,
+        `${pct(WEAPONS.pulse.radiusPctPerLevel)} radius`,
+      );
+      break;
+    case 'blades':
+      parts.push(`${pct(WEAPONS.blades.damagePctPerLevel)} damage`);
+      break;
+    case 'welder':
+      parts.push(
+        `${pct(WEAPONS.welder.damagePctPerLevel)} damage`,
+        `${pct(WEAPONS.welder.rampPctPerLevel)} ramp rate`,
+      );
+      break;
+    case 'press':
+      parts.push(
+        `${pct(WEAPONS.press.damagePctPerLevel)} damage`,
+        `${pct(WEAPONS.press.widthPctPerLevel)} width`,
+      );
+      break;
+    case 'tire':
+      parts.push(`${pct(WEAPONS.tire.damagePctPerLevel)} damage`);
+      break;
+    case 'oil':
+      parts.push(
+        `${pct(WEAPONS.oil.radiusPctPerLevel)} puddle radius`,
+        `${pct(WEAPONS.oil.slowPctPerLevel)} slow strength`,
+      );
+      break;
+    case 'acid':
+      parts.push(
+        `${pct(WEAPONS.acid.dpsPctPerLevel)} acid damage`,
+        `${pct(WEAPONS.acid.radiusPctPerLevel)} zone radius`,
+      );
+      break;
+    case 'turbine':
+      parts.push(`${pct(WEAPONS.turbine.damagePctPerLevel)} damage`);
+      break;
+    case 'ricochet':
+      parts.push(`${pct(WEAPONS.ricochet.damagePctPerLevel)} damage`);
+      break;
+    case 'dismantler':
+      parts.push(
+        `${pct(WEAPONS.dismantler.damagePctPerLevel)} damage`,
+        `+${(WEAPONS.dismantler.thresholdPerLevel * 100).toFixed(1)}pt execute threshold`,
+      );
+      break;
+  }
+  const unit = WEAPON_QUANTITY_UNIT[id];
+  if (unit && QUANTITY_MILESTONE_LEVELS.includes(level)) parts.push(`+1 ${unit}`);
+  return `Lv${level}: ${parts.join(' · ')}`;
+}
 
 export const PICKUPS = {
   spawnIntervalS: 20,
@@ -624,20 +819,144 @@ export const PICKUPS = {
   hasteSpeedMultiplier: 1.5,
   healFraction: 0.4,
   xpCacheFraction: 0.5,
-  /** General-stat chest rewards (Megabonk-style globals). */
-  luckPerChest: 10,
-  areaPerChest: 0.1,
-  cursedDifficultyPerChest: 0.12,
-  cursedXpPerChest: 0.2,
+  // Permanent stat rewards (luck/area/cursed) migrated to the core draft
+  // (2026-07-09): chests now hold consumables only. See docs/DESIGN_MEJORAS.md.
+};
+
+/** Fresh-account unlock state — the v1 "new account" defaults. The future
+ *  Contratos de Desguace system (Fase 5) mutates a persisted copy of this;
+ *  ALL gating (draft pool, start draft, sockets, mod pool) reads this object
+ *  so that swap is a single seam. Canonical default/contract split lives in
+ *  docs/DESIGN_MEJORAS.md (weapons 5/6, cores 10/11, mods 11/5). */
+export const ACCOUNT = {
+  /** Weapon sockets: 1 default, +1 via contract (max 2). */
+  weaponSockets: 1,
+  /** Core sockets: 2 default, +2 via contracts (max 4). */
+  coreSockets: 2,
+  /** Design ceilings — the HUD shows the gap as locked sockets. */
+  maxWeaponSockets: 2,
+  maxCoreSockets: 4,
+  /** Level-up discards per run: skip a draft without picking (2026-07-10).
+   *  Lives in ACCOUNT because contracts may raise it later — the ceiling and
+   *  unlock pacing are an open design question (see DESIGN_MEJORAS). */
+  levelupDiscards: 3,
+  unlockedWeapons: ['bolt', 'pulse', 'blades', 'press', 'tire'] as WeaponId[],
+  /** Stat-card ids (upgrades.ts) available in the level-up draft. */
+  unlockedCores: [
+    'damage',
+    'attack-speed',
+    'move-speed',
+    'max-hp',
+    'armor',
+    'regen',
+    'attack-range',
+    'pickup-range',
+    'projectile-speed',
+    'area',
+  ],
+  /** Mod ids (mods.ts) available in the chest reel and merchant stock. */
+  unlockedMods: [
+    'repair',
+    'haste',
+    'scrap-cache',
+    'frenzy',
+    'stun-bumper',
+    'kick-plate',
+    'loose-bolts',
+    'detonator-rig',
+    'orb-siphon',
+    'piston-stompers',
+    'foremans-whistle',
+  ],
+};
+
+/** In-run currency (name TBD — icon-first decision 2026-07-09). Tokens merge
+ *  like XP orbs so a 400-enemy swarm never floods the ground. */
+export const GOLD = {
+  /** TEMP (2026-07-10): 500 starting gold for the economy playtest ONLY —
+   *  revert to 0 before any capture/release build. */
+  startingGold: 500,
+  /** 0.2 → 0.25 in the 2026-07-10 economy-generosity pass (+25% income). */
+  dropChance: 0.25,
+  dropAmount: 1,
+  eliteBonus: 10,
+  bossBonus: 50,
+  mergeRadius: 2,
+  collectRadius: 1.4,
+  flySpeed: 26,
+  maxCount: 96,
+  tokenRadius: 0.32,
+  /** Half-distance between the XP orb and the gold token from one kill, so
+   *  the two never spawn overlapping (2026-07-09). */
+  dropSeparation: 0.7,
+};
+
+/** Crates are now PAID and opened with E (2026-07-09 user call): each rolls a
+ *  tier at spawn (so its price is known and shown), reads by tier color, and
+ *  costs gold to open. Random-mod-of-that-tier — cheaper than the merchant,
+ *  which lets you choose. */
+export const CHEST = {
+  interactRadius: 2.6,
+  /** Chest price = merchant tier price × this (random pick → discounted).
+   *  0.6 → 0.5 in the 2026-07-10 economy-generosity pass — chests only, shop
+   *  prices deliberately untouched. */
+  priceMult: 0.5,
+};
+
+/** The scrapper merchant: periodic visits, totem-style random position,
+ *  on-screen indicator with a countdown while he sticks around. */
+export const MERCHANT = {
+  firstVisitS: 120,
+  intervalS: 180,
+  staysS: 60,
+  distMin: 25,
+  distMax: 40,
+  interactRadius: 2.6,
+  stock: 3,
+  /** Prices scale with run time — enemy density ramps, so income ramps. */
+  priceRampPerMin: 0.12,
+  tierPrices: { gray: 25, green: 45, blue: 80, purple: 140, gold: 240 },
+};
+
+/** Permanent mod parameters. Every mod stacks with an internal floor/cap —
+ *  copies are unlimited by design (docs/DESIGN_MEJORAS.md Lista 4). */
+export const MODS = {
+  stunBumper: { cooldownS: 8, cooldownReduxPerCopyS: 1, cooldownFloorS: 3, stunS: 1.5 },
+  kickPlate: { force: 10, forcePerCopy: 5 },
+  looseBolts: { bolts: 3, boltsPerCopy: 2, damage: 12, radius: 5 },
+  detonatorRig: { kills: 25, killsReduxPerCopy: 5, killsFloor: 10, damage: 45, radius: 3.5 },
+  coolantBurst: { radius: 4.5, radiusPerCopy: 1, freezeS: 2 },
+  orbSiphon: { hastePerExtraCopyS: 2 },
+  chainRelay: { jumps: 3, jumpsPerCopy: 1, radius: 6, damageFraction: 0.5 },
+  pistonStompers: { steps: 12, stepsReduxPerCopy: 2, stepsFloor: 6, strideU: 0.9, damage: 22, radius: 3 },
+  overloadTrigger: { durationS: 5, durationPerCopyS: 2, attackSpeedMult: 2 },
+  phaseChassis: { durationS: 1, durationPerCopyS: 0.4 },
+  foremansWhistle: { discountPerExtraCopy: 0.1, discountCap: 0.5 },
+  magnetronHeart: {
+    cycleS: 45,
+    cycleReduxPerCopyS: 5,
+    cycleFloorS: 30,
+    pullS: 2,
+    pullForce: 18,
+    novaRadius: 7,
+    damagePerEnemy: 1.5,
+    damagePerEnemyPerCopy: 0.75,
+  },
+};
+
+/** Card tier roll weights (gray→gold) and how Luck shifts them upward.
+ *  Effective weight = base + luck * luckShift. */
+export const TIERS = {
+  weights: { gray: 40, green: 30, blue: 18, purple: 9, gold: 3 },
+  luckShift: { gray: 0, green: 0, blue: 0.45, purple: 0.35, gold: 0.2 },
 };
 
 export const BOSS = {
   totemDistMin: 45,
   totemDistMax: 65,
-  /** Radius of the summon zone; inside it the key prompt shows. */
+  /** Radius of the summon zone; inside it the Interact prompt shows.
+   *  The key itself is the rebindable 'interact' action (settings). */
   totemActivateRadius: 4.5,
-  summonKey: 'KeyE',
-  summonKeyLabel: 'E',
   /** Delay between pressing the summon key and the boss appearing (the totem
    *  spins up as the telegraph), and the minimum distance from the player at
    *  which the boss materializes — never on top of them. */

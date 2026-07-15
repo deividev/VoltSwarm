@@ -3,6 +3,8 @@ import { ARENA_HALF_SIZE, BOSS, BOSS_TYPE_INDEXES, ENEMY_TYPES } from './config'
 import type { EnemySystem } from './enemies';
 import type { EnemyProjectiles } from './enemy-projectiles';
 import { litMaterial } from './toon';
+import { buildGridGeometry } from './models/voxel-builder';
+import { buildModelGrid, VOXEL_MODELS } from './models/registry';
 
 // A totem spawns somewhere far away at run start. Touching it summons one
 // random boss. The boss lives inside the enemy pool (so every weapon hits it);
@@ -36,8 +38,19 @@ export class BossSystem {
   private summonTimer = 0;
   bossesDefeated = 0;
 
+  /** Pillar+skull primitives, swapped async for the voxel portal gate. */
+  private readonly totemBody: THREE.Group;
+  /** Portal energy beam — pulses hard while the summon telegraph runs. */
+  private readonly beam: THREE.Mesh;
+  /** Ground warning ring, expanding in waves during the telegraph. */
+  private readonly warnRing: THREE.Mesh;
+  private summonElapsed = 0;
+  /** Where the boss materialized this frame — the eruption VFX anchor. */
+  readonly lastSummonAt = { x: 0, z: 0 };
+
   constructor(scene: THREE.Scene) {
     this.totem = new THREE.Group();
+    this.totemBody = new THREE.Group();
     const pillar = new THREE.Mesh(
       new THREE.CylinderGeometry(0.5, 0.8, 2.4, 6),
       litMaterial({ color: 0x232830 }),
@@ -48,7 +61,8 @@ export class BossSystem {
       new THREE.MeshBasicMaterial({ color: 0xff3355 }),
     );
     skull.position.y = 3;
-    const beam = new THREE.Mesh(
+    this.totemBody.add(pillar, skull);
+    this.beam = new THREE.Mesh(
       new THREE.CylinderGeometry(0.45, 0.45, 18, 8, 1, true),
       new THREE.MeshBasicMaterial({
         color: 0xff3355,
@@ -59,10 +73,49 @@ export class BossSystem {
         side: THREE.DoubleSide,
       }),
     );
-    beam.position.y = 9;
-    this.totem.add(pillar, skull, beam);
+    this.beam.position.y = 9;
+    // Summon telegraph (2026-07-11): a red warning ring that pulses outward
+    // from the portal base while the boss assembles — danger you can SEE
+    // growing before it lands (boss red = the exclusive danger language).
+    const warnGeometry = new THREE.RingGeometry(0.85, 1.0, 32);
+    warnGeometry.rotateX(-Math.PI / 2);
+    this.warnRing = new THREE.Mesh(
+      warnGeometry,
+      new THREE.MeshBasicMaterial({
+        color: 0xff3355,
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        side: THREE.DoubleSide,
+      }),
+    );
+    this.warnRing.position.y = 0.12;
+    this.totem.add(this.totemBody, this.beam, this.warnRing);
     this.totem.visible = false;
     scene.add(this.totem);
+
+    // The voxel portal gate loads async and swaps in over the primitives.
+    void this.upgradeVoxelModel();
+  }
+
+  private async upgradeVoxelModel(): Promise<void> {
+    const def = VOXEL_MODELS['portal'];
+    if (!def) return;
+    try {
+      const geometry = buildGridGeometry(await buildModelGrid('portal'), def.voxelSize);
+      const voxelMesh = new THREE.Mesh(geometry, litMaterial({ vertexColors: true }));
+      for (const child of [...this.totemBody.children]) {
+        this.totemBody.remove(child);
+        if (child instanceof THREE.Mesh) {
+          child.geometry.dispose();
+          if (child.material instanceof THREE.Material) child.material.dispose();
+        }
+      }
+      this.totemBody.add(voxelMesh);
+    } catch (error) {
+      console.warn('Portal voxel model unavailable, keeping totem primitives:', error);
+    }
   }
 
   /** Places the totem for a new run and picks the boss it will summon. */
@@ -113,14 +166,27 @@ export class BossSystem {
         this.playerInSummonZone = false;
         this.state = 'summoning';
         this.summonTimer = BOSS.summonDelayS;
+        this.summonElapsed = 0;
       }
       return null;
     }
 
     if (this.state === 'summoning') {
       this.totem.rotation.y += dt * 6;
+      this.summonElapsed += dt;
+      // Telegraph: the beam strobes toward full brightness and red warning
+      // rings pulse outward from the base — impossible to miss what's coming.
+      const beamMat = this.beam.material as THREE.MeshBasicMaterial;
+      beamMat.opacity = 0.3 + 0.35 * (0.5 + 0.5 * Math.sin(this.summonElapsed * 18));
+      const ringPhase = (this.summonElapsed * 1.6) % 1;
+      const ringMat = this.warnRing.material as THREE.MeshBasicMaterial;
+      this.warnRing.scale.setScalar(1 + ringPhase * 9);
+      ringMat.opacity = 0.85 * (1 - ringPhase);
       this.summonTimer -= dt;
       if (this.summonTimer > 0) return null;
+      // Telegraph over: restore the idle look before the portal hides.
+      beamMat.opacity = 0.22;
+      ringMat.opacity = 0;
 
       // Materialize at the totem, but never on top of the player: push the
       // spawn point away along the player→totem direction to a safe radius.
@@ -137,6 +203,8 @@ export class BossSystem {
         sz = THREE.MathUtils.clamp(pz + nz * minDist, -ARENA_HALF_SIZE + 2, ARENA_HALF_SIZE - 2);
       }
       this.totem.visible = false;
+      this.lastSummonAt.x = sx;
+      this.lastSummonAt.z = sz;
       this.bossIndex = enemies.spawnAt(this.bossTypeIndex, sx, sz, this.hpMult);
       this.state = this.bossIndex === -1 ? 'done' : 'active';
       this.baseSpeed = ENEMY_TYPES[this.bossTypeIndex]?.speed ?? 3;
@@ -225,6 +293,7 @@ export class BossSystem {
         Math.cos(a),
         BOSS.tesla.projectileSpeed,
         BOSS.tesla.projectileDamage,
+        'tesla',
       );
     }
   }

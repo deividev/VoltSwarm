@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { ARENA_HALF_SIZE, PLAYER, VISUAL } from './config';
-import type { KeyboardInput } from './input';
+import type { PlayerInput } from './input';
 import type { Obstacle } from './world';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
@@ -124,7 +124,7 @@ export class Player {
     }
   }
 
-  update(dt: number, input: KeyboardInput, speedMultiplier = 1, obstacles: Obstacle[] = []): void {
+  update(dt: number, input: PlayerInput, speedMultiplier = 1, obstacles: Obstacle[] = []): void {
     const axis = input.moveAxis();
     const speed = this.moveSpeed * speedMultiplier;
     this.position.x += axis.x * speed * dt;

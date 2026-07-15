@@ -106,6 +106,13 @@ export class XpOrbSystem {
     this.mesh.instanceMatrix.needsUpdate = true;
   }
 
+  /** Sends every orb on the map flying to the player (Orb Siphon mod). */
+  pullAll(): void {
+    for (const orb of this.pool) {
+      if (orb.active) orb.flying = true;
+    }
+  }
+
   reset(): void {
     for (let i = 0; i < this.pool.length; i++) {
       const orb = this.pool[i];

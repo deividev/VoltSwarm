@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      /* Steam Main Capsule = 1232x706. v15 PRO pass — no drawn frame. The logo
+         gets presence the way real key art does: a "quieted zone" behind the
+         title. Same swarm bg, but a blurred + darkened copy (#bg-quiet) is masked
+         into a soft ellipse behind the logo → depth-of-field bokeh + a dark pocket
+         the title reads against. The horde stays sharp and bright everywhere else.
+         Tune here, re-run capture-capsule.mjs. */
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      #capsule {
+        position: relative;
+        width: 1232px;
+        height: 706px;
+        overflow: hidden;
+        background: #0a0d12;
+      }
+      #bg {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center 46%;
+        filter: saturate(1.02) brightness(0.8) contrast(1.14);
+      }
+      /* Quieted zone: blurred, darkened, slightly desaturated copy of the bg,
+         revealed only in a soft ellipse behind the logo. This is the pro move —
+         a frameless pocket that makes the title read without a border. */
+      #bg-quiet {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center 46%;
+        filter: blur(16px) brightness(0.36) saturate(0.72) contrast(1.02);
+        -webkit-mask: radial-gradient(ellipse 54% 58% at 50% 37%, #000 0%, #000 46%, transparent 80%);
+        mask: radial-gradient(ellipse 54% 58% at 50% 37%, #000 0%, #000 46%, transparent 80%);
+      }
+      #vignette {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(ellipse 60% 58% at 50% 34%, rgba(6, 8, 12, 0.5) 0%, rgba(6, 8, 12, 0.22) 46%, rgba(6, 8, 12, 0) 72%),
+          linear-gradient(to bottom, rgba(6, 8, 12, 0.6) 0%, rgba(6, 8, 12, 0) 18%, rgba(6, 8, 12, 0) 72%, rgba(6, 8, 12, 0.66) 100%),
+          linear-gradient(to right, rgba(6, 8, 12, 0.5) 0%, rgba(6, 8, 12, 0) 12%, rgba(6, 8, 12, 0) 88%, rgba(6, 8, 12, 0.5) 100%);
+      }
+      #haze {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(ellipse 60% 34% at 50% 96%, rgba(255, 90, 60, 0.14) 0%, rgba(150, 60, 200, 0.08) 45%, transparent 72%);
+        mix-blend-mode: screen;
+      }
+      #logo-group {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        transform: translateY(-64px);
+      }
+      #head-wrap {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: -46px;
+        z-index: 1;
+      }
+      #head-halo {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 420px;
+        height: 420px;
+        background: radial-gradient(circle at 50% 50%, rgba(120, 240, 255, 0.72) 0%, rgba(70, 190, 250, 0.42) 30%, rgba(63, 169, 245, 0) 60%);
+        mix-blend-mode: screen;
+        z-index: 0;
+      }
+      #eyes-glow {
+        position: absolute;
+        top: 54%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 210px;
+        height: 100px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(150, 245, 255, 0.42) 0%, rgba(99, 236, 253, 0.2) 48%, transparent 72%);
+        mix-blend-mode: screen;
+        z-index: 2;
+      }
+      #head {
+        position: relative;
+        z-index: 1;
+        width: 344px;
+        height: 344px;
+        object-fit: contain;
+        filter:
+          drop-shadow(0 4px 10px rgba(0, 0, 0, 0.4))
+          drop-shadow(0 0 30px rgba(99, 236, 253, 0.55));
+      }
+      #wordmark-wrap {
+        position: relative;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 1;
+      }
+      #wordmark-glow {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 840px;
+        height: 210px;
+        background: radial-gradient(ellipse 50% 50% at 50% 50%, rgba(255, 196, 77, 0.18) 0%, rgba(99, 236, 253, 0.1) 48%, transparent 72%);
+        mix-blend-mode: screen;
+        z-index: 0;
+      }
+      #wordmark {
+        width: 940px;
+        max-width: 96%;
+        object-fit: contain;
+        position: relative;
+        z-index: 1;
+        filter:
+          drop-shadow(0 0 3px rgba(0, 0, 0, 1))
+          drop-shadow(0 3px 0 rgba(0, 0, 0, 0.9))
+          drop-shadow(3px 6px 0 rgba(0, 0, 0, 0.75))
+          drop-shadow(0 14px 24px rgba(0, 0, 0, 0.85))
+          drop-shadow(0 0 30px rgba(99, 236, 253, 0.36));
+      }
+    </style>
+  </head>
+  <body>
+    <div id="capsule">
+      <img id="bg" src="../tmp/imagegen/capsule-bg-v2.png" alt="" />
+      <img id="bg-quiet" src="../tmp/imagegen/capsule-bg-v2.png" alt="" />
+      <div id="vignette"></div>
+      <div id="haze"></div>
+      <div id="logo-group">
+        <div id="head-wrap">
+          <div id="head-halo"></div>
+          <img id="head" src="../art/steam/logo.png" alt="" />
+          <div id="eyes-glow"></div>
+        </div>
+        <div id="wordmark-wrap">
+          <div id="wordmark-glow"></div>
+          <img id="wordmark" src="../art/steam/logo-letras.png" alt="" />
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

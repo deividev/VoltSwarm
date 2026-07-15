@@ -14,7 +14,11 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 ### 2. Ficha de stats RPG + pool de mejoras con rareza
 - Ficha del personaje: Damage, Attack Speed, Crit Chance, Crit Damage, Move Speed, Attack Range, Pickup Range, Projectile Count, Projectile Speed, Area (tamaño de disparos/efectos), Armor (retornos decrecientes), Regen.
 - Level-up: 3 cartas aleatorias entre mejoras de stat y cartas de arma (desbloquear/subir nivel de arma).
-- Rareza: Común / Rara / Épica con magnitudes crecientes (base 8-15% común, según stat). Luck mejora los pesos de rareza.
+- **Tiers (rareza) — DEFINICIÓN CANÓNICA. 5 tiers: gris → verde → azul → morado → dorado** (`Rarity` en `upgrades.ts`; pesos de tirada en `TIERS.weights`/`luckShift`, Luck sube los tiers altos). ⚠️ Cada categoría usa los tiers DISTINTO — esto es lo que hay que respetar para que no haya desalineamientos:
+  - **Orbes (Cores):** el tier se **TIRA** en cada carta del draft (luck-weighted). El tier fija la **magnitud** del stat: cada core define un array de 5 valores `[gris, verde, azul, morado, dorado]`. Un mismo core puede salir en CUALQUIERA de los 5 tiers.
+  - **Mods:** cada mod tiene **UN tier FIJO e intrínseco** (definido en `MOD_REGISTRY`, no se tira). Los 16 mods se reparten así: **5 gris, 5 verde, 3 azul, 2 morado, 1 dorado**. El cofre/tienda tira un tier (luck-weighted) y entrega un mod de ESE tier; nunca cambia el tier de un mod concreto.
+  - **Armas / Habilidades:** **NO tienen tier de rareza.** Progresan por **NIVEL (Lv1-20)**, con milestones de cantidad en Lv3/Lv5. La carta de arma en el draft/level-up es cosmética (borde azul fijo), no un tier real.
+  - Precios de cofre/tienda por tier (escalan con el minuto de run): gris 25 / verde 45 / azul 80 / morado 140 / dorado 240 (`MERCHANT.tierPrices`).
 - Cofres: recompensas de stats generales estilo Megabonk — +Luck, +Area, +Dificultad (con +XP a cambio) — además de reparar/cache/frenzy/haste existentes.
 - Criterio: dos runs consecutivos ofrecen builds distintas; Luck visible en la calidad de cartas.
 
@@ -37,6 +41,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 ### 6. Elites
 - Probabilidad por Dificultad. Elite = tipo base con ×escala, ×vida, tinte magenta distintivo.
 - Al morir sueltan un COFRE (cierra el loop elite → recompensa).
+- **Marcador unificado (2026-07-13, pedido del usuario: una sola señal legible al primer vistazo en cualquier tipo)**: anillo SEGMENTADO magenta ROTANTE bajo todo élite (`ELITES.aura` en config: color/grosor/segmentos/giro/escala). Lenguaje de patrón reservado: élite = segmentado magenta girando · boss = doble anillo rojo sólido. El anillo previo (fino, tenue, sin giro) no se registraba jugando.
 
 ### 7. Enemigos nuevos: Roller y Gunner
 - **Roller** (robot bola): carga en línea recta con giro limitado — se pasa de largo; castiga quedarse quieto, se esquiva lateralmente. Rueda visualmente.
@@ -86,6 +91,13 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - Settings: display mode, resolución, volumen master/music/SFX; persistencia vía Electron y fallback localStorage.
 - Branding de app: icono voxel placeholder conectado a Electron y al empaquetado Windows. Es **placeholder técnico**, no icono final; se reemplaza después del pase de arte.
 
+### Menú inicial (Implementado 2026-07-12)
+
+- **Vista fuera del juego**: al abrir la app, el menú es una vista DOM opaca con fondo key-art; el 3D NO se renderiza detrás (`game.ts` salta el render en estado `menu`). Botones: Play / Unlocks / Settings / Exit. Play → draft de arma inicial → carga → run.
+- **Pantalla de carga con warmup** (estado `loading`): al elegir arma, se muestra una pantalla de carga que monta el mundo y renderiza unos frames ocultos antes de revelar el juego, para que no se vea el bajón de rendimiento del arranque. Es el hook donde entra una animación de carga más elaborada.
+- **Panel de desbloqueos (dev/temporal)**: 3 columnas Armas / Orbes / Mods; desbloquear un ítem lo empuja a `ACCOUNT` en vivo para poder playtestear con todo abierto. Lo reemplazarán los Contratos de Desguace (Fase 5); mientras tanto permite validar el contenido completo. Persistencia solo de sesión (in-memory).
+- Criterio de aceptación: el menú no arrastra FPS (3D apagado), el warmup elimina el hitch visible al dar Play, y el panel de desbloqueos refleja el estado real de los pools (armas/cores leen `ACCOUNT` vivo; mods vía `refreshUnlockedMods()`).
+
 ## Pase visual Fase 1 — Implementado 2026-07-05 (plan en REFERENCIAS_VISUALES.md)
 
 - **Post-procesado** (`config.VISUAL`): cadena `RenderPass → UnrealBloomPass → vignette (ShaderPass) → OutputPass`. Bloom por umbral (solo emisivos puros brillan); vignette sutil; el OutputPass es obligatorio o los valores lineales crudos oscurecen todo el frame.
@@ -126,6 +138,7 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 - **Estado**: Voltling cableado in-game y validado visualmente con enjambre denso; **Volt Warden** (boss nuevo, cabeza-casco flotante derivada del icono aprobado) tiene modelo listo pero SIN gameplay — diseño de mecánicas pendiente.
 - **Herramientas**: `tools/capture-model-preview.mjs <clave>` (viewer con luz del juego) y `tools/capture-ingame.mjs [segundos]` (arranca el juego headless, juega y captura).
 - **Criterio de aceptación por modelo**: silueta distinguible a distancia de cámara, paleta exacta, triángulos por instancia en presupuesto (enemigos ~3-6k), y validación final con 400+ enemigos activos.
+- **Pase de fidelidad 2026-07-13 (gate de captura)**: los 6 enemigos + jugador migrados de extrusión front-only al pipeline de hojas MEDIDAS de los bosses (`sideProfileRef` + `backPaintRef` — la cámara a 52° ve espaldas/techos y ahora están pintados de verdad); Sparkrunner rediseñado a v5 con brazos (aprobado); excepción Drone (solo espalda pintada — el perfil medido del rotor tapaba el techo); **greedy meshing en Y** en `voxel-builder.ts` (-27% a -66% de triángulos, visual idéntico). Rim light probado y rechazado por el usuario (revertido).
 - Detalle del método y reglas: `DIRECCION_ARTE.md` (pipeline + extensión a VFX/audio) y `PROMPTS_IMAGENES.md` §6 (prompt maestro).
 
 ## v3 — Expansión de contenido (implementada 2026-07-03, del plan de COMPARATIVA_MEGABONK.md)
@@ -136,6 +149,15 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 - **5 armas nuevas (draft de 11)**: Oil Sprayer (charcos que ralentizan, 0 daño — control puro), Acid Drum (zonas corrosivas con DoT; renombrada de "Acid Flask" el 2026-07-05 para encajar con la estética industrial/futurista), Turbine Fan (tornados con knockback), Junk Ricochet (rebota entre enemigos), Dismantler (garra que EJECUTA no-bosses bajo 15% de vida — primera arma "twist").
 - Verificado headless: estados, defensas, cartas y las 5 armas ejercitadas; 120 FPS con zonas activas y enjambre.
 - Pendiente del plan: moneda/economía (post-validación, sin cambios).
+
+## Settings v3 + Controles remapeables + Gamepad — Implementado 2026-07-13 (validado por el usuario)
+
+- **Pantalla de Settings** (`#settings-overlay`, vista `menu-view` a pantalla completa — key-art de fondo, el 3D no renderiza detrás): título arriba, **sidebar de secciones anclado al borde izquierdo** (General / Controls) y contenido ancho centrado, ambos en placas del lenguaje del juego (marco oscuro casi opaco + muescas pixel — regla: sobre key-art, los paneles van a `rgba(12,16,22,0.96)` para que el arte nunca sangre bajo el texto, aplicada globalmente vía `.menu-view .overlay-panel`). **Auto-apply**: no existe botón Apply — todo cambio se aplica y persiste al momento (selects/sliders en `change`, bindings al capturar); sin toast (sería ruido). Back siempre abajo-izquierda en ambas pestañas; Reset to Defaults solo en Controls, a la derecha.
+- **Acciones remapeables** (`ActionId` en `src/settings.ts`): moveUp/Down/Left/Right + **interact** (unificó los 3 `'KeyE'` que vivían en config — cofre/chatarrero/invocación de boss — en UNA acción; el prompt flotante muestra la tecla/botón REAL del binding y cambia según el dispositivo en mano). Escape y Start del mando = pausa, reservados. Los bindings viajan dentro del blob de settings persistido (`normalizeBindings` = migración por campo, saves viejos caen a defaults). **Captura agnóstica de dispositivo**: "PRESS KEY / BUTTON…" — lo próximo pulsado (tecla o botón) se asigna a su dispositivo; una captura por-dispositivo se tragaba pulsaciones del otro. La pestaña muestra el dispositivo activo (mando conectado → botones de pad; si no → teclado), con notificación de esquina "Gamepad detected/disconnected" (en `document.body` fixed — la capa `#hud` se oculta bajo vistas de menú).
+- **Gamepad completo** (`src/input.ts`, `PlayerInput` por acciones con polling por frame): stick izquierdo analógico + d-pad para moverse, botón de interact remapeable, **traductor DirectInput** para mandos no-estándar (DualShock: Cruz/Círculo/Cuadrado reordenados al layout estándar + d-pad decodificado del hat en `axes[9]`; los mandos estándar no pasan por él). **Navegación de menús**: foco visible (`.pad-focus`) sobre botones/cartas/selects/sliders del overlay activo — vertical mueve foco, **horizontal AJUSTA el control enfocado** (cicla selects con wrap, sliders ±5, disparando `change` → auto-apply), aceptar = SOLO el binding de interact del jugador (sin A fijo — una tecla de acción en todo el juego, regla del usuario), B = back/resume/leave/continue contextual. El `<select>` nativo no puede abrirse programáticamente → aceptar sobre él cicla; al mover el foco se hace `blur()` del control nativo (un select con foco DOM comía flechas del teclado en silencio). En el cofre el foco aterriza en Continue (la card de la ruleta es escaparate, excluida de la navegación).
+- **Fixes de plataforma**: el modo ventana/resolución solo se re-aplica cuando ELLOS cambian (re-aplicarlo en cada save parpadeaba la pantalla con cada tick de slider) · **precarga de TODO el arte de UI gated en la pantalla de carga** (`hud.preloadUiAssets()`, idempotente; `tickLoading` no revela hasta warmup 3D + decode de iconos de armas/stats/cartas/mods/retratos/glifos + cáscaras de orbe) — mató el tirón del primer level-up/cofre/tienda · animación de entrada compartida de los paneles de mitad de run (pop 0.32s; los keyframes DEBEN transportar el `translateX(-50%)` de centrado del panel o lo teletransportan).
+- **Empaquetado Electron**: `npm run package` genera instalador NSIS (`-setup.exe`, asistente + desinstalador) Y portable (`-portable.exe`, un archivo para testers) en `release/`; sin firma → SmartScreen "Unknown Publisher" (certificado en Fase 6). **Regla de rutas de assets (mordió 3 veces el mismo día)**: en strings de JS/markup SIEMPRE relativas (`'assets/...'` — `file://` rompe las absolutas y Vite no puede reescribir strings); en CSS `url()` SIEMPRE absolutas (`'/assets/...'` — Vite las reescribe al compilar; las relativas resuelven contra `src/ui.css`). Gamepad API = Chromium nativo, cero cambios en el main process de Electron.
+- Límite conocido v1: las etiquetas de tecla muestran el código físico (layouts no-QWERTY ven la posición) y los botones usan nomenclatura Xbox (A/B/X/Y) también en mandos PlayStation.
 
 ## Fuera de alcance (sin cambios)
 - Meta-progresión entre runs, moneda, mapas múltiples, evolución de armas, personajes (post-validación; los bocetos viven en DESIGN_MEJORAS.md).

@@ -1,5 +1,6 @@
 import { voxelizeIcon, voxelizeMultiView } from './icon-voxelizer';
 import type { VoxelGrid } from './voxel-builder';
+import { TIER_COLORS } from '../mods';
 
 /**
  * Central registry of voxel character models (the frozen art pipeline):
@@ -52,6 +53,13 @@ export interface VoxelModelDef {
   mirrorBack?: boolean;
   /** Spherical depth profile (balls); default is column-cylinder. */
   sphericalDepth?: boolean;
+  /** Gradual vertical dome 0..1 — rounds side/back views (see voxelizer). */
+  verticalRoundness?: number;
+  /** FLAT side sheet: per-row depth measured from the real profile
+   *  (front-only path; distinct from refSide which switches to multiView). */
+  sideProfileRef?: string;
+  /** FLAT back sheet: paints the back shell with real reference detail. */
+  backPaintRef?: string;
   /** Colors that protrude from the armor (muzzle rings, raised plates). */
   raisedColors?: number[];
   /** Overrides the per-kind hero scale in the preview viewer. */
@@ -139,6 +147,37 @@ export const BARREL_BLACK_DARK = 0x1c1e21;
 export const BARREL_WHITE_LIGHT = 0xe8e4da;
 export const BARREL_WHITE = 0xc9c4b6;
 export const BARREL_WHITE_DARK = 0x8f8a7c;
+// Scrapper (merchant) palette — MEASURED per-region from
+// ref-scrapper-front-v1.png (v2 2026-07-09: first pass missed the TOOL GRAYS
+// entirely — the wrench/pipes cluster collapsed into bronze/olive mush — and
+// used only 3 bronze steps, so the AO'd belly fell into the crate olive).
+// Families: 4-step bronze body ramp, 3-step olive crate ramp, 2-step warm
+// tool gray; lantern reuses AMBER (front-only glow), price tag reuses BONE.
+export const SCRAP_BRONZE_LIGHT = 0xc06008;
+export const SCRAP_BRONZE = 0xa05008;
+export const SCRAP_BRONZE_DARK = 0x783408;
+export const SCRAP_BRONZE_SHADOW = 0x4c2304;
+export const SCRAP_OLIVE_LIGHT = 0x806020;
+export const SCRAP_OLIVE = 0x574414;
+export const SCRAP_OLIVE_DARK = 0x362a0c;
+export const SCRAP_TOOL_GRAY_LIGHT = 0x9a8f88;
+export const SCRAP_TOOL_GRAY = 0x6e635a;
+
+// Loot chest v2 (2026-07-09) — warm LOOT-GOLD armored crate (v1 gunmetal was
+// rejected: cold blue-gray sank into the factory floor, the scaffold lesson
+// all over again; gold is the approved in-game loot language). The ENERGY
+// SEAM is the tier signal, recolored per rarity (recolorMap); its base hex IS
+// TIER_COLORS.gray so the gray variant needs no recolor. The beam light in
+// pickups.ts carries the same tier color at distance. Body reuses GOLD/AMBER.
+export const CHEST_GOLD_DARK = 0xa8730a;
+export const CHEST_SEAM = 0x8a94a2;
+// Boss portal (2026-07-09) — replaces the procedural totem. Dark industrial
+// gate; the RED energy field keeps the established danger language (red =
+// boss: totem indicator, summon prompt, boss HP bar all use it). PORTAL_RED
+// matches the indicator/beam red 0xff3355 exactly.
+export const PORTAL_STEEL = 0x161a21;
+export const PORTAL_RED = 0xff3355;
+export const PORTAL_RED_DEEP = 0xa8172e;
 
 /** Background swatches shared by every reference sheet. */
 const BACKGROUND = [0x10141d, 0x151a22, 0x000000];
@@ -146,7 +185,12 @@ const BACKGROUND = [0x10141d, 0x151a22, 0x000000];
 export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   voltling: {
     kind: 'enemy',
-    ref: '/assets/2d/ref-voltling-front.png',
+    ref: 'assets/2d/ref-voltling-front.png',
+    // Measured-profile pipeline (2026-07-13): real side silhouette + painted
+    // back — swarm enemies graduate to the boss-grade sheet workflow because
+    // the gameplay camera mostly shows their back and top.
+    sideProfileRef: 'assets/2d/ref-voltling-side-v1.png',
+    backPaintRef: 'assets/2d/ref-voltling-back-v1.png',
     // Swarm resolution: cheap triangles, silhouette-first. Sized to match
     // the primitive Voltling footprint (~0.9u wide) config was tuned around.
     targetWidth: 19,
@@ -163,12 +207,17 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   sparkrunner: {
     kind: 'enemy',
-    ref: '/assets/2d/ref-sparkrunner-front-v2.png',
-    // Tall-thin runner at swarm resolution; the v2 reference thickens the
-    // antenna and visor so they survive this width. Voxel size keeps it
-    // ~1.9u tall like the primitive.
-    targetWidth: 17,
-    voxelSize: 0.05,
+    ref: 'assets/2d/ref-sparkrunner-front-v5.png',
+    // Measured-profile pipeline (2026-07-13): v5 sheet set — real chunky
+    // ARMS fused to a solid shoulder bar (v4's thin joints read as floating
+    // arms) with WIDE torso gaps below (v3's narrow gaps fused at swarm
+    // resolution), side gives action-figure depth, painted back matches v5.
+    sideProfileRef: 'assets/2d/ref-sparkrunner-side-v3.png',
+    backPaintRef: 'assets/2d/ref-sparkrunner-back-v5.png',
+    // Arms widen the sheet's bbox, so width buys more columns while the
+    // smaller voxel keeps the runner ~1.9u tall like the primitive.
+    targetWidth: 21,
+    voxelSize: 0.037,
     bodyColor: ELECTRIC_CYAN,
     palette: [ELECTRIC_CYAN, DARK, AMBER],
     frontOnly: [AMBER],
@@ -182,7 +231,11 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   rustbrute: {
     kind: 'enemy',
-    ref: '/assets/2d/ref-rustbrute-front-v2.png',
+    ref: 'assets/2d/ref-rustbrute-front-v2.png',
+    // Measured-profile pipeline (2026-07-13): real side silhouette + painted
+    // back (see voltling note).
+    sideProfileRef: 'assets/2d/ref-rustbrute-side-v2.png',
+    backPaintRef: 'assets/2d/ref-rustbrute-back-v1.png',
     // The widest silhouette of the family; v2 raises the head above the
     // shoulder line so it extrudes as its own volume.
     targetWidth: 23,
@@ -201,7 +254,12 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   roller: {
     kind: 'enemy',
-    ref: '/assets/2d/ref-roller-front.png',
+    ref: 'assets/2d/ref-roller-front.png',
+    // Measured-profile pipeline (2026-07-13): sheets confirm the sphere and
+    // keep the approved mirrored back eye (backPaint wins over mirrorBack,
+    // which stays as fallback).
+    sideProfileRef: 'assets/2d/ref-roller-side-v1.png',
+    backPaintRef: 'assets/2d/ref-roller-back-v1.png',
     // A ball: depth equals width (single full-round segment), centered
     // origin so the rolling X-rotation doesn't wobble, and the amber eye
     // mirrored onto the back so a face always reads mid-roll.
@@ -218,7 +276,11 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   gunner: {
     kind: 'enemy',
-    ref: '/assets/2d/ref-gunner-front.png',
+    ref: 'assets/2d/ref-gunner-front.png',
+    // Measured-profile pipeline (2026-07-13): the side sheet gives the
+    // cannon its real protruding profile; painted back (see voltling note).
+    sideProfileRef: 'assets/2d/ref-gunner-side-v1.png',
+    backPaintRef: 'assets/2d/ref-gunner-back-v1.png',
     // Squat turret; the red muzzle ring protrudes so the cannon reads as a
     // physical tube aiming at the player, with the dark bore recessed.
     targetWidth: 19,
@@ -237,7 +299,11 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   drone: {
     kind: 'enemy',
-    ref: '/assets/2d/ref-drone-front.png',
+    ref: 'assets/2d/ref-drone-front.png',
+    // Painted back only (2026-07-13). No sideProfileRef on purpose: the
+    // measured rotor-bar depth re-capped the roof in dark — the segment
+    // profile below keeps the rotor a THIN blade (top-down camera rule).
+    backPaintRef: 'assets/2d/ref-drone-back-v1.png',
     // Flat wide saucer; the dark rotor bar tops the silhouette and keeps
     // its color through the depth (it IS a rotor slab).
     targetWidth: 19,
@@ -256,7 +322,12 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   player: {
     kind: 'player',
-    ref: '/assets/2d/ref-player-front-v3.png',
+    ref: 'assets/2d/ref-player-front-v3.png',
+    // Measured-profile pipeline (2026-07-13): real side silhouette + painted
+    // back — the tool backpack finally reads from behind, which is the angle
+    // the gameplay camera shows all run long.
+    sideProfileRef: 'assets/2d/ref-player-side-v1.png',
+    backPaintRef: 'assets/2d/ref-player-back-v1.png',
     // Hero resolution: single instance, always center-screen. Sized to the
     // primitive player's ~2u height.
     targetWidth: 25,
@@ -276,7 +347,11 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   'tesla-titan': {
     kind: 'boss',
-    ref: '/assets/2d/ref-tesla-titan-front.png',
+    ref: 'assets/2d/ref-tesla-titan-front.png',
+    // Measured-profile pipeline (2026-07-09): tower profile + painted back
+    // (rings wrap seamlessly; the back swaps the visor for an access panel).
+    sideProfileRef: 'assets/2d/ref-tesla-titan-side-v1.png',
+    backPaintRef: 'assets/2d/ref-tesla-titan-back-v1.png',
     // Tall pylon sized to the primitive rig (~2u). The bright-cyan rings
     // are wider than the tower, so they wrap as full slabs on their own;
     // they are also the prime bloom emissives of Phase 1.
@@ -296,7 +371,11 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   'crusher-king': {
     kind: 'boss',
-    ref: '/assets/2d/ref-crusher-king-front-v2.png',
+    ref: 'assets/2d/ref-crusher-king-front-v2.png',
+    // Measured-profile pipeline (2026-07-09): real side silhouette + painted
+    // back — the "loaf from behind" fix graduated from parametric dome to data.
+    sideProfileRef: 'assets/2d/ref-crusher-king-side-v1.png',
+    backPaintRef: 'assets/2d/ref-crusher-king-back-v1.png',
     // Sized to the primitive boss rig (~1.9u tall) because the instance
     // scale (BOSS 4.6x) multiplies on top. Gold is a full material (crown
     // spikes are silhouette), not a front-only glow; crest logic off so the
@@ -309,18 +388,26 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
     armorColors: [SIGNAL_RED],
     // Bands match the v2 sheet: crown+face down to the jaw, then torso.
     // Depths kept lean: at boss scale the extrusion balloons fast and the
-    // king read as a loaf from behind (playtest 2026-07-05).
+    // king read as a loaf from behind (playtest 2026-07-05). The vertical
+    // dome (2026-07-09) attacks that loaf directly — depth now tapers toward
+    // crown and feet instead of extruding as a constant slab.
     segments: [
-      { from: 0, to: 0.44, depthFactor: 0.3 },
-      { from: 0.44, to: 0.82, depthFactor: 0.25 },
-      { from: 0.82, to: 1, depthFactor: 0.22 },
+      { from: 0, to: 0.44, depthFactor: 0.36 },
+      { from: 0.44, to: 0.82, depthFactor: 0.32 },
+      { from: 0.82, to: 1, depthFactor: 0.26 },
     ],
+    verticalRoundness: 0.7,
     raisedTopFraction: 0,
     previewScale: 1.9,
   },
   'volt-warden': {
     kind: 'boss',
-    ref: '/assets/2d/ref-volt-warden-front-v2.png',
+    // v1 sheet by user decision (2026-07-09): the -v2 ref is RESERVED for a
+    // future new enemy. The v1's "flat mass from the side/back" weakness is
+    // covered by the measured side/back sheets below.
+    ref: 'assets/2d/ref-volt-warden-front.png',
+    sideProfileRef: 'assets/2d/ref-volt-warden-side-v1.png',
+    backPaintRef: 'assets/2d/ref-volt-warden-back-v1.png',
     // Boss resolution: max detail, only 1-2 instances ever on screen.
     targetWidth: 41,
     voxelSize: 0.05,
@@ -342,7 +429,7 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   // yet, so it has zero effect on the current game.
   'final-boss': {
     kind: 'boss',
-    ref: '/assets/2d/ref-volt-warden-front.png',
+    ref: 'assets/2d/ref-volt-warden-front.png',
     targetWidth: 41,
     voxelSize: 0.05,
     bodyColor: YELLOW,
@@ -364,9 +451,9 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   // sheet, not from a guessed depth profile.
   container: {
     kind: 'prop',
-    ref: '/assets/2d/prop-container-front-v3.png',
-    refSide: '/assets/2d/prop-container-side-v3.png',
-    refBack: '/assets/2d/prop-container-back-v3.png',
+    ref: 'assets/2d/prop-container-front-v3.png',
+    refSide: 'assets/2d/prop-container-side-v3.png',
+    refBack: 'assets/2d/prop-container-back-v3.png',
     targetWidth: 26,
     voxelSize: 0.12,
     bodyColor: TEAL,
@@ -382,9 +469,9 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   // object; world.ts picks a variant at random per gate.
   'container-orange': {
     kind: 'prop',
-    ref: '/assets/2d/prop-container-front-v3.png',
-    refSide: '/assets/2d/prop-container-side-v3.png',
-    refBack: '/assets/2d/prop-container-back-v3.png',
+    ref: 'assets/2d/prop-container-front-v3.png',
+    refSide: 'assets/2d/prop-container-side-v3.png',
+    refBack: 'assets/2d/prop-container-back-v3.png',
     targetWidth: 26,
     voxelSize: 0.12,
     bodyColor: TEAL,
@@ -404,9 +491,9 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   // technique as `container-orange` (see recolorMap doc above).
   'container-mauve': {
     kind: 'prop',
-    ref: '/assets/2d/prop-container-front-v3.png',
-    refSide: '/assets/2d/prop-container-side-v3.png',
-    refBack: '/assets/2d/prop-container-back-v3.png',
+    ref: 'assets/2d/prop-container-front-v3.png',
+    refSide: 'assets/2d/prop-container-side-v3.png',
+    refBack: 'assets/2d/prop-container-back-v3.png',
     targetWidth: 26,
     voxelSize: 0.12,
     bodyColor: TEAL,
@@ -433,7 +520,7 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   // paints the identical pattern on the back shell (front=back by design).
   scaffold: {
     kind: 'prop',
-    ref: '/assets/2d/prop-scaffold-front-v1.png',
+    ref: 'assets/2d/prop-scaffold-front-v1.png',
     targetWidth: 34,
     voxelSize: 0.042,
     bodyColor: STEEL,
@@ -454,7 +541,7 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   // tones, so the label never wraps around the sides).
   barrel: {
     kind: 'prop',
-    ref: '/assets/2d/prop-barrel-front-v1.png',
+    ref: 'assets/2d/prop-barrel-front-v1.png',
     targetWidth: 22,
     // Bigger + collision (2026-07-06 user request): world footprint now
     // matches config.BARREL_PROP (~1.3m wide) instead of the original
@@ -472,7 +559,7 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   // 3-step ramp shape, different hue; world.ts picks one at random per drum.
   'barrel-black': {
     kind: 'prop',
-    ref: '/assets/2d/prop-barrel-front-v1.png',
+    ref: 'assets/2d/prop-barrel-front-v1.png',
     targetWidth: 22,
     voxelSize: 0.059,
     bodyColor: BARREL,
@@ -493,7 +580,7 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   'barrel-white': {
     kind: 'prop',
-    ref: '/assets/2d/prop-barrel-front-v1.png',
+    ref: 'assets/2d/prop-barrel-front-v1.png',
     targetWidth: 22,
     voxelSize: 0.059,
     bodyColor: BARREL,
@@ -509,7 +596,120 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
     },
     previewScale: 1.6,
   },
+  // The Scrapper merchant — front-only voxelization (Camino A, 2026-07-09):
+  // a stationary NPC that faces the player, so the back is never the hero
+  // angle. Boss-grade resolution (single instance, and the ref is packed
+  // with fine detail: tools, straps, lantern, tag). Rounded solid body →
+  // generous belly depth; the crate + tools silhouette stays solid via the
+  // olive/gray armor families. Lantern glows via the AMBER front-only pass.
+  // Voxelization source is the FLAT conversion sprite (-v2): the -v1 beauty
+  // render (per-block 3D shading + AO) turned into color mush when quantized
+  // — §6's "flat solid colors" rule exists precisely for this. -v1 stays as
+  // concept/marketing art.
+  scrapper: {
+    kind: 'prop',
+    ref: 'assets/2d/ref-scrapper-front-v2.png',
+    // Pilot of the measured-profile pipeline (2026-07-09): depth per row
+    // comes from the flat side sheet (hunch + crate bulge are DATA) and the
+    // back shell is painted from the flat back sheet (the crate reads from
+    // behind). Both sheets are flat conversion sprites, same palette.
+    sideProfileRef: 'assets/2d/ref-scrapper-side-v2.png',
+    backPaintRef: 'assets/2d/ref-scrapper-back-v2.png',
+    targetWidth: 52,
+    voxelSize: 0.045,
+    bodyColor: SCRAP_BRONZE,
+    palette: [
+      SCRAP_BRONZE_LIGHT,
+      SCRAP_BRONZE,
+      SCRAP_BRONZE_DARK,
+      SCRAP_BRONZE_SHADOW,
+      SCRAP_OLIVE_LIGHT,
+      SCRAP_OLIVE,
+      SCRAP_OLIVE_DARK,
+      SCRAP_TOOL_GRAY_LIGHT,
+      SCRAP_TOOL_GRAY,
+      DARK,
+      AMBER,
+      BONE,
+    ],
+    frontOnly: [AMBER],
+    armorColors: [
+      SCRAP_BRONZE_LIGHT,
+      SCRAP_BRONZE,
+      SCRAP_BRONZE_DARK,
+      SCRAP_BRONZE_SHADOW,
+      SCRAP_OLIVE_LIGHT,
+      SCRAP_OLIVE,
+      SCRAP_OLIVE_DARK,
+      SCRAP_TOOL_GRAY_LIGHT,
+      SCRAP_TOOL_GRAY,
+    ],
+    segments: [
+      { from: 0, to: 0.36, depthFactor: 0.34 },
+      { from: 0.36, to: 0.8, depthFactor: 0.44 },
+      { from: 0.8, to: 1, depthFactor: 0.3 },
+    ],
+    // Egg-bodied vendor: without the dome the side view was a slab (2026-07-09).
+    verticalRoundness: 0.6,
+    raisedTopFraction: 0,
+    previewScale: 1.0,
+  },
+  // Boss portal gate — thin slab profile measured from the side sheet, back
+  // painted with the mirrored front (the energy field glows on both faces).
+  portal: {
+    kind: 'prop',
+    ref: 'assets/2d/prop-portal-front-v1.png',
+    sideProfileRef: 'assets/2d/prop-portal-side-v1.png',
+    backPaintRef: 'assets/2d/prop-portal-front-v1.png',
+    targetWidth: 30,
+    // Landmark scale (2026-07-09 user call): ~3.6u wide / ~4.5u tall — the
+    // boss door should dwarf the player and read across the arena.
+    voxelSize: 0.12,
+    bodyColor: DARK,
+    palette: [DARK, PORTAL_STEEL, PORTAL_RED, PORTAL_RED_DEEP, BONE],
+    frontOnly: [],
+    armorColors: [DARK, PORTAL_STEEL],
+    raisedTopFraction: 0,
+    previewScale: 1.4,
+  },
+  ...buildChestVariants(),
 };
+
+/** The five tier-colored chest entries share everything but the seam color.
+ *  Back sheet reuses the front (the crate is front/back symmetric).
+ *
+ *  The SPRITES are painted gold, but the rendered body shifts to the
+ *  scrapper's BRONZE family via recolorMap (2026-07-09 playtest: gold chests
+ *  were the same blob as the yellow Voltling swarm — loot vs enemy confusion).
+ *  Bronze forms the "economy family" with the merchant and, as a bonus, the
+ *  gold TIER seam now pops against the bronze case instead of vanishing. */
+function buildChestVariants(): Record<string, VoxelModelDef> {
+  const entries: Record<string, VoxelModelDef> = {};
+  for (const [tier, color] of Object.entries(TIER_COLORS)) {
+    const recolorMap: Record<number, number> = {
+      [AMBER]: SCRAP_BRONZE_LIGHT,
+      [GOLD]: SCRAP_BRONZE,
+      [CHEST_GOLD_DARK]: SCRAP_BRONZE_DARK,
+    };
+    if (color !== CHEST_SEAM) recolorMap[CHEST_SEAM] = color;
+    entries[`chest-${tier}`] = {
+      kind: 'prop',
+      ref: 'assets/2d/prop-chest-front-v2.png',
+      sideProfileRef: 'assets/2d/prop-chest-side-v2.png',
+      backPaintRef: 'assets/2d/prop-chest-front-v2.png',
+      targetWidth: 22,
+      voxelSize: 0.055,
+      bodyColor: GOLD,
+      palette: [GOLD, AMBER, CHEST_GOLD_DARK, DARK, BONE, CHEST_SEAM],
+      frontOnly: [],
+      armorColors: [GOLD, AMBER, CHEST_GOLD_DARK],
+      raisedTopFraction: 0,
+      recolorMap,
+      previewScale: 1.6,
+    };
+  }
+  return entries;
+}
 
 /** Enemy type name (config.ts) → registry key. */
 export function modelKeyForTypeName(name: string): string {
@@ -535,6 +735,9 @@ export async function buildModelGrid(key: string): Promise<VoxelGrid> {
         armorColors: def.armorColors,
         mirrorBack: def.mirrorBack,
         sphericalDepth: def.sphericalDepth,
+        verticalRoundness: def.verticalRoundness,
+        sideProfileRef: def.sideProfileRef,
+        backPaintRef: def.backPaintRef,
         raisedColors: def.raisedColors,
         bodyColor: def.bodyColor,
       });
