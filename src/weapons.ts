@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { VISUAL, WEAPONS, levelScale, quantityBonus } from './config';
+import { VISUAL, WEAPONS, levelScale, quantityBonus, type WeaponId } from './config';
 import { litMaterial } from './toon';
 import type { EnemySystem } from './enemies';
 import type { PlayerStats } from './stats';
@@ -17,7 +17,12 @@ export interface CombatCtx {
   /** Rolls crit, applies damage, shows the number, handles death rewards.
    *  `hitColor` sparks a voxel pop in the weapon's icon accent at the victim
    *  (icon↔VFX coherence + two-halves rule, 2026-07-11). */
-  dealDamage(enemyIndex: number, baseDamage: number, hitColor?: number): void;
+  dealDamage(
+    enemyIndex: number,
+    baseDamage: number,
+    hitColor: number | undefined,
+    weaponId: WeaponId,
+  ): void;
   /** Pops voxel cubes from the shared burst pool — weapon trails/impacts. */
   spawnBurst(x: number, z: number, color: number, count: number): void;
 }
@@ -226,7 +231,7 @@ export class BoltWeapon {
       }
       const hit = ctx.enemies.findNearest(p.x, p.z, WEAPONS.bolt.hitRadius * ctx.stats.area);
       if (hit !== -1) {
-        ctx.dealDamage(hit, baseDamage, WEAPON_ACCENT.bolt);
+        ctx.dealDamage(hit, baseDamage, WEAPON_ACCENT.bolt, 'bolt');
         this.deactivate(i);
         continue;
       }
@@ -343,7 +348,7 @@ export class PulseWeapon {
         const e = ctx.enemies.pool[i];
         if (!e || !e.active) continue;
         const dSq = (e.x - px) * (e.x - px) + (e.z - pz) * (e.z - pz);
-        if (dSq <= radius * radius) ctx.dealDamage(i, damage, WEAPON_ACCENT.pulse);
+        if (dSq <= radius * radius) ctx.dealDamage(i, damage, WEAPON_ACCENT.pulse, 'pulse');
       }
     }
 
@@ -423,7 +428,7 @@ export class BladeWeapon {
         const dSq = (e.x - bx) * (e.x - bx) + (e.z - bz) * (e.z - bz);
         if (dSq <= reach * reach) {
           e.bladeHitTimer = WEAPONS.blades.hitCooldownS;
-          ctx.dealDamage(i, damage, WEAPON_ACCENT.blades);
+          ctx.dealDamage(i, damage, WEAPON_ACCENT.blades, 'blades');
         }
       }
     }
@@ -502,7 +507,7 @@ export class WelderWeapon {
       const ramp = Math.min(1 + this.lockTime * rampRate, WEAPONS.welder.rampCap);
       const damage =
         levelScale(WEAPONS.welder.damage, WEAPONS.welder.damagePctPerLevel, level) * ramp;
-      ctx.dealDamage(this.target, damage, WEAPON_ACCENT.welder);
+      ctx.dealDamage(this.target, damage, WEAPON_ACCENT.welder, 'welder');
     }
 
     // Lay the arc: cubes along the player→target line. The sideways offset is
@@ -594,7 +599,9 @@ export class PressWeapon {
           const along = rx * dirX + rz * dirZ;
           if (along < 0 || along > length) continue;
           const across = Math.abs(rx * -dirZ + rz * dirX);
-          if (across <= width / 2 + other.radius) ctx.dealDamage(i, damage, WEAPON_ACCENT.press);
+          if (across <= width / 2 + other.radius) {
+            ctx.dealDamage(i, damage, WEAPON_ACCENT.press, 'press');
+          }
         }
         this.plate.position.set(px + dirX * (length / 2), 0.25, pz + dirZ * (length / 2));
         this.plate.scale.set(width, 1, length);
@@ -712,7 +719,7 @@ export class TireWeapon {
         const dSq = (e.x - t.x) * (e.x - t.x) + (e.z - t.z) * (e.z - t.z);
         if (dSq <= reach * reach) {
           t.hit.add(key);
-          ctx.dealDamage(i, damage, WEAPON_ACCENT.tire);
+          ctx.dealDamage(i, damage, WEAPON_ACCENT.tire, 'tire');
         }
       }
       t.mesh.position.set(t.x, 0.75 * ctx.stats.area, t.z);
@@ -932,7 +939,12 @@ export class AcidWeapon {
         if (!e || !e.active) continue;
         const dSq = (e.x - z.x) * (e.x - z.x) + (e.z - z.z) * (e.z - z.z);
         if (dSq <= radius * radius) {
-          ctx.enemies.applyDot(n, dps, WEAPONS.acid.dotDurationS * ctx.stats.duration);
+          ctx.enemies.applyDot(
+            n,
+            dps,
+            WEAPONS.acid.dotDurationS * ctx.stats.duration,
+            'acid',
+          );
         }
       }
       // Corrosion is ALIVE: the pool bubbles green cubes while it eats.
@@ -1064,7 +1076,7 @@ export class TurbineWeapon {
         // where nothing ever reached the player.
         t.hit.add(key);
         ctx.enemies.applyKnockback(n, t.vx / speed, t.vz / speed, WEAPONS.turbine.knockbackForce);
-        ctx.dealDamage(n, damage, WEAPON_ACCENT.turbine);
+        ctx.dealDamage(n, damage, WEAPON_ACCENT.turbine, 'turbine');
       }
       // Scrap debris kicked up along the path (the icon's trapped junk).
       t.debrisTimer -= dt;
@@ -1173,7 +1185,7 @@ export class RicochetWeapon {
       if (struck !== -1) {
         const struckEnemy = ctx.enemies.pool[struck];
         if (struckEnemy) s.hit.add(enemyKey(struck, struckEnemy.gen));
-        ctx.dealDamage(struck, damage, WEAPON_ACCENT.ricochet);
+        ctx.dealDamage(struck, damage, WEAPON_ACCENT.ricochet, 'ricochet');
         s.bounces--;
         // Redirect to the next nearest un-hit enemy within bounce range.
         let next = -1;
@@ -1276,14 +1288,14 @@ export class DismantlerWeapon {
           // Execute: guaranteed lethal — and the dismantling is SEEN as an
           // extra amber shred on top of the death burst.
           ctx.spawnBurst(e.x, e.z, WEAPON_ACCENT.dismantler, 6);
-          ctx.dealDamage(target, e.maxHp * 100, WEAPON_ACCENT.dismantler);
+          ctx.dealDamage(target, e.maxHp * 100, WEAPON_ACCENT.dismantler, 'dismantler');
         } else {
           const damage = levelScale(
             WEAPONS.dismantler.damage,
             WEAPONS.dismantler.damagePctPerLevel,
             level,
           );
-          ctx.dealDamage(target, damage, WEAPON_ACCENT.dismantler);
+          ctx.dealDamage(target, damage, WEAPON_ACCENT.dismantler, 'dismantler');
         }
       }
     }

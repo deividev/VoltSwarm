@@ -12,6 +12,7 @@ import {
   STATUS,
   VISUAL,
   type EnemyTypeDef,
+  type WeaponId,
 } from './config';
 import type { EnemyProjectiles } from './enemy-projectiles';
 import type { Obstacle } from './world';
@@ -57,6 +58,8 @@ export interface Enemy {
   dotTimer: number;
   dotDps: number;
   dotTick: number;
+  /** Weapon that owns the active DoT, for end-of-run damage attribution. */
+  dotWeaponId: WeaponId | null;
   kbX: number;
   kbZ: number;
 }
@@ -228,6 +231,7 @@ export class EnemySystem {
           dotTimer: 0,
           dotDps: 0,
           dotTick: 0,
+          dotWeaponId: null,
           kbX: 0,
           kbZ: 0,
         });
@@ -660,6 +664,7 @@ export class EnemySystem {
     e.dotTimer = 0;
     e.dotDps = 0;
     e.dotTick = 0;
+    e.dotWeaponId = null;
     e.kbX = 0;
     e.kbZ = 0;
     this.activeCount++;
@@ -678,10 +683,13 @@ export class EnemySystem {
   }
 
   /** Applies damage-over-time; keeps the strongest dps and longest duration. */
-  applyDot(index: number, dps: number, durationS: number): void {
+  applyDot(index: number, dps: number, durationS: number, weaponId: WeaponId): void {
     const e = this.pool[index];
     if (!e || !e.active) return;
-    e.dotDps = Math.max(e.dotDps, dps);
+    if (dps >= e.dotDps) {
+      e.dotDps = dps;
+      e.dotWeaponId = weaponId;
+    }
     e.dotTimer = Math.max(e.dotTimer, durationS);
     if (e.dotTick <= 0) e.dotTick = STATUS.dotTickS * 0.5;
   }

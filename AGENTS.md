@@ -65,7 +65,8 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 - **Rigs temporales de captura CERRADOS (2026-07-17):** `RECORDING.levelUpDraft.enabled=false`, ambos flags de `RECORDING.chestTesting=false` y `GOLD.startingGold=0`. No queda ningún override de captura activo.
 - **Material final conservado:** 9 screenshots en `art/steam/screenshots/`, 9 GIFs en `art/steam/gif/`, store/library/social assets y masters aprobados en `art/steam/image/`, copy/brief en `art/steam/info/` y manifiesto en `art/steam/STEAM-MEDIA-MANIFEST.md`. El cofre verde cubre la recompensa; no falta un cofre dorado.
 - **Limpieza posterior COMPLETADA con aprobación 1 a 1:** se eliminaron backups, duplicados, temporales regenerables y builds obsoletas. Se retuvieron `assets/preview/` como contexto, `art/concept/`, `tmp/quantize-portal.mjs`, `tmp/perf-400-output/`, los assets finales, las builds v0.1.1 y la última grabación raw `art/video/2026-07-16 17-32-04.mp4`.
-- **Siguiente secuencia:** responder a cualquier feedback de Steam → cuando Valve la apruebe, publicar Coming Soon → continuar el roadmap canónico: Fase 3 (instrumentos) → Fase 5 (contenido, balance y retención) → Fase 4 (audio al final) → Fase 6 (Steamworks y cierre). Leaderboards: confirmados para el juego completo, todavía no implementados.
+- **Fase 3 — COMPLETADA 2026-07-17:** pausa, Settings v3, menú principal con versión leída de `package.json` y desglose final de daño real por arma están cerrados.
+- **Siguiente secuencia:** Fase 5 (contenido, balance y retención) → Fase 4 (audio al final) → Fase 6 (Steamworks y cierre). En paralelo, responder feedback de Steam y, cuando Valve apruebe la página, publicar Coming Soon. Leaderboards: confirmados para el juego completo, todavía no implementados.
 
 ## Historial — spec original del Día 1 (superseded)
 

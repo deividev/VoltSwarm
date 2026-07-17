@@ -593,6 +593,180 @@
   opacity: 0.75;
 }
 
+#end-overlay {
+  gap: 14px;
+  overflow-y: auto;
+  padding: 28px 16px;
+  box-sizing: border-box;
+}
+#end-title {
+  color: #ffd24a;
+}
+#end-stats {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: max-content;
+  max-width: none;
+  margin: 0;
+  min-height: 48px;
+  padding: 8px 20px;
+  border: 2px solid #2b3340;
+  background: rgba(16, 20, 27, 0.86);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.05), inset 0 -3px 0 rgba(0, 0, 0, 0.5);
+  clip-path: polygon(
+    0 8px, 8px 8px, 8px 0,
+    calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px,
+    100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%,
+    8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px)
+  );
+  box-sizing: border-box;
+  white-space: nowrap;
+  font-size: clamp(13px, 0.86vw, 17px);
+  line-height: 1;
+  opacity: 1;
+}
+#end-stats > span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+}
+#end-stats .end-kills {
+  gap: 7px;
+  line-height: 1;
+}
+#end-stats .end-kills > span {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+}
+#end-stats .ui-glyph {
+  display: block;
+  width: 28px;
+  height: 28px;
+  transform: translateY(1px);
+}
+#end-stats .end-stat-separator {
+  color: #8a94a2;
+  opacity: 0.75;
+}
+/* The end screen owns the viewport: the live combat HUD/RIG would duplicate
+ * the final build and leave stale run bars visible behind the report. */
+body:has(#end-overlay:not(.hidden)) #hud,
+body:has(#end-overlay:not(.hidden)) #fps-counter,
+body:has(#end-overlay:not(.hidden)) #build-panel {
+  display: none;
+}
+#end-run-summary {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 16px;
+  width: min(1000px, calc(100vw - 40px));
+}
+#end-run-build,
+#end-damage-report {
+  padding: 10px 14px 14px;
+  border: 2px solid #2b3340;
+  background: rgba(16, 20, 27, 0.86);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.05), inset 0 -3px 0 rgba(0, 0, 0, 0.5);
+  clip-path: polygon(
+    0 8px, 8px 8px, 8px 0,
+    calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px,
+    100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%,
+    8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px)
+  );
+  box-sizing: border-box;
+}
+#end-run-build {
+  width: 340px;
+  flex: 0 0 340px;
+}
+#end-damage-report {
+  width: min(620px, calc(100vw - 40px));
+  flex: 1 1 620px;
+}
+#end-run-build > .panel-header,
+#end-damage-report > .panel-header {
+  margin-bottom: 12px;
+}
+#end-run-build-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.end-build-section .panel-title {
+  display: block;
+  margin-bottom: 6px;
+}
+.end-build-section .build-empty {
+  padding: 8px 2px;
+  font-size: 9px;
+  opacity: 0.45;
+}
+#end-run-build .rig-section {
+  gap: 6px;
+}
+#end-damage-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.end-damage-row {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr) 58px;
+  align-items: center;
+  gap: 10px;
+}
+.end-damage-info {
+  min-width: 0;
+}
+.end-damage-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 5px;
+  font-size: 10px;
+  letter-spacing: 0.5px;
+}
+.end-damage-heading span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.end-damage-heading strong {
+  color: #ffd76a;
+}
+.end-damage-track {
+  height: 8px;
+  border: 1px solid #2b3340;
+  background: #111923;
+}
+.end-damage-track i {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  background: linear-gradient(90deg, #2b9fc9, #7ee0ff);
+  box-shadow: 0 0 8px rgba(126, 224, 255, 0.5);
+}
+.end-damage-share {
+  color: #a8b7c7;
+  font-size: 9px;
+  text-align: right;
+}
+@media (max-width: 900px) {
+  #end-run-summary {
+    flex-direction: column;
+    align-items: center;
+  }
+  #end-run-build,
+  #end-damage-report {
+    width: min(620px, calc(100vw - 40px));
+    flex: none;
+  }
+}
+
 /* Crate slot machine: lighter backdrop than menus — it is a quick beat,
    not a full pause screen. */
 /* Vignette focus: the world dims toward the edges, spotlight on the crate

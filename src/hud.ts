@@ -16,6 +16,7 @@ import {
   type GameSettings,
 } from './settings';
 import type { PlayerInput } from './input';
+import { RUN_OUTCOME_TITLES, type RunMapRef, type RunOutcome } from './run-history';
 
 // All UI is plain DOM layered over the canvas. Fast to build, trivially
 // styleable, and it never touches the render loop.
@@ -160,6 +161,33 @@ function cardIconHtml(cardId: string): string {
   return image ? `<img class="card-icon" src="${image}" alt="" />` : '';
 }
 
+interface RigTileOptions {
+  src?: string;
+  emoji?: string;
+  badge?: string;
+  cls?: string;
+  card?: string;
+  label?: string;
+}
+
+/** Shared RIG tile renderer. The live build panel, end-of-run build summary,
+ *  and damage report all use this exact markup so icons never drift apart. */
+function rigTileHtml(options: RigTileOptions): string {
+  const inner = options.src
+    ? `<img class="rig-icon" src="${options.src}" alt="" />`
+    : `<span class="rig-icon rig-icon-emoji">${options.emoji ?? '◆'}</span>`;
+  const badge = options.badge ? `<span class="rig-badge">${options.badge}</span>` : '';
+  const data = options.card ? ` data-card="${options.card}"` : '';
+  const label = options.label ? ` title="${options.label}" aria-label="${options.label}"` : '';
+  return `<div class="rig-tile${options.cls ? ` ${options.cls}` : ''}"${data}${label}>${inner}${badge}</div>`;
+}
+
+/** Bare core icon used by the RIG: orb shells belong to draft cards only. */
+function rigCoreIconSrc(id: string): string | undefined {
+  const key = CARD_STAT_KEYS[id];
+  return (key ? STAT_ICON_IMAGES[key] : undefined) ?? CARD_ICON_IMAGES[id];
+}
+
 // Build-panel rows: icon, label, and how to render the stat's current
 // absolute value. Every stat is always listed so the player can compare
 // their sheet before and after each upgrade choice.
@@ -212,6 +240,8 @@ export class Hud {
   private readonly endOverlay: HTMLElement;
   private readonly endTitle: HTMLElement;
   private readonly endStats: HTMLElement;
+  private readonly endRunBuild: HTMLElement;
+  private readonly endDamageList: HTMLElement;
   private readonly bossBar: HTMLElement;
   private readonly bossFill: HTMLElement;
   private readonly bossName: HTMLElement;
@@ -322,6 +352,16 @@ export class Hud {
       <div id="end-overlay" class="overlay hidden">
         <h1 id="end-title"></h1>
         <p id="end-stats" class="stats-line"></p>
+        <div id="end-run-summary">
+          <section id="end-run-build">
+            <h2 class="panel-header">Run Build</h2>
+            <div id="end-run-build-content"></div>
+          </section>
+          <section id="end-damage-report">
+            <h2 class="panel-header">Damage Report</h2>
+            <div id="end-damage-list"></div>
+          </section>
+        </div>
         <button id="restart-button">Main Menu</button>
       </div>
       <div id="pause-overlay" class="overlay hidden">
@@ -441,6 +481,8 @@ export class Hud {
     this.endOverlay = mustGet('end-overlay');
     this.endTitle = mustGet('end-title');
     this.endStats = mustGet('end-stats');
+    this.endRunBuild = mustGet('end-run-build-content');
+    this.endDamageList = mustGet('end-damage-list');
     this.bossBar = mustGet('boss-bar');
     this.bossFill = mustGet('boss-bar-fill');
     this.bossName = mustGet('boss-name');
@@ -1163,23 +1205,8 @@ export class Hud {
     // is a row of icon-only TILES with the level/count stuck to the icon's
     // bottom-right — no names. Locked slots show just the padlock centered at
     // icon size; empty slots show a dim diamond.
-    const tile = (o: { src?: string; emoji?: string; badge?: string; cls?: string; card?: string }): string => {
-      const inner = o.src
-        ? `<img class="rig-icon" src="${o.src}" alt="" />`
-        : `<span class="rig-icon rig-icon-emoji">${o.emoji ?? '◆'}</span>`;
-      const badge = o.badge ? `<span class="rig-badge">${o.badge}</span>` : '';
-      const data = o.card ? ` data-card="${o.card}"` : '';
-      return `<div class="rig-tile${o.cls ? ` ${o.cls}` : ''}"${data}>${inner}${badge}</div>`;
-    };
     const emptyTile = '<div class="rig-tile empty"><span class="rig-empty">◇</span></div>';
-    const lockedTile = tile({ src: 'assets/2d/icon-ui-lock-v2.png', cls: 'locked' });
-
-    // Bare core icon — NO tier orb shell here (the shell shows only in the
-    // level-up draft, 2026-07-11 user request).
-    const coreIconSrc = (id: string): string | undefined => {
-      const key = CARD_STAT_KEYS[id];
-      return (key ? STAT_ICON_IMAGES[key] : undefined) ?? CARD_ICON_IMAGES[id];
-    };
+    const lockedTile = rigTileHtml({ src: 'assets/2d/icon-ui-lock-v2.png', cls: 'locked' });
 
     panel.insertAdjacentHTML('beforeend', '<div class="panel-header">RIG</div>');
 
@@ -1190,12 +1217,13 @@ export class Hud {
       const level = weapons[weaponId];
       if (level <= 0) continue;
       ownedWeapons++;
-      weaponTiles += tile({
+      weaponTiles += rigTileHtml({
         src: WEAPON_ICON_IMAGES[weaponId],
         emoji: WEAPON_ICONS[weaponId],
         badge: `Lv${level}`,
         cls: 'weapon',
         card: `weapon-${weaponId}`,
+        label: `${WEAPON_INFO[weaponId].title}, level ${level}`,
       });
     }
     for (let i = ownedWeapons; i < ACCOUNT.weaponSockets; i++) weaponTiles += emptyTile;
@@ -1206,7 +1234,13 @@ export class Hud {
     let coreTiles = '';
     const installedCores = Object.keys(cores).filter((id) => (cores[id] ?? 0) > 0);
     for (const id of installedCores) {
-      coreTiles += tile({ src: coreIconSrc(id), badge: `Lv${cores[id]}`, cls: 'core', card: id });
+      coreTiles += rigTileHtml({
+        src: rigCoreIconSrc(id),
+        badge: `Lv${cores[id]}`,
+        cls: 'core',
+        card: id,
+        label: `${CORE_TITLES[id] ?? id}, level ${cores[id]}`,
+      });
     }
     for (let i = installedCores.length; i < ACCOUNT.coreSockets; i++) coreTiles += emptyTile;
     for (let i = ACCOUNT.coreSockets; i < ACCOUNT.maxCoreSockets; i++) coreTiles += lockedTile;
@@ -1224,7 +1258,14 @@ export class Hud {
         const info = MOD_REGISTRY[id];
         // Tile tinted by the mod's tier (2026-07-11 user request) — instant
         // tier read in the inventory.
-        modTiles += tile({ src: info.image, emoji: info.icon, badge: `x${items[id]}`, cls: `mod ${info.tier}`, card: id });
+        modTiles += rigTileHtml({
+          src: info.image,
+          emoji: info.icon,
+          badge: `x${items[id]}`,
+          cls: `mod ${info.tier}`,
+          card: id,
+          label: `${info.label}, ${items[id]} collected`,
+        });
       }
       panel.insertAdjacentHTML('beforeend', `<div class="rig-section mods">${modTiles}</div>`);
     }
@@ -1612,14 +1653,115 @@ export class Hud {
     window.setTimeout(() => el.remove(), 2400);
   }
 
-  showEnd(title: string, level: number, kills: number, survivedS: number, bosses = 0): void {
-    this.endTitle.textContent = title;
+  showEnd(
+    outcome: RunOutcome,
+    map: RunMapRef,
+    level: number,
+    kills: number,
+    survivedS: number,
+    bosses: number,
+    weaponLevels: WeaponLevels,
+    weaponDamage: Readonly<Record<WeaponId, number>>,
+    coreLevels: CoreLevels,
+    modCounts: ModCounts,
+  ): void {
+    this.endTitle.textContent = RUN_OUTCOME_TITLES[outcome];
     const m = Math.floor(survivedS / 60);
     const s = Math.floor(survivedS % 60);
-    const bossPart = bosses > 0 ? ` · ${bosses} boss${bosses > 1 ? 'es' : ''} slain` : '';
-    this.endStats.textContent = `Level ${level} · ${kills} kills · ${m}:${s
-      .toString()
-      .padStart(2, '0')} survived${bossPart}`;
+    const separator = '<span class="end-stat-separator" aria-hidden="true">·</span>';
+    const bossPart =
+      bosses > 0
+        ? `${separator}<span>${bosses} boss${bosses > 1 ? 'es' : ''} slain</span>`
+        : '';
+    this.endStats.innerHTML = [
+      `<span>${map.title} · Map ${map.number}</span>`,
+      separator,
+      `<span>Level ${level}</span>`,
+      separator,
+      `<span class="end-kills"><img class="ui-glyph" src="${SKULL_ICON}" alt="" /><span>${kills} kills</span></span>`,
+      separator,
+      `<span>${m}:${s.toString().padStart(2, '0')} survived</span>`,
+      bossPart,
+    ].join('');
+    const ownedWeapons = (Object.keys(weaponLevels) as WeaponId[])
+      .filter((id) => weaponLevels[id] > 0)
+      .sort((a, b) => weaponDamage[b] - weaponDamage[a]);
+    const installedCores = Object.keys(coreLevels).filter((id) => (coreLevels[id] ?? 0) > 0);
+    const collectedMods = MOD_IDS.filter((id) => (modCounts[id] ?? 0) > 0);
+
+    const section = (title: string, tiles: string, emptyLabel: string): string => `
+      <div class="end-build-section">
+        <div class="panel-title">${title}</div>
+        ${tiles
+          ? `<div class="rig-section">${tiles}</div>`
+          : `<div class="build-empty">${emptyLabel}</div>`}
+      </div>`;
+    const weaponTiles = ownedWeapons
+      .map((id) =>
+        rigTileHtml({
+          src: WEAPON_ICON_IMAGES[id],
+          emoji: WEAPON_ICONS[id],
+          badge: `Lv${weaponLevels[id]}`,
+          cls: 'weapon',
+          label: `${WEAPON_INFO[id].title}, level ${weaponLevels[id]}`,
+        }),
+      )
+      .join('');
+    const coreTiles = installedCores
+      .map((id) =>
+        rigTileHtml({
+          src: rigCoreIconSrc(id),
+          badge: `Lv${coreLevels[id]}`,
+          cls: 'core',
+          label: `${CORE_TITLES[id] ?? id}, level ${coreLevels[id]}`,
+        }),
+      )
+      .join('');
+    const modTiles = collectedMods
+      .map((id) => {
+        const info = MOD_REGISTRY[id];
+        return rigTileHtml({
+          src: info.image,
+          emoji: info.icon,
+          badge: `x${modCounts[id]}`,
+          cls: `mod ${info.tier}`,
+          label: `${info.label}, ${modCounts[id]} collected`,
+        });
+      })
+      .join('');
+    this.endRunBuild.innerHTML =
+      section('Weapons', weaponTiles, 'None') +
+      section('Cores', coreTiles, 'None') +
+      section('Mods', modTiles, 'None');
+
+    const totalDamage = ownedWeapons.reduce((sum, id) => sum + weaponDamage[id], 0);
+    this.endDamageList.replaceChildren(
+      ...ownedWeapons.map((id) => {
+        const damage = weaponDamage[id];
+        const share = totalDamage > 0 ? (damage / totalDamage) * 100 : 0;
+        const row = document.createElement('div');
+        row.className = 'end-damage-row';
+        const icon = rigTileHtml({
+          src: WEAPON_ICON_IMAGES[id],
+          emoji: WEAPON_ICONS[id],
+          badge: `Lv${weaponLevels[id]}`,
+          cls: 'weapon',
+          label: `${WEAPON_INFO[id].title}, level ${weaponLevels[id]}`,
+        });
+        row.innerHTML = `
+          ${icon}
+          <div class="end-damage-info">
+            <div class="end-damage-heading">
+              <span>${WEAPON_INFO[id].title}</span>
+              <strong>${Math.round(damage).toLocaleString('en-US')}</strong>
+            </div>
+            <div class="end-damage-track"><i style="width:${share.toFixed(1)}%"></i></div>
+          </div>
+          <span class="end-damage-share">${share.toFixed(1)}%</span>
+        `;
+        return row;
+      }),
+    );
     this.endOverlay.classList.remove('hidden');
   }
 }

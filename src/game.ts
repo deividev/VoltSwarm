@@ -57,6 +57,7 @@ import {
   saveSettings,
   type GameSettings,
 } from './settings';
+import { saveRunRecord, type RunMapRef, type RunOutcome } from './run-history';
 
 type GameState =
   | 'menu'
@@ -74,6 +75,12 @@ type GameState =
 // then smooth instead of the old hitch when everything loaded on the first
 // visible frame (user request 2026-07-12). A future load animation extends this.
 const LOADING_WARMUP_FRAMES = 8;
+
+const SCRAPYARD_MAP: RunMapRef = {
+  id: 'scrapyard',
+  number: 1,
+  title: 'Scrapyard',
+};
 
 const tmpProject = new THREE.Vector3();
 
@@ -109,6 +116,8 @@ export class Game {
   private settings: GameSettings = loadSettings();
   private stats: PlayerStats = defaultStats();
   private weaponLevels: WeaponLevels = emptyWeaponLevels();
+  /** Actual enemy HP removed per weapon this run; overkill is excluded. */
+  private weaponDamage: Record<WeaponId, number> = emptyWeaponLevels();
   /** Installed cores (stat-card id → level) — the chassis sockets. */
   private coreLevels: CoreLevels = {};
   private state: GameState = 'menu';
@@ -296,6 +305,7 @@ export class Game {
     this.stats = defaultStats();
     this.weaponLevels = emptyWeaponLevels();
     this.weaponLevels[startingWeapon] = 1;
+    this.weaponDamage = emptyWeaponLevels();
     this.coreLevels = {};
     // Totem first: container/barrel placement below reads its position so
     // the layout never walls it off (user request 2026-07-06).
@@ -482,7 +492,7 @@ export class Game {
     this.elapsedS += dt;
     const remaining = RUN_DURATION_S - this.elapsedS;
     if (remaining <= 0) {
-      this.endRun('You Survived');
+      this.endRun('sector-cleared');
       return;
     }
 
@@ -526,7 +536,8 @@ export class Game {
     const ctx: CombatCtx = {
       stats: combatStats,
       enemies: this.enemies,
-      dealDamage: (index, base, hitColor) => this.dealDamage(index, base, hitColor),
+      dealDamage: (index, base, hitColor, weaponId) =>
+        this.dealDamage(index, base, hitColor, weaponId),
       spawnBurst: (x, z, color, count) => this.burst.spawn(x, z, color, count),
     };
     this.weapons.update(dt, px, pz, this.weaponLevels, ctx);
@@ -595,7 +606,7 @@ export class Game {
     this.updateMerchantIndicator();
 
     if (this.player.isDead) {
-      this.endRun('Overloaded');
+      this.endRun('defeat');
       return;
     }
     this.maybeShowLevelUp();
@@ -808,7 +819,12 @@ export class Game {
   }
 
   /** Single damage funnel: crit roll, frenzy buff, lifesteal, numbers, death rewards. */
-  private dealDamage(index: number, baseDamage: number, hitColor?: number): void {
+  private dealDamage(
+    index: number,
+    baseDamage: number,
+    hitColor?: number,
+    weaponId?: WeaponId,
+  ): void {
     const enemy = this.enemies.pool[index];
     if (!enemy || !enemy.active) return;
     const hit = rollHit(baseDamage, this.stats);
@@ -864,7 +880,9 @@ export class Game {
       this.player.hp = Math.min(this.player.maxHp, this.player.hp + 1);
       this.lifestealCooldown = PLAYER.lifestealCooldownS;
     }
+    const appliedDamage = Math.min(amount, enemy.hp);
     const death = this.enemies.damage(index, amount);
+    if (weaponId !== undefined) this.weaponDamage[weaponId] += appliedDamage;
     if (death) this.onEnemyDeath(death);
   }
 
@@ -877,9 +895,12 @@ export class Game {
       e.dotTick -= dt;
       if (e.dotTick <= 0) {
         e.dotTick = 0.5;
-        this.dealDamage(i, e.dotDps * 0.5);
+        this.dealDamage(i, e.dotDps * 0.5, undefined, e.dotWeaponId ?? undefined);
       }
-      if (e.dotTimer <= 0) e.dotDps = 0;
+      if (e.dotTimer <= 0) {
+        e.dotDps = 0;
+        e.dotWeaponId = null;
+      }
     }
   }
 
@@ -1446,17 +1467,34 @@ export class Game {
     );
   }
 
-  private endRun(title: string): void {
+  private endRun(outcome: RunOutcome): void {
     this.state = 'ended';
     this.hud.updateTotemIndicator(false, 0, 0, 0);
     this.hud.updateMerchantIndicator(false, 0, 0, 0, 0);
     this.hud.showInteractPrompt(null, this.interactLabel());
+    saveRunRecord({
+      outcome,
+      map: SCRAPYARD_MAP,
+      durationS: this.elapsedS,
+      level: this.progression.level,
+      kills: this.progression.kills,
+      bossesDefeated: this.boss.bossesDefeated,
+      weaponLevels: this.weaponLevels,
+      weaponDamage: this.weaponDamage,
+      coreLevels: this.coreLevels,
+      modCounts: this.modCounts,
+    });
     this.hud.showEnd(
-      title,
+      outcome,
+      SCRAPYARD_MAP,
       this.progression.level,
       this.progression.kills,
       this.elapsedS,
       this.boss.bossesDefeated,
+      this.weaponLevels,
+      this.weaponDamage,
+      this.coreLevels,
+      this.modCounts,
     );
   }
 }

@@ -77,7 +77,8 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - La invocación trae UN boss aleatorio de un pool de 2:
   - **Crusher King**: tanque con embestida telegrafiada y spawn de scraplings.
   - **Tesla Titan**: mantiene distancia y dispara ráfagas radiales de proyectiles.
-- Matar al boss NO termina el run: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida (ciclo farmear → boss → boss más duro hasta el timer). La única victoria es sobrevivir los 10 minutos; la pantalla final cuenta los bosses derrotados.
+- Matar al boss NO termina el run: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida (ciclo farmear → boss → boss más duro hasta el timer). La única victoria actual es sobrevivir los 10 minutos; la pantalla final distingue `SYSTEM OVERLOAD` (muerte), `SECTOR CLEARED` (mapa completado) y deja preparado `RUN COMPLETE` para el último mapa.
+- Cada final de run persiste un registro local versionado con resultado, mapa, versión del build, fecha, duración, nivel, kills, bosses, build completa y daño real por arma. Son datos crudos —la métrica no se fija todavía— para poder derivar más adelante leaderboards por mapa sin migrar información incompleta.
 - Pase Steam 2026-07-15: el spawn de boss tiene beat de materialización reforzado con burst rojo, núcleo blanco, anillo de impacto y shake dedicado (`VISUAL.bossSummonVfx`) para que el título `AWAKENS` sea capturable.
 - Dirección futura (abierta, post-validación): cada boss derrotado transiciona a un mapa nuevo estilo Megabonk, culminando en un boss final. El ciclo de tótems actual es el placeholder mecánico de esa estructura.
 - Arco estético del multi-mapa (decidido 2026-07-03): scrapyard → fundición/fábrica → ciudad neón/estación orbital. El mundo es futurista; el scrapyard es el mapa 1, y cada mapa se ve más "futuro" que el anterior (detalle en `DIRECCION_ARTE.md`).
@@ -97,10 +98,19 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 
 ### Menú inicial (Implementado 2026-07-12)
 
-- **Vista fuera del juego**: al abrir la app, el menú es una vista DOM opaca con fondo key-art; el 3D NO se renderiza detrás (`game.ts` salta el render en estado `menu`). Botones: Play / Unlocks / Settings / Exit. Play → draft de arma inicial → carga → run.
+- **Vista fuera del juego**: al abrir la app, el menú es una vista DOM opaca con fondo key-art; el 3D NO se renderiza detrás (`game.ts` salta el render en estado `menu`). Botones: Play / Unlocks / Settings / Exit. Play → draft de arma inicial → carga → run. La esquina inferior derecha muestra `vMAJOR.MINOR.PATCH`; `vite.config.ts` lee `package.json` durante el build e inyecta `__APP_VERSION__`, evitando duplicar la versión manualmente.
 - **Pantalla de carga con warmup** (estado `loading`): al elegir arma, se muestra una pantalla de carga que monta el mundo y renderiza unos frames ocultos antes de revelar el juego, para que no se vea el bajón de rendimiento del arranque. Es el hook donde entra una animación de carga más elaborada.
 - **Panel de desbloqueos (dev/temporal)**: 3 columnas Armas / Orbes / Mods; desbloquear un ítem lo empuja a `ACCOUNT` en vivo para poder playtestear con todo abierto. Lo reemplazarán los Contratos de Desguace (Fase 5); mientras tanto permite validar el contenido completo. Persistencia solo de sesión (in-memory).
 - Criterio de aceptación: el menú no arrastra FPS (3D apagado), el warmup elimina el hitch visible al dar Play, y el panel de desbloqueos refleja el estado real de los pools (armas/cores leen `ACCOUNT` vivo; mods vía `refreshUnlockedMods()`).
+
+### Informe de daño por arma (Implementado 2026-07-17)
+
+- La pantalla final muestra todas las armas equipadas ordenadas por daño, con daño acumulado, porcentaje del total y barra comparativa; las armas de control puro permanecen visibles con `0` para no falsear su participación en la build.
+- La misma pantalla conserva una foto completa de la build terminada en tres secciones — Weapons, Cores y Mods — reutilizando exactamente los tiles, iconos, niveles, cantidades y colores de tier del RIG mostrado durante la run. Solo aparecen elecciones realmente obtenidas; no se muestran sockets vacíos o bloqueados.
+- `Game.dealDamage` atribuye únicamente el HP realmente eliminado: el overkill no infla las cifras y la ejecución de Dismantler cuenta solo la vida restante del objetivo.
+- El daño en el tiempo conserva su arma de origen, por lo que los ticks de Acid Drum se suman a Acid Drum. El daño adicional de mods, como Chain Relay, no se atribuye a la arma que disparó el proc.
+- El acumulador se reinicia al construir cada run y no modifica números ni lógica de combate.
+- Criterio de aceptación: al finalizar una run, la suma y los porcentajes reflejan el daño real por arma; una build con Oil Sprayer muestra el arma aunque su daño sea cero.
 
 ## Pase visual Fase 1 — Implementado 2026-07-05 (plan en REFERENCIAS_VISUALES.md)
 
