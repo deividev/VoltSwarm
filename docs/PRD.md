@@ -2,6 +2,13 @@
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
+## Próxima arquitectura aprobada (2026-07-17; aún no implementada)
+
+1. Foundation de audio: `AudioDirector` semántico, buses Master/Music/SFX conectados a settings, no-op seguro, reanudación tras gesto y presupuesto de voces apto para 400+ enemigos. No incluye producir el catálogo completo.
+2. Preparación/viabilidad multijugador: aislar `RunSimulation` y sesión con tick fijo, RNG de gameplay con semilla, `PlayerId` + comandos snapshot, IDs de entidad estables, snapshot/digest serializable y renderer/HUD/audio observadores. El gate concluye GO/NO-GO; no promete multiplayer público. Ver `docs/MULTIPLAYER_FEASIBILITY.md`.
+3. Si el gate es GO: el menú futuro/no implementado ofrece `Play Solo` y `Play Multiplayer`; el primer objetivo es exactamente 2 jugadores local split-screen con cámaras/viewports independientes → Steam Remote Play Together que transmite la vista del host. La arquitectura es agnóstica a 1–4 `PlayerId`, pero no promete 4 jugadores local. Co-op online peer-host (hasta 4; una cámara full-screen por cliente) exige aprobación posterior y snapshots host-authoritative. Hybrid local+online y dedicated servers están fuera de alcance.
+4. Después: contenido/balance/retención, incluida diferenciación jugable completa de personajes, luego catálogo de audio y Steamworks/cierre.
+
 ## P1 — Estructural
 
 ### 1. Orbes de XP con rango de recogida
@@ -15,11 +22,15 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - Ficha del personaje: Damage, Attack Speed, Crit Chance, Crit Damage, Move Speed, Attack Range, Pickup Range, Projectile Count, Projectile Speed, Area (tamaño de disparos/efectos), Armor (retornos decrecientes), Regen.
 - Level-up: al cruzar el umbral de XP, primero se muestra un beat visual `LEVEL UP!` encima del jugador (`VISUAL.levelUpIntro`) y después se abre la UI con 3 cartas aleatorias entre mejoras de stat y cartas de arma (desbloquear/subir nivel de arma).
 - **Tiers (rareza) — DEFINICIÓN CANÓNICA. 5 tiers: gris → verde → azul → morado → dorado** (`Rarity` en `upgrades.ts`; pesos de tirada en `TIERS.weights`/`luckShift`, Luck sube los tiers altos). ⚠️ Cada categoría usa los tiers DISTINTO — esto es lo que hay que respetar para que no haya desalineamientos:
+  - **Calibración base (playtest 2026-07-17):** con `Luck = 0`, pesos por carta 62/27/9/1.8/0.2%. En una pantalla de 3 cartas esto deja 5.88% de ver al menos una morada/dorada y 0.60% de ver una dorada. Los tiers altos iniciales son jackpots; Lucky Gear debe volverlos progresivamente fiables.
   - **Orbes (Cores):** el tier se **TIRA** en cada carta del draft (luck-weighted). El tier fija la **magnitud** del stat: cada core define un array de 5 valores `[gris, verde, azul, morado, dorado]`. Un mismo core puede salir en CUALQUIERA de los 5 tiers.
-  - **Mods:** cada mod tiene **UN tier FIJO e intrínseco** (definido en `MOD_REGISTRY`, no se tira). Los 16 mods se reparten así: **5 gris, 5 verde, 3 azul, 2 morado, 1 dorado**. El cofre/tienda tira un tier (luck-weighted) y entrega un mod de ESE tier; nunca cambia el tier de un mod concreto.
-  - **Armas / Habilidades:** **NO tienen tier de rareza.** Progresan por **NIVEL (Lv1-20)**, con milestones de cantidad en Lv3/Lv5. La carta de arma en el draft/level-up es cosmética (borde azul fijo), no un tier real.
+  - **Compatibilidad del draft (2026-07-17):** un core dependiente de arma solo entra si al menos un arma o mod instalado consume realmente ese stat. La matriz explícita cubre Range, Projectile Speed, Area, Duration y Projectile Count; los stats universales permanecen siempre disponibles. Así una elección de socket permanente nunca es una carta sin efecto para la build actual.
+  - Chaos Module usa la misma matriz y la misma regla de valor marginal que el draft directo: no puede elegir un stat incompatible ni Crit Chance o Lifesteal cuando ya alcanzaron su cap efectivo. Crit Chance y Lifesteal se limitan además a 100%; Crit Damage y los stats sin techo siguen sin cap artificial.
+  - **Mods:** cada mod tiene **UN tier FIJO e intrínseco** (definido en `MOD_REGISTRY`, no se tira). Los 17 mods se reparten así: **5 gris, 5 verde, 4 azul, 2 morado, 1 dorado**. El cofre/tienda tira un tier (luck-weighted) y entrega un mod de ESE tier; nunca cambia el tier de un mod concreto. Barrier Cell es azul: sus copias 1–6 suman una carga hasta 6; las 7–10 bajan la recarga de 8 a 4 s. Al llegar a 10 copias deja de entrar en cofre/tienda.
+  - **Armas / Habilidades (cambio de playtest 2026-07-17):** progresan por **NIVEL (Lv1-20)**, pero cada mejora de un arma YA instalada tira tier. El tier escala la magnitud de ESE incremento siguiendo el patrón de referencia de Megabonk: gris/Common ×1 · verde/Uncommon ×1.2 · azul/Rare ×1.4 · morado/Epic ×1.6 · dorado/Legendary ×2. La carta muestra el valor real resultante (p. ej. Tire Fire: +10/+12/+14/+16/+20% damage). Desbloquear un arma sigue siendo azul/base y los milestones discretos de cantidad en Lv3/Lv5 siguen otorgando +1 unidad solo a Bolt Cannon, Orbital Blades, Tire Fire, Turbine Fan y Junk Ricochet; la rareza escala sus mejoras continuas, no proyectiles fraccionarios.
   - Precios de cofre/tienda por tier (escalan con el minuto de run): gris 25 / verde 45 / azul 80 / morado 140 / dorado 240 (`MERCHANT.tierPrices`).
 - Cofres: recompensas de stats generales estilo Megabonk — +Luck, +Area, +Dificultad (con +XP a cambio) — además de reparar/cache/frenzy/haste existentes.
+- Los cofres pagados excluyen Repair Kit cuando el jugador ya está a vida completa. Si el propio cofre entrega la primera copia de Orb Siphon, ese mismo cofre ya activa la aspiración global. Barrier Cell es un Mod azul unificado de cofre/tienda, nunca una carta de level-up ni Chaos: cada copia tiene valor visible y acumulativo, primero capacidad y luego recarga.
 - Pase Steam 2026-07-15: abrir un cofre dispara un burst voxel dorado/blanco y shake corto; si Orb Siphon está activo, la vacuum de XP usa burst azul/blanco en el jugador y los orbes arrancan más rápido con un pulso de escala para leerse mejor en GIFs.
 - TEMP test 2026-07-15 → REVERTIDO Y CERRADO 2026-07-17: `RECORDING.chestTesting.forceGreenChests`, `forceOrbSiphonReward` y `RECORDING.levelUpDraft.enabled` están en `false`; `GOLD.startingGold` está en `0`. Todos los rigs temporales de captura están desactivados.
 - Pase Steam 2026-07-15: la llegada del Scrapper tiene burst cálido, núcleo blanco, anillo de impacto, shake suave y pulso inicial del beam (`VISUAL.merchantVfx`) para que el momento sea claro en GIF antes de abrir la tienda.
@@ -85,8 +96,22 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - Barra de vida del boss en el HUD.
 
 ### 13. Enemigo volador (Drone)
-- Vuela por encima del enjambre: ignora separación y colisiones de props; entra directo.
+- Vuela por encima del enjambre: ignora separación y colisiones de props ambientales; entra directo. Las estructuras interactivas (portal, cofres y Scrapper) sí lo bloquean, igual que al resto de enemigos.
 - Las armas le pegan igual (el combate es 2D en XZ).
+
+### 14. Colocación segura y navegación entre obstáculos — implementado 2026-07-17
+- Todo spawn de estructura valida su radio completo contra los límites del suelo y contra el espacio ya ocupado. Si no existe un punto legal, el spawn se omite o reintenta más tarde: nunca se coloca fuera del mapa ni solapado.
+- Portal, Scrapper y cofres aportan colliders dinámicos al mismo conjunto que usa jugador, enemigos y búsquedas de spawn. Dejan de ser atravesables mientras están activos.
+- Los cofres activos reservan una separación mínima configurable entre centros (`CHEST.minSpawnSeparation`), también en las recompensas múltiples de boss.
+- Enemigos y bosses combinan steering tangencial anticipado con varias pasadas de resolución de colisión; los casos de centro exacto ya no se ignoran. Los spawns de enemigos también respetan arena y obstáculos.
+- El layout del scrapyard reduce densidad y amplía carriles: gates de contenedores más abiertos y separados, y menos bidones con mayor separación. El hueco útil ya supera el diámetro del Crusher King.
+- Los spawns regulares de oleada vuelven a muestrear dentro del anillo real alrededor del jugador; ya no se clampa un candidato exterior hacia el borde, evitando apariciones repentinas junto al jugador cuando este está cerca del límite.
+
+### 15. Combate con oclusión y feedback de recursos — implementado 2026-07-17
+- El auto-target elige el enemigo más cercano con línea de visión libre. Si un contenedor, bidón o estructura interactiva bloquea al objetivo más cercano, busca el siguiente visible.
+- Proyectiles del jugador y enemigos hacen colisión barrida contra obstáculos y desaparecen con impacto; no atraviesan props entre frames. Daño, control, beams, AoE, rebotes y procs también respetan línea de visión desde su origen.
+- Los números de daño normales suben a 20 px y los críticos a 30 px. XP y oro recogidos aparecen durante 1.05 s a la derecha del jugador con color propio (`+N XP` cian, `+N GOLD` dorado).
+- La potencia acumulada por tiers de las mejoras de arma se conserva junto al historial local de la run para que dos armas con el mismo nivel nominal pero tiradas distintas no pierdan información.
 
 ## P0 Steam readiness — Implementado 2026-07-04
 
@@ -159,8 +184,8 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 ## v3 — Expansión de contenido (implementada 2026-07-03, del plan de COMPARATIVA_MEGABONK.md)
 
 - **Sistema de estados alterados**: slow (factor + duración), daño en el tiempo (ticks de 0.5 s por el embudo normal de daño) y knockback con decaimiento. Bosses inmunes al knockback. API en `EnemySystem.applySlow/applyDot/applyKnockback`.
-- **Capas defensivas**: Evasion (esquiva con retornos decrecientes, muestra "MISS"), Shield (absorbe antes que la vida; se representa como placas cian orbitando al jugador — `Player.setShieldCharges`, NO una barra en el HUD; cada carga bloquea un golpe completo y se regenera una carga cada 8 s, intervalo fijo — `PLAYER.shieldRegenS`), Thorns (refleja al contacto), Lifesteal (% de robar 1 HP por golpe). Embudo único de daño al jugador en `Game.damagePlayer`.
-- **Cartas nuevas**: Ghost Plating, Rusty Spikes, Barrier Cell, Leech Coil, Capacitor Bank (Duration: alarga buffs y estados) y Chaos Module (stat aleatorio a la rareza de la carta).
+- **Capas defensivas**: Evasion (esquiva con retornos decrecientes, muestra "MISS"), Shield (absorbe antes que la vida; solo existe si la build tiene Barrier Cell y se representa como placas cian orbitando al jugador — `Player.setShieldCharges`, NO una barra en el HUD; cada carga bloquea un golpe completo. `MODS.barrierCell` define 1–6 cargas y copias 7–10 de recarga 8→4 s), Thorns (refleja al contacto), Lifesteal (% de robar 1 HP por golpe). Embudo único de daño al jugador en `Game.damagePlayer`.
+- **Cartas nuevas**: Ghost Plating, Rusty Spikes, Leech Coil, Capacitor Bank (Duration: alarga buffs y estados) y Chaos Module (stat aleatorio a la rareza de la carta). Barrier Cell pertenece al pool unificado de Mods, no a cartas.
 - **5 armas nuevas (draft de 11)**: Oil Sprayer (charcos que ralentizan, 0 daño — control puro), Acid Drum (zonas corrosivas con DoT; renombrada de "Acid Flask" el 2026-07-05 para encajar con la estética industrial/futurista), Turbine Fan (tornados con knockback), Junk Ricochet (rebota entre enemigos), Dismantler (garra que EJECUTA no-bosses bajo 15% de vida — primera arma "twist").
 - Verificado headless: estados, defensas, cartas y las 5 armas ejercitadas; 120 FPS con zonas activas y enjambre.
 - Pendiente del plan: moneda/economía (post-validación, sin cambios).
@@ -174,8 +199,21 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 - **Empaquetado Electron**: `npm run package` genera instalador NSIS (`-setup.exe`, asistente + desinstalador) Y portable (`-portable.exe`, un archivo para testers) en `release/`; sin firma → SmartScreen "Unknown Publisher" (certificado en Fase 6). **Regla de rutas de assets (mordió 3 veces el mismo día)**: en strings de JS/markup SIEMPRE relativas (`'assets/...'` — `file://` rompe las absolutas y Vite no puede reescribir strings); en CSS `url()` SIEMPRE absolutas (`'/assets/...'` — Vite las reescribe al compilar; las relativas resuelven contra `src/ui.css`). Gamepad API = Chromium nativo, cero cambios en el main process de Electron.
 - Límite conocido v1: las etiquetas de tecla muestran el código físico (layouts no-QWERTY ven la posición) y los botones usan nomenclatura Xbox (A/B/X/Y) también en mandos PlayStation.
 
-## Fuera de alcance (sin cambios)
-- Meta-progresión entre runs, moneda, mapas múltiples, evolución de armas, personajes (post-validación; los bocetos viven en DESIGN_MEJORAS.md).
+## Fuera de alcance actual
+- Multiplayer/co-op: no implementado ni anunciado; solo existe el gate interno de viabilidad de `docs/MULTIPLAYER_FEASIBILITY.md`. Local/Remote Play persistiría solo en el save host/local; la progresión por cuenta de invitados no está prometida. Native online solo podría persistir cuentas propias tras validación host-authoritative.
+- Dedicated servers: fuera de alcance.
+- Meta-progresión entre runs, moneda, mapas múltiples, evolución de armas y personajes diferenciados: post-validación; el trabajo de personajes vive en `DESIGN_MEJORAS.md`.
 
 ## Orden de implementación
 Ficha+pool → orbes XP → dificultad → separación → damage numbers → elites → roller/gunner → colisiones props → tuning → armas nuevas → draft → tótem+bosses → volador → verificación completa (FPS 100+ enemigos, run jugable de punta a punta).
+
+### Weapon branches v1 (2026-07-17)
+
+All 11 weapons now use three specialised owned-level cards. Every branch pick raises nominal weapon level. Lv3/Lv5 quantity milestones apply only to Bolt Cannon, Orbital Blades, Tire Fire, Turbine Fan, and Junk Ricochet; aggregate `WeaponPower` is retained for snapshots; only the selected behavior receives tier-weighted power (Common x1, Uncommon x1.2, Rare x1.4, Epic x1.6, Legendary x2). Branch card copy also discloses any simultaneous Lv3/Lv5 quantity gain.
+
+- Bolt Cannon: damage, fire cycle, bolt size. Volt Pulse: damage, radius, pulse cycle. Orbital Blades: damage, orbit radius, rotation speed.
+- Arc Welder: damage, ramp stability, range. Hydraulic Press: damage, width, press cycle. Tire Fire: damage, tire size, travel distance.
+- Oil Sprayer: puddle radius, slow strength, duration. Acid Drum: DoT damage, radius, launch cycle. Turbine Fan: damage, radius, knockback.
+- Junk Ricochet: damage, bounce count, launch cycle. Dismantler: damage, execute threshold, range.
+
+A level-up screen allows at most one branch for each weapon owner. When both sockets are committed, the draft leads with one eligible branch and one installed eligible core, then fills remaining slots from legal alternatives without violating core no-swap. If owner uniqueness would otherwise leave a supported build at two cards, Salvage Dividend supplies a run-only Gold reward instead of a duplicate branch or zero-value core. Fully exhausted builds may still show fewer choices gracefully. `WeaponPower` is persisted only as a compatibility snapshot; combat reads `WeaponBranchLevels` only. Run records optionally persist branch state and remain compatible with older records.

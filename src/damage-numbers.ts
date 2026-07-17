@@ -5,6 +5,7 @@ import * as THREE from 'three';
 
 const POOL_SIZE = 48;
 const LIFETIME_S = 0.65;
+const RESOURCE_LIFETIME_S = 1.05;
 
 interface FloatingNumber {
   active: boolean;
@@ -13,6 +14,8 @@ interface FloatingNumber {
   y: number;
   z: number;
   age: number;
+  offsetX: number;
+  lifetime: number;
 }
 
 const tmpVec = new THREE.Vector3();
@@ -30,7 +33,16 @@ export class DamageNumbers {
       el.className = 'damage-number';
       el.style.display = 'none';
       layer.appendChild(el);
-      this.pool.push({ active: false, el, x: 0, y: 0, z: 0, age: 0 });
+      this.pool.push({
+        active: false,
+        el,
+        x: 0,
+        y: 0,
+        z: 0,
+        age: 0,
+        offsetX: 0,
+        lifetime: LIFETIME_S,
+      });
     }
   }
 
@@ -46,8 +58,28 @@ export class DamageNumbers {
     n.y = 1.6;
     n.z = z;
     n.age = 0;
+    n.offsetX = 0;
+    n.lifetime = LIFETIME_S;
     n.el.textContent = typeof amount === 'string' ? amount : String(Math.round(amount));
     n.el.className = crit ? 'damage-number crit' : 'damage-number';
+    n.el.style.display = 'block';
+  }
+
+  /** Shows collected resources beside the player, separate in color and
+   *  screen position from combat damage. */
+  showGain(x: number, z: number, amount: number, kind: 'xp' | 'gold'): void {
+    const n = this.pool[this.next % POOL_SIZE];
+    this.next++;
+    if (!n) return;
+    n.active = true;
+    n.x = x;
+    n.y = 1.2 + (this.next % 3) * 0.25;
+    n.z = z;
+    n.age = 0;
+    n.offsetX = 68;
+    n.lifetime = RESOURCE_LIFETIME_S;
+    n.el.textContent = `+${Math.round(amount)} ${kind === 'xp' ? 'XP' : 'GOLD'}`;
+    n.el.className = `resource-gain ${kind}`;
     n.el.style.display = 'block';
   }
 
@@ -55,7 +87,7 @@ export class DamageNumbers {
     for (const n of this.pool) {
       if (!n.active) continue;
       n.age += dt;
-      if (n.age >= LIFETIME_S) {
+      if (n.age >= n.lifetime) {
         n.active = false;
         n.el.style.display = 'none';
         continue;
@@ -64,8 +96,8 @@ export class DamageNumbers {
       tmpVec.set(n.x, n.y, n.z).project(camera);
       const sx = (tmpVec.x * 0.5 + 0.5) * window.innerWidth;
       const sy = (-tmpVec.y * 0.5 + 0.5) * window.innerHeight;
-      n.el.style.transform = `translate(${sx.toFixed(0)}px, ${sy.toFixed(0)}px)`;
-      n.el.style.opacity = String(1 - Math.pow(n.age / LIFETIME_S, 2));
+      n.el.style.transform = `translate(${(sx + n.offsetX).toFixed(0)}px, ${sy.toFixed(0)}px)`;
+      n.el.style.opacity = String(1 - Math.pow(n.age / n.lifetime, 2));
     }
   }
 

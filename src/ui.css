@@ -1715,14 +1715,14 @@ img.ui-glyph {
   top: 0;
   left: 0;
   font-family: 'Segoe UI', system-ui, sans-serif;
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 800;
   color: #ffffff;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
   will-change: transform, opacity;
 }
 .damage-number.crit {
-  font-size: 21px;
+  font-size: 30px;
   color: #ffd24a;
 }
 
@@ -1838,6 +1838,7 @@ img.ui-glyph {
 #build-panel,
 #stat-sheet,
 .damage-number,
+.resource-gain,
 #fps-counter {
   font-family: var(--pixel-font);
 }
@@ -1884,7 +1885,7 @@ img.ui-glyph {
   font-size: 10px;
 }
 .damage-number {
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 800;
   letter-spacing: 0.5px;
   color: #f8fbff;
@@ -1893,7 +1894,7 @@ img.ui-glyph {
     0 0 7px rgba(126, 224, 255, 0.65);
 }
 .damage-number.crit {
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 800;
   letter-spacing: 1px;
   color: #ffd23c;
@@ -1902,6 +1903,24 @@ img.ui-glyph {
     0 0 10px rgba(255, 210, 60, 0.95),
     0 0 22px rgba(255, 122, 32, 0.72);
   filter: drop-shadow(0 0 6px rgba(255, 210, 60, 0.55));
+}
+.resource-gain {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  will-change: transform, opacity;
+}
+.resource-gain.xp {
+  color: #7ee0ff;
+  text-shadow: 0 2px 0 #07131b, 0 0 10px rgba(126, 224, 255, 0.9);
+}
+.resource-gain.gold {
+  color: #ffd23c;
+  text-shadow: 0 2px 0 #4f2600, 0 0 10px rgba(255, 210, 60, 0.9);
 }
 #fps-counter {
   font-size: 10px;

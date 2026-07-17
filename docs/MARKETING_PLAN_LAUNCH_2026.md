@@ -1,7 +1,22 @@
-# Voltswarm - Plan de marketing hasta lanzamiento (2026-08-01 -> 2026-11-04)
+# Voltswarm - Plan de marketing (baseline original 2026-08-01 -> 2026-11-04)
 
-Fecha objetivo de lanzamiento: **miercoles 4 de noviembre de 2026**.
-Supuesto operativo: la pagina Coming Soon de Steam esta publicada el **sabado 1 de agosto de 2026**.
+## Estado del plan
+
+> **Estado interno (2026-07-17):** **miércoles 4 de noviembre de 2026** es el stretch target agresivo para el alcance completo planificado. No es una estimación segura, una fecha confirmada ni una promesa pública. Revalidar después de Audio Foundation y del GO/NO-GO multijugador; si un gate medido falla, re-baselinar de forma visible en vez de ocultar el riesgo. La fecha Coming Soon **sigue dependiendo de la aprobación real de Steam**: 2026-08-01 permanece solo como supuesto histórico, no como operación confirmada.
+
+**Scope freeze del stretch:** sin host migration, dedicated servers ni hybrid local+online; exactamente 3 personajes de lanzamiento, aproximadamente 30 contratos y sin expansión de contenido no planificada. El calendario histórico inferior se conserva por contexto, pero los checkpoints siguientes son los gates internos actuales, no claims de features ya existentes.
+
+| Checkpoint interno agresivo | Gate / entrega planificada |
+|---|---|
+| Jul 26 | Audio Foundation + generador offline; no implica catálogo completo listo. |
+| Aug 16 | Readiness multijugador determinista; evidencia para GO/NO-GO, no co-op publicado. |
+| Aug 30 | Local 2P split-screen + Steam Remote Play Together. |
+| Sep 20 | Peer-host online Steam nativo; requiere aprobación posterior y snapshots host-authoritative. |
+| Oct 11 | Map 2, boss, 3 personajes y ~30 contratos. |
+| Oct 25 | Audio completo + Steamworks. |
+| Oct 26–Nov 4 | RC/QA. |
+
+Baseline histórico: lanzamiento propuesto para **miércoles 4 de noviembre de 2026**; supuesto de página Coming Soon pública el **sábado 1 de agosto de 2026**.
 
 Canales permitidos por este plan:
 
@@ -11,7 +26,7 @@ Canales permitidos por este plan:
 
 ## Estrategia
 
-De agosto a noviembre no buscamos "postear por postear". Buscamos transformar curiosidad en wishlists y, en noviembre, wishlists en ventas. El mensaje central debe repetirse con variantes:
+En el **baseline original** de agosto a noviembre no buscamos "postear por postear". Buscamos transformar curiosidad en wishlists y, en noviembre, wishlists en ventas. El mensaje central debe repetirse con variantes:
 
 > Voltswarm es un 3D voxel bullet-heaven donde un robot solitario convierte caos industrial en una tormenta de proyectiles.
 
@@ -21,11 +36,11 @@ No vendemos "IA". Vendemos gameplay real: caos legible, armas auto-aim, decision
 
 | Fecha | Evento | Decision para Voltswarm |
 | --- | --- | --- |
-| 2026-08-01 | Supuesto: pagina Steam publica | Inicio de campana de wishlist. |
+| 2026-08-01 | Baseline superseded: supuesto de página Steam pública | Inicio de campaña de wishlist solo si el re-baseline y la aprobación real de Steam lo confirman. |
 | 2026-10-01 -> 2026-10-08 | Steam Autumn Sale 2026 | No pelear contra el ruido de ofertas; contenido ligero y visual. |
 | 2026-10-19 -> 2026-10-26 | Steam Next Fest October 2026 | No participamos si mantenemos estrategia sin demo. Usar la semana para recordar fecha, no para fingir evento. |
-| 2026-10-21 | 14 dias antes del lanzamiento | Fecha de salida debe estar bloqueada; Steam limita cambios dentro de esta ventana sin contactarles. |
-| 2026-11-04 | Lanzamiento | Announcement Steam + post fijado X + Reddit opcional unico. |
+| 2026-10-21 | Checkpoint derivado del stretch: 14 días antes del objetivo interno | Revisar solo si los gates sostienen el stretch; no es fecha pública bloqueada. |
+| 2026-11-04 | Stretch target interno agresivo | Preparación de announcement/post solo si los gates y Steam sostienen la fecha; no es promesa pública. |
 | 2026-12-17 -> 2027-01-04 | Steam Winter Sale | Oportunidad post-lanzamiento, no parte de este plan principal. |
 
 Notas Steam:
@@ -87,7 +102,7 @@ We use AI-assisted art workflows as part of production, but the game is real pla
 
 ## Banco de contenido necesario
 
-### Antes del 1 de agosto
+### Baseline original: antes del 1 de agosto
 
 - [ ] 5-8 screenshots finales 1920x1080.
 - [ ] 3-5 GIFs/loops para About This Game.
@@ -103,15 +118,15 @@ We use AI-assisted art workflows as part of production, but the game is real pla
 - [ ] Tags/features revisados conservadoramente.
 - [ ] Requisitos de sistema medidos o conservadores.
 
-### Antes del 10 de octubre
+### Baseline original: antes del 10 de octubre
 
-- [ ] Fecha de lanzamiento confirmada: 2026-11-04.
+- [ ] 2026-11-04 es stretch interno, no fecha confirmada; revalidar tras Audio Foundation y GO/NO-GO.
 - [ ] Asset para announcement de fecha.
 - [ ] Mejor clip estilo mini-trailer.
 - [ ] Launch discount decidido: 10% o 15%.
 - [ ] Copy de lanzamiento preparado.
 
-### Antes del 1 de noviembre
+### Baseline original: antes del 1 de noviembre
 
 - [ ] Announcement Steam de lanzamiento redactado.
 - [ ] Post X de lanzamiento redactado.
@@ -119,11 +134,11 @@ We use AI-assisted art workflows as part of production, but the game is real pla
 - [ ] 3 clips backup listos.
 - [ ] Build final/release candidate alineada con la pagina.
 
-## Calendario operativo
+## Calendario operativo (cronología histórica; ejecutar solo si los gates sostienen el stretch)
 
-### Semana 1 - 2026-08-01 a 2026-08-07 - Pagina publicada
+### Baseline original - Semana 1 - 2026-08-01 a 2026-08-07 - Página publicada (no asumida hoy)
 
-Objetivo: abrir campana de wishlist.
+Objetivo del baseline: abrir campaña de wishlist una vez aprobada la página y re-baselinado el calendario.
 
 Steam:
 
@@ -355,7 +370,7 @@ Preparar:
 
 ### Semana 11 - 2026-10-10 a 2026-10-16 - Anuncio de fecha
 
-Objetivo: hacer real el 4 de noviembre.
+Objetivo histórico: preparar una fecha de lanzamiento; el 4 de noviembre es stretch interno, no compromiso operativo/público.
 
 Steam:
 
@@ -399,7 +414,7 @@ X:
 
 Importante:
 
-- **2026-10-21**: 14 dias antes del lanzamiento. No cambiar fecha salvo emergencia.
+- **Checkpoint stretch 2026-10-21:** la ventana de 14 días solo aplica si los gates mantienen el objetivo; no hay fecha pública bloqueada hoy.
 
 Preparar:
 
@@ -463,7 +478,7 @@ Checklist:
 - [ ] Announcement preparado.
 - [ ] Steam link final.
 
-### Lanzamiento - miercoles 2026-11-04
+### Stretch target interno - lanzamiento propuesto miércoles 2026-11-04 (no confirmado públicamente)
 
 Objetivo: convertir wishlists en compras.
 
@@ -494,9 +509,9 @@ Reddit:
 My 3D voxel bullet-heaven Voltswarm launched today after months of tuning projectile chaos
 ```
 
-## Templates Steam
+## Templates Steam (históricos; actualizar si los gates fuerzan re-baseline)
 
-### Page live - 2026-08-01
+### Baseline original - Page live 2026-08-01 (pendiente de aprobación real y re-baseline)
 
 Titulo:
 
@@ -550,7 +565,7 @@ Wishlist now to get notified when it releases.
 Expect auto-aim weapons, chaotic voxel swarms, mid-run shops, chest rewards, and boss fights inside a dead industrial factory world.
 ```
 
-### Launch day - 2026-11-04
+### Stretch target interno - Launch day 2026-11-04 (no confirmado públicamente)
 
 Titulo:
 
@@ -644,7 +659,7 @@ Evitar:
 
 Si el post se vuelve hostil, no debatir. Una respuesta educada o silencio.
 
-## Checklist final
+## Checklist final (stretch interno; re-baselinar si fallan gates)
 
 ### Para 2026-10-10
 
@@ -669,7 +684,7 @@ Si el post se vuelve hostil, no debatir. Una respuesta educada o silencio.
 - [ ] 3 clips backup listos.
 - [ ] Steam link final.
 
-### Para 2026-11-04
+### Stretch interno: para 2026-11-04 (re-baselinar si fallan gates)
 
 - [ ] Publicar announcement Steam.
 - [ ] Fijar post X de lanzamiento.

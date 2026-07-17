@@ -28,12 +28,12 @@ import { EnemySystem, type DeathInfo } from './enemies';
 import { EnemyProjectiles } from './enemy-projectiles';
 import { WeaponManager, type CombatCtx } from './weapons';
 import { defaultStats, applyArmor, dodgeChance, rollHit, type PlayerStats } from './stats';
-import { Progression, emptyWeaponLevels, rollUpgradeChoices, type CoreLevels, type Rarity, type UpgradeCard, type WeaponLevels } from './upgrades';
+import { Progression, emptyWeaponBranches, emptyWeaponLevels, emptyWeaponPower, rollUpgradeChoices, weaponIdFromUpgradeCard, type CoreLevels, type Rarity, type UpgradeCard, type WeaponBranchLevels, type WeaponLevels, type WeaponPower } from './upgrades';
 import { PickupSystem } from './pickups';
 import { XpOrbSystem } from './xp-orbs';
 import { GoldSystem } from './gold';
 import { MerchantSystem } from './merchant';
-import { MOD_REGISTRY, modPrice, rollModOfTier, rollShopStock, tierPrice, type ModCounts, type ModId } from './mods';
+import { MOD_REGISTRY, barrierCellCapacity, barrierCellRegenS, describeMod, isModAtCopyCap, modPrice, rollModOfTier, rollShopStock, tierPrice, type ModCounts, type ModId } from './mods';
 import { DamageNumbers } from './damage-numbers';
 import { BossSystem } from './boss';
 import { VoxelBurst } from './particles';
@@ -45,7 +45,8 @@ import {
   updateCamera,
   placeRandomProps,
   clearProps,
-  findClearSpot,
+  findRandomClearSpot,
+  hasLineOfSight,
   type Obstacle,
 } from './world';
 import { CONTAINER_PROP } from './config';
@@ -91,6 +92,9 @@ export class Game {
   private readonly camera: THREE.PerspectiveCamera;
   private readonly clock = new THREE.Clock();
   private readonly obstacles: Obstacle[];
+  /** Static props plus currently active merchant/chests/totem. Reused every
+   *  frame so every mover and every placement query sees the same world. */
+  private readonly collisionObstacles: Obstacle[] = [];
   /** Meshes from the last placeRandomProps() call, so startRun() can clear
    *  them before generating a fresh layout (user request 2026-07-06: a
    *  different container/barrel layout every playthrough). */
@@ -116,6 +120,8 @@ export class Game {
   private settings: GameSettings = loadSettings();
   private stats: PlayerStats = defaultStats();
   private weaponLevels: WeaponLevels = emptyWeaponLevels();
+  private weaponPower: WeaponPower = emptyWeaponPower();
+  private weaponBranches: WeaponBranchLevels = emptyWeaponBranches();
   /** Actual enemy HP removed per weapon this run; overkill is excluded. */
   private weaponDamage: Record<WeaponId, number> = emptyWeaponLevels();
   /** Installed cores (stat-card id → level) — the chassis sockets. */
@@ -304,12 +310,14 @@ export class Game {
     this.resetRunWorld();
     this.stats = defaultStats();
     this.weaponLevels = emptyWeaponLevels();
+    this.weaponPower = emptyWeaponPower();
+    this.weaponBranches = emptyWeaponBranches();
     this.weaponLevels[startingWeapon] = 1;
     this.weaponDamage = emptyWeaponLevels();
     this.coreLevels = {};
     // Totem first: container/barrel placement below reads its position so
     // the layout never walls it off (user request 2026-07-06).
-    this.boss.startRun();
+    if (!this.boss.startRun()) throw new Error('Unable to place the boss totem inside the arena.');
     this.regenerateProps();
     this.elapsedS = 0;
     this.frenzyS = 0;
@@ -332,19 +340,34 @@ export class Game {
     this.prevPx = this.player.position.x;
     this.prevPz = this.player.position.z;
     this.hud.updateGold(this.gold);
-    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels);
+    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
     // state → 'playing' and the clock reset happen at the reveal (tickLoading),
     // after the warmup frames render behind the loading screen.
   }
 
   private applyUpgrade(card: UpgradeCard): void {
-    card.apply(this.stats, this.player, this.weaponLevels, this.coreLevels);
-    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels);
+    card.apply(
+      this.stats,
+      this.player,
+      this.weaponLevels,
+      this.coreLevels,
+      this.weaponPower,
+      this.weaponBranches,
+      this.modCounts,
+      {
+        addGold: (amount) => {
+          this.gold += amount;
+          this.hud.updateGold(this.gold);
+        },
+      },
+    );
+    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
     // First copy = a socket just filled → stronger pop than a plain level-up.
-    const installed = card.id.startsWith('weapon-')
-      ? this.weaponLevels[card.id.slice('weapon-'.length) as WeaponId] === 1
+    const weaponId = weaponIdFromUpgradeCard(card.id);
+    const installed = weaponId
+      ? this.weaponLevels[weaponId] === 1
       : (this.coreLevels[card.id] ?? 0) === 1;
-    this.hud.flashBuildRow(card.id, installed);
+    this.hud.flashBuildRow(weaponId ? `weapon-${weaponId}` : card.id, installed);
     this.state = 'playing';
     this.clock.getDelta(); // Discard time spent choosing.
     this.maybeShowLevelUp(); // Chains the next card if more levels are owed.
@@ -488,6 +511,15 @@ export class Game {
     this.propMeshes = props.meshes;
   }
 
+  private refreshCollisionObstacles(): Obstacle[] {
+    this.collisionObstacles.length = 0;
+    this.collisionObstacles.push(...this.obstacles);
+    this.boss.appendObstacle(this.collisionObstacles);
+    this.merchant.appendObstacle(this.collisionObstacles);
+    this.pickups.appendObstacles(this.collisionObstacles);
+    return this.collisionObstacles;
+  }
+
   private update(dt: number): void {
     this.elapsedS += dt;
     const remaining = RUN_DURATION_S - this.elapsedS;
@@ -513,13 +545,22 @@ export class Game {
 
     const speedMult =
       this.stats.moveSpeed * (this.hasteS > 0 ? PICKUPS.hasteSpeedMultiplier : 1);
-    this.player.update(dt, this.input, speedMult, this.obstacles);
+    const collisionObstacles = this.refreshCollisionObstacles();
+    this.player.update(dt, this.input, speedMult, collisionObstacles);
 
     const px = this.player.position.x;
     const pz = this.player.position.z;
     const difficulty = difficultyScalar(this.elapsedS, this.stats.cursedDifficulty);
 
-    this.enemies.update(dt, this.elapsedS, difficulty, px, pz, this.obstacles, this.enemyShots);
+    this.enemies.update(
+      dt,
+      this.elapsedS,
+      difficulty,
+      px,
+      pz,
+      collisionObstacles,
+      this.enemyShots,
+    );
     this.tickStompers(px, pz);
     this.tickMagnetron(dt, px, pz);
     this.tickModAuras(dt);
@@ -536,6 +577,9 @@ export class Game {
     const ctx: CombatCtx = {
       stats: combatStats,
       enemies: this.enemies,
+      weaponPower: this.weaponPower,
+      weaponBranches: this.weaponBranches,
+      obstacles: collisionObstacles,
       dealDamage: (index, base, hitColor, weaponId) =>
         this.dealDamage(index, base, hitColor, weaponId),
       spawnBurst: (x, z, color, count) => this.burst.spawn(x, z, color, count),
@@ -551,6 +595,7 @@ export class Game {
       this.input.isActionDown('interact'),
       this.enemies,
       this.enemyShots,
+      collisionObstacles,
     );
     if (summoned) {
       this.hud.banner(`${summoned.toUpperCase()} AWAKENS`);
@@ -571,18 +616,22 @@ export class Game {
       px,
       pz,
       PLAYER.radius,
+      collisionObstacles,
       (damage) => this.damagePlayer(damage),
       // Impact pop in the shot's own color — the hit on YOU is seen too.
       (x, z, color) => this.burst.spawn(x, z, color, 4),
     );
 
     this.orbs.update(dt, px, pz, this.stats.pickupRange, (value) => {
-      this.pendingLevelUps += this.progression.grantXp(Math.round(value * this.stats.xpGain));
+      const gainedXp = Math.round(value * this.stats.xpGain);
+      this.damageNumbers.showGain(px, pz, gainedXp, 'xp');
+      this.pendingLevelUps += this.progression.grantXp(gainedXp);
     });
 
-    this.pickups.update(dt, px, pz, this.stats.luck);
+    this.pickups.update(dt, px, pz, this.stats.luck, collisionObstacles);
     this.goldSys.update(dt, px, pz, this.stats.pickupRange, (value) => {
       this.gold += value;
+      this.damageNumbers.showGain(px, pz, value, 'gold');
       this.hud.updateGold(this.gold);
     });
     this.merchant.update(dt);
@@ -648,7 +697,7 @@ export class Game {
   private openLevelUpDraft(): void {
     this.state = 'levelup';
     this.hud.showLevelUp(
-      rollUpgradeChoices(this.stats, this.weaponLevels, this.coreLevels),
+      rollUpgradeChoices(this.stats, this.weaponLevels, this.coreLevels, this.modCounts),
       this.discardsLeft,
       () => this.discardUpgrade(),
     );
@@ -743,8 +792,20 @@ export class Game {
     this.burst.spawn(chestX, chestZ, VISUAL.chestVfx.hotColor, VISUAL.chestVfx.hotCount);
     this.shakeAmp = Math.max(this.shakeAmp, VISUAL.chestVfx.shakeAmp);
 
-    // Orb Siphon: the chest vacuums the map's XP before the reel spins.
-    const siphonCopies = this.modCounts['orb-siphon'] ?? 0;
+    const mod: ModId = RECORDING.chestTesting.forceOrbSiphonReward
+      ? 'orb-siphon'
+      : rollModOfTier(
+          tier,
+          (id) =>
+            (id !== 'repair' || this.player.hp < this.player.maxHp) &&
+            !isModAtCopyCap(id, this.modCounts[id] ?? 0),
+        );
+
+    // Orb Siphon: the chest vacuums the map's XP before the reel spins. A first
+    // copy won by this chest counts immediately, so its defining effect cannot
+    // miss the very chest that awarded it.
+    const ownedSiphonCopies = this.modCounts['orb-siphon'] ?? 0;
+    const siphonCopies = ownedSiphonCopies + (mod === 'orb-siphon' ? 1 : 0);
     if (siphonCopies > 0) {
       // Two-layer signal: the chest cracks open, then the player's magnet field
       // flares as the map-wide XP wave starts moving.
@@ -765,7 +826,6 @@ export class Game {
       const extraHaste = (siphonCopies - 1) * MODS.orbSiphon.hastePerExtraCopyS;
       if (extraHaste > 0) this.hasteS = Math.max(this.hasteS, extraHaste);
     }
-    const mod: ModId = RECORDING.chestTesting.forceOrbSiphonReward ? 'orb-siphon' : rollModOfTier(tier);
     this.state = 'chest';
     this.hud.showInteractPrompt(null, this.interactLabel());
     this.hud.showChestSpin(
@@ -774,6 +834,8 @@ export class Game {
       // Landing: apply right away so the revealed stat sheet / items list
       // already show what the reward changed.
       () => this.applyMod(mod),
+      // The reward card states the cumulative result after this copy lands.
+      (this.modCounts[mod] ?? 0) + 1,
       // Continue clicked: resume the run.
       () => {
         this.state = 'playing';
@@ -851,7 +913,10 @@ export class Game {
         const other = this.enemies.pool[i];
         if (!other || !other.active || i === index) continue;
         const dSq = (other.x - enemy.x) ** 2 + (other.z - enemy.z) ** 2;
-        if (dSq <= radiusSq) {
+        if (
+          dSq <= radiusSq &&
+          hasLineOfSight(enemy.x, enemy.z, other.x, other.z, this.collisionObstacles)
+        ) {
           // The arc is SEEN: a lightning-white cube trail from source to
           // victim plus a signal-red pop on the victim (crit family —
           // two-halves rule).
@@ -904,15 +969,16 @@ export class Game {
     }
   }
 
-  /** One shield charge regenerates every PLAYER.shieldRegenS seconds. */
+  /** Barrier Cell restores one charge at its current cumulative interval. */
   private tickShield(dt: number): void {
-    const max = this.stats.shield;
+    const copies = this.modCounts['barrier-cell'] ?? 0;
+    const max = barrierCellCapacity(copies);
     if (max <= 0 || this.shieldCur >= max) {
       this.shieldRegen = 0;
       return;
     }
     this.shieldRegen += dt;
-    if (this.shieldRegen >= PLAYER.shieldRegenS) {
+    if (this.shieldRegen >= barrierCellRegenS(copies)) {
       this.shieldRegen = 0;
       this.shieldCur = Math.min(max, this.shieldCur + 1);
     }
@@ -1051,9 +1117,13 @@ export class Game {
     );
     this.orbs.spawn(death.x - ox, death.z - oz, death.xp * XP_ORBS.valueMult);
     if (death.elite) {
-      const spot = findClearSpot(death.x, death.z, this.obstacles, BOSS.chestClearMargin);
-      this.pickups.spawnAt(spot.x, spot.z, this.stats.luck);
-      this.hud.toast('Elite down! It dropped a crate.');
+      const dropped = this.pickups.spawnAt(
+        death.x,
+        death.z,
+        this.stats.luck,
+        this.refreshCollisionObstacles(),
+      );
+      if (dropped) this.hud.toast('Elite down! It dropped a crate.');
     }
     if (this.boss.isBossType(death.typeIndex)) {
       // Boss kills reward and continue the run: loot shower now, and a
@@ -1067,13 +1137,12 @@ export class Game {
         // containers/barrels/the totem, that position can't be known ahead
         // of time, so nudge each chest clear of anything it lands inside of
         // instead (user request 2026-07-06).
-        const spot = findClearSpot(
+        this.pickups.spawnAt(
           death.x + Math.cos(a) * 3,
           death.z + Math.sin(a) * 3,
-          this.obstacles,
-          BOSS.chestClearMargin,
+          this.stats.luck,
+          this.refreshCollisionObstacles(),
         );
-        this.pickups.spawnAt(spot.x, spot.z, this.stats.luck);
       }
       this.boss.onBossDefeated();
     }
@@ -1083,7 +1152,10 @@ export class Game {
    *  Consumables fire instantly; permanents just stack (their effects hook
    *  into combat/movement/economy reading modCounts). */
   private applyMod(id: ModId): void {
-    this.modCounts[id] = (this.modCounts[id] ?? 0) + 1;
+    const previousCopies = this.modCounts[id] ?? 0;
+    if (isModAtCopyCap(id, previousCopies)) return;
+    const copies = previousCopies + 1;
+    this.modCounts[id] = copies;
     switch (id) {
       case 'repair': {
         const healed = Math.round(this.player.maxHp * PICKUPS.healFraction);
@@ -1094,6 +1166,12 @@ export class Game {
       case 'scrap-cache': {
         const xp = Math.ceil(this.progression.xpToNext * PICKUPS.xpCacheFraction);
         this.hud.toast(`Volt Cache: +${xp} XP`);
+        this.damageNumbers.showGain(
+          this.player.position.x,
+          this.player.position.z,
+          xp,
+          'xp',
+        );
         this.pendingLevelUps += this.progression.grantXp(xp);
         break;
       }
@@ -1105,10 +1183,16 @@ export class Game {
         this.hasteS = PICKUPS.hasteDurationS * this.stats.duration;
         this.hud.toast(`Overdrive: +50% speed for ${Math.round(this.hasteS)}s`);
         break;
+      case 'barrier-cell': {
+        const addedCapacity = barrierCellCapacity(copies) - barrierCellCapacity(previousCopies);
+        this.shieldCur = Math.min(barrierCellCapacity(copies), this.shieldCur + addedCapacity);
+        this.hud.toast(`Barrier Cell: ${describeMod(id, copies)}`);
+        break;
+      }
       default:
         this.hud.toast(`${MOD_REGISTRY[id].label} installed!`);
     }
-    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels);
+    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
   }
 
   /** Circle-vs-circle contact between the swarm and the player on the XZ plane. */
@@ -1174,7 +1258,10 @@ export class Game {
     for (let i = 0; i < this.enemies.pool.length && hits < count; i++) {
       const e = this.enemies.pool[i];
       if (!e || !e.active) continue;
-      if ((e.x - px) ** 2 + (e.z - pz) ** 2 <= rSq) {
+      if (
+        (e.x - px) ** 2 + (e.z - pz) ** 2 <= rSq &&
+        hasLineOfSight(px, pz, e.x, e.z, this.collisionObstacles)
+      ) {
         onHit?.(e.x, e.z);
         this.dealDamage(i, damage);
         hits++;
@@ -1195,7 +1282,10 @@ export class Game {
     const rSq = radius * radius;
     for (const e of this.enemies.pool) {
       if (!e.active) continue;
-      if ((e.x - px) ** 2 + (e.z - pz) ** 2 <= rSq) {
+      if (
+        (e.x - px) ** 2 + (e.z - pz) ** 2 <= rSq &&
+        hasLineOfSight(px, pz, e.x, e.z, this.collisionObstacles)
+      ) {
         e.slowTimer = Math.max(e.slowTimer, seconds);
         e.slowFactor = 0;
         e.iceStun = true;
@@ -1221,7 +1311,10 @@ export class Game {
     for (let i = 0; i < this.enemies.pool.length; i++) {
       const e = this.enemies.pool[i];
       if (!e || !e.active) continue;
-      if ((e.x - x) ** 2 + (e.z - z) ** 2 <= rSq) this.dealDamage(i, damage);
+      if (
+        (e.x - x) ** 2 + (e.z - z) ** 2 <= rSq &&
+        hasLineOfSight(x, z, e.x, e.z, this.collisionObstacles)
+      ) this.dealDamage(i, damage);
     }
   }
 
@@ -1298,7 +1391,10 @@ export class Game {
       for (let i = 0; i < this.enemies.pool.length; i++) {
         const e = this.enemies.pool[i];
         if (!e || !e.active) continue;
-        if ((e.x - px) ** 2 + (e.z - pz) ** 2 <= rSq) this.dealDamage(i, damage);
+        if (
+          (e.x - px) ** 2 + (e.z - pz) ** 2 <= rSq &&
+          hasLineOfSight(px, pz, e.x, e.z, this.collisionObstacles)
+        ) this.dealDamage(i, damage);
       }
     }
   }
@@ -1311,6 +1407,7 @@ export class Game {
       this.magnetronPullS -= dt;
       for (const e of this.enemies.pool) {
         if (!e.active) continue;
+        if (!hasLineOfSight(px, pz, e.x, e.z, this.collisionObstacles)) continue;
         const d = Math.hypot(px - e.x, pz - e.z) || 1;
         e.kbX = ((px - e.x) / d) * MODS.magnetronHeart.pullForce;
         e.kbZ = ((pz - e.z) / d) * MODS.magnetronHeart.pullForce;
@@ -1319,7 +1416,11 @@ export class Game {
         const rSq = MODS.magnetronHeart.novaRadius ** 2;
         let dragged = 0;
         for (const e of this.enemies.pool) {
-          if (e.active && (e.x - px) ** 2 + (e.z - pz) ** 2 <= rSq) dragged++;
+          if (
+            e.active &&
+            (e.x - px) ** 2 + (e.z - pz) ** 2 <= rSq &&
+            hasLineOfSight(px, pz, e.x, e.z, this.collisionObstacles)
+          ) dragged++;
         }
         if (dragged > 0) {
           const perEnemy =
@@ -1360,15 +1461,24 @@ export class Game {
     const whistle = (this.modCounts['foremans-whistle'] ?? 0) > 0;
     if (!this.merchant.active) {
       if (this.elapsedS >= this.merchant.nextVisitS) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist = MERCHANT.distMin + Math.random() * (MERCHANT.distMax - MERCHANT.distMin);
-        const spot = findClearSpot(
-          px + Math.cos(angle) * dist,
-          pz + Math.sin(angle) * dist,
-          this.obstacles,
-          BOSS.chestClearMargin,
+        const spot = findRandomClearSpot(
+          px,
+          pz,
+          MERCHANT.distMin,
+          MERCHANT.distMax,
+          MERCHANT.colliderRadius,
+          this.refreshCollisionObstacles(),
+          MERCHANT.spawnClearance,
         );
-        const stock = rollShopStock(this.stats.luck, MERCHANT.stock + (whistle ? 1 : 0));
+        if (!spot) {
+          this.merchant.nextVisitS = this.elapsedS + MERCHANT.retryDelayS;
+          return;
+        }
+        const stock = rollShopStock(
+          this.stats.luck,
+          MERCHANT.stock + (whistle ? 1 : 0),
+          (id) => !isModAtCopyCap(id, this.modCounts[id] ?? 0),
+        );
         this.merchant.arrive(spot.x, spot.z, stock, this.elapsedS);
         this.hud.banner('THE SCRAPPER HAS ARRIVED');
         // Arrival beat: warm trade burst at the vendor's real location, so the
@@ -1425,7 +1535,7 @@ export class Game {
         this.merchant.stock.splice(index, 1);
         this.applyMod(entry.id);
         // Refresh the RIG so the bought mod shows, then flash its tile.
-        this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels);
+        this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
         this.hud.flashBuildRow(entry.id);
         this.renderShop();
       },
@@ -1433,7 +1543,7 @@ export class Game {
         this.state = 'playing';
         this.clock.getDelta(); // Discard time spent shopping.
       },
-      { copies: whistleCopies, discount },
+      { copies: whistleCopies, discount, modCounts: this.modCounts },
     );
   }
 
@@ -1480,6 +1590,8 @@ export class Game {
       kills: this.progression.kills,
       bossesDefeated: this.boss.bossesDefeated,
       weaponLevels: this.weaponLevels,
+      weaponPower: this.weaponPower,
+      weaponBranches: this.weaponBranches,
       weaponDamage: this.weaponDamage,
       coreLevels: this.coreLevels,
       modCounts: this.modCounts,
@@ -1492,6 +1604,7 @@ export class Game {
       this.elapsedS,
       this.boss.bossesDefeated,
       this.weaponLevels,
+      this.weaponBranches,
       this.weaponDamage,
       this.coreLevels,
       this.modCounts,

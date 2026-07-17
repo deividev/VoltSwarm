@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { GUNNER } from './config';
+import { segmentHitsObstacle, type Obstacle } from './world';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // Shared projectile pool for every enemy that shoots. Slow, visible,
@@ -112,6 +113,7 @@ export class EnemyProjectiles {
     px: number,
     pz: number,
     playerRadius: number,
+    obstacles: Obstacle[],
     onHitPlayer: (damage: number) => void,
     onImpact?: (x: number, z: number, color: number) => void,
   ): void {
@@ -121,9 +123,28 @@ export class EnemyProjectiles {
       const s = this.pool[i];
       if (!s || !s.active) continue;
       const mesh = this.meshes[s.kind];
+      const previousX = s.x;
+      const previousZ = s.z;
       s.x += s.vx * dt;
       s.z += s.vz * dt;
       s.life -= dt;
+      if (
+        obstacles.some((obstacle) =>
+          segmentHitsObstacle(
+            previousX,
+            previousZ,
+            s.x,
+            s.z,
+            obstacle,
+            GUNNER.projectileRadius,
+          ),
+        )
+      ) {
+        onImpact?.(s.x, s.z, s.kind === 'tesla' ? TESLA_SHOT_COLOR : GUNNER_SHOT_COLOR);
+        s.active = false;
+        mesh.setMatrixAt(i, HIDDEN);
+        continue;
+      }
       const dSq = (s.x - px) * (s.x - px) + (s.z - pz) * (s.z - pz);
       if (dSq <= hitSq) {
         onImpact?.(s.x, s.z, s.kind === 'tesla' ? TESLA_SHOT_COLOR : GUNNER_SHOT_COLOR);

@@ -1,10 +1,11 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { VISUAL, WEAPONS, levelScale, quantityBonus, type WeaponId } from './config';
+import { VISUAL, WEAPONS, levelScale, quantityBonus, weaponBranchMultiplier, type BranchWeaponId, type WeaponBranchId, type WeaponId } from './config';
 import { litMaterial } from './toon';
 import type { EnemySystem } from './enemies';
 import type { PlayerStats } from './stats';
-import type { WeaponLevels } from './upgrades';
+import type { WeaponBranchLevels, WeaponLevels, WeaponPower } from './upgrades';
+import { hasLineOfSight, segmentHitsObstacle, type Obstacle } from './world';
 
 // Every weapon reads the shared stat sheet plus its own level. Damage is
 // routed through CombatCtx.dealDamage, which owns crit rolls, damage numbers,
@@ -14,6 +15,11 @@ import type { WeaponLevels } from './upgrades';
 export interface CombatCtx {
   stats: PlayerStats;
   enemies: EnemySystem;
+  /** Snapshot compatibility only; combat must not read aggregate WeaponPower. */
+  weaponPower: WeaponPower;
+  /** Sole source of live weapon-upgrade scaling. */
+  weaponBranches: WeaponBranchLevels;
+  obstacles: Obstacle[];
   /** Rolls crit, applies damage, shows the number, handles death rewards.
    *  `hitColor` sparks a voxel pop in the weapon's icon accent at the victim
    *  (icon↔VFX coherence + two-halves rule, 2026-07-11). */
@@ -25,6 +31,57 @@ export interface CombatCtx {
   ): void;
   /** Pops voxel cubes from the shared burst pool — weapon trails/impacts. */
   spawnBurst(x: number, z: number, color: number, count: number): void;
+}
+
+function branchMultiplier(
+  ctx: CombatCtx,
+  weaponId: BranchWeaponId,
+  branchId: WeaponBranchId,
+): number {
+  return weaponBranchMultiplier(ctx.weaponBranches, weaponId, branchId);
+}
+
+function visibleFrom(
+  ctx: CombatCtx,
+  startX: number,
+  startZ: number,
+  endX: number,
+  endZ: number,
+): boolean {
+  return hasLineOfSight(startX, startZ, endX, endZ, ctx.obstacles);
+}
+
+function findNearestVisible(
+  ctx: CombatCtx,
+  x: number,
+  z: number,
+  range: number,
+  excluded: Set<number> | null = null,
+): number {
+  let best = -1;
+  let bestSq = range * range;
+  for (let i = 0; i < ctx.enemies.pool.length; i++) {
+    const enemy = ctx.enemies.pool[i];
+    if (!enemy || !enemy.active || excluded?.has(enemyKey(i, enemy.gen))) continue;
+    const distanceSq = (enemy.x - x) ** 2 + (enemy.z - z) ** 2;
+    if (distanceSq >= bestSq || !visibleFrom(ctx, x, z, enemy.x, enemy.z)) continue;
+    bestSq = distanceSq;
+    best = i;
+  }
+  return best;
+}
+
+function projectileBlocked(
+  ctx: CombatCtx,
+  startX: number,
+  startZ: number,
+  endX: number,
+  endZ: number,
+  radius: number,
+): boolean {
+  return ctx.obstacles.some((obstacle) =>
+    segmentHitsObstacle(startX, startZ, endX, endZ, obstacle, radius),
+  );
 }
 
 /** Icon accent per weapon (docs/PROMPTS_IMAGENES.md §3) — single source for
@@ -212,24 +269,52 @@ export class BoltWeapon {
     if (level > 0) {
       this.cooldown -= dt;
       if (this.cooldown <= 0 && ctx.enemies.activeCount > 0) {
-        this.cooldown = WEAPONS.bolt.cooldownS / ctx.stats.attackSpeed;
+        this.cooldown = WEAPONS.bolt.cooldownS / (
+          ctx.stats.attackSpeed * branchMultiplier(ctx, 'bolt', 'cycle')
+        );
         const count = 1 + quantityBonus(level) + ctx.stats.projectileCount;
         this.fireVolley(px, pz, ctx, count);
       }
     }
 
-    const baseDamage = levelScale(WEAPONS.bolt.damage, WEAPONS.bolt.damagePctPerLevel, level);
+    const baseDamage = levelScale(
+      WEAPONS.bolt.damage,
+      WEAPONS.bolt.damagePctPerLevel,
+      1 + (ctx.weaponBranches.bolt.damage ?? 0),
+    );
+    const boltSize = branchMultiplier(ctx, 'bolt', 'size');
     for (let i = 0; i < this.pool.length; i++) {
       const p = this.pool[i];
       if (!p || !p.active) continue;
+      const previousX = p.x;
+      const previousZ = p.z;
       p.x += p.vx * dt;
       p.z += p.vz * dt;
       p.life -= dt;
+      if (
+        projectileBlocked(
+          ctx,
+          previousX,
+          previousZ,
+          p.x,
+          p.z,
+          WEAPONS.bolt.projectileRadius * ctx.stats.area * boltSize,
+        )
+      ) {
+        ctx.spawnBurst(p.x, p.z, WEAPON_ACCENT.bolt, 2);
+        this.deactivate(i);
+        continue;
+      }
       if (p.life <= 0) {
         this.deactivate(i);
         continue;
       }
-      const hit = ctx.enemies.findNearest(p.x, p.z, WEAPONS.bolt.hitRadius * ctx.stats.area);
+      const hit = findNearestVisible(
+        ctx,
+        p.x,
+        p.z,
+        WEAPONS.bolt.hitRadius * ctx.stats.area * boltSize,
+      );
       if (hit !== -1) {
         ctx.dealDamage(hit, baseDamage, WEAPON_ACCENT.bolt, 'bolt');
         this.deactivate(i);
@@ -239,7 +324,11 @@ export class BoltWeapon {
       tmpMatrix.makeRotationY(Math.atan2(p.vx, p.vz));
       tmpMatrixB.makeRotationZ(p.life * 14);
       tmpMatrix.multiply(tmpMatrixB);
-      tmpMatrix.scale(tmpVec.set(ctx.stats.area, ctx.stats.area, ctx.stats.area));
+      tmpMatrix.scale(tmpVec.set(
+        ctx.stats.area * boltSize,
+        ctx.stats.area * boltSize,
+        ctx.stats.area * boltSize,
+      ));
       tmpMatrix.setPosition(p.x, 1, p.z);
       this.mesh.setMatrixAt(i, tmpMatrix);
     }
@@ -257,7 +346,7 @@ export class BoltWeapon {
         const e = ctx.enemies.pool[i];
         if (!e || !e.active || taken.has(i)) continue;
         const dSq = (e.x - px) * (e.x - px) + (e.z - pz) * (e.z - pz);
-        if (dSq < bestSq) {
+        if (dSq < bestSq && visibleFrom(ctx, px, pz, e.x, e.z)) {
           bestSq = dSq;
           best = i;
         }
@@ -338,17 +427,26 @@ export class PulseWeapon {
     }
 
     const radius =
-      levelScale(WEAPONS.pulse.radius, WEAPONS.pulse.radiusPctPerLevel, level) * ctx.stats.area;
+      levelScale(WEAPONS.pulse.radius, WEAPONS.pulse.radiusPctPerLevel, 1 + (ctx.weaponBranches.pulse.radius ?? 0)) * ctx.stats.area;
     this.cooldown -= dt;
     if (this.cooldown <= 0) {
-      this.cooldown = WEAPONS.pulse.cooldownS / ctx.stats.attackSpeed;
+      this.cooldown = WEAPONS.pulse.cooldownS / (
+        ctx.stats.attackSpeed * branchMultiplier(ctx, 'pulse', 'cycle')
+      );
       this.flash = 0.35;
-      const damage = levelScale(WEAPONS.pulse.damage, WEAPONS.pulse.damagePctPerLevel, level);
+      const damage = levelScale(
+        WEAPONS.pulse.damage,
+        WEAPONS.pulse.damagePctPerLevel,
+        1 + (ctx.weaponBranches.pulse.damage ?? 0),
+      );
       for (let i = 0; i < ctx.enemies.pool.length; i++) {
         const e = ctx.enemies.pool[i];
         if (!e || !e.active) continue;
         const dSq = (e.x - px) * (e.x - px) + (e.z - pz) * (e.z - pz);
-        if (dSq <= radius * radius) ctx.dealDamage(i, damage, WEAPON_ACCENT.pulse, 'pulse');
+        if (
+          dSq <= radius * radius &&
+          visibleFrom(ctx, px, pz, e.x, e.z)
+        ) ctx.dealDamage(i, damage, WEAPON_ACCENT.pulse, 'pulse');
       }
     }
 
@@ -392,7 +490,8 @@ export class BladeWeapon {
   }
 
   update(dt: number, px: number, pz: number, level: number, ctx: CombatCtx): void {
-    this.angle += WEAPONS.blades.rotationSpeed * ctx.stats.attackSpeed * dt;
+    this.angle += WEAPONS.blades.rotationSpeed * ctx.stats.attackSpeed *
+      branchMultiplier(ctx, 'blades', 'rotation-speed') * dt;
     const count =
       level > 0
         ? Math.min(
@@ -400,8 +499,13 @@ export class BladeWeapon {
             this.blades.length,
           )
         : 0;
-    const damage = levelScale(WEAPONS.blades.damage, WEAPONS.blades.damagePctPerLevel, level);
-    const orbit = WEAPONS.blades.orbitRadius * ctx.stats.area;
+    const damage = levelScale(
+      WEAPONS.blades.damage,
+      WEAPONS.blades.damagePctPerLevel,
+      1 + (ctx.weaponBranches.blades.damage ?? 0),
+    );
+    const orbit = WEAPONS.blades.orbitRadius * ctx.stats.area *
+      branchMultiplier(ctx, 'blades', 'orbit-radius');
     const reachBase = WEAPONS.blades.bladeRadius * ctx.stats.area;
 
     for (let b = 0; b < this.blades.length; b++) {
@@ -426,7 +530,7 @@ export class BladeWeapon {
         if (!e || !e.active || e.bladeHitTimer > 0) continue;
         const reach = reachBase + e.radius;
         const dSq = (e.x - bx) * (e.x - bx) + (e.z - bz) * (e.z - bz);
-        if (dSq <= reach * reach) {
+        if (dSq <= reach * reach && visibleFrom(ctx, bx, bz, e.x, e.z)) {
           e.bladeHitTimer = WEAPONS.blades.hitCooldownS;
           ctx.dealDamage(i, damage, WEAPON_ACCENT.blades, 'blades');
         }
@@ -473,7 +577,8 @@ export class WelderWeapon {
       return;
     }
 
-    const range = WEAPONS.welder.range * ctx.stats.attackRange;
+    const range = WEAPONS.welder.range * ctx.stats.attackRange *
+      branchMultiplier(ctx, 'welder', 'range');
     // Re-validate the lock: dead, out-of-range, or stale (slot reused by a
     // different enemy) targets reset the ramp.
     const current = ctx.enemies.pool[this.target];
@@ -481,10 +586,10 @@ export class WelderWeapon {
       this.target !== -1 && !!current && current.active && current.gen === this.targetGen;
     if (valid && current) {
       const dSq = (current.x - px) * (current.x - px) + (current.z - pz) * (current.z - pz);
-      valid = dSq <= range * range;
+      valid = dSq <= range * range && visibleFrom(ctx, px, pz, current.x, current.z);
     }
     if (!valid) {
-      this.target = ctx.enemies.findNearest(px, pz, range);
+      this.target = findNearestVisible(ctx, px, pz, range);
       this.targetGen = ctx.enemies.pool[this.target]?.gen ?? -1;
       this.lockTime = 0;
     }
@@ -499,14 +604,14 @@ export class WelderWeapon {
     this.tickTimer -= dt;
     if (this.tickTimer <= 0) {
       this.tickTimer = WEAPONS.welder.tickS / ctx.stats.attackSpeed;
-      const rampRate = levelScale(
-        WEAPONS.welder.rampPerSecond,
-        WEAPONS.welder.rampPctPerLevel,
-        level,
-      );
+      const rampRate = WEAPONS.welder.rampPerSecond *
+        branchMultiplier(ctx, 'welder', 'ramp-stability');
       const ramp = Math.min(1 + this.lockTime * rampRate, WEAPONS.welder.rampCap);
-      const damage =
-        levelScale(WEAPONS.welder.damage, WEAPONS.welder.damagePctPerLevel, level) * ramp;
+      const damage = levelScale(
+        WEAPONS.welder.damage,
+        WEAPONS.welder.damagePctPerLevel,
+        1 + (ctx.weaponBranches.welder.damage ?? 0),
+      ) * ramp;
       ctx.dealDamage(this.target, damage, WEAPON_ACCENT.welder, 'welder');
     }
 
@@ -576,20 +681,26 @@ export class PressWeapon {
 
     const length = WEAPONS.press.length * ctx.stats.attackRange;
     const width =
-      levelScale(WEAPONS.press.width, WEAPONS.press.widthPctPerLevel, level) * ctx.stats.area;
+      levelScale(WEAPONS.press.width, WEAPONS.press.widthPctPerLevel, 1 + (ctx.weaponBranches.press.width ?? 0)) * ctx.stats.area;
 
     this.cooldown -= dt;
     if (this.cooldown <= 0) {
       // Aim the lane at the nearest enemy; hold fire when nothing is in reach.
-      const target = ctx.enemies.findNearest(px, pz, length);
+      const target = findNearestVisible(ctx, px, pz, length);
       const e = ctx.enemies.pool[target];
       if (target !== -1 && e) {
-        this.cooldown = WEAPONS.press.cooldownS / ctx.stats.attackSpeed;
+        this.cooldown = WEAPONS.press.cooldownS / (
+          ctx.stats.attackSpeed * branchMultiplier(ctx, 'press', 'cycle')
+        );
         this.flash = 0.25;
         const dist = Math.hypot(e.x - px, e.z - pz) || 1;
         const dirX = (e.x - px) / dist;
         const dirZ = (e.z - pz) / dist;
-        const damage = levelScale(WEAPONS.press.damage, WEAPONS.press.damagePctPerLevel, level);
+        const damage = levelScale(
+          WEAPONS.press.damage,
+          WEAPONS.press.damagePctPerLevel,
+          1 + (ctx.weaponBranches.press.damage ?? 0),
+        );
         // Zone check: project each enemy onto the lane axis.
         for (let i = 0; i < ctx.enemies.pool.length; i++) {
           const other = ctx.enemies.pool[i];
@@ -599,7 +710,10 @@ export class PressWeapon {
           const along = rx * dirX + rz * dirZ;
           if (along < 0 || along > length) continue;
           const across = Math.abs(rx * -dirZ + rz * dirX);
-          if (across <= width / 2 + other.radius) {
+          if (
+            across <= width / 2 + other.radius &&
+            visibleFrom(ctx, px, pz, other.x, other.z)
+          ) {
             ctx.dealDamage(i, damage, WEAPON_ACCENT.press, 'press');
           }
         }
@@ -674,26 +788,41 @@ export class TireWeapon {
     if (level > 0) {
       this.cooldown -= dt;
       if (this.cooldown <= 0 && ctx.enemies.activeCount > 0) {
-        this.cooldown = WEAPONS.tire.cooldownS / ctx.stats.attackSpeed;
         const count = 1 + quantityBonus(level) + ctx.stats.projectileCount;
-        const target = ctx.enemies.findNearest(px, pz, WEAPONS.tire.targetRange);
+        const target = findNearestVisible(ctx, px, pz, WEAPONS.tire.targetRange);
         const e = ctx.enemies.pool[target];
-        const baseAngle = e ? Math.atan2(e.x - px, e.z - pz) : Math.random() * Math.PI * 2;
-        for (let n = 0; n < count; n++) {
-          const angle = baseAngle + (n - (count - 1) / 2) * 0.35;
-          this.launch(px, pz, angle, ctx.stats.projectileSpeed);
+        if (e) {
+          this.cooldown = WEAPONS.tire.cooldownS / ctx.stats.attackSpeed;
+          const baseAngle = Math.atan2(e.x - px, e.z - pz);
+          for (let n = 0; n < count; n++) {
+            const angle = baseAngle + (n - (count - 1) / 2) * 0.35;
+            this.launch(px, pz, angle, ctx.stats.projectileSpeed, ctx);
+          }
         }
       }
     }
 
-    const damage = levelScale(WEAPONS.tire.damage, WEAPONS.tire.damagePctPerLevel, level);
-    const hitRadius = WEAPONS.tire.radius * ctx.stats.area;
+    const damage = levelScale(
+      WEAPONS.tire.damage,
+      WEAPONS.tire.damagePctPerLevel,
+      1 + (ctx.weaponBranches.tire.damage ?? 0),
+    );
+    const tireSize = branchMultiplier(ctx, 'tire', 'size');
+    const hitRadius = WEAPONS.tire.radius * ctx.stats.area * tireSize;
     for (const t of this.pool) {
       if (!t.active) continue;
+      const previousX = t.x;
+      const previousZ = t.z;
       t.x += t.vx * dt;
       t.z += t.vz * dt;
       t.life -= dt;
       t.roll += Math.hypot(t.vx, t.vz) * dt / 0.55;
+      if (projectileBlocked(ctx, previousX, previousZ, t.x, t.z, hitRadius)) {
+        ctx.spawnBurst(t.x, t.z, WEAPON_ACCENT.tire, 3);
+        t.active = false;
+        t.mesh.visible = false;
+        continue;
+      }
       // Flame trail: the rolling tire sheds burning cubes behind it.
       t.flameTimer -= dt;
       if (t.flameTimer <= 0) {
@@ -722,13 +851,19 @@ export class TireWeapon {
           ctx.dealDamage(i, damage, WEAPON_ACCENT.tire, 'tire');
         }
       }
-      t.mesh.position.set(t.x, 0.75 * ctx.stats.area, t.z);
+      t.mesh.position.set(t.x, 0.75 * ctx.stats.area * tireSize, t.z);
       t.mesh.rotation.set(t.roll, Math.atan2(t.vx, t.vz), 0, 'YXZ');
-      t.mesh.scale.setScalar(ctx.stats.area);
+      t.mesh.scale.setScalar(ctx.stats.area * tireSize);
     }
   }
 
-  private launch(px: number, pz: number, angle: number, speedMult: number): void {
+  private launch(
+    px: number,
+    pz: number,
+    angle: number,
+    speedMult: number,
+    ctxForLaunch: CombatCtx,
+  ): void {
     const t = this.pool.find((c) => !c.active);
     if (!t) return;
     const speed = WEAPONS.tire.speed * speedMult;
@@ -737,7 +872,7 @@ export class TireWeapon {
     t.z = pz;
     t.vx = Math.sin(angle) * speed;
     t.vz = Math.cos(angle) * speed;
-    t.life = WEAPONS.tire.lifetimeS;
+    t.life = WEAPONS.tire.lifetimeS * branchMultiplier(ctxForLaunch, 'tire', 'lifetime');
     t.roll = 0;
     t.flameTimer = 0;
     t.hit.clear();
@@ -793,7 +928,8 @@ export class OilWeapon {
           p.active = true;
           p.x = px;
           p.z = pz;
-          p.life = WEAPONS.oil.puddleLifeS * ctx.stats.duration;
+          p.life = WEAPONS.oil.puddleLifeS * ctx.stats.duration *
+            branchMultiplier(ctx, 'oil', 'duration');
           // Splash on drop: dark droplets + one hazard-yellow glint (the
           // icon's label accent) so the drip reads on the dark floor.
           ctx.spawnBurst(px, pz, 0x1a1522, 3);
@@ -802,11 +938,14 @@ export class OilWeapon {
       }
     }
 
-    const radius =
-      levelScale(WEAPONS.oil.puddleRadius, WEAPONS.oil.radiusPctPerLevel, level) * ctx.stats.area;
+    const radius = levelScale(
+      WEAPONS.oil.puddleRadius,
+      WEAPONS.oil.radiusPctPerLevel,
+      1 + (ctx.weaponBranches.oil.radius ?? 0),
+    ) * ctx.stats.area;
     const slowFactor = Math.max(
       WEAPONS.oil.slowFactorFloor,
-      levelScale(WEAPONS.oil.slowFactor, -WEAPONS.oil.slowPctPerLevel, level),
+      1 - (1 - WEAPONS.oil.slowFactor) * branchMultiplier(ctx, 'oil', 'slow-strength'),
     );
     // One drip event per interval, placed on a uniformly-random slowed enemy
     // (reservoir sampling below) so dark oil cubes keep hopping across the
@@ -896,10 +1035,17 @@ export class AcidWeapon {
     if (level > 0) {
       this.cooldown -= dt;
       if (this.cooldown <= 0) {
-        const target = ctx.enemies.findNearest(px, pz, WEAPONS.acid.targetRange * ctx.stats.attackRange);
+        const target = findNearestVisible(
+          ctx,
+          px,
+          pz,
+          WEAPONS.acid.targetRange * ctx.stats.attackRange,
+        );
         const e = ctx.enemies.pool[target];
         if (target !== -1 && e) {
-          this.cooldown = WEAPONS.acid.cooldownS / ctx.stats.attackSpeed;
+          this.cooldown = WEAPONS.acid.cooldownS / (
+            ctx.stats.attackSpeed * branchMultiplier(ctx, 'acid', 'cycle')
+          );
           const z = this.zones.find((c) => !c.active) ?? this.zones[0];
           if (z) {
             z.active = true;
@@ -922,9 +1068,16 @@ export class AcidWeapon {
       vfx.acidPoolOpacityBase +
       Math.sin(this.time * Math.PI * 2 * vfx.acidPoolPulseHz) * vfx.acidPoolOpacityPulse;
 
-    const radius =
-      levelScale(WEAPONS.acid.zoneRadius, WEAPONS.acid.radiusPctPerLevel, level) * ctx.stats.area;
-    const dps = levelScale(WEAPONS.acid.dotDps, WEAPONS.acid.dpsPctPerLevel, level);
+    const radius = levelScale(
+      WEAPONS.acid.zoneRadius,
+      WEAPONS.acid.radiusPctPerLevel,
+      1 + (ctx.weaponBranches.acid.radius ?? 0),
+    ) * ctx.stats.area;
+    const dps = levelScale(
+      WEAPONS.acid.dotDps,
+      WEAPONS.acid.dpsPctPerLevel,
+      1 + (ctx.weaponBranches.acid.damage ?? 0),
+    );
     for (let i = 0; i < this.zones.length; i++) {
       const z = this.zones[i];
       if (!z || !z.active) continue;
@@ -938,7 +1091,7 @@ export class AcidWeapon {
         const e = ctx.enemies.pool[n];
         if (!e || !e.active) continue;
         const dSq = (e.x - z.x) * (e.x - z.x) + (e.z - z.z) * (e.z - z.z);
-        if (dSq <= radius * radius) {
+        if (dSq <= radius * radius && visibleFrom(ctx, z.x, z.z, e.x, e.z)) {
           ctx.enemies.applyDot(
             n,
             dps,
@@ -1023,7 +1176,7 @@ export class TurbineWeapon {
     if (level > 0) {
       this.cooldown -= dt;
       if (this.cooldown <= 0 && ctx.enemies.activeCount > 0) {
-        const target = ctx.enemies.findNearest(px, pz, WEAPONS.turbine.targetRange);
+        const target = findNearestVisible(ctx, px, pz, WEAPONS.turbine.targetRange);
         const e = ctx.enemies.pool[target];
         if (target !== -1 && e) {
           this.cooldown = WEAPONS.turbine.cooldownS / ctx.stats.attackSpeed;
@@ -1050,13 +1203,28 @@ export class TurbineWeapon {
       }
     }
 
-    const damage = levelScale(WEAPONS.turbine.damage, WEAPONS.turbine.damagePctPerLevel, level);
-    const radius = WEAPONS.turbine.radius * ctx.stats.area;
+    const damage = levelScale(
+      WEAPONS.turbine.damage,
+      WEAPONS.turbine.damagePctPerLevel,
+      1 + (ctx.weaponBranches.turbine.damage ?? 0),
+    );
+    const radius = WEAPONS.turbine.radius * ctx.stats.area *
+      branchMultiplier(ctx, 'turbine', 'radius');
+    const knockback = WEAPONS.turbine.knockbackForce *
+      branchMultiplier(ctx, 'turbine', 'knockback');
     for (const t of this.pool) {
       if (!t.active) continue;
+      const previousX = t.x;
+      const previousZ = t.z;
       t.x += t.vx * dt;
       t.z += t.vz * dt;
       t.life -= dt;
+      if (projectileBlocked(ctx, previousX, previousZ, t.x, t.z, radius)) {
+        ctx.spawnBurst(t.x, t.z, WEAPON_ACCENT.turbine, 3);
+        t.active = false;
+        t.mesh.visible = false;
+        continue;
+      }
       if (t.life <= 0) {
         t.active = false;
         t.mesh.visible = false;
@@ -1075,7 +1243,7 @@ export class TurbineWeapon {
         // knockback every frame made high-level turbines a permanent wall
         // where nothing ever reached the player.
         t.hit.add(key);
-        ctx.enemies.applyKnockback(n, t.vx / speed, t.vz / speed, WEAPONS.turbine.knockbackForce);
+        ctx.enemies.applyKnockback(n, t.vx / speed, t.vz / speed, knockback);
         ctx.dealDamage(n, damage, WEAPON_ACCENT.turbine, 'turbine');
       }
       // Scrap debris kicked up along the path (the icon's trapped junk).
@@ -1086,7 +1254,7 @@ export class TurbineWeapon {
       }
       t.mesh.position.set(t.x, 0, t.z);
       t.mesh.rotation.y += dt * 12;
-      t.mesh.scale.setScalar(ctx.stats.area);
+      t.mesh.scale.setScalar(ctx.stats.area * branchMultiplier(ctx, 'turbine', 'radius'));
     }
   }
 
@@ -1136,10 +1304,17 @@ export class RicochetWeapon {
     if (level > 0) {
       this.cooldown -= dt;
       if (this.cooldown <= 0 && ctx.enemies.activeCount > 0) {
-        const target = ctx.enemies.findNearest(px, pz, WEAPONS.ricochet.targetRange * ctx.stats.attackRange);
+        const target = findNearestVisible(
+          ctx,
+          px,
+          pz,
+          WEAPONS.ricochet.targetRange * ctx.stats.attackRange,
+        );
         const e = ctx.enemies.pool[target];
         if (target !== -1 && e) {
-          this.cooldown = WEAPONS.ricochet.cooldownS / ctx.stats.attackSpeed;
+          this.cooldown = WEAPONS.ricochet.cooldownS / (
+            ctx.stats.attackSpeed * branchMultiplier(ctx, 'ricochet', 'cycle')
+          );
           const s = this.pool.find((c) => !c.active);
           if (s) {
             const dist = Math.hypot(e.x - px, e.z - pz) || 1;
@@ -1149,14 +1324,20 @@ export class RicochetWeapon {
             s.z = pz;
             s.vx = ((e.x - px) / dist) * speed;
             s.vz = ((e.z - pz) / dist) * speed;
-            s.bounces = WEAPONS.ricochet.bounces + quantityBonus(level);
+            s.bounces = Math.round(
+              WEAPONS.ricochet.bounces * branchMultiplier(ctx, 'ricochet', 'bounce-count'),
+            ) + quantityBonus(level);
             s.hit.clear();
           }
         }
       }
     }
 
-    const damage = levelScale(WEAPONS.ricochet.damage, WEAPONS.ricochet.damagePctPerLevel, level);
+    const damage = levelScale(
+      WEAPONS.ricochet.damage,
+      WEAPONS.ricochet.damagePctPerLevel,
+      1 + (ctx.weaponBranches.ricochet.damage ?? 0),
+    );
     // Shared tumble + zigzag-trail tick for every airborne chunk (the
     // icon's purple zigzag, drawn by the flight path itself).
     this.spin += dt * 9;
@@ -1166,8 +1347,25 @@ export class RicochetWeapon {
     for (let i = 0; i < this.pool.length; i++) {
       const s = this.pool[i];
       if (!s || !s.active) continue;
+      const previousX = s.x;
+      const previousZ = s.z;
       s.x += s.vx * dt;
       s.z += s.vz * dt;
+      if (
+        projectileBlocked(
+          ctx,
+          previousX,
+          previousZ,
+          s.x,
+          s.z,
+          WEAPONS.ricochet.hitRadius,
+        )
+      ) {
+        ctx.spawnBurst(s.x, s.z, WEAPON_ACCENT.ricochet, 2);
+        s.active = false;
+        this.mesh.setMatrixAt(i, HIDDEN);
+        continue;
+      }
 
       // Hit test against the nearest un-hit enemy along the way.
       let struck = -1;
@@ -1192,7 +1390,12 @@ export class RicochetWeapon {
         let bestSq = WEAPONS.ricochet.bounceRange * WEAPONS.ricochet.bounceRange;
         for (let n = 0; n < ctx.enemies.pool.length; n++) {
           const e = ctx.enemies.pool[n];
-          if (!e || !e.active || s.hit.has(enemyKey(n, e.gen))) continue;
+          if (
+            !e ||
+            !e.active ||
+            s.hit.has(enemyKey(n, e.gen)) ||
+            !visibleFrom(ctx, s.x, s.z, e.x, e.z)
+          ) continue;
           const dSq = (e.x - s.x) * (e.x - s.x) + (e.z - s.z) * (e.z - s.z);
           if (dSq < bestSq) {
             bestSq = dSq;
@@ -1267,8 +1470,9 @@ export class DismantlerWeapon {
 
     this.cooldown -= dt;
     if (this.cooldown <= 0) {
-      const range = WEAPONS.dismantler.range * ctx.stats.attackRange;
-      const target = ctx.enemies.findNearest(px, pz, range);
+      const range = WEAPONS.dismantler.range * ctx.stats.attackRange *
+        branchMultiplier(ctx, 'dismantler', 'range');
+      const target = findNearestVisible(ctx, px, pz, range);
       const e = ctx.enemies.pool[target];
       if (target !== -1 && e) {
         this.cooldown = WEAPONS.dismantler.cooldownS / ctx.stats.attackSpeed;
@@ -1281,7 +1485,8 @@ export class DismantlerWeapon {
         const threshold = Math.min(
           WEAPONS.dismantler.thresholdCap,
           WEAPONS.dismantler.executeThreshold +
-            (level - 1) * WEAPONS.dismantler.thresholdPerLevel,
+            (ctx.weaponBranches.dismantler['execute-threshold'] ?? 0) *
+              WEAPONS.dismantler.thresholdPerLevel,
         );
         const isBoss = ctx.enemies.isBossIndex(target);
         if (!isBoss && e.hp / e.maxHp <= threshold) {
@@ -1293,7 +1498,7 @@ export class DismantlerWeapon {
           const damage = levelScale(
             WEAPONS.dismantler.damage,
             WEAPONS.dismantler.damagePctPerLevel,
-            level,
+            1 + (ctx.weaponBranches.dismantler.damage ?? 0),
           );
           ctx.dealDamage(target, damage, WEAPON_ACCENT.dismantler, 'dismantler');
         }

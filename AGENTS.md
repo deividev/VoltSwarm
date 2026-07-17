@@ -13,6 +13,8 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 | Suelo/ambiente de mapa | `docs/PROMPTS_IMAGENES.md` seccion 7b | Textura top-down estricta, sin props/personajes; mosaico `RepeatWrapping`; `litMaterial()` |
 | Cualquier imagen a generar (icono, logo, HUD) | `docs/PROMPTS_IMAGENES.md` | Regla voxel SIEMPRE explícita en el prompt |
 | Efecto visual / shader / particulas / sonido | `docs/DIRECCION_ARTE.md` + `docs/REFERENCIAS_VISUALES.md` | VFX = cubos voxel de paleta; audio mecanico de juguete, cero gore; validar con 400+ enemigos |
+| Sistema/foundation de audio | `docs/DISENO_AUDIO.md` → `docs/AUDIO_AUTHORING_PIPELINE.md` → `docs/ROADMAP_STEAM.md` | Runtime reproduce assets pre-renderizados; SFX procedural solo offline y determinista, música Suno con provenance/licencia; buses, no-op y presupuesto de voces |
+| Multiplayer / co-op | `docs/MULTIPLAYER_FEASIBILITY.md` → `docs/ROADMAP_STEAM.md` | Es un gate GO/NO-GO, no una promesa pública; simulación determinista/observadores antes de modo jugable |
 | Balance (números que se sienten mal) | `docs/ROADMAP_STEAM.md` (¿existe ya el instrumento de medición?) | Un cambio numérico por playtest — no varios a la vez |
 | "¿Qué nos falta?" / auditoría grande | `docs/COMPARATIVA_MEGABONK.md` + skill `judgment-day` | Dos jueces ciegos en paralelo, nunca un solo review |
 | "¿Qué toca ahora?" a nivel proyecto | `docs/ROADMAP_STEAM.md` — es LA fuente de verdad del orden | No reordenar de memoria sin actualizar el doc |
@@ -39,7 +41,9 @@ Regla general: si el pedido no encaja claro en una fila, `docs/PRD.md` primero (
 | `docs/PROMPTS_IMAGENES.md` | Prompts concretos de generación de imágenes IA, todos con la regla voxel reforzada. |
 | `docs/REFERENCIAS_VISUALES.md` | Plan técnico del pase visual (bloom, sombras, toon, partículas) con referencias externas. |
 | `docs/ROADMAP_STEAM.md` | Plan ordenado y con razones hacia el lanzamiento en Steam (fases 0-6 + post-lanzamiento). |
-| `docs/DISENO_AUDIO.md` | Lista maestra de SFX/música. Fase 4 nominal, pero se ejecuta al final tras visual+jugabilidad. |
+| `docs/DISENO_AUDIO.md` | Foundation `AudioDirector`/buses/presupuesto que se implementa ahora, más catálogo de ~95 SFX/música que se completa después de contenido/balance. |
+| `docs/AUDIO_AUTHORING_PIPELINE.md` | Pipeline offline SFX determinista + Suno para música: masters/exports/manifiesto, reproducibilidad, provenance y reglas de licencia comercial. |
+| `docs/MULTIPLAYER_FEASIBILITY.md` | Gate interno GO/NO-GO: 1–4 `PlayerId`, primero local exactamente 2P split-screen con cámaras independientes → Remote Play host si procede; online 4P posterior, no es promesa pública. |
 
 **Actualizar, no solo leer**: feature nueva → sección en `PRD.md` · sistema con principio nuevo → `METODO_DISENO.md` · arma/mejora implementada → su estado a ✅ en `DESIGN_MEJORAS.md` · hito cumplido → marcarlo en `ROADMAP_STEAM.md` · nombre/precio/fecha → vive en `ROADMAP_STEAM.md`, no solo en el chat.
 
@@ -66,7 +70,7 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 - **Material final conservado:** 9 screenshots en `art/steam/screenshots/`, 9 GIFs en `art/steam/gif/`, store/library/social assets y masters aprobados en `art/steam/image/`, copy/brief en `art/steam/info/` y manifiesto en `art/steam/STEAM-MEDIA-MANIFEST.md`. El cofre verde cubre la recompensa; no falta un cofre dorado.
 - **Limpieza posterior COMPLETADA con aprobación 1 a 1:** se eliminaron backups, duplicados, temporales regenerables y builds obsoletas. Se retuvieron `assets/preview/` como contexto, `art/concept/`, `tmp/quantize-portal.mjs`, `tmp/perf-400-output/`, los assets finales, las builds v0.1.1 y la última grabación raw `art/video/2026-07-16 17-32-04.mp4`.
 - **Fase 3 — COMPLETADA 2026-07-17:** pausa, Settings v3, menú principal con versión leída de `package.json` y desglose final de daño real por arma están cerrados.
-- **Siguiente secuencia:** Fase 5 (contenido, balance y retención) → Fase 4 (audio al final) → Fase 6 (Steamworks y cierre). En paralelo, responder feedback de Steam y, cuando Valve apruebe la página, publicar Coming Soon. Leaderboards: confirmados para el juego completo, todavía no implementados.
+- **Siguiente secuencia:** foundation de audio → gate interno de viabilidad multijugador → Fase 5 (contenido, balance, retención y diferenciación de personajes) → catálogo completo de audio → Fase 6 (Steamworks y cierre). Multiplayer/co-op no está implementado ni anunciado; el gate puede terminar NO-GO. **Stretch interno agresivo:** 2026-11-04 para el scope congelado (sin host migration/dedicated/hybrid, exactamente 3 personajes, ~30 contratos y sin expansión no planificada); no es fecha segura ni promesa pública y se revalida tras Audio Foundation + GO/NO-GO. Coming Soon sigue dependiente de la aprobación de Steam. Leaderboards: confirmados para el juego completo, todavía no implementados.
 
 ## Historial — spec original del Día 1 (superseded)
 

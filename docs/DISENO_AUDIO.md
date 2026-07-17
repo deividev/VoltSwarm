@@ -1,8 +1,8 @@
-# DISEÑO_AUDIO.md — Lista maestra de SFX y música
+# DISEÑO_AUDIO.md — Foundation y lista maestra de SFX/música
 
-> **Estado (2026-07-13): el juego NO tiene audio.** Los sliders Master/Music/SFX de settings (`src/settings.ts`, `src/hud.ts`) existen y persisten, pero nada los lee — son la costura ya preparada para el mixer. Este doc es el inventario COMPLETO de lo que hay que generar, basado en una revisión del código a fecha de hoy. Fase del roadmap: **Fase 4 — Sonido** (`ROADMAP_STEAM.md`).
+> **Estado (2026-07-17):** los sliders Master/Music/SFX de settings (`src/settings.ts`, `src/hud.ts`) existen y persisten, pero todavía no hay backend de audio. **La foundation se implementa ahora**; el catálogo completo se mantiene para después de contenido/balance, antes del cierre de Steamworks.
 >
-> **⏳ CUÁNDO se ejecuta (decisión del usuario 2026-07-13): AL FINAL DEL TODO** — cuando el juego esté completo en visual y jugabilidad (tras la Fase 5 de balance/contenido, antes del cierre de Fase 6). Antes de ejecutar, **re-auditar esta lista contra el juego terminado**: Volt Warden, mapa 2+, contratos, endless y todo lo implementado después del 2026-07-13 NO están inventariados aquí. Única excepción al orden: si el tráiler de lanzamiento se captura antes, adelantar solo la pista principal de música.
+> **Límite explícito:** foundation ≠ producción de ~95 assets. Antes del catálogo completo, re-auditar esta lista contra el juego terminado: Volt Warden, mapa 2+, contratos, endless y todo lo añadido después del 2026-07-13 no está inventariado aquí. Única excepción: adelantar la música principal si el tráiler final la necesita. El pipeline de autoría, licencias y reproducibilidad vive en `docs/AUDIO_AUTHORING_PIPELINE.md`.
 
 ## Dirección de audio (regla de `DIRECCION_ARTE.md`, no negociable)
 
@@ -38,7 +38,7 @@
 
 - P2: sting de milestone al ganar +1 proyectil/hoja/etc. en Lv3/Lv5 (`sfx-weapon-milestone`, compartido).
 
-## 2. Mods (16) — cada mod habla el mismo idioma que su VoxelBurst
+## 2. Mods (17) - cada mod habla el mismo idioma que su VoxelBurst
 
 **Consumibles (4):**
 
@@ -49,7 +49,7 @@
 | `sfx-mod-scrap-cache` | Volt Cache | Chime de XP grande (versión "premium" del orbe) — P1 |
 | `sfx-mod-frenzy` | Frenzy | Sting agresivo de power-up (distorsión corta) — P1 |
 
-**Permanentes (12)** — one-shot en el trigger; los de estado sostenido añaden loop (dos mitades):
+**Permanentes (13)** - one-shot en el trigger; los de estado sostenido anaden loop (dos mitades):
 
 | ID | Mod | SFX | Loop de estado |
 |---|---|---|---|
@@ -57,6 +57,7 @@
 | `sfx-mod-kick-plate` | Kick Plate | Thump de patada metálica | — |
 | `sfx-mod-loose-bolts` | Loose Bolts | Traqueteo de tornillos dispersándose | — |
 | `sfx-mod-detonator-rig` | Detonator Rig | Boom AoE (contenido, no "guerra") | — |
+| `sfx-mod-barrier-cell` | Barrier Cell | Shield BLOCK: impacto electrico corto al absorber un golpe; sin loop | Placas cian orbitando mientras haya cargas |
 | `sfx-mod-coolant-burst` | Coolant Burst | Crack de hielo + siseo de nova | ✅ opcional: chasquido helado en congelados (P3) |
 | `sfx-mod-orb-siphon` | Orb Siphon | Whoosh magnético de aspirado | — |
 | `sfx-mod-chain-relay` | Chain Relay | Zap de arco encadenado (1 por salto, pitch descendente) | — |
@@ -172,21 +173,34 @@ La dificultad escala LINEAL (`difficultyScalar` es el knob único; waves 2.8s→
 | `music-merchant-duck` | Ventana del chatarrero | No es pieza nueva: **duck** de la música de combate + capa cálida ligera opcional mientras la tienda está abierta | P2 |
 | `music-run-foundry` / `music-run-neon` | Mapas 2-3 | Arco fundición → neón/synth. **Post-v1** — anotado para no perder el arco | P3 |
 
-## 10. Requisitos técnicos del sistema de audio (para la implementación, no para la generación)
+## 10. Foundation técnica (AHORA; sin producir el catálogo)
 
-- **Motor**: Web Audio API (nativo en Electron) o Howler.js. Un `src/audio.ts` central: `sfx(id, {pitch, volume})` + `music` con capas y crossfade.
-- **Los 3 sliders de settings ya existen** — `src/settings.ts` persiste master/music/sfx: cablear el mixer a ellos es el primer paso.
-- **Pool de voces + variación**: pitch aleatorio ±10% en todo SFX repetitivo, cap por categoría (muertes ~6, golpes ~4, pickups ~4). Sin esto, 400 enemigos = puré blanco.
-- **Atenuación por distancia** para loops espaciales (portal, drone, merchant beam): con la cámara top-down basta distancia 2D al jugador, no hace falta HRTF.
-- **Prioridad de mezcla**: jugador herido > boss > armas > muertes > pickups > ambiente.
-- **Ducking**: música baja durante ruleta de cofre, tienda, pausa y pantallas de fin.
+- **`AudioDirector` semántico**: inicialmente observa eventos de gameplay tipados emitidos por el `Game` actual (`run-started`, `weapon-fired`, `enemy-hit`, `boss-state`, `ui-opened`, etc.) y decide reproducción; el gameplay no conoce nodos, buffers ni archivos. `RunSimulation` todavía NO existe: cuando se extraiga durante el gate futuro, debe conservar este contrato de eventos. Renderer/HUD/audio observan la simulación, no la poseen.
+- **Buses**: Master → Music/SFX, ligados a `masterVolume`, `musicVolume` y `sfxVolume` existentes. Los cambios se aplican sin reiniciar la run.
+- **Seguridad de plataforma**: no-op si Web Audio o un asset no está disponible; ningún error de decode/reproducción puede romper la partida. El contexto solo se crea/reanuda después de un gesto del usuario y se libera/silencia al salir.
+- **Presupuesto de rendimiento**: `AUDIO.voiceCaps` (o equivalente) vive en `src/config.ts` antes de aceptar la implementación; define caps por evento/categoría y el pool. A 400+ enemigos, las fuentes de baja prioridad se descartan o reemplazan, no se acumulan.
+- **Contrato de eventos**: IDs semánticos estables y payload pequeño (posición opcional, intensidad/prioridad); variación de pitch, atenuación y ducking viven dentro del director. El runtime solo reproduce assets pre-renderizados; nunca sintetiza SFX procedurales durante la run.
+- **Aceptación foundation**: settings gobiernan los tres buses, navegador sin audio sigue jugable, gesto de usuario reanuda, y un benchmark registrado con 400+ enemigos apunta a 60 FPS mientras mide drops de voz y fugas de fuentes. Los caps deben ser config-owned, no constantes internas del director.
+
+## 10a. Autoría aprobada (OFFLINE; no runtime)
+
+- **SFX:** generador procedural determinista offline con recetas/semillas versionadas; produce WAV masters y exports runtime pre-renderizados. No usar síntesis runtime.
+- **Música:** Suno solo bajo plan Pro/Premier activo en el momento de generar para uso comercial; conservar los artefactos y evidencia de licencia requeridos. No imitar artistas.
+- **Fuente canónica:** `docs/AUDIO_AUTHORING_PIPELINE.md` define manifiesto `evento semántico → asset`, variantes, normalización/fades, provenance y fuentes oficiales.
+
+## 11. Requisitos para el catálogo completo (DESPUÉS de Fase 5)
+
+- Motor: Web Audio API nativo en Electron o una capa equivalente que preserve el contrato del `AudioDirector`.
+- Pool de voces + variación: pitch aleatorio ±10% en SFX repetitivo, cap por categoría (muertes ~6, golpes ~4, pickups ~4).
+- Atenuación 2D para loops espaciales (portal, drone, merchant beam); no hace falta HRTF.
+- Prioridad de mezcla: jugador herido > boss > armas > muertes > pickups > ambiente; ducking durante ruleta de cofre, tienda, pausa y pantallas de fin.
 
 ## Resumen de volumen de trabajo
 
 | Bloque | P1 | P2 | P3 | Total |
 |---|---|---|---|---|
 | Armas | 12 | 1 | 1 | 14 |
-| Mods | 4 | 15 | 2 | 21 |
+| Mods | 5 | 15 | 2 | 22 |
 | Enemigos/bosses | 8 | 5 | 0 | 13 |
 | Jugador | 5 | 0 | 1 | 6 |
 | Economía/pickups | 9 | 4 | 2 | 15 |
@@ -195,4 +209,4 @@ La dificultad escala LINEAL (`difficultyScalar` es el knob único; waves 2.8s→
 | Música | 5 | 1 | 2 | 8 |
 | **Total** | **~50** | **~35** | **~10** | **~95** |
 
-**Orden de ataque sugerido**: (1) `src/audio.ts` + mixer cableado a settings → (2) los ~50 P1 (con eso el juego "suena completo") → (3) playtest de mezcla → (4) P2 → (5) P3 post-feedback.
+**Orden vigente**: (1) foundation `AudioDirector` + buses/settings + presupuesto → (2) contenido/balance/retención → (3) re-auditar inventario → (4) P1 + mezcla/playtest → (5) P2 → (6) P3 post-feedback.

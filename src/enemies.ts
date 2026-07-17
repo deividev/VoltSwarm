@@ -15,7 +15,7 @@ import {
   type WeaponId,
 } from './config';
 import type { EnemyProjectiles } from './enemy-projectiles';
-import type { Obstacle } from './world';
+import { findClearSpot, findRandomClearSpot, type Obstacle } from './world';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, modelKeyForTypeName, VOXEL_MODELS } from './models/registry';
 import { litMaterial } from './toon';
@@ -283,7 +283,7 @@ export class EnemySystem {
     obstacles: Obstacle[],
     projectiles: EnemyProjectiles,
   ): void {
-    this.updateSpawner(dt, elapsedS, difficulty, playerX, playerZ);
+    this.updateSpawner(dt, elapsedS, difficulty, playerX, playerZ, obstacles);
 
     for (const e of this.pool) {
       if (!e.active) continue;
@@ -331,16 +331,16 @@ export class EnemySystem {
 
       switch (type.behavior) {
         case 'chase':
-          this.moveChase(e, dt, playerX, playerZ);
+          this.moveChase(e, dt, playerX, playerZ, obstacles);
           break;
         case 'roller':
-          this.moveRoller(e, dt, playerX, playerZ);
+          this.moveRoller(e, dt, playerX, playerZ, obstacles);
           break;
         case 'gunner':
-          this.moveGunner(e, dt, playerX, playerZ, projectiles);
+          this.moveGunner(e, dt, playerX, playerZ, projectiles, obstacles);
           break;
         case 'flyer':
-          this.moveChase(e, dt, playerX, playerZ);
+          this.moveChase(e, dt, playerX, playerZ, obstacles);
           break;
       }
       e.speed = baseSpeed;
@@ -360,8 +360,9 @@ export class EnemySystem {
 
       // Arena bounds apply to ALL movement, not just knockback — rollers
       // overshoot and gunners retreat, and both can otherwise walk off the floor.
-      e.x = THREE.MathUtils.clamp(e.x, -ARENA_HALF_SIZE, ARENA_HALF_SIZE);
-      e.z = THREE.MathUtils.clamp(e.z, -ARENA_HALF_SIZE, ARENA_HALF_SIZE);
+      const arenaLimit = ARENA_HALF_SIZE - e.radius;
+      e.x = THREE.MathUtils.clamp(e.x, -arenaLimit, arenaLimit);
+      e.z = THREE.MathUtils.clamp(e.z, -arenaLimit, arenaLimit);
 
       if (e.bladeHitTimer > 0) e.bladeHitTimer -= dt;
       if (e.hitFlash > 0) {
@@ -377,13 +378,20 @@ export class EnemySystem {
     this.writeTransforms(elapsedS);
   }
 
-  private moveChase(e: Enemy, dt: number, px: number, pz: number): void {
+  private moveChase(
+    e: Enemy,
+    dt: number,
+    px: number,
+    pz: number,
+    obstacles: Obstacle[],
+  ): void {
     let dx = px - e.x;
     let dz = pz - e.z;
     const dist = Math.hypot(dx, dz);
     if (dist > 0.001) {
       dx /= dist;
       dz /= dist;
+      ({ x: dx, z: dz } = this.steerAroundObstacles(e, dx, dz, obstacles));
       e.x += dx * e.speed * dt;
       e.z += dz * e.speed * dt;
       e.heading = Math.atan2(dx, dz);
@@ -392,8 +400,23 @@ export class EnemySystem {
 
   /** Rollers steer slowly toward the player, so they charge past — the
    *  counterplay is sidestepping, not outrunning. */
-  private moveRoller(e: Enemy, dt: number, px: number, pz: number): void {
-    const target = Math.atan2(px - e.x, pz - e.z);
+  private moveRoller(
+    e: Enemy,
+    dt: number,
+    px: number,
+    pz: number,
+    obstacles: Obstacle[],
+  ): void {
+    const toPlayerX = px - e.x;
+    const toPlayerZ = pz - e.z;
+    const distance = Math.hypot(toPlayerX, toPlayerZ) || 1;
+    const desired = this.steerAroundObstacles(
+      e,
+      toPlayerX / distance,
+      toPlayerZ / distance,
+      obstacles,
+    );
+    const target = Math.atan2(desired.x, desired.z);
     let delta = target - e.heading;
     while (delta > Math.PI) delta -= Math.PI * 2;
     while (delta < -Math.PI) delta += Math.PI * 2;
@@ -412,6 +435,7 @@ export class EnemySystem {
     px: number,
     pz: number,
     projectiles: EnemyProjectiles,
+    obstacles: Obstacle[],
   ): void {
     let dx = px - e.x;
     let dz = pz - e.z;
@@ -421,11 +445,13 @@ export class EnemySystem {
     e.heading = Math.atan2(dx, dz);
 
     if (dist > GUNNER.preferredDist) {
-      e.x += dx * e.speed * dt;
-      e.z += dz * e.speed * dt;
+      const movement = this.steerAroundObstacles(e, dx, dz, obstacles);
+      e.x += movement.x * e.speed * dt;
+      e.z += movement.z * e.speed * dt;
     } else if (dist < GUNNER.retreatDist) {
-      e.x -= dx * e.speed * 0.8 * dt;
-      e.z -= dz * e.speed * 0.8 * dt;
+      const movement = this.steerAroundObstacles(e, -dx, -dz, obstacles);
+      e.x += movement.x * e.speed * 0.8 * dt;
+      e.z += movement.z * e.speed * 0.8 * dt;
     }
 
     e.phase -= dt;
@@ -490,17 +516,31 @@ export class EnemySystem {
   private resolveObstacles(obstacles: Obstacle[]): void {
     for (const e of this.pool) {
       if (!e.active) continue;
-      if (ENEMY_TYPES[e.typeIndex]?.behavior === 'flyer') continue;
-      for (const o of obstacles) {
-        const minDist = o.radius + e.radius;
-        const dx = e.x - o.x;
-        const dz = e.z - o.z;
-        const dSq = dx * dx + dz * dz;
-        if (dSq >= minDist * minDist || dSq < 0.0001) continue;
-        const dist = Math.sqrt(dSq);
-        e.x = o.x + (dx / dist) * minDist;
-        e.z = o.z + (dz / dist) * minDist;
+      const isFlyer = ENEMY_TYPES[e.typeIndex]?.behavior === 'flyer';
+      for (let pass = 0; pass < ENEMIES.obstacleAvoidance.resolvePasses; pass++) {
+        for (const o of obstacles) {
+          if (isFlyer && !o.blocksFlyers) continue;
+          const minDist = o.radius + e.radius;
+          let dx = e.x - o.x;
+          let dz = e.z - o.z;
+          const dSq = dx * dx + dz * dz;
+          if (dSq >= minDist * minDist) continue;
+          if (dSq < 0.0001) {
+            const angle = (e.slot * 2.399963229728653) % (Math.PI * 2);
+            dx = Math.cos(angle);
+            dz = Math.sin(angle);
+          } else {
+            const inverseDistance = 1 / Math.sqrt(dSq);
+            dx *= inverseDistance;
+            dz *= inverseDistance;
+          }
+          e.x = o.x + dx * minDist;
+          e.z = o.z + dz * minDist;
+        }
       }
+      const arenaLimit = ARENA_HALF_SIZE - e.radius;
+      e.x = THREE.MathUtils.clamp(e.x, -arenaLimit, arenaLimit);
+      e.z = THREE.MathUtils.clamp(e.z, -arenaLimit, arenaLimit);
     }
   }
 
@@ -584,6 +624,7 @@ export class EnemySystem {
     difficulty: number,
     playerX: number,
     playerZ: number,
+    obstacles: Obstacle[],
   ): void {
     this.spawnTimer -= dt;
     if (this.spawnTimer > 0) return;
@@ -610,7 +651,7 @@ export class EnemySystem {
         elapsedS >= ELITES.minRunTimeS &&
         ELITES.behaviors.includes(type.behavior) &&
         Math.random() < ELITES.chanceAtMaxDifficulty * difficulty;
-      this.spawn(type, hpMultiplier, playerX, playerZ, elite);
+      this.spawn(type, hpMultiplier, playerX, playerZ, elite, obstacles);
     }
   }
 
@@ -620,21 +661,39 @@ export class EnemySystem {
     playerX: number,
     playerZ: number,
     elite: boolean,
+    obstacles: Obstacle[],
   ): void {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = THREE.MathUtils.lerp(ENEMIES.spawnRingMin, ENEMIES.spawnRingMax, Math.random());
+    const scaleMultiplier = elite ? ELITES.scaleMultiplier : 1;
+    const radius = type.radius * scaleMultiplier;
+    const spot = findRandomClearSpot(
+      playerX,
+      playerZ,
+      ENEMIES.spawnRingMin,
+      ENEMIES.spawnRingMax,
+      radius,
+      obstacles,
+    );
+    if (!spot) return;
     this.spawnAt(
       ENEMY_TYPES.indexOf(type),
-      playerX + Math.cos(angle) * dist,
-      playerZ + Math.sin(angle) * dist,
+      spot.x,
+      spot.z,
       hpMultiplier,
       elite,
+      obstacles,
     );
   }
 
   /** Spawns a specific type at an exact position (bosses, boss minions).
    *  Returns the pool index, or -1 when the type's budget is exhausted. */
-  spawnAt(typeIndex: number, x: number, z: number, hpMultiplier = 1, elite = false): number {
+  spawnAt(
+    typeIndex: number,
+    x: number,
+    z: number,
+    hpMultiplier = 1,
+    elite = false,
+    obstacles: Obstacle[] = [],
+  ): number {
     const type = ENEMY_TYPES[typeIndex];
     if (!type) return -1;
     const index = this.pool.findIndex((c) => !c.active && c.typeIndex === typeIndex);
@@ -642,16 +701,21 @@ export class EnemySystem {
     const e = this.pool[index];
     if (!e) return -1;
 
+    const scaleMultiplier = elite ? ELITES.scaleMultiplier : 1;
+    const radius = type.radius * scaleMultiplier;
+    const spot = findClearSpot(x, z, obstacles, radius);
+    if (!spot) return -1;
+
     e.gen++;
     e.active = true;
-    e.x = THREE.MathUtils.clamp(x, -ARENA_HALF_SIZE, ARENA_HALF_SIZE);
-    e.z = THREE.MathUtils.clamp(z, -ARENA_HALF_SIZE, ARENA_HALF_SIZE);
+    e.x = spot.x;
+    e.z = spot.z;
     e.elite = elite;
     e.maxHp = Math.round(type.hp * hpMultiplier * (elite ? ELITES.hpMultiplier : 1));
     e.hp = e.maxHp;
     e.speed = type.speed;
-    e.scale = type.scale * (elite ? ELITES.scaleMultiplier : 1);
-    e.radius = type.radius * (elite ? ELITES.scaleMultiplier : 1);
+    e.scale = type.scale * scaleMultiplier;
+    e.radius = radius;
     e.xp = type.xp * (elite ? ELITES.xpMultiplier : 1);
     e.heading = Math.random() * Math.PI * 2;
     e.phase = type.behavior === 'gunner' ? Math.random() * GUNNER.shootCooldownS : 0;
@@ -692,6 +756,53 @@ export class EnemySystem {
     }
     e.dotTimer = Math.max(e.dotTimer, durationS);
     if (e.dotTick <= 0) e.dotTick = STATUS.dotTickS * 0.5;
+  }
+
+  /** Preserve each behavior's desired direction while adding a stable tangent
+   *  before it reaches a blocking obstacle. */
+  private steerAroundObstacles(
+    e: Enemy,
+    desiredX: number,
+    desiredZ: number,
+    obstacles: Obstacle[],
+  ): { x: number; z: number } {
+    const isFlyer = ENEMY_TYPES[e.typeIndex]?.behavior === 'flyer';
+    const cfg = ENEMIES.obstacleAvoidance;
+    const bossMultiplier = BOSS_TYPE_INDEXES.includes(e.typeIndex)
+      ? cfg.bossLookAheadMultiplier
+      : 1;
+    const lookAhead = cfg.lookAhead * bossMultiplier + e.radius;
+    let steerX = desiredX;
+    let steerZ = desiredZ;
+
+    for (const obstacle of obstacles) {
+      if (isFlyer && !obstacle.blocksFlyers) continue;
+      const relX = obstacle.x - e.x;
+      const relZ = obstacle.z - e.z;
+      const forward = relX * desiredX + relZ * desiredZ;
+      if (forward <= 0 || forward > lookAhead) continue;
+
+      const lateralX = relX - desiredX * forward;
+      const lateralZ = relZ - desiredZ * forward;
+      const lateralSq = lateralX * lateralX + lateralZ * lateralZ;
+      const clearance = obstacle.radius + e.radius + cfg.clearance;
+      if (lateralSq >= clearance * clearance) continue;
+
+      const leftX = -desiredZ;
+      const leftZ = desiredX;
+      const lateralSide = relX * leftX + relZ * leftZ;
+      const side = Math.abs(lateralSide) > 0.001
+        ? lateralSide > 0 ? -1 : 1
+        : e.slot % 2 === 0 ? 1 : -1;
+      const proximity = 1 - Math.sqrt(lateralSq) / clearance;
+      const urgency = 1 - forward / lookAhead;
+      const strength = cfg.steerStrength * (0.35 + proximity + urgency);
+      steerX += leftX * side * strength;
+      steerZ += leftZ * side * strength;
+    }
+
+    const length = Math.hypot(steerX, steerZ) || 1;
+    return { x: steerX / length, z: steerZ / length };
   }
 
   /** Shoves the enemy along a direction. Bosses are immune. */

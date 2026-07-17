@@ -36,7 +36,7 @@ Recordatorio del método (`METODO_DISENO.md`): esta comparativa NO es una lista 
 - **Cantidad**: 6 vs 29. Para que el draft inicial y el tope de 2 armas generen builds variadas, el objetivo razonable es 10-12. El backlog de `DESIGN_MEJORAS.md` ya cubre 10 arquetipos — es construir, no diseñar.
 - **Hueco estructural #1 — estados alterados**: Frostwalker congela, Poison Flask envenena, Tornado empuja. Nosotros NO tenemos sistema de estados (slow/DoT/knockback). Sin él, media lista de armas futuras no se puede construir. Es el prerequisito técnico más importante.
 - **Hueco #2 — armas condicionales ("twist")**: ejecutar bajo % de vida, más daño con poca vida, robo de vida. Son baratas de código y carísimas en identidad de build. Versiones nuestras: *Chatarra Desesperada* (+daño por HP faltante), *Desguazador* (ejecuta <15% HP), *Sanguijuela Magnética* (lifesteal).
-- **Hueco #3 — arma defensiva** (Aegis): con Shield/Thorns en la ficha (ver abajo) sale natural: *Placa Reactiva* — bloquea contacto frontal y devuelve onda.
+- **Defensa de escudo - resuelta**: Barrier Cell es un Mod azul de cofre/chatarrero; bloquea golpes completos, gana 1-6 cargas hasta 6 y despues mejora la recarga 8s a 4s hasta 10 copias.
 
 ---
 
@@ -51,6 +51,7 @@ Recordatorio del método (`METODO_DISENO.md`): esta comparativa NO es una lista 
 | Agility (move speed) | Servo Tune-Up |
 | Health | Hull Plates |
 | Regen | Nanobot Swarm |
+| Shield | Barrier Cell: Mod azul de cofre/chatarrero; absorbe antes que la vida, 1-6 cargas hasta 6 y 7-10 recarga 8s a 4s |
 | Precision (crit) | Targeting Chip |
 | Projectile Speed | Ballistics Kit |
 | Size | Expansion Module + cofre Area |
@@ -66,7 +67,6 @@ Además tenemos **Attack Range** y **Crit Damage** como mejoras propias que Mega
 | Tomo | Qué haría en nuestro juego | Coste |
 | --- | --- | --- |
 | Evasion | % de esquivar un golpe entero — segunda capa defensiva con retornos decrecientes | 🟢 |
-| Shield | Barrera que absorbe antes que la vida y recarga a los 5 s sin daño — premia el buen kiting | 🟡 |
 | Bloody (lifesteal) | % de robar 1 HP por golpe — sinergia con attack speed | 🟡 |
 | Thorns | Refleja daño al contacto — build "tanque" viable | 🟢 |
 | Duration | Alarga buffs de cofre (Frenzy/Overdrive) y futuras zonas (Acid, Oil) | 🟢 |
@@ -78,21 +78,21 @@ Además tenemos **Attack Range** y **Crit Damage** como mejoras propias que Mega
 ### Diferencia de sistema en rarezas
 
 - Megabonk: **5 rarezas** (Común 1x → Legendaria 2x) y las cartas de ARMA eligen 1-2 stats del pool propio del arma según rareza.
-- Nosotros (ACTUALIZADO 2026-07-08): **5 tiers — gris → verde → azul → morado → dorado** (ya no las 3 viejas Común/Rara/Épica). Aplican distinto por categoría — **definición canónica en `PRD.md` punto 2**: los **Orbes/Cores** tiran el tier por carta (fija la magnitud); los **Mods** tienen tier fijo por mod (16 repartidos 5/5/3/2/1); las **Armas** NO tienen tier, suben por nivel (Lv1-20).
-- Veredicto: alineado con Megabonk en nº de tiers. El hueco de identidad de las cartas de arma **YA se cerró (Opción A, 2026-07-09)**: la carta "+1 nivel de arma" muestra la mejora concreta de ese nivel vía `describeWeaponLevel` (determinista desde config). La Opción B (que la carta ELIJA qué stat del arma sube según tier, como Megabonk) queda DIFERIDA — revisar antes del launch si vale la pena.
+- Nosotros (ACTUALIZADO 2026-07-17): **5 tiers - gris a dorado**. Los **Cores** tiran tier en el draft; los **Mods** tienen tier fijo (17 repartidos 5/5/4/2/1); las **Armas** suben por nivel (Lv1-20). Barrier Cell es un Mod azul, nunca un Core ni una opcion de Chaos.
+- Veredicto: alineado con Megabonk en numero de tiers y en identidad por arma. Las ramas ya implementadas hacen que cada carta de arma suba un comportamiento concreto, con potencia escalada por tier y copy generado desde config; no queda un sistema de seleccion por arma diferido.
 
 ---
 
 ## 3. Ficha de stats — 8 de Megabonk vs 15 nuestros
 
-Megabonk documenta: Max HP, HP Regen, Overheal, Shield, Armor, Evasion, Lifesteal, Thorns (los defensivos; los ofensivos van implícitos en tomos/armas). Nosotros: 15 stats, fuertes en ofensiva (crit, crit dmg, range, proj speed, area...) y **cojos en defensa**: solo Armor y Regen. Megabonk tiene 6 capas defensivas distintas; nosotros 2. Por eso todas nuestras builds defienden igual: moviéndose. Añadir Evasion + Thorns (🟢) y Shield + Lifesteal (🟡) abriría la primera build tanque real.
+Megabonk documenta varias capas defensivas. Voltswarm ya cuenta con Armor, Regen, Evasion, Thorns, Lifesteal y Shield mediante Barrier Cell; esta ultima es un Mod, no una stat de ficha ni una carta del draft.
 
 ---
 
 ## 4. Plan recomendado (orden)
 
 1. **Sistema de estados alterados** (slow, DoT, knockback) — prerequisito de media lista de armas. 🟡
-2. **Defensa: Evasion + Thorns** (🟢), luego **Shield + Lifesteal** (🟡) — con sus cartas de módulo.
+2. **Defensa** - implementada: Evasion, Thorns, Lifesteal y Barrier Cell; mantener el balance de sus caps y sinergias en playtest.
 3. **Duration + Chaos** como cartas nuevas — 🟢, variedad inmediata del pool.
 4. **3-4 armas nuevas del backlog** usando estados: Oil Trail (slow), Acid Flask (DoT), Turbine (knockback), Junk Ricochet — sube el draft a 10 armas.
 5. **1-2 armas twist** (ejecución / daño por vida faltante) — identidad de build barata.

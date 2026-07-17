@@ -4,6 +4,7 @@ import { litMaterial } from './toon';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
 import type { ModId } from './mods';
+import type { Obstacle } from './world';
 
 // The scrapper merchant: a hunched voxel vendor (front-facing, Camino A
 // 2026-07-09) that visits periodically at a totem-style random spot, sticks
@@ -24,6 +25,12 @@ export class MerchantSystem {
   stock: ModId[] = [];
   private sway = 0;
   private arrivalPulseS = 0;
+  private readonly obstacle: Obstacle = {
+    x: 0,
+    z: 0,
+    radius: MERCHANT.colliderRadius,
+    blocksFlyers: true,
+  };
 
   /** Body/head/crate primitives are swapped for the voxel model; the beam
    *  (a warm shop marker readable from across the map) is kept and lives
@@ -95,6 +102,8 @@ export class MerchantSystem {
     this.stock = stock;
     this.leaveAtS = elapsedS + MERCHANT.staysS;
     this.group.position.set(x, 0, z);
+    this.obstacle.x = x;
+    this.obstacle.z = z;
     this.group.visible = true;
     this.arrivalPulseS = 1.35;
   }
@@ -112,6 +121,10 @@ export class MerchantSystem {
 
   remainingS(elapsedS: number): number {
     return Math.max(0, this.leaveAtS - elapsedS);
+  }
+
+  appendObstacle(target: Obstacle[]): void {
+    if (this.active) target.push(this.obstacle);
   }
 
   /** Idle sway — the non-hostile body language (body only; beam stays put). */

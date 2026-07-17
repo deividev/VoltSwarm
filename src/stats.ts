@@ -36,8 +36,6 @@ export interface PlayerStats {
   evasion: number;
   /** Damage reflected to enemies that touch the player. */
   thorns: number;
-  /** Shield charges (max 3): each blocks one full hit, regenerating over time. */
-  shield: number;
   /** Percent chance to steal 1 HP per weapon hit. */
   lifesteal: number;
   /** Multiplier on buff and status-effect durations. */
@@ -63,7 +61,6 @@ export function defaultStats(): PlayerStats {
     xpGain: 1,
     evasion: 0,
     thorns: 0,
-    shield: 0,
     lifesteal: 0,
     duration: 1,
   };

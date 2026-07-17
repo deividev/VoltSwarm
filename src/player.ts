@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ARENA_HALF_SIZE, PLAYER, VISUAL } from './config';
+import { ARENA_HALF_SIZE, BARRIER_CELL, PLAYER, VISUAL } from './config';
 import type { PlayerInput } from './input';
 import type { Obstacle } from './world';
 import { buildGridGeometry } from './models/voxel-builder';
@@ -60,7 +60,7 @@ export class Player {
       transparent: true,
       opacity: 0.75,
     });
-    for (let i = 0; i < PLAYER.maxShieldCharges; i++) {
+    for (let i = 0; i < BARRIER_CELL.capacityCap; i++) {
       const plate = new THREE.Mesh(plateGeometry, plateMaterial);
       plate.visible = false;
       this.shieldGroup.add(plate);
@@ -201,20 +201,30 @@ export class Player {
     const speed = this.moveSpeed * speedMultiplier;
     this.position.x += axis.x * speed * dt;
     this.position.z += axis.y * speed * dt;
-    this.position.x = THREE.MathUtils.clamp(this.position.x, -ARENA_HALF_SIZE, ARENA_HALF_SIZE);
-    this.position.z = THREE.MathUtils.clamp(this.position.z, -ARENA_HALF_SIZE, ARENA_HALF_SIZE);
+    const arenaLimit = ARENA_HALF_SIZE - PLAYER.radius;
+    this.position.x = THREE.MathUtils.clamp(this.position.x, -arenaLimit, arenaLimit);
+    this.position.z = THREE.MathUtils.clamp(this.position.z, -arenaLimit, arenaLimit);
 
     // Circular push-out against large props: sliding along them, no snagging.
     for (const o of obstacles) {
       const minDist = o.radius + PLAYER.radius;
-      const dx = this.position.x - o.x;
-      const dz = this.position.z - o.z;
+      let dx = this.position.x - o.x;
+      let dz = this.position.z - o.z;
       const dSq = dx * dx + dz * dz;
-      if (dSq >= minDist * minDist || dSq < 0.0001) continue;
-      const dist = Math.sqrt(dSq);
-      this.position.x = o.x + (dx / dist) * minDist;
-      this.position.z = o.z + (dz / dist) * minDist;
+      if (dSq >= minDist * minDist) continue;
+      if (dSq < 0.0001) {
+        dx = 1;
+        dz = 0;
+      } else {
+        const inverseDistance = 1 / Math.sqrt(dSq);
+        dx *= inverseDistance;
+        dz *= inverseDistance;
+      }
+      this.position.x = o.x + dx * minDist;
+      this.position.z = o.z + dz * minDist;
     }
+    this.position.x = THREE.MathUtils.clamp(this.position.x, -arenaLimit, arenaLimit);
+    this.position.z = THREE.MathUtils.clamp(this.position.z, -arenaLimit, arenaLimit);
     this.mesh.position.copy(this.position);
 
     const moving = axis.x !== 0 || axis.y !== 0;
@@ -267,6 +277,7 @@ export class Player {
     this.moveSpeed = PLAYER.moveSpeed;
     this.position.set(0, 0, 0);
     this.invulnTimer = 0;
+    this.setShieldCharges(0);
     this.mesh.visible = true;
     this.markerPulse = 0;
     if (this.markerGroup) {

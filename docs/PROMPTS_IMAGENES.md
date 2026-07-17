@@ -84,17 +84,17 @@ Uno por arma, mismo prompt base, cambiando sujeto y color de acento por arma. Gr
 
 Prompt tipo (Bolt Cannon): `weapon icon: a short stubby bolt cannon barrel, voxel/blocky cubic construction with visible block edges, glowing yellow #ffe066 muzzle, industrial toy aesthetic, flat saturated colors, dark gray #232830 body, centered, transparent background, 128x128 game UI icon` — para el resto de armas de la tabla, sustituir sujeto y acento manteniendo intacto el resto del prompt (voxel + fondo transparente + 128×128).
 
-## 4. Iconos de stats — ✅ LOS 20 CERRADOS Y CABLEADOS (2026-07-08)
+## 4. Iconos de stats - 19 cerrados y cableados (2026-07-08; Barrier Cell reutiliza el antiguo icono Shield)
 
-Los 20 stats tienen icono aprobado y cableado en `src/hud.ts` (`STAT_ICON_IMAGES`), archivos en `public/assets/2d/icon-stat-*.png`. Proceso: uno a uno con aprobación del usuario, Codex/gpt-image con style-lock a 2-3 iconos aprobados adjuntos, `check-alpha.mjs` + lockup a 32px antes de cada aprobación. Iteraciones que dejaron lección: **Projectiles v2** (cuerpos blanco hueso→morado: las piezas FINAS claras se lavan en el chip; el blanco solo funciona en masas grandes como bota/plato/placa), **Shield v2** (hexágono energético→crest clásico azul: el concepto abstracto no leía "escudo", y su teal casi calcaba a Thorns), **XP Gain v2** (chip de datos→orbe azul `#51c8ff` del juego + flecha verde: el chip decía "tecnología", no "subir de nivel" — el icono debe hablar el idioma del GAMEPLAY, y el color del orbe se midió de `xp-orbs.ts`, no se inventó). Asignación de color pensada por PAREJAS/FAMILIAS: rojo señal = par de crítico (Crit/Crit Dmg), cian = movimiento (Atk Speed/Move Speed/Proj Speed exhaust), dorado = fortuna/orbes viejos (Luck), azul cobalto/azul cielo = defensa energética y XP, sin repetir combo color+silueta en ningún par de los 31 iconos (20 stats + 11 armas).
+Los 19 stats activos tienen icono aprobado y cableado en `src/hud.ts` (`STAT_ICON_IMAGES`), archivos en `public/assets/2d/icon-stat-*.png`. `icon-stat-shield-v2.png` ya no pertenece a la ficha: se reutiliza como imagen de Barrier Cell en `MOD_REGISTRY`, porque su crest azul lee claramente como defensa.
 
 ### Historial §4 (superseded — plan original)
 
-Son **20 stats** (conteo real de `STAT_ROWS` en `src/hud.ts`, no 15/19 como decían versiones previas de este doc y el roadmap). Ya tienen emoji provisional en `src/hud.ts`. Reemplazo 1:1 por versión propia, uno por uno con aprobación del usuario (mismo flujo que las armas). Se muestran también en las cartas de level-up ("choose an upgrade"), no solo en el panel de build.
+Son **19 stats activos** (conteo actual de `STAT_ROWS` en `src/hud.ts`). Shield dejo la ficha al migrar a Barrier Cell; su icono aprobado se conserva como imagen del Mod.
 
 - **Fuente 128×128** (no 64 — mismo grid que los iconos de armas, que son la vara de estilo). Archivos: `public/assets/2d/icon-stat-<key>.png` (sufijo `-v2`/`-v3` al iterar, nunca sobreescribir aprobados).
 - **Prompt tipo** (Damage): `stat icon: a stylized impact burst / explosion symbol, built from many individual visible cubic blocks with flat per-face shading, yellow-orange #ffb400 flat colors, dark gray #232830 secondary, industrial toy aesthetic, visible block edges, centered, transparent background, 128x128 game UI icon, same style as this reference weapon icon set` + adjuntar 1-2 iconos de arma aprobados como referencia (`icon-weapon-press-v2.png`, `icon-weapon-tire.png`) — la frase multi-bloque y la referencia adjunta son obligatorias (regla 2026-07-06: "voxel" a secas produce ilustración vectorial plana).
-- Sujetos: Damage (explosión/impacto), Atk Speed (rayo), Crit (mira/diana), Crit Dmg (puño impactando), Move Speed (huella con líneas de velocidad), Range (regla/compás), Pickup (imán en herradura), Projectiles (racimo de pernos), Proj Speed (cohete), Area (círculo expandiéndose), Armor (placa/escudo), Regen (corazón mecánico con engranaje), Evasion (silueta fantasma), Thorns (púas), Shield (núcleo hexagonal brillante), Lifesteal (gota con circuito), Duration (reloj de arena), Luck (trébol de tuercas), XP Gain (libro/chip de datos), Cursed (cráneo de robot).
+- Sujetos: Damage (explosión/impacto), Atk Speed (rayo), Crit (mira/diana), Crit Dmg (puño impactando), Move Speed (huella con líneas de velocidad), Range (regla/compás), Pickup (imán en herradura), Projectiles (racimo de pernos), Proj Speed (cohete), Area (círculo expandiéndose), Armor (placa/escudo), Regen (corazón mecánico con engranaje), Evasion (silueta fantasma), Thorns (púas), Lifesteal (gota con circuito), Duration (reloj de arena), Luck (trébol de tuercas), XP Gain (libro/chip de datos), Cursed (cráneo de robot).
 - Aplican las mismas reglas que las armas (§3): **silueta única** contra todo lo ya aprobado (armas incluidas — conviven en el mismo panel), **prueba de contraste de HUD** a tamaño real antes de aprobar, y **verificar alpha** con `tools/check-alpha.mjs`.
 
 ## 4b. Iconos de ITEMS — ✅ LOS 7 CERRADOS Y CABLEADOS (2026-07-08)
@@ -116,6 +116,7 @@ Los ITEMS son su propia familia visual: **nunca reutilizan iconos de stats** (re
 **PAUSA DE ARTE (2026-07-08, decisión del usuario)**: antes de generar más arte (Hull Plates, Chaos, ornamentos de rareza §5, cofre/portal voxel) se ajustan otros sistemas de juego — esos ajustes pedirán arte nuevo y conviene definirlo todo junto.
 
 ## 4b-bis. Iconos de MODS + UI — TANDA FINAL del Bloque C (17 iconos, 2026-07-10)
+**Excepcion aprobada (2026-07-17):** Barrier Cell no genera un icono nuevo; reutiliza `icon-stat-shield-v2.png` como Mod azul de cofre/chatarrero.
 
 Pipeline idéntico a §4/§4b (Codex imagen → check-alpha → juzgar al chip real → aprobación del usuario uno a uno → cablear). Los MODS son familia propia (regla §4b: nunca reusar iconos de stats; "rima" de color/motivo cuando tocan un stat). Conceptos canónicos en `DESIGN_MEJORAS.md` Lista 4:
 

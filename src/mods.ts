@@ -4,8 +4,8 @@ import { rollRarity, type Rarity } from './upgrades';
 // The unified mod pool (docs/DESIGN_MEJORAS.md Lista 4): one list, two doors.
 // The chest reel rolls it for free (tier-weighted) and the merchant sells it
 // for in-run gold. Consumables apply instantly and can always re-drop;
-// permanents stack without a copy cap — their balance lives in per-mod
-// floors/caps (config.MODS).
+// permanents stack by default; deliberate exceptions may have a hard copy cap.
+// Their balance lives in per-mod floors/caps (config.MODS).
 
 export type ConsumableModId = 'repair' | 'scrap-cache' | 'frenzy' | 'haste';
 export type PermanentModId =
@@ -13,6 +13,7 @@ export type PermanentModId =
   | 'kick-plate'
   | 'loose-bolts'
   | 'detonator-rig'
+  | 'barrier-cell'
   | 'coolant-burst'
   | 'orb-siphon'
   | 'chain-relay'
@@ -101,6 +102,14 @@ export const MOD_REGISTRY: Record<ModId, ModInfo> = {
     description: `Every ${MODS.detonatorRig.kills} kills, the next kill explodes in an AoE.`,
     icon: '🧨',
     image: 'assets/2d/icon-mod-detonator-rig.png',
+  },
+  'barrier-cell': {
+    tier: 'blue',
+    kind: 'permanent',
+    label: 'Barrier Cell',
+    description: 'Blocks full hits and expands your rechargeable shield.',
+    icon: 'shield',
+    image: 'assets/2d/icon-stat-shield-v2.png',
   },
   'coolant-burst': {
     tier: 'green',
@@ -219,13 +228,18 @@ export function rollMod(luck: number): ModId {
 /** Rolls one UNLOCKED mod of a fixed tier. Chests cap their tier at spawn
  *  (resolveChestTier) so this returns an exact-tier mod in practice; the
  *  DOWN fall-through stays only as a safety net (e.g. shop tier rolls). */
-export function rollModOfTier(tier: Rarity): ModId {
+export function rollModOfTier(
+  tier: Rarity,
+  eligible: (id: ModId) => boolean = () => true,
+): ModId {
   for (let i = Math.max(0, TIER_ORDER.indexOf(tier)); i < TIER_ORDER.length; i++) {
     const t = TIER_ORDER[i];
     if (!t) continue;
-    const pool = unlockedModsOfTier(t);
+    const pool = unlockedModsOfTier(t).filter(eligible);
     if (pool.length > 0) return pool[Math.floor(Math.random() * pool.length)] ?? 'repair';
   }
+  // A restrictive predicate must not reintroduce an ineligible Mod through
+  // fallback. The default account always has eligible consumables available.
   return 'repair';
 }
 
@@ -235,14 +249,48 @@ export function tierPrice(tier: Rarity, elapsedMinutes: number, discount: number
   return Math.max(1, Math.round(base * (1 + MERCHANT.priceRampPerMin * elapsedMinutes) * (1 - discount)));
 }
 
-/** Rolls the merchant stock: distinct mods, one tier roll each. */
-export function rollShopStock(luck: number, count: number): ModId[] {
+/** Rolls the merchant stock: distinct, eligible Mods, one tier roll each. */
+export function rollShopStock(
+  luck: number,
+  count: number,
+  eligible: (id: ModId) => boolean = () => true,
+): ModId[] {
   const stock: ModId[] = [];
   for (let guard = 0; stock.length < count && guard < 50; guard++) {
-    const id = rollMod(luck);
-    if (!stock.includes(id)) stock.push(id);
+    const id = rollModOfTier(rollRarity(luck), eligible);
+    if (eligible(id) && !stock.includes(id)) stock.push(id);
   }
   return stock;
+}
+
+export function barrierCellCapacity(copies: number): number {
+  return Math.min(
+    MODS.barrierCell.capacityCap,
+    Math.max(0, copies) * MODS.barrierCell.capacityPerCopy,
+  );
+}
+
+export function barrierCellRegenS(copies: number): number {
+  const capacityCopies = Math.ceil(MODS.barrierCell.capacityCap / MODS.barrierCell.capacityPerCopy);
+  const extraCopies = Math.max(0, copies - capacityCopies);
+  return Math.max(
+    MODS.barrierCell.regenFloorS,
+    MODS.barrierCell.regenS - extraCopies * MODS.barrierCell.regenReductionPerExtraCopyS,
+  );
+}
+
+/** Barrier Cell has a finite two-stage curve, so its cap is never sold again. */
+export function isModAtCopyCap(id: ModId, copies: number): boolean {
+  return id === 'barrier-cell' && copies >= MODS.barrierCell.maxCopies;
+}
+
+/** Cumulative wording keeps chest, shop and final-build UI truthful per copy. */
+export function describeMod(id: ModId, copies = 1): string {
+  if (id !== 'barrier-cell') return MOD_REGISTRY[id].description;
+  const capacity = barrierCellCapacity(copies);
+  const regenS = barrierCellRegenS(copies);
+  const maxed = copies >= MODS.barrierCell.maxCopies ? ' Maxed.' : '';
+  return `Blocks a full hit. ${capacity} max shield charge${capacity === 1 ? '' : 's'} (cap ${MODS.barrierCell.capacityCap}); restores 1 every ${regenS}s.${maxed}`;
 }
 
 /** Shop price: tier base × time ramp × Foreman's Whistle discount. */

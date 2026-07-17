@@ -1,5 +1,13 @@
 import * as THREE from 'three';
-import { ARENA_HALF_SIZE, BARREL_PROP, CAMERA, CONTAINER_PROP, SCAFFOLD_PROP, VISUAL } from './config';
+import {
+  ARENA_HALF_SIZE,
+  BARREL_PROP,
+  CAMERA,
+  CONTAINER_PROP,
+  SCAFFOLD_PROP,
+  SPAWN_PLACEMENT,
+  VISUAL,
+} from './config';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
 import { buildGridGeometry } from './models/voxel-builder';
 import { litMaterial } from './toon';
@@ -21,6 +29,10 @@ export interface Obstacle {
   x: number;
   z: number;
   radius: number;
+  /** Optional larger radius used only while reserving spawn positions. */
+  placementRadius?: number;
+  /** Flyers normally ignore map props, but not explicit structures. */
+  blocksFlyers?: boolean;
 }
 
 /** Nudges (x, z) directly away from any obstacle it's currently inside of,
@@ -33,21 +45,99 @@ export function findClearSpot(
   x: number,
   z: number,
   obstacles: Obstacle[],
-  margin: number,
-): { x: number; z: number } {
-  let px = x;
-  let pz = z;
-  for (let attempt = 0; attempt < 8; attempt++) {
-    const hit = obstacles.find((o) => Math.hypot(o.x - px, o.z - pz) < o.radius + margin);
-    if (!hit) break;
-    const dx = px - hit.x;
-    const dz = pz - hit.z;
-    const dist = Math.hypot(dx, dz) || 1;
-    const push = hit.radius + margin - dist + 0.1;
-    px += (dx / dist) * push;
-    pz += (dz / dist) * push;
+  radius: number,
+  clearance = 0,
+): { x: number; z: number } | null {
+  const limit = ARENA_HALF_SIZE - radius - clearance;
+  const originX = THREE.MathUtils.clamp(x, -limit, limit);
+  const originZ = THREE.MathUtils.clamp(z, -limit, limit);
+  if (isClearPosition(originX, originZ, radius, obstacles, clearance)) {
+    return { x: originX, z: originZ };
   }
-  return { x: px, z: pz };
+  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+  for (let attempt = 1; attempt <= SPAWN_PLACEMENT.maxAttempts; attempt++) {
+    const distance = SPAWN_PLACEMENT.spiralStep * Math.sqrt(attempt);
+    const angle = goldenAngle * attempt;
+    const px = originX + Math.cos(angle) * distance;
+    const pz = originZ + Math.sin(angle) * distance;
+    if (isClearPosition(px, pz, radius, obstacles, clearance)) return { x: px, z: pz };
+  }
+  return null;
+}
+
+export function findRandomClearSpot(
+  originX: number,
+  originZ: number,
+  minDistance: number,
+  maxDistance: number,
+  radius: number,
+  obstacles: Obstacle[],
+  clearance = 0,
+): { x: number; z: number } | null {
+  for (let attempt = 0; attempt < SPAWN_PLACEMENT.maxAttempts; attempt++) {
+    const angle = Math.random() * Math.PI * 2;
+    const distance = Math.sqrt(
+      minDistance * minDistance +
+        Math.random() * (maxDistance * maxDistance - minDistance * minDistance),
+    );
+    const x = originX + Math.cos(angle) * distance;
+    const z = originZ + Math.sin(angle) * distance;
+    if (isClearPosition(x, z, radius, obstacles, clearance)) return { x, z };
+  }
+  return null;
+}
+
+export function isClearPosition(
+  x: number,
+  z: number,
+  radius: number,
+  obstacles: Obstacle[],
+  clearance = 0,
+): boolean {
+  const limit = ARENA_HALF_SIZE - radius - clearance;
+  if (x < -limit || x > limit || z < -limit || z > limit) return false;
+  return obstacles.every((obstacle) => {
+    const occupiedRadius = obstacle.placementRadius ?? obstacle.radius;
+    const minDistance = occupiedRadius + radius + clearance;
+    return (obstacle.x - x) ** 2 + (obstacle.z - z) ** 2 >= minDistance * minDistance;
+  });
+}
+
+export function segmentHitsObstacle(
+  startX: number,
+  startZ: number,
+  endX: number,
+  endZ: number,
+  obstacle: Obstacle,
+  padding = 0,
+): boolean {
+  const segmentX = endX - startX;
+  const segmentZ = endZ - startZ;
+  const lengthSq = segmentX * segmentX + segmentZ * segmentZ;
+  const projection = lengthSq > 0
+    ? THREE.MathUtils.clamp(
+        ((obstacle.x - startX) * segmentX + (obstacle.z - startZ) * segmentZ) / lengthSq,
+        0,
+        1,
+      )
+    : 0;
+  const closestX = startX + segmentX * projection;
+  const closestZ = startZ + segmentZ * projection;
+  const radius = obstacle.radius + padding;
+  return (closestX - obstacle.x) ** 2 + (closestZ - obstacle.z) ** 2 <= radius * radius;
+}
+
+export function hasLineOfSight(
+  startX: number,
+  startZ: number,
+  endX: number,
+  endZ: number,
+  obstacles: Obstacle[],
+  padding = 0,
+): boolean {
+  return !obstacles.some((obstacle) =>
+    segmentHitsObstacle(startX, startZ, endX, endZ, obstacle, padding),
+  );
 }
 
 export function createScene(): {
@@ -284,7 +374,7 @@ function randomPointInSector(
  *  and keeps at least `minSeparation` from every other generated point and
  *  `radius` from every point in `avoid` (container gates, the boss totem,
  *  ...) — best-effort (20 retries per point), so a crowded arena just ends
- *  up a bit closer rather than hanging. */
+ *  up with fewer props rather than violating separation. */
 function scatterPoints(
   count: number,
   minDist: number,
@@ -299,16 +389,17 @@ function scatterPoints(
   const sectorOffset = Math.random() * Math.PI * 2;
   for (let i = 0; i < count; i++) {
     const sectorStart = sectorOffset + i * sectorSize;
-    let point = randomPointInSector(sectorStart, sectorSize, minDist, maxDist);
-    for (let attempt = 0; attempt < 20; attempt++) {
+    for (let attempt = 0; attempt < SPAWN_PLACEMENT.maxAttempts; attempt++) {
+      const point = randomPointInSector(sectorStart, sectorSize, minDist, maxDist);
       const tooCloseToAvoid = avoid.some((p) => Math.hypot(p.x - point.x, p.z - point.z) < p.radius);
       const tooCloseToOwn = points.some(
         (p) => Math.hypot(p.x - point.x, p.z - point.z) < minSeparation,
       );
-      if (!tooCloseToAvoid && !tooCloseToOwn) break;
-      point = randomPointInSector(sectorStart, sectorSize, minDist, maxDist);
+      if (!tooCloseToAvoid && !tooCloseToOwn) {
+        points.push(point);
+        break;
+      }
     }
-    points.push(point);
   }
   return points;
 }

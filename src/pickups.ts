@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { ARENA_HALF_SIZE, CHEST, PICKUPS, RECORDING } from './config';
+import { CHEST, PICKUPS, RECORDING } from './config';
 import { litMaterial } from './toon';
 import { rollRarity, type Rarity } from './upgrades';
 import { resolveChestTier, TIER_COLORS } from './mods';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
+import { findClearSpot, findRandomClearSpot, type Obstacle } from './world';
 
 // Scrap crates that spawn around the map, separate from level-up choices.
 // They give the player a reason to move somewhere and spend gold.
@@ -20,6 +21,7 @@ interface PickupSlot {
   crate: THREE.Mesh;
   crateMat: THREE.MeshLambertMaterial | THREE.MeshToonMaterial;
   beamMat: THREE.MeshBasicMaterial;
+  obstacle: Obstacle;
   /** Bob origin: primitive box floats at 0.8; the voxel model sits lower. */
   baseY: number;
 }
@@ -65,7 +67,25 @@ export class PickupSystem {
       group.add(crate, beam);
       group.visible = false;
       scene.add(group);
-      this.slots.push({ active: false, tier: 'gray', group, crate, crateMat, beamMat, baseY: 0.8 });
+      this.slots.push({
+        active: false,
+        tier: 'gray',
+        group,
+        crate,
+        crateMat,
+        beamMat,
+        baseY: 0.8,
+        obstacle: {
+          x: 0,
+          z: 0,
+          radius: CHEST.colliderRadius,
+          placementRadius: Math.max(
+            CHEST.colliderRadius,
+            CHEST.minSpawnSeparation - CHEST.colliderRadius,
+          ),
+          blocksFlyers: true,
+        },
+      });
     }
 
     // Image-derived voxel chests load async and swap over the primitives.
@@ -101,11 +121,11 @@ export class PickupSystem {
 
   /** Advances timers/animation and spawns the periodic crate. Collection is
    *  no longer automatic — game.ts opens chests via nearestOpenable + open. */
-  update(dt: number, px: number, pz: number, luck: number): void {
+  update(dt: number, px: number, pz: number, luck: number, obstacles: Obstacle[]): void {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer = PICKUPS.spawnIntervalS;
-      this.spawn(px, pz, luck);
+      this.spawn(px, pz, luck, obstacles);
     }
 
     this.bobPhase += dt;
@@ -142,17 +162,32 @@ export class PickupSystem {
     slot.group.visible = false;
   }
 
-  private spawn(px: number, pz: number, luck: number): void {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = THREE.MathUtils.lerp(PICKUPS.spawnDistMin, PICKUPS.spawnDistMax, Math.random());
-    this.spawnAt(px + Math.cos(angle) * dist, pz + Math.sin(angle) * dist, luck);
+  private spawn(px: number, pz: number, luck: number, obstacles: Obstacle[]): void {
+    const spot = findRandomClearSpot(
+      px,
+      pz,
+      PICKUPS.spawnDistMin,
+      PICKUPS.spawnDistMax,
+      CHEST.colliderRadius,
+      obstacles,
+      PICKUPS.spawnClearance,
+    );
+    if (spot) this.spawnAt(spot.x, spot.z, luck, obstacles);
   }
 
   /** Drops a crate at an exact position (elite kills, boss rewards), rolling
    *  its tier so its price and color are fixed from the moment it appears. */
-  spawnAt(x: number, z: number, luck: number): void {
+  spawnAt(x: number, z: number, luck: number, obstacles: Obstacle[]): boolean {
     const slot = this.slots.find((s) => !s.active);
-    if (!slot) return; // All crates on the field; wait for one to be opened.
+    if (!slot) return false; // All crates on the field; wait for one to be opened.
+    const spot = findClearSpot(
+      x,
+      z,
+      obstacles,
+      CHEST.colliderRadius,
+      PICKUPS.spawnClearance,
+    );
+    if (!spot) return false;
     slot.active = true;
     // Cap the rolled tier to one that has unlocked mods, so the beam/price a
     // player reads always matches the reward they'll get (no gold chest paying
@@ -162,12 +197,17 @@ export class PickupSystem {
     slot.crateMat.color.setHex(color); // primitive fallback tint
     slot.beamMat.color.setHex(color); // the tier light — readable at distance
     this.applyVoxel(slot);
-    slot.group.position.set(
-      THREE.MathUtils.clamp(x, -ARENA_HALF_SIZE, ARENA_HALF_SIZE),
-      0,
-      THREE.MathUtils.clamp(z, -ARENA_HALF_SIZE, ARENA_HALF_SIZE),
-    );
+    slot.group.position.set(spot.x, 0, spot.z);
+    slot.obstacle.x = spot.x;
+    slot.obstacle.z = spot.z;
     slot.group.visible = true;
+    return true;
+  }
+
+  appendObstacles(target: Obstacle[]): void {
+    for (const slot of this.slots) {
+      if (slot.active) target.push(slot.obstacle);
+    }
   }
 
   reset(): void {

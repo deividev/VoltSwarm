@@ -1,10 +1,11 @@
 import * as THREE from 'three';
-import { ARENA_HALF_SIZE, BOSS, BOSS_TYPE_INDEXES, ENEMY_TYPES } from './config';
+import { BOSS, BOSS_TYPE_INDEXES, ENEMY_TYPES } from './config';
 import type { EnemySystem } from './enemies';
 import type { EnemyProjectiles } from './enemy-projectiles';
 import { litMaterial } from './toon';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
+import { findClearSpot, findRandomClearSpot, type Obstacle } from './world';
 
 // A totem spawns somewhere far away at run start. Touching it summons one
 // random boss. The boss lives inside the enemy pool (so every weapon hits it);
@@ -47,6 +48,12 @@ export class BossSystem {
   private summonElapsed = 0;
   /** Where the boss materialized this frame — the eruption VFX anchor. */
   readonly lastSummonAt = { x: 0, z: 0 };
+  private readonly totemObstacle: Obstacle = {
+    x: 0,
+    z: 0,
+    radius: BOSS.totemColliderRadius,
+    blocksFlyers: true,
+  };
 
   constructor(scene: THREE.Scene) {
     this.totem = new THREE.Group();
@@ -119,14 +126,19 @@ export class BossSystem {
   }
 
   /** Places the totem for a new run and picks the boss it will summon. */
-  startRun(): void {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = THREE.MathUtils.lerp(BOSS.totemDistMin, BOSS.totemDistMax, Math.random());
-    this.totem.position.set(
-      THREE.MathUtils.clamp(Math.cos(angle) * dist, -ARENA_HALF_SIZE + 5, ARENA_HALF_SIZE - 5),
+  startRun(obstacles: Obstacle[] = []): boolean {
+    const spot = findRandomClearSpot(
       0,
-      THREE.MathUtils.clamp(Math.sin(angle) * dist, -ARENA_HALF_SIZE + 5, ARENA_HALF_SIZE - 5),
+      0,
+      BOSS.totemDistMin,
+      BOSS.totemDistMax,
+      BOSS.totemColliderRadius,
+      obstacles,
     );
+    if (!spot) return false;
+    this.totem.position.set(spot.x, 0, spot.z);
+    this.totemObstacle.x = spot.x;
+    this.totemObstacle.z = spot.z;
     this.totem.visible = true;
     this.state = 'idle';
     this.bossIndex = -1;
@@ -136,6 +148,7 @@ export class BossSystem {
     this.chargeTimer = BOSS.crusher.chargeCooldownS;
     this.minionTimer = BOSS.crusher.minionIntervalS;
     this.burstTimer = BOSS.tesla.burstCooldownS;
+    return true;
   }
 
   /** True while the player stands in the summon zone of the idle totem. */
@@ -151,6 +164,7 @@ export class BossSystem {
     summonPressed: boolean,
     enemies: EnemySystem,
     projectiles: EnemyProjectiles,
+    obstacles: Obstacle[],
   ): string | null {
     this.playerInSummonZone = false;
     if (this.state === 'idle') {
@@ -199,13 +213,29 @@ export class BossSystem {
       if (dist < minDist) {
         const nx = dist > 0.001 ? dx / dist : 1;
         const nz = dist > 0.001 ? dz / dist : 0;
-        sx = THREE.MathUtils.clamp(px + nx * minDist, -ARENA_HALF_SIZE + 2, ARENA_HALF_SIZE - 2);
-        sz = THREE.MathUtils.clamp(pz + nz * minDist, -ARENA_HALF_SIZE + 2, ARENA_HALF_SIZE - 2);
+        sx = px + nx * minDist;
+        sz = pz + nz * minDist;
       }
+      const spawnObstacles = obstacles.filter((obstacle) => obstacle !== this.totemObstacle);
+      const bossRadius = ENEMY_TYPES[this.bossTypeIndex]?.radius ?? BOSS.totemColliderRadius;
+      const clearSpot = findClearSpot(sx, sz, spawnObstacles, bossRadius);
+      if (!clearSpot) {
+        this.state = 'idle';
+        return null;
+      }
+      sx = clearSpot.x;
+      sz = clearSpot.z;
       this.totem.visible = false;
       this.lastSummonAt.x = sx;
       this.lastSummonAt.z = sz;
-      this.bossIndex = enemies.spawnAt(this.bossTypeIndex, sx, sz, this.hpMult);
+      this.bossIndex = enemies.spawnAt(
+        this.bossTypeIndex,
+        sx,
+        sz,
+        this.hpMult,
+        false,
+        spawnObstacles,
+      );
       this.state = this.bossIndex === -1 ? 'done' : 'active';
       this.baseSpeed = ENEMY_TYPES[this.bossTypeIndex]?.speed ?? 3;
       return ENEMY_TYPES[this.bossTypeIndex]?.name ?? null;
@@ -215,7 +245,9 @@ export class BossSystem {
       // Continuity beat: after a kill, a fresh (tougher) totem rises.
       if (this.respawnTimer > 0) {
         this.respawnTimer -= dt;
-        if (this.respawnTimer <= 0) this.startRun();
+        if (this.respawnTimer <= 0 && !this.startRun(obstacles)) {
+          this.respawnTimer = BOSS.respawnRetryS;
+        }
       }
       return null;
     }
@@ -227,7 +259,7 @@ export class BossSystem {
     }
 
     if (this.bossTypeIndex === BOSS_TYPE_INDEXES[0]) {
-      this.updateCrusher(dt, boss, enemies);
+      this.updateCrusher(dt, boss, enemies, obstacles);
     } else {
       this.updateTesla(dt, boss, px, pz, projectiles);
     }
@@ -239,6 +271,7 @@ export class BossSystem {
     dt: number,
     boss: { x: number; z: number; speed: number },
     enemies: EnemySystem,
+    obstacles: Obstacle[],
   ): void {
     this.chargeTimer -= dt;
     if (this.chargeTimer <= 0) {
@@ -266,7 +299,14 @@ export class BossSystem {
       this.minionTimer = BOSS.crusher.minionIntervalS;
       for (let i = 0; i < BOSS.crusher.minionCount; i++) {
         const a = (i / BOSS.crusher.minionCount) * Math.PI * 2;
-        enemies.spawnAt(0, boss.x + Math.cos(a) * 3, boss.z + Math.sin(a) * 3);
+        enemies.spawnAt(
+          0,
+          boss.x + Math.cos(a) * 3,
+          boss.z + Math.sin(a) * 3,
+          1,
+          false,
+          obstacles,
+        );
       }
     }
   }
@@ -302,6 +342,10 @@ export class BossSystem {
    *  the HUD's off-screen indicator so players can always find it. */
   totemTarget(): THREE.Vector3 | null {
     return this.state === 'idle' ? this.totem.position : null;
+  }
+
+  appendObstacle(target: Obstacle[]): void {
+    if (this.totem.visible) target.push(this.totemObstacle);
   }
 
   /** For the HUD boss bar; null when no boss is alive. */

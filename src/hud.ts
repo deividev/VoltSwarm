@@ -1,7 +1,7 @@
-import { ACCOUNT, WEAPON_INFO, type WeaponId } from './config';
+import { ACCOUNT, WEAPON_INFO, describeWeaponBranches, type WeaponId } from './config';
 import { defaultStats, type PlayerStats } from './stats';
-import { CORE_TITLES, type CoreLevels, type Rarity, type UpgradeCard, type WeaponLevels } from './upgrades';
-import { MOD_IDS, MOD_REGISTRY, UNLOCKED_MOD_IDS, modsOfTier, refreshUnlockedMods, type ModCounts, type ModId } from './mods';
+import { CORE_TITLES, weaponIdFromUpgradeCard, type CoreLevels, type Rarity, type UpgradeCard, type WeaponBranchLevels, type WeaponLevels } from './upgrades';
+import { MOD_IDS, MOD_REGISTRY, UNLOCKED_MOD_IDS, describeMod, modsOfTier, refreshUnlockedMods, type ModCounts, type ModId } from './mods';
 import { coreOrbIcon, warmCoreOrbs } from './core-orbs';
 import {
   ACTION_IDS,
@@ -97,7 +97,6 @@ const STAT_ICON_IMAGES: Partial<Record<keyof PlayerStats, string>> = {
   regen: 'assets/2d/icon-stat-regen.png',
   evasion: 'assets/2d/icon-stat-evasion.png',
   thorns: 'assets/2d/icon-stat-thorns.png',
-  shield: 'assets/2d/icon-stat-shield-v2.png',
   lifesteal: 'assets/2d/icon-stat-lifesteal.png',
   duration: 'assets/2d/icon-stat-duration.png',
   luck: 'assets/2d/icon-stat-luck.png',
@@ -130,7 +129,6 @@ const CARD_STAT_KEYS: Record<string, keyof PlayerStats> = {
   regen: 'regen',
   evasion: 'evasion',
   thorns: 'thorns',
-  shield: 'shield',
   lifesteal: 'lifesteal',
   duration: 'duration',
   luck: 'luck',
@@ -142,18 +140,21 @@ const CARD_STAT_KEYS: Record<string, keyof PlayerStats> = {
 const CARD_ICON_IMAGES: Record<string, string> = {
   'max-hp': 'assets/2d/icon-card-max-hp.png',
   chaos: 'assets/2d/icon-card-chaos.png',
+  'fallback-salvage-dividend': 'assets/2d/icon-ui-coin-v2.png',
 };
 
 /** Orb-shell cache key for a core card: its stat key, or its own card id
  *  when it has dedicated card art (Hull Plates). */
 function coreOrbKey(cardId: string): string | undefined {
+  if (cardId.startsWith('fallback-')) return undefined;
   return CARD_STAT_KEYS[cardId] ?? (CARD_ICON_IMAGES[cardId] ? cardId : undefined);
 }
 
 function cardIconHtml(cardId: string): string {
   let image: string | undefined;
-  if (cardId.startsWith('weapon-')) {
-    image = WEAPON_ICON_IMAGES[cardId.slice('weapon-'.length) as WeaponId];
+  const weaponId = weaponIdFromUpgradeCard(cardId);
+  if (weaponId) {
+    image = WEAPON_ICON_IMAGES[weaponId];
   } else {
     const key = CARD_STAT_KEYS[cardId];
     image = (key ? STAT_ICON_IMAGES[key] : undefined) ?? CARD_ICON_IMAGES[cardId];
@@ -217,7 +218,6 @@ const STAT_ROWS: StatRow[] = [
   { key: 'regen', icon: '❤️', label: 'Regen', format: (v) => `${asPoints(v)}/5s` },
   { key: 'evasion', icon: '👻', label: 'Evasion', format: asPoints },
   { key: 'thorns', icon: '🌵', label: 'Thorns', format: asPoints },
-  { key: 'shield', icon: '🧿', label: 'Shield', format: asPoints },
   { key: 'lifesteal', icon: '🩸', label: 'Lifesteal', format: (v) => `${asPoints(v)}%` },
   { key: 'duration', icon: '⏳', label: 'Duration', format: asMult },
   { key: 'luck', icon: '🍀', label: 'Luck', format: asPoints },
@@ -1195,6 +1195,7 @@ export class Hud {
     weapons: WeaponLevels,
     items: ModCounts = {},
     cores: CoreLevels = {},
+    weaponBranches?: WeaponBranchLevels,
   ): void {
     const panel = mustGet('build-panel');
     panel.innerHTML = '';
@@ -1223,7 +1224,7 @@ export class Hud {
         badge: `Lv${level}`,
         cls: 'weapon',
         card: `weapon-${weaponId}`,
-        label: `${WEAPON_INFO[weaponId].title}, level ${level}`,
+        label: `${WEAPON_INFO[weaponId].title}, level ${level}${describeWeaponBranches(weaponId, weaponBranches) ? `; ${describeWeaponBranches(weaponId, weaponBranches)}` : ''}`,
       });
     }
     for (let i = ownedWeapons; i < ACCOUNT.weaponSockets; i++) weaponTiles += emptyTile;
@@ -1264,7 +1265,7 @@ export class Hud {
           badge: `x${items[id]}`,
           cls: `mod ${info.tier}`,
           card: id,
-          label: `${info.label}, ${items[id]} collected`,
+          label: `${info.label}, ${describeMod(id, items[id] ?? 0)}`,
         });
       }
       panel.insertAdjacentHTML('beforeend', `<div class="rig-section mods">${modTiles}</div>`);
@@ -1373,7 +1374,7 @@ export class Hud {
     gold: number,
     onBuy: (index: number) => void,
     onLeave: () => void,
-    whistle: { copies: number; discount: number } = { copies: 0, discount: 0 },
+    whistle: { copies: number; discount: number; modCounts?: Readonly<ModCounts> } = { copies: 0, discount: 0 },
   ): void {
     const overlay = mustGet('shop-overlay');
     const cards = mustGet('shop-cards');
@@ -1408,7 +1409,7 @@ export class Hud {
         `<span class="rarity-tag">${RARITY_LABEL[info.tier] ?? info.tier}</span>` +
         `<div class="shop-card-icon ${info.tier}">${icon}</div>` +
         `<h3>${info.label}</h3>` +
-        `<p>${info.description}</p>` +
+        `<p>${describeMod(entry.id, (whistle.modCounts?.[entry.id] ?? 0) + 1)}</p>` +
         `<div class="shop-price">${coinHtml(entry.price)}</div>`;
       if (affordable) {
         el.addEventListener('click', () => {
@@ -1547,7 +1548,13 @@ export class Hud {
    *  fires at landing (apply the mod there so the revealed panels already
    *  count it); the run stays frozen until the player clicks Continue, which
    *  fires `onDone` — reading time is theirs (2026-07-10 user request). */
-  showChestSpin(finalMod: ModId, tier: Rarity, onLanded: () => void, onDone: () => void): void {
+  showChestSpin(
+    finalMod: ModId,
+    tier: Rarity,
+    onLanded: () => void,
+    nextCopies: number,
+    onDone: () => void,
+  ): void {
     const overlay = mustGet('chest-overlay');
     const card = mustGet('chest-card');
     const slot = mustGet('chest-slot');
@@ -1605,7 +1612,7 @@ export class Hud {
       icon.innerHTML = iconHtml(final);
       label.textContent = final.label;
       // What the reward actually does (2026-07-08 user request).
-      desc.textContent = final.description;
+      desc.textContent = describeMod(finalMod, nextCopies);
       // Reveal: screen flash (overlay) + icon rise + god-rays + spark rain
       // (card.landed); the reel strip hides via the same class.
       card.classList.remove('spinning');
@@ -1661,6 +1668,7 @@ export class Hud {
     survivedS: number,
     bosses: number,
     weaponLevels: WeaponLevels,
+    weaponBranches: WeaponBranchLevels | undefined,
     weaponDamage: Readonly<Record<WeaponId, number>>,
     coreLevels: CoreLevels,
     modCounts: ModCounts,
@@ -1703,7 +1711,7 @@ export class Hud {
           emoji: WEAPON_ICONS[id],
           badge: `Lv${weaponLevels[id]}`,
           cls: 'weapon',
-          label: `${WEAPON_INFO[id].title}, level ${weaponLevels[id]}`,
+          label: `${WEAPON_INFO[id].title}, level ${weaponLevels[id]}${describeWeaponBranches(id, weaponBranches) ? `; ${describeWeaponBranches(id, weaponBranches)}` : ''}`,
         }),
       )
       .join('');
@@ -1725,7 +1733,7 @@ export class Hud {
           emoji: info.icon,
           badge: `x${modCounts[id]}`,
           cls: `mod ${info.tier}`,
-          label: `${info.label}, ${modCounts[id]} collected`,
+          label: `${info.label}, ${describeMod(id, modCounts[id] ?? 0)}`,
         });
       })
       .join('');
@@ -1746,7 +1754,7 @@ export class Hud {
           emoji: WEAPON_ICONS[id],
           badge: `Lv${weaponLevels[id]}`,
           cls: 'weapon',
-          label: `${WEAPON_INFO[id].title}, level ${weaponLevels[id]}`,
+          label: `${WEAPON_INFO[id].title}, level ${weaponLevels[id]}${describeWeaponBranches(id, weaponBranches) ? `; ${describeWeaponBranches(id, weaponBranches)}` : ''}`,
         });
         row.innerHTML = `
           ${icon}

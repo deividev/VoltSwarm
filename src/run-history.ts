@@ -1,6 +1,6 @@
 import type { WeaponId } from './config';
 import type { ModCounts } from './mods';
-import type { CoreLevels, WeaponLevels } from './upgrades';
+import type { CoreLevels, WeaponBranchLevels, WeaponLevels, WeaponPower } from './upgrades';
 
 export type RunOutcome = 'defeat' | 'sector-cleared' | 'run-complete';
 
@@ -24,6 +24,10 @@ export interface RunSnapshot {
   kills: number;
   bossesDefeated: number;
   weaponLevels: WeaponLevels;
+  /** Aggregate branch snapshot retained for record compatibility; combat never reads it. */
+  weaponPower: WeaponPower;
+  /** Optional so records saved before weapon branches remain valid. */
+  weaponBranches?: WeaponBranchLevels;
   weaponDamage: Readonly<Record<WeaponId, number>>;
   coreLevels: CoreLevels;
   modCounts: ModCounts;
@@ -31,12 +35,14 @@ export interface RunSnapshot {
 
 /** Versioned raw run facts. Future leaderboards can derive their score without
  *  coupling today's save format to a leaderboard metric that may still change. */
-export interface RunRecordV1 extends RunSnapshot {
+export interface RunRecordV1 extends Omit<RunSnapshot, 'weaponPower'> {
   schemaVersion: 1;
   id: string;
   endedAt: string;
   buildVersion: string;
   totalDamage: number;
+  /** Added after v1 shipped; absent in older records and treated as unknown. */
+  weaponPower?: WeaponPower;
 }
 
 const STORAGE_KEY = 'voltswarm:run-history:v1';
@@ -66,6 +72,8 @@ export function saveRunRecord(snapshot: RunSnapshot): RunRecordV1 {
     kills: Math.max(0, Math.floor(snapshot.kills)),
     bossesDefeated: Math.max(0, Math.floor(snapshot.bossesDefeated)),
     weaponLevels: { ...snapshot.weaponLevels },
+    weaponPower: { ...snapshot.weaponPower },
+    ...(snapshot.weaponBranches ? { weaponBranches: structuredClone(snapshot.weaponBranches) } : {}),
     weaponDamage: { ...snapshot.weaponDamage },
     coreLevels: { ...snapshot.coreLevels },
     modCounts: { ...snapshot.modCounts },

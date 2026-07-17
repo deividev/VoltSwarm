@@ -3,6 +3,13 @@
 
 export const ARENA_HALF_SIZE = 90;
 
+/** Shared placement search. Failed searches skip/delay a spawn rather than
+ *  placing an object outside the floor or overlapping occupied space. */
+export const SPAWN_PLACEMENT = {
+  maxAttempts: 72,
+  spiralStep: 1.25,
+};
+
 export const RUN_DURATION_S = 10 * 60;
 
 /** Map-1 tactical prop: shipping-container chokepoints. Each gate is a pair
@@ -22,17 +29,15 @@ export const CONTAINER_PROP = {
   /** Capsule-approx collision: circles spaced along the long axis. */
   colliderRadius: 1.6,
   colliderOffsets: [-2.1, 0, 2.1],
-  gapHalf: 2.6,
-  /** Random gate count per run, inclusive — raised ~30% from [10,14]
-   *  (2026-07-08, user request) after area-uniform scatter fixed the
-   *  center-heavy distribution, so extra gates now land in the sparse ring. */
-  countRange: [13, 17] as [number, number],
+  gapHalf: 4.2,
+  /** Random gate count per run, inclusive. Wider openings and stronger
+   *  separation keep every boss-sized route traversable. */
+  countRange: [10, 13] as [number, number],
   /** Keep clear of the arena center (player spawn) and the outer edge. */
   minDistFromCenter: 18,
   maxDistFromCenter: ARENA_HALF_SIZE - 10,
-  /** Minimum distance between gate centers so two funnels never overlap.
-   *  Lowered from 22 to fit the higher count comfortably around the ring. */
-  minSeparation: 18,
+  /** Minimum distance between gate centers so two funnels never overlap. */
+  minSeparation: 24,
   /** Clearance kept from the boss totem (placed independently per run in
    *  boss.ts) — a gate must never wall off the totem's summon zone. */
   totemClearance: 10,
@@ -76,17 +81,17 @@ export const BARREL_PROP = {
   width: 1.3,
   height: 1.5,
   colliderRadius: 0.55,
-  /** Random count per run, inclusive — raised ~30% from [45,65]
-   *  (2026-07-08, user request) alongside the area-uniform scatter fix. */
-  countRange: [60, 85] as [number, number],
+  /** Random count per run, inclusive. Sparse enough to preserve navigation
+   *  lanes between containers and loose props. */
+  countRange: [36, 50] as [number, number],
   minDistFromCenter: 8,
   maxDistFromCenter: ARENA_HALF_SIZE - 4,
   /** Minimum distance between barrels. */
-  minSeparation: 4,
+  minSeparation: 8,
   /** Clearance kept from a container gate's center — bigger than
    *  minSeparation because a gate's real footprint (2 containers + the
    *  opening) extends well past its center point. */
-  containerClearance: 10,
+  containerClearance: 14,
   /** Clearance kept from the boss totem. */
   totemClearance: 8,
   /** Color variants (2026-07-06 user request) — same model, different
@@ -94,6 +99,16 @@ export const BARREL_PROP = {
    *  the scaffold's blue-gray steel already blended into the cool factory
    *  floor palette (same lesson, not repeating the mistake). */
   variants: ['barrel', 'barrel-black', 'barrel-white'] as const,
+};
+
+/** Single source of truth for Barrier Cell gameplay and its shield-plate VFX capacity. */
+export const BARRIER_CELL = {
+  capacityPerCopy: 1,
+  capacityCap: 6,
+  regenS: 8,
+  regenReductionPerExtraCopyS: 1,
+  regenFloorS: 4,
+  maxCopies: 10,
 };
 
 export const PLAYER = {
@@ -108,9 +123,6 @@ export const PLAYER = {
   invulnAfterHitS: 0.4,
   /** Seconds between passive regen ticks; each tick heals `stats.regen` HP. */
   regenTickS: 5,
-  /** Shield charges: each blocks one full hit; one charge returns per interval. */
-  maxShieldCharges: 3,
-  shieldRegenS: 8,
   /** Minimum seconds between lifesteal heals. Caps sustain at ~3 HP/s no
    *  matter how many enemies an AoE weapon hits per second — without this,
    *  lifesteal builds outheal contact damage inside the swarm. */
@@ -516,6 +528,13 @@ export const ENEMIES = {
   hpRampPerMinute: 0.38,
   /** Spatial-grid cell size for the separation pass. */
   separationCellSize: 2.6,
+  obstacleAvoidance: {
+    lookAhead: 5,
+    clearance: 0.45,
+    steerStrength: 1.65,
+    bossLookAheadMultiplier: 1.55,
+    resolvePasses: 2,
+  },
   /** Concurrent-enemy cap at difficulty 0 and 1: waves pause while the field
    *  is saturated, so early builds are never drowned by sheer population. */
   maxActiveStart: 28,
@@ -799,6 +818,53 @@ export const WEAPON_INFO: Record<WeaponId, { title: string; description: string 
 
 export const MAX_WEAPON_LEVEL = 20;
 
+/** One Core magnitude per rarity: [gray, green, blue, purple, gold]. */
+export type CoreTierMagnitudes = readonly [number, number, number, number, number];
+
+/** All Core and Ammo Feeder magnitudes live here, not in the draft system. */
+export const CORE_TIER_MAGNITUDES = {
+  damage: [0.1, 0.14, 0.18, 0.3, 0.42],
+  'attack-speed': [0.1, 0.13, 0.16, 0.25, 0.35],
+  'crit-chance': [0.04, 0.05, 0.07, 0.12, 0.17],
+  'crit-damage': [0.15, 0.2, 0.25, 0.4, 0.55],
+  'move-speed': [0.06, 0.08, 0.1, 0.16, 0.22],
+  'attack-range': [0.08, 0.11, 0.14, 0.22, 0.3],
+  'pickup-range': [0.2, 0.28, 0.35, 0.6, 0.85],
+  'projectile-speed': [0.1, 0.14, 0.18, 0.3, 0.42],
+  area: [0.08, 0.11, 0.14, 0.22, 0.3],
+  armor: [8, 11, 15, 25, 35],
+  regen: [1, 2, 3, 4, 6],
+  'max-hp': [15, 20, 25, 45, 65],
+  evasion: [8, 11, 14, 22, 30],
+  thorns: [6, 9, 12, 20, 28],
+  lifesteal: [3, 4, 6, 10, 14],
+  duration: [0.1, 0.13, 0.16, 0.25, 0.35],
+  luck: [6, 8, 10, 14, 20],
+  cursed: [0.06, 0.08, 0.1, 0.14, 0.2],
+  'projectile-count': [1, 1, 1, 1, 1],
+} as const satisfies Record<string, CoreTierMagnitudes>;
+
+/** Core caps and derived rewards kept with their tier magnitudes. */
+export const CORE_BALANCE = {
+  cursedXpGainMultiplier: 1.6,
+  /** Effective probability ceilings. Values above these cannot improve the
+   *  runtime roll, so applications clamp and drafts stop offering the core. */
+  probabilityCaps: {
+    critChance: 1,
+    lifestealPercent: 100,
+  },
+};
+
+/** Potency added by one owned-weapon level-up card. The per-level config value
+ *  is Common; higher tiers follow Megabonk's recurring 1/1.2/1.4/1.6/2 curve. */
+export const WEAPON_UPGRADE_TIER_SCALE = {
+  gray: 1,
+  green: 1.2,
+  blue: 1.4,
+  purple: 1.6,
+  gold: 2,
+} as const;
+
 /** Countable unit gained at QUANTITY_MILESTONE_LEVELS, per weapon. Weapons
  *  absent here scale stats only. */
 export const WEAPON_QUANTITY_UNIT: Partial<Record<WeaponId, string>> = {
@@ -809,10 +875,147 @@ export const WEAPON_QUANTITY_UNIT: Partial<Record<WeaponId, string>> = {
   ricochet: 'bounce',
 };
 
+/** Every weapon uses specialised upgrade branches. Weapon level still drives
+ * Lv3/Lv5 quantity milestones; a branch only scales its named behavior. */
+export const BRANCH_WEAPON_IDS = [
+  'bolt', 'pulse', 'blades', 'welder', 'press', 'tire', 'oil', 'acid',
+  'turbine', 'ricochet', 'dismantler',
+] as const;
+export type BranchWeaponId = (typeof BRANCH_WEAPON_IDS)[number];
+export type WeaponBranchId =
+  | 'damage' | 'cycle' | 'size' | 'radius' | 'orbit-radius' | 'rotation-speed'
+  | 'width' | 'lifetime' | 'ramp-stability' | 'range' | 'slow-strength'
+  | 'duration' | 'knockback' | 'bounce-count' | 'execute-threshold';
+
+export interface WeaponBranchDef {
+  title: string;
+  stat: string;
+  /** Additive fraction of the base behavior per rarity-weighted branch power. */
+  perPower: number;
+}
+
+export type WeaponBranchLevels = Record<
+  BranchWeaponId,
+  Partial<Record<WeaponBranchId, number>>
+>;
+
+/** Original branch identities built from the same weapon parameters that the
+ * runtime reads. Higher rarity multiplies `perPower` via WEAPON_UPGRADE_TIER_SCALE. */
+export const WEAPON_BRANCHES = {
+  bolt: {
+    damage: { title: 'Impact Coil', stat: 'damage', perPower: WEAPONS.bolt.damagePctPerLevel },
+    cycle: { title: 'Cycle Relay', stat: 'fire cycle speed', perPower: 0.12 },
+    size: { title: 'Bore Expander', stat: 'bolt size', perPower: 0.12 },
+  },
+  pulse: {
+    damage: { title: 'Pulse Capacitor', stat: 'damage', perPower: WEAPONS.pulse.damagePctPerLevel },
+    radius: { title: 'Wave Spreader', stat: 'pulse radius', perPower: WEAPONS.pulse.radiusPctPerLevel },
+    cycle: { title: 'Charge Relay', stat: 'pulse cycle speed', perPower: 0.12 },
+  },
+  blades: {
+    damage: { title: 'Edge Temper', stat: 'damage', perPower: WEAPONS.blades.damagePctPerLevel },
+    'orbit-radius': { title: 'Orbit Spacers', stat: 'orbit radius', perPower: 0.1 },
+    'rotation-speed': { title: 'Spin Motor', stat: 'rotation speed', perPower: 0.12 },
+  },
+  welder: {
+    damage: { title: 'Arc Core', stat: 'damage', perPower: WEAPONS.welder.damagePctPerLevel },
+    'ramp-stability': { title: 'Lock Brace', stat: 'ramp stability', perPower: WEAPONS.welder.rampPctPerLevel },
+    range: { title: 'Cable Extender', stat: 'weld range', perPower: 0.1 },
+  },
+  press: {
+    damage: { title: 'Ram Reinforcement', stat: 'damage', perPower: WEAPONS.press.damagePctPerLevel },
+    width: { title: 'Plate Wideners', stat: 'crush width', perPower: WEAPONS.press.widthPctPerLevel },
+    cycle: { title: 'Cycle Valve', stat: 'press cycle speed', perPower: 0.12 },
+  },
+  tire: {
+    damage: { title: 'Tread Compound', stat: 'damage', perPower: WEAPONS.tire.damagePctPerLevel },
+    size: { title: 'Sidewall Kit', stat: 'tire size', perPower: 0.12 },
+    lifetime: { title: 'Trail Fuel', stat: 'travel distance', perPower: 0.12 },
+  },
+  oil: {
+    radius: { title: 'Spread Nozzle', stat: 'puddle radius', perPower: WEAPONS.oil.radiusPctPerLevel },
+    'slow-strength': { title: 'Grip Solvent', stat: 'slow strength', perPower: WEAPONS.oil.slowPctPerLevel },
+    duration: { title: 'Heavy Blend', stat: 'puddle duration', perPower: 0.12 },
+  },
+  acid: {
+    damage: { title: 'Caustic Mix', stat: 'DoT damage', perPower: WEAPONS.acid.dpsPctPerLevel },
+    radius: { title: 'Splash Ring', stat: 'zone radius', perPower: WEAPONS.acid.radiusPctPerLevel },
+    cycle: { title: 'Drum Feeder', stat: 'launch cycle speed', perPower: 0.12 },
+  },
+  turbine: {
+    damage: { title: 'Blade Torque', stat: 'damage', perPower: WEAPONS.turbine.damagePctPerLevel },
+    radius: { title: 'Intake Collar', stat: 'tornado radius', perPower: 0.1 },
+    knockback: { title: 'Gust Piston', stat: 'knockback', perPower: 0.12 },
+  },
+  ricochet: {
+    damage: { title: 'Scrap Weight', stat: 'damage', perPower: WEAPONS.ricochet.damagePctPerLevel },
+    'bounce-count': { title: 'Rebound Spring', stat: 'bounce count', perPower: 0.35 },
+    cycle: { title: 'Feed Ratchet', stat: 'launch cycle speed', perPower: 0.12 },
+  },
+  dismantler: {
+    damage: { title: 'Jaw Temper', stat: 'damage', perPower: WEAPONS.dismantler.damagePctPerLevel },
+    'execute-threshold': { title: 'Cull Sensor', stat: 'execute threshold', perPower: WEAPONS.dismantler.thresholdPerLevel },
+    range: { title: 'Reach Linkage', stat: 'claw range', perPower: 0.1 },
+  },
+} as const satisfies Record<BranchWeaponId, Record<string, WeaponBranchDef>>;
+
+export function isBranchWeapon(id: WeaponId): id is BranchWeaponId {
+  return (BRANCH_WEAPON_IDS as readonly WeaponId[]).includes(id);
+}
+
+export function weaponBranchEntries(
+  id: BranchWeaponId,
+): ReadonlyArray<readonly [WeaponBranchId, WeaponBranchDef]> {
+  return Object.entries(WEAPON_BRANCHES[id]) as Array<
+    readonly [WeaponBranchId, WeaponBranchDef]
+  >;
+}
+
+export function weaponBranchMultiplier(
+  branches: WeaponBranchLevels,
+  id: BranchWeaponId,
+  branchId: WeaponBranchId,
+): number {
+  const def = (WEAPON_BRANCHES[id] as Record<string, WeaponBranchDef>)[branchId];
+  return 1 + (def?.perPower ?? 0) * (branches[id][branchId] ?? 0);
+}
+
+/** Card text and lightweight build labels share this config-driven source. */
+export function describeWeaponBranch(
+  id: BranchWeaponId,
+  branchId: WeaponBranchId,
+  level: number,
+  potency = 1,
+): string {
+  const def = (WEAPON_BRANCHES[id] as Record<string, WeaponBranchDef>)[branchId];
+  if (!def) return `Lv${level}`;
+  const gain = branchId === 'execute-threshold'
+    ? `+${(def.perPower * potency * 100).toFixed(1)}pt`
+    : `+${Math.round(def.perPower * potency * 100)}%`;
+  const parts = [`${gain} ${def.stat}`];
+  const unit = WEAPON_QUANTITY_UNIT[id];
+  if (unit && QUANTITY_MILESTONE_LEVELS.includes(level)) parts.push(`+1 ${unit}`);
+  return `Lv${level}: ${parts.join(' / ')}`;
+}
+
+export function describeWeaponBranches(
+  id: WeaponId,
+  branches: WeaponBranchLevels | undefined,
+): string {
+  if (!branches || !isBranchWeapon(id)) return '';
+  return weaponBranchEntries(id)
+    .map(([branchId, def]) => {
+      const power = branches[id][branchId] ?? 0;
+      return power > 0 ? `${def.title} ${power % 1 === 0 ? power : power.toFixed(1)}` : '';
+    })
+    .filter(Boolean)
+    .join(' / ');
+}
+
 /** Card text for reaching `level`: the concrete gains of THAT level, built
  *  from the same config fields the weapons read — never hand-written. */
-export function describeWeaponLevel(id: WeaponId, level: number): string {
-  const pct = (v: number): string => `+${Math.round(v * 100)}%`;
+export function describeWeaponLevel(id: WeaponId, level: number, potency = 1): string {
+  const pct = (v: number): string => `+${Math.round(v * potency * 100)}%`;
   const parts: string[] = [];
   switch (id) {
     case 'bolt':
@@ -863,7 +1066,7 @@ export function describeWeaponLevel(id: WeaponId, level: number): string {
     case 'dismantler':
       parts.push(
         `${pct(WEAPONS.dismantler.damagePctPerLevel)} damage`,
-        `+${(WEAPONS.dismantler.thresholdPerLevel * 100).toFixed(1)}pt execute threshold`,
+        `+${(WEAPONS.dismantler.thresholdPerLevel * potency * 100).toFixed(1)}pt execute threshold`,
       );
       break;
   }
@@ -877,6 +1080,7 @@ export const PICKUPS = {
   maxActive: 6,
   spawnDistMin: 14,
   spawnDistMax: 30,
+  spawnClearance: 0.35,
   collectRadius: 1.5,
   frenzyDurationS: 10,
   frenzyDamageMultiplier: 2,
@@ -893,6 +1097,13 @@ export const PICKUPS = {
  *  ALL gating (draft pool, start draft, sockets, mod pool) reads this object
  *  so that swap is a single seam. Canonical default/contract split lives in
  *  docs/DESIGN_MEJORAS.md (weapons 5/6, cores 10/11, mods 11/5). */
+/** Non-socket reward used only when owner uniqueness exhausts a draft.
+ * 50 Gold matches a boss bonus, compensating a lost late-build choice without
+ * changing normal drops, prices, or the fallback trigger. */
+export const DRAFT_FALLBACK = {
+  salvageDividendGold: 50,
+};
+
 export const ACCOUNT = {
   /** Weapon sockets: 1 default, +1 via contract (max 2). */
   weaponSockets: 1,
@@ -931,6 +1142,7 @@ export const ACCOUNT = {
     'detonator-rig',
     'orb-siphon',
     'piston-stompers',
+    'barrier-cell',
     'foremans-whistle',
   ],
 };
@@ -957,7 +1169,9 @@ export const GOLD = {
   startingGold: 0,
   /** 0.2 → 0.25 in the 2026-07-10 economy-generosity pass (+25% income). */
   dropChance: 0.25,
-  dropAmount: 1,
+  /** 1 → 2 in the 2026-07-17 affordability pass. This doubles normal-kill
+   *  income without increasing pickup density or changing elite/boss rewards. */
+  dropAmount: 2,
   eliteBonus: 10,
   bossBonus: 50,
   mergeRadius: 2,
@@ -976,6 +1190,9 @@ export const GOLD = {
  *  which lets you choose. */
 export const CHEST = {
   interactRadius: 2.6,
+  colliderRadius: 0.9,
+  /** Center-to-center spacing between active chests. */
+  minSpawnSeparation: 6,
   /** Chest price = merchant tier price × this (random pick → discounted).
    *  0.6 → 0.5 in the 2026-07-10 economy-generosity pass — chests only, shop
    *  prices deliberately untouched. */
@@ -991,15 +1208,19 @@ export const MERCHANT = {
   distMin: 25,
   distMax: 40,
   interactRadius: 2.6,
+  colliderRadius: 1.4,
+  spawnClearance: 0.6,
+  retryDelayS: 1,
   stock: 3,
   /** Prices scale with run time — enemy density ramps, so income ramps. */
   priceRampPerMin: 0.12,
   tierPrices: { gray: 25, green: 45, blue: 80, purple: 140, gold: 240 },
 };
 
-/** Permanent mod parameters. Every mod stacks with an internal floor/cap —
- *  copies are unlimited by design (docs/DESIGN_MEJORAS.md Lista 4). */
+/** Permanent Mod parameters. Mods may stack repeatedly, but each definition
+ *  may impose a deliberate internal floor or copy cap (for example Barrier Cell). */
 export const MODS = {
+  barrierCell: BARRIER_CELL,
   stunBumper: { cooldownS: 8, cooldownReduxPerCopyS: 1, cooldownFloorS: 3, stunS: 1.5 },
   kickPlate: { force: 10, forcePerCopy: 5 },
   looseBolts: { bolts: 3, boltsPerCopy: 2, damage: 12, radius: 5 },
@@ -1024,9 +1245,11 @@ export const MODS = {
 };
 
 /** Card tier roll weights (gray→gold) and how Luck shifts them upward.
- *  Effective weight = base + luck * luckShift. */
+ *  Effective weight = base + luck * luckShift.
+ *  At 0 Luck, three cards have a 5.88% chance to show any purple/gold card
+ *  and a 0.60% chance to show at least one gold card. */
 export const TIERS = {
-  weights: { gray: 40, green: 30, blue: 18, purple: 9, gold: 3 },
+  weights: { gray: 62, green: 27, blue: 9, purple: 1.8, gold: 0.2 },
   luckShift: { gray: 0, green: 0, blue: 0.45, purple: 0.35, gold: 0.2 },
 };
 
@@ -1036,6 +1259,8 @@ export const BOSS = {
   /** Radius of the summon zone; inside it the Interact prompt shows.
    *  The key itself is the rebindable 'interact' action (settings). */
   totemActivateRadius: 4.5,
+  totemColliderRadius: 2.3,
+  respawnRetryS: 1,
   /** Delay between pressing the summon key and the boss appearing (the totem
    *  spins up as the telegraph), and the minimum distance from the player at
    *  which the boss materializes — never on top of them. */
@@ -1046,12 +1271,6 @@ export const BOSS = {
   respawnDelayS: 25,
   respawnHpGrowth: 1.6,
   chestsOnKill: 3,
-  /** Chests spawn wherever the boss happens to die — a position that can't
-   *  be known in advance, so unlike containers/barrels/totem it can't be
-   *  avoided ahead of time. Instead, `world.ts:findClearSpot` nudges each
-   *  chest away from any obstacle it lands inside of (2026-07-06 user ask:
-   *  chests shouldn't spawn overlapping props). */
-  chestClearMargin: 0.6,
   contactDamage: 25,
   crusher: {
     speed: 3,
