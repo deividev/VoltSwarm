@@ -23,11 +23,13 @@ export class MerchantSystem {
   /** Mods on sale this visit; purchases splice entries out. */
   stock: ModId[] = [];
   private sway = 0;
+  private arrivalPulseS = 0;
 
   /** Body/head/crate primitives are swapped for the voxel model; the beam
    *  (a warm shop marker readable from across the map) is kept and lives
    *  outside `body` so it survives the swap. */
   private readonly body: THREE.Group;
+  private readonly beam: THREE.Mesh;
 
   constructor(scene: THREE.Scene) {
     this.group = new THREE.Group();
@@ -47,7 +49,7 @@ export class MerchantSystem {
     this.body.add(bodyBox, crate);
 
     // Warm amber shop beam — the distance marker, same language as chests.
-    const beam = new THREE.Mesh(
+    this.beam = new THREE.Mesh(
       new THREE.CylinderGeometry(0.18, 0.34, 9, 8, 1, true),
       new THREE.MeshBasicMaterial({
         color: 0xffc44d,
@@ -57,9 +59,9 @@ export class MerchantSystem {
         depthWrite: false,
       }),
     );
-    beam.position.y = 4.5;
+    this.beam.position.y = 4.5;
 
-    this.group.add(this.body, beam);
+    this.group.add(this.body, this.beam);
     this.group.visible = false;
     scene.add(this.group);
 
@@ -94,6 +96,7 @@ export class MerchantSystem {
     this.leaveAtS = elapsedS + MERCHANT.staysS;
     this.group.position.set(x, 0, z);
     this.group.visible = true;
+    this.arrivalPulseS = 1.35;
   }
 
   /** Packs up and schedules the next visit (whistle halves the interval). */
@@ -101,6 +104,9 @@ export class MerchantSystem {
     this.active = false;
     this.group.visible = false;
     this.stock = [];
+    this.arrivalPulseS = 0;
+    this.beam.scale.setScalar(1);
+    (this.beam.material as THREE.MeshBasicMaterial).opacity = 0.28;
     this.nextVisitS = elapsedS + MERCHANT.intervalS * intervalScale;
   }
 
@@ -112,14 +118,22 @@ export class MerchantSystem {
   update(dt: number): void {
     if (!this.active) return;
     this.sway += dt;
+    if (this.arrivalPulseS > 0) this.arrivalPulseS = Math.max(0, this.arrivalPulseS - dt);
     this.body.rotation.y = Math.sin(this.sway * 0.8) * 0.15;
     this.body.rotation.z = Math.sin(this.sway * 1.3) * 0.03;
+    const beamMat = this.beam.material as THREE.MeshBasicMaterial;
+    const pulse = this.arrivalPulseS > 0 ? this.arrivalPulseS / 1.35 : 0;
+    this.beam.scale.setScalar(1 + pulse * 0.55);
+    beamMat.opacity = 0.28 + pulse * 0.32;
   }
 
   reset(): void {
     this.active = false;
     this.group.visible = false;
     this.stock = [];
+    this.arrivalPulseS = 0;
+    this.beam.scale.setScalar(1);
+    (this.beam.material as THREE.MeshBasicMaterial).opacity = 0.28;
     this.nextVisitS = MERCHANT.firstVisitS;
   }
 }

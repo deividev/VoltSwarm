@@ -199,8 +199,9 @@ try {
       g.player.position.x = t.x; g.player.position.z = t.z;
       for (let k = 0; k < 55; k++) { const a = Math.random() * 6.283, r = 3 + Math.random() * 7; g.enemies.spawnAt(k % 3, t.x + Math.cos(a) * r, t.z + Math.sin(a) * r, 2, false); }
     }
-    const orig = g.input.isDown.bind(g.input);
-    g.input.isDown = (c) => (c === 'KeyE' ? true : orig(c));
+    const originalIsActionDown = g.input.isActionDown.bind(g.input);
+    g.input.isActionDown = (action) =>
+      action === 'interact' || originalIsActionDown(action);
   });
   await sleep(120); // let the summon trigger + a couple telegraph frames
 

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ARENA_HALF_SIZE, CHEST, PICKUPS } from './config';
+import { ARENA_HALF_SIZE, CHEST, PICKUPS, RECORDING } from './config';
 import { litMaterial } from './toon';
 import { rollRarity, type Rarity } from './upgrades';
 import { resolveChestTier, TIER_COLORS } from './mods';
@@ -157,7 +157,7 @@ export class PickupSystem {
     // Cap the rolled tier to one that has unlocked mods, so the beam/price a
     // player reads always matches the reward they'll get (no gold chest paying
     // out a purple mod). Self-heals as contracts unlock higher tiers.
-    slot.tier = resolveChestTier(rollRarity(luck));
+    slot.tier = RECORDING.chestTesting.forceGreenChests ? 'green' : resolveChestTier(rollRarity(luck));
     const color = TIER_COLORS[slot.tier];
     slot.crateMat.color.setHex(color); // primitive fallback tint
     slot.beamMat.color.setHex(color); // the tier light — readable at distance

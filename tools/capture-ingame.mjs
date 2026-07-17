@@ -1,5 +1,5 @@
 // Boots the real game in headless Chrome, starts a run, and screenshots it.
-// Usage: node tools/capture-ingame.mjs [seconds-into-run] [output.png] [weaponId]
+// Usage: node tools/capture-ingame.mjs [seconds-into-run] [output.png] [weaponId] [width] [height]
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
@@ -8,6 +8,14 @@ const PORT = 5198;
 const RUN_SECONDS = Number(process.argv[2] ?? 25);
 const OUTPUT = process.argv[3] ?? 'assets/preview/ingame.png';
 const WANT_WEAPON = process.argv[4] ?? null;
+const CAPTURE_WIDTH = Number(process.argv[5] ?? process.env.CAPTURE_WIDTH ?? 1920);
+const CAPTURE_HEIGHT = Number(process.argv[6] ?? process.env.CAPTURE_HEIGHT ?? 1080);
+
+if (!Number.isInteger(CAPTURE_WIDTH) || CAPTURE_WIDTH <= 0 ||
+    !Number.isInteger(CAPTURE_HEIGHT) || CAPTURE_HEIGHT <= 0) {
+  console.error('Capture width and height must be positive integers');
+  process.exit(1);
+}
 
 const CHROME_PATHS = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -45,10 +53,10 @@ try {
   const browser = await puppeteer.launch({
     executablePath: chromePath,
     headless: 'new',
-    args: ['--window-size=1400,900', '--use-gl=angle'],
+    args: [`--window-size=${CAPTURE_WIDTH},${CAPTURE_HEIGHT}`, '--use-gl=angle'],
   });
   const page = await browser.newPage();
-  await page.setViewport({ width: 1400, height: 900 });
+  await page.setViewport({ width: CAPTURE_WIDTH, height: CAPTURE_HEIGHT });
   page.on('pageerror', (err) => errors.push(err.message));
   await page.goto(`http://localhost:${PORT}/`);
 

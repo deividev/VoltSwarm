@@ -22,6 +22,11 @@ export class Player {
   private shieldSpin = 0;
   private walkPhase = 0;
   private shadow: THREE.Mesh | null = null;
+  private markerGroup: THREE.Group | null = null;
+  private markerRing: THREE.Mesh | null = null;
+  private markerGlow: THREE.Mesh | null = null;
+  private readonly markerTicks: THREE.Mesh[] = [];
+  private markerPulse = 0;
 
   constructor(scene: THREE.Scene) {
     this.mesh = new THREE.Group();
@@ -82,6 +87,73 @@ export class Player {
       );
       this.shadow.position.y = VISUAL.blobShadow.y;
       scene.add(this.shadow);
+    }
+
+    // Player readability marker: a subtle unsegmented cyan/white ground signal
+    // that survives late-game chaos without stealing elite/boss ring language.
+    if (VISUAL.playerMarker.enabled) {
+      this.markerGroup = new THREE.Group();
+      this.markerGroup.position.y = VISUAL.playerMarker.y;
+      scene.add(this.markerGroup);
+
+      const glowGeometry = new THREE.CircleGeometry(VISUAL.playerMarker.glowRadius, 32);
+      glowGeometry.rotateX(-Math.PI / 2);
+      this.markerGlow = new THREE.Mesh(
+        glowGeometry,
+        new THREE.MeshBasicMaterial({
+          color: VISUAL.playerMarker.glowColor,
+          transparent: true,
+          opacity: VISUAL.playerMarker.glowOpacity,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        }),
+      );
+      this.markerGlow.position.y = 0;
+      this.markerGroup.add(this.markerGlow);
+
+      const ringGeometry = new THREE.RingGeometry(
+        VISUAL.playerMarker.innerRadius,
+        VISUAL.playerMarker.outerRadius,
+        48,
+      );
+      ringGeometry.rotateX(-Math.PI / 2);
+      this.markerRing = new THREE.Mesh(
+        ringGeometry,
+        new THREE.MeshBasicMaterial({
+          color: VISUAL.playerMarker.ringColor,
+          transparent: true,
+          opacity: VISUAL.playerMarker.ringOpacity,
+          depthWrite: false,
+          blending: THREE.AdditiveBlending,
+        }),
+      );
+      this.markerRing.position.y = 0.01;
+      this.markerGroup.add(this.markerRing);
+
+      const tickGeometry = new THREE.BoxGeometry(
+        VISUAL.playerMarker.tickWidth,
+        0.012,
+        VISUAL.playerMarker.tickLength,
+      );
+      const tickMaterial = new THREE.MeshBasicMaterial({
+        color: VISUAL.playerMarker.tickColor,
+        transparent: true,
+        opacity: VISUAL.playerMarker.tickOpacity,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      });
+      for (let i = 0; i < 4; i++) {
+        const tick = new THREE.Mesh(tickGeometry, tickMaterial);
+        const a = (i / 4) * Math.PI * 2;
+        tick.position.set(
+          Math.sin(a) * VISUAL.playerMarker.tickDistance,
+          0.025,
+          Math.cos(a) * VISUAL.playerMarker.tickDistance,
+        );
+        tick.rotation.y = a;
+        this.markerGroup.add(tick);
+        this.markerTicks.push(tick);
+      }
     }
 
     scene.add(this.mesh);
@@ -166,6 +238,19 @@ export class Player {
     this.mesh.visible = this.invulnTimer <= 0 || Math.floor(this.invulnTimer * 12) % 2 === 0;
     this.shieldSpin += dt * 1.6;
     this.shieldGroup.position.copy(this.position);
+    if (this.markerGroup) {
+      this.markerPulse += dt * Math.PI * 2 * VISUAL.playerMarker.pulseHz;
+      const pulse = 1 + Math.sin(this.markerPulse) * VISUAL.playerMarker.pulseScale;
+      this.markerGroup.position.set(this.position.x, VISUAL.playerMarker.y, this.position.z);
+      this.markerGroup.rotation.y += dt * Math.PI * 2 * VISUAL.playerMarker.rotateHz;
+      if (this.markerGlow) {
+        this.markerGlow.scale.setScalar(pulse);
+      }
+      if (this.markerRing) {
+        this.markerRing.scale.setScalar(1 + (pulse - 1) * 0.55);
+      }
+      for (const tick of this.markerTicks) tick.scale.setScalar(1 + (pulse - 1) * 0.35);
+    }
     if (this.shadow) {
       this.shadow.position.set(this.position.x, this.shadow.position.y, this.position.z);
     }
@@ -183,6 +268,18 @@ export class Player {
     this.position.set(0, 0, 0);
     this.invulnTimer = 0;
     this.mesh.visible = true;
+    this.markerPulse = 0;
+    if (this.markerGroup) {
+      this.markerGroup.position.set(0, VISUAL.playerMarker.y, 0);
+      this.markerGroup.rotation.set(0, 0, 0);
+    }
+    if (this.markerGlow) {
+      this.markerGlow.scale.setScalar(1);
+    }
+    if (this.markerRing) {
+      this.markerRing.scale.setScalar(1);
+    }
+    for (const tick of this.markerTicks) tick.scale.setScalar(1);
   }
 
   /** Applies contact damage, respecting the invulnerability window. Returns true if damage landed. */

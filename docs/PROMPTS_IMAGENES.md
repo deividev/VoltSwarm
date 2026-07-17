@@ -276,6 +276,18 @@ Descubrimiento: **Claude Code puede lanzar Codex para generar imágenes por IA**
 
 Este render full (cabeza + wordmark voxel 3D **integrados** en la escena, DOF real, iluminación unificada) supera al compositor de recortes `tools/capsule-preview.html` (techo de cohesión). Se le adjuntan dos autoridades: `capsule-ref.png` (logo/letras/roster) + `capsule-bg-v2.png` (fondo). Correcciones que pidió el usuario y funcionaron: **bajar el neón**, **pegar el wordmark a la cabeza**, y **verificar anatomía haciendo zoom a la esquina inferior izquierda** (ahí se esconden los defectos de miembros de la IA — un robot de 3 piernas mató a la variante v2b). Candidato líder `art/steam/capsule-codex-v2a.png`. **Regla de dirección: la cápsula es key art idealizado (línea 247 lo permite para composiciones imposibles en top-down); si se ve mejor que el juego, la brecha se cierra por screenshots honestos + pulido del juego, no rebajando la cápsula.**
 
+### Fondo limpio + exports Steam/social (2026-07-14)
+
+Pipeline final para derivados: **no regenerar logos ni wordmark**. Se limpio la `capsule-main-master-1656x950.png` quitando cabeza/letras para obtener una placa de fondo reutilizable, se escalo a `background-clean-master-3840x2160.png`, y todos los exports se recomponen por capas con `logo-mascot-v3.png` + `logo-letras-v3.png`. Esto evita los dos fallos anteriores: crops que cortaban contenido y generaciones IA que cambiaban colores/robots/wordmark.
+
+Entregables actuales:
+- `art/steam/background-clean-master-raw.png` - salida limpia original.
+- `art/steam/background-clean-master-3840x2160.png` - master 16:9 reutilizable para redes/Steam.
+- `art/steam/image/` - exports actuales: `capsule-main-1232x706.png`, `capsule-header-920x430.png`, `capsule-small-462x174.png`, `capsule-vertical-748x896.png`, `capsule-library-600x900.png`, `library-header-capsule-920x430.png`, `library-hero-3840x1240.png`, `library-logo-1280x720.png`, `twitter-header-1500x500.png`.
+- Backup pre-limpieza: `art/steam/image-backup-20260714-221227/`.
+
+Regla practica: si el asset necesita marca, componer mecanicamente desde el fondo limpio + PNGs aprobados; usar IA solo para limpiar/reconstruir fondo oculto, nunca para redibujar el logo.
+
 ## Orden de ejecución sugerido
 
 1. Icono final de la app (candidato fuerte ya generado: `assets/2d/app-icon-test.png`; falta convertir a `.ico`)

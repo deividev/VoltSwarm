@@ -305,6 +305,114 @@
   }
 }
 
+#levelup-flash {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 28;
+  pointer-events: none;
+  transform-origin: center;
+  will-change: transform, opacity, filter;
+}
+#levelup-flash.hidden {
+  display: none;
+}
+.levelup-flash-text {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  padding: 16px 34px 14px;
+  font-family: var(--pixel-font);
+  font-size: clamp(30px, 4.25vw, 62px);
+  line-height: 1;
+  letter-spacing: 2px;
+  color: #ffd23c;
+  text-shadow:
+    0 3px 0 #5c2500,
+    0 0 10px rgba(255, 210, 60, 0.95),
+    0 0 24px rgba(126, 224, 255, 0.72),
+    0 0 44px rgba(255, 122, 32, 0.55);
+  white-space: nowrap;
+  clip-path: polygon(
+    0 18px,
+    18px 18px,
+    18px 0,
+    calc(100% - 18px) 0,
+    calc(100% - 18px) 18px,
+    100% 18px,
+    100% calc(100% - 18px),
+    calc(100% - 18px) calc(100% - 18px),
+    calc(100% - 18px) 100%,
+    18px 100%,
+    18px calc(100% - 18px),
+    0 calc(100% - 18px)
+  );
+  background: linear-gradient(180deg, rgba(34, 43, 54, 0.94), rgba(12, 16, 22, 0.84));
+  border: 3px solid #7ee0ff;
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.45),
+    0 0 0 3px rgba(255, 210, 60, 0.35),
+    0 0 30px rgba(126, 224, 255, 0.65);
+}
+.levelup-flash-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 240px;
+  height: 86px;
+  transform: translate(-50%, -50%);
+  border: 4px solid rgba(126, 224, 255, 0.95);
+  border-radius: 50%;
+  box-shadow:
+    0 0 18px rgba(126, 224, 255, 0.85),
+    inset 0 0 18px rgba(255, 210, 60, 0.5);
+}
+#levelup-flash.play .levelup-flash-text {
+  animation: levelup-flash-pop 0.72s cubic-bezier(0.16, 1.5, 0.36, 1) both;
+}
+#levelup-flash.play .levelup-flash-ring {
+  animation: levelup-ring-burst 0.72s ease-out both;
+}
+@keyframes levelup-flash-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.45) rotate(-3deg);
+    filter: brightness(1.8);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.18) rotate(1deg);
+  }
+  38% {
+    transform: translate(-50%, -50%) scale(0.96) rotate(0deg);
+  }
+  78% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+    filter: brightness(1.18);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -70%) scale(0.9);
+    filter: brightness(0.85);
+  }
+}
+@keyframes levelup-ring-burst {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.32);
+  }
+  22% {
+    opacity: 0.95;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(2.25);
+  }
+}
+
 /* Gamepad menu focus: bright ring on the element the d-pad points at.
  * Border swap instead of outline — outlines get eaten by the notch
  * clip-paths. */
@@ -1602,11 +1710,24 @@ img.ui-glyph {
   font-size: 10px;
 }
 .damage-number {
-  font-size: 11px;
-  font-weight: 400;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #f8fbff;
+  text-shadow:
+    0 2px 0 rgba(0, 0, 0, 0.95),
+    0 0 7px rgba(126, 224, 255, 0.65);
 }
 .damage-number.crit {
-  font-size: 15px;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #ffd23c;
+  text-shadow:
+    0 3px 0 #5c2500,
+    0 0 10px rgba(255, 210, 60, 0.95),
+    0 0 22px rgba(255, 122, 32, 0.72);
+  filter: drop-shadow(0 0 6px rgba(255, 210, 60, 0.55));
 }
 #fps-counter {
   font-size: 10px;

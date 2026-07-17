@@ -13,6 +13,8 @@ interface Orb {
   /** True once inside pickup range — the orb accelerates toward the player. */
   flying: boolean;
   speed: number;
+  /** Short capture-readability pulse used by map-wide Orb Siphon pulls. */
+  pullFlashS: number;
 }
 
 const tmpMatrix = new THREE.Matrix4();
@@ -32,7 +34,7 @@ export class XpOrbSystem {
     this.mesh.frustumCulled = false;
     scene.add(this.mesh);
     for (let i = 0; i < XP_ORBS.maxCount; i++) {
-      this.pool.push({ active: false, x: 0, z: 0, value: 0, flying: false, speed: 0 });
+      this.pool.push({ active: false, x: 0, z: 0, value: 0, flying: false, speed: 0, pullFlashS: 0 });
       this.mesh.setMatrixAt(i, HIDDEN);
     }
   }
@@ -63,6 +65,7 @@ export class XpOrbSystem {
     orb.value = value;
     orb.flying = false;
     orb.speed = 0;
+    orb.pullFlashS = 0;
   }
 
   /** Moves orbs; calls `onCollect` for each orb the player absorbs. */
@@ -81,6 +84,7 @@ export class XpOrbSystem {
 
       if (!orb.flying && dSq <= rangeSq) orb.flying = true;
       if (orb.flying) {
+        if (orb.pullFlashS > 0) orb.pullFlashS = Math.max(0, orb.pullFlashS - dt);
         orb.speed = Math.min(orb.speed + XP_ORBS.flySpeed * 2.5 * dt, XP_ORBS.flySpeed);
         const dist = Math.sqrt(dSq) || 1;
         dx /= dist;
@@ -97,7 +101,10 @@ export class XpOrbSystem {
       }
 
       // Slight scale-up for merged (fatter) orbs, plus an idle bob/spin.
-      const s = Math.min(1 + Math.log2(1 + orb.value) * 0.15, 2);
+      const baseScale = Math.min(1 + Math.log2(1 + orb.value) * 0.15, 2);
+      const pullFlash =
+        orb.pullFlashS > 0 ? 1 + (orb.pullFlashS / XP_ORBS.pullAllFlashS) * XP_ORBS.pullAllScaleBoost : 1;
+      const s = baseScale * pullFlash;
       tmpMatrix.makeRotationY(this.bobPhase * 2 + i);
       tmpMatrix.scale(tmpScale.set(s, s, s));
       tmpMatrix.setPosition(orb.x, 0.6 + Math.sin(this.bobPhase * 3 + i) * 0.12, orb.z);
@@ -109,7 +116,10 @@ export class XpOrbSystem {
   /** Sends every orb on the map flying to the player (Orb Siphon mod). */
   pullAll(): void {
     for (const orb of this.pool) {
-      if (orb.active) orb.flying = true;
+      if (!orb.active) continue;
+      orb.flying = true;
+      orb.speed = Math.max(orb.speed, XP_ORBS.pullAllStartSpeed);
+      orb.pullFlashS = XP_ORBS.pullAllFlashS;
     }
   }
 

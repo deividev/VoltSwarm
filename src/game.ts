@@ -15,6 +15,7 @@ import {
   MODS,
   PICKUPS,
   PLAYER,
+  RECORDING,
   RUN_DURATION_S,
   VISUAL,
   XP_ORBS,
@@ -57,7 +58,16 @@ import {
   type GameSettings,
 } from './settings';
 
-type GameState = 'menu' | 'loading' | 'playing' | 'paused' | 'levelup' | 'chest' | 'shop' | 'ended';
+type GameState =
+  | 'menu'
+  | 'loading'
+  | 'playing'
+  | 'paused'
+  | 'levelup-intro'
+  | 'levelup'
+  | 'chest'
+  | 'shop'
+  | 'ended';
 
 // Warmup frames rendered behind the loading screen after the world is built,
 // so first-render shader compiles / GPU uploads happen HIDDEN — the reveal is
@@ -140,6 +150,7 @@ export class Game {
   /** Level-up card screens still owed to the player (can be >1 when a
    *  single merged XP orb crosses several thresholds at once). */
   private pendingLevelUps = 0;
+  private levelUpIntroRemainingS = 0;
   private lifestealCooldown = 0;
   /** Shield charges currently up, and the regen accumulator for the next one. */
   private shieldCur = 0;
@@ -348,6 +359,7 @@ export class Game {
       this.camera.position.z += (Math.random() - 0.5) * 2 * this.shakeAmp;
       this.shakeAmp *= Math.max(0, 1 - VISUAL.screenShake.decayPerS * rawDt);
     }
+    if (this.state === 'levelup-intro') this.tickLevelUpIntro(dt);
     this.damageNumbers.update(dt, this.camera);
     // The menu is a view OUTSIDE the game: skip the 3D render entirely so no
     // scene runs behind it (the opaque menu backdrop covers the canvas). Every
@@ -446,6 +458,8 @@ export class Game {
     this.burst.reset();
     this.goldSys.reset();
     this.merchant.reset();
+    this.levelUpIntroRemainingS = 0;
+    this.hud.hideLevelUpIntro();
   }
 
   /** Clears the previous container/barrel layout and rolls a fresh one,
@@ -529,14 +543,15 @@ export class Game {
     );
     if (summoned) {
       this.hud.banner(`${summoned.toUpperCase()} AWAKENS`);
-      // Materialization eruption: boss-red cube blast where it lands.
-      this.burst.spawn(
-        this.boss.lastSummonAt.x,
-        this.boss.lastSummonAt.z,
-        0xff3355,
-        VISUAL.deathBurst.particlesPerBossKill,
-      );
-      this.shakeAmp = Math.max(this.shakeAmp, VISUAL.screenShake.bossKillAmp);
+      // Materialization beat: red danger eruption + white-hot core + ground
+      // shock ring. This is the boss trailer moment, distinct from death bursts.
+      const vfx = VISUAL.bossSummonVfx;
+      const sx = this.boss.lastSummonAt.x;
+      const sz = this.boss.lastSummonAt.z;
+      this.burst.spawn(sx, sz, vfx.eruptionColor, vfx.eruptionCount);
+      this.burst.spawn(sx, sz, vfx.hotColor, vfx.hotCount);
+      this.spawnBurstRing(sx, sz, vfx.ringColor, vfx.ringCubes, vfx.ringRadius);
+      this.shakeAmp = Math.max(this.shakeAmp, vfx.shakeAmp);
     }
     this.hud.showSummonPrompt(this.boss.playerInSummonZone, this.interactLabel());
 
@@ -586,6 +601,13 @@ export class Game {
     this.maybeShowLevelUp();
   }
 
+  private spawnBurstRing(x: number, z: number, color: number, count: number, radius: number): void {
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2;
+      this.burst.spawn(x + Math.cos(a) * radius, z + Math.sin(a) * radius, color, 1);
+    }
+  }
+
   /** Level-ups wait politely: they only fire while actually playing, so a
    *  chest spin in progress finishes first and the pending level-ups follow.
    *  One card screen per level gained — applyUpgrade() calls back in here so
@@ -593,12 +615,42 @@ export class Game {
   private maybeShowLevelUp(): void {
     if (this.pendingLevelUps <= 0 || this.state !== 'playing') return;
     this.pendingLevelUps--;
+    if (VISUAL.levelUpIntro.enabled) {
+      this.state = 'levelup-intro';
+      this.levelUpIntroRemainingS = VISUAL.levelUpIntro.durationS;
+      this.moveLevelUpIntro();
+      const pos = this.levelUpIntroScreenPos();
+      this.hud.showLevelUpIntro(pos.x, pos.y);
+      return;
+    }
+    this.openLevelUpDraft();
+  }
+
+  private tickLevelUpIntro(dt: number): void {
+    this.moveLevelUpIntro();
+    this.levelUpIntroRemainingS -= dt;
+    if (this.levelUpIntroRemainingS > 0) return;
+    this.hud.hideLevelUpIntro();
+    this.openLevelUpDraft();
+  }
+
+  private openLevelUpDraft(): void {
     this.state = 'levelup';
     this.hud.showLevelUp(
       rollUpgradeChoices(this.stats, this.weaponLevels, this.coreLevels),
       this.discardsLeft,
       () => this.discardUpgrade(),
     );
+  }
+
+  private levelUpIntroScreenPos(): { x: number; y: number } {
+    const pos = this.worldToScreen(this.player.position.x, 2.25, this.player.position.z);
+    return { x: pos.x, y: pos.y - VISUAL.levelUpIntro.screenOffsetY };
+  }
+
+  private moveLevelUpIntro(): void {
+    const pos = this.levelUpIntroScreenPos();
+    this.hud.moveLevelUpIntro(pos.x, pos.y);
   }
 
   /** Skip a draft without picking (max ACCOUNT.levelupDiscards per run) —
@@ -654,7 +706,7 @@ export class Game {
         p.x,
         p.y,
       );
-      if (pressed && affordable) this.openChest(chest.index, chest.tier, price);
+      if (pressed && affordable) this.openChest(chest.index, chest.tier, price, chest.x, chest.z);
       return;
     }
 
@@ -666,27 +718,43 @@ export class Game {
   }
 
   /** Charges gold, then plays the reel and applies a mod OF THE CHEST'S TIER. */
-  private openChest(index: number, tier: Rarity, price: number): void {
+  private openChest(
+    index: number,
+    tier: Rarity,
+    price: number,
+    chestX = this.player.position.x,
+    chestZ = this.player.position.z,
+  ): void {
     this.gold -= price;
     this.hud.updateGold(this.gold);
     this.pickups.open(index);
+    this.burst.spawn(chestX, chestZ, VISUAL.chestVfx.openColor, VISUAL.chestVfx.openCount);
+    this.burst.spawn(chestX, chestZ, VISUAL.chestVfx.hotColor, VISUAL.chestVfx.hotCount);
+    this.shakeAmp = Math.max(this.shakeAmp, VISUAL.chestVfx.shakeAmp);
 
     // Orb Siphon: the chest vacuums the map's XP before the reel spins.
     const siphonCopies = this.modCounts['orb-siphon'] ?? 0;
     if (siphonCopies > 0) {
-      // Origin signal: orb-blue burst where the vacuum starts (the flying
-      // orbs themselves are the destination half).
+      // Two-layer signal: the chest cracks open, then the player's magnet field
+      // flares as the map-wide XP wave starts moving.
       this.burst.spawn(
         this.player.position.x,
         this.player.position.z,
         VISUAL.modVfx.orbSiphon.color,
         VISUAL.modVfx.orbSiphon.count,
       );
+      this.burst.spawn(
+        this.player.position.x,
+        this.player.position.z,
+        VISUAL.modVfx.orbSiphon.hotColor,
+        VISUAL.modVfx.orbSiphon.hotCount,
+      );
+      this.shakeAmp = Math.max(this.shakeAmp, VISUAL.chestVfx.siphonShakeAmp);
       this.orbs.pullAll();
       const extraHaste = (siphonCopies - 1) * MODS.orbSiphon.hastePerExtraCopyS;
       if (extraHaste > 0) this.hasteS = Math.max(this.hasteS, extraHaste);
     }
-    const mod = rollModOfTier(tier);
+    const mod: ModId = RECORDING.chestTesting.forceOrbSiphonReward ? 'orb-siphon' : rollModOfTier(tier);
     this.state = 'chest';
     this.hud.showInteractPrompt(null, this.interactLabel());
     this.hud.showChestSpin(
@@ -1282,6 +1350,13 @@ export class Game {
         const stock = rollShopStock(this.stats.luck, MERCHANT.stock + (whistle ? 1 : 0));
         this.merchant.arrive(spot.x, spot.z, stock, this.elapsedS);
         this.hud.banner('THE SCRAPPER HAS ARRIVED');
+        // Arrival beat: warm trade burst at the vendor's real location, so the
+        // GIF reads "go here" before the shop UI ever opens.
+        const vfx = VISUAL.merchantVfx;
+        this.burst.spawn(spot.x, spot.z, vfx.arrivalColor, vfx.arrivalCount);
+        this.burst.spawn(spot.x, spot.z, vfx.hotColor, vfx.hotCount);
+        this.spawnBurstRing(spot.x, spot.z, vfx.ringColor, vfx.ringCubes, vfx.ringRadius);
+        this.shakeAmp = Math.max(this.shakeAmp, vfx.shakeAmp);
         // Foreman's Whistle: the toot that summoned him — brass puff at you.
         if (whistle) {
           this.burst.spawn(

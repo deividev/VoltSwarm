@@ -13,13 +13,16 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 
 ### 2. Ficha de stats RPG + pool de mejoras con rareza
 - Ficha del personaje: Damage, Attack Speed, Crit Chance, Crit Damage, Move Speed, Attack Range, Pickup Range, Projectile Count, Projectile Speed, Area (tamaño de disparos/efectos), Armor (retornos decrecientes), Regen.
-- Level-up: 3 cartas aleatorias entre mejoras de stat y cartas de arma (desbloquear/subir nivel de arma).
+- Level-up: al cruzar el umbral de XP, primero se muestra un beat visual `LEVEL UP!` encima del jugador (`VISUAL.levelUpIntro`) y después se abre la UI con 3 cartas aleatorias entre mejoras de stat y cartas de arma (desbloquear/subir nivel de arma).
 - **Tiers (rareza) — DEFINICIÓN CANÓNICA. 5 tiers: gris → verde → azul → morado → dorado** (`Rarity` en `upgrades.ts`; pesos de tirada en `TIERS.weights`/`luckShift`, Luck sube los tiers altos). ⚠️ Cada categoría usa los tiers DISTINTO — esto es lo que hay que respetar para que no haya desalineamientos:
   - **Orbes (Cores):** el tier se **TIRA** en cada carta del draft (luck-weighted). El tier fija la **magnitud** del stat: cada core define un array de 5 valores `[gris, verde, azul, morado, dorado]`. Un mismo core puede salir en CUALQUIERA de los 5 tiers.
   - **Mods:** cada mod tiene **UN tier FIJO e intrínseco** (definido en `MOD_REGISTRY`, no se tira). Los 16 mods se reparten así: **5 gris, 5 verde, 3 azul, 2 morado, 1 dorado**. El cofre/tienda tira un tier (luck-weighted) y entrega un mod de ESE tier; nunca cambia el tier de un mod concreto.
   - **Armas / Habilidades:** **NO tienen tier de rareza.** Progresan por **NIVEL (Lv1-20)**, con milestones de cantidad en Lv3/Lv5. La carta de arma en el draft/level-up es cosmética (borde azul fijo), no un tier real.
   - Precios de cofre/tienda por tier (escalan con el minuto de run): gris 25 / verde 45 / azul 80 / morado 140 / dorado 240 (`MERCHANT.tierPrices`).
 - Cofres: recompensas de stats generales estilo Megabonk — +Luck, +Area, +Dificultad (con +XP a cambio) — además de reparar/cache/frenzy/haste existentes.
+- Pase Steam 2026-07-15: abrir un cofre dispara un burst voxel dorado/blanco y shake corto; si Orb Siphon está activo, la vacuum de XP usa burst azul/blanco en el jugador y los orbes arrancan más rápido con un pulso de escala para leerse mejor en GIFs.
+- TEMP test 2026-07-15 → REVERTIDO Y CERRADO 2026-07-17: `RECORDING.chestTesting.forceGreenChests`, `forceOrbSiphonReward` y `RECORDING.levelUpDraft.enabled` están en `false`; `GOLD.startingGold` está en `0`. Todos los rigs temporales de captura están desactivados.
+- Pase Steam 2026-07-15: la llegada del Scrapper tiene burst cálido, núcleo blanco, anillo de impacto, shake suave y pulso inicial del beam (`VISUAL.merchantVfx`) para que el momento sea claro en GIF antes de abrir la tienda.
 - Criterio: dos runs consecutivos ofrecen builds distintas; Luck visible en la calidad de cartas.
 
 ### 3. Dificultad unificada
@@ -34,7 +37,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 
 ### 5. Números de daño flotantes
 - Texto flotante en cada golpe (pool DOM proyectado a pantalla, cap ~48).
-- Críticos: más grandes y en color acento.
+- Pase Steam 2026-07-15: daño normal más grande y contrastado para lectura en vídeo; críticos con jerarquía fuerte (más grandes, dorados, glow cálido) para que destaquen en GIFs sin convertir todo el combate en sopa visual.
 
 ## P2 — Contenido y tuning
 
@@ -75,6 +78,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
   - **Crusher King**: tanque con embestida telegrafiada y spawn de scraplings.
   - **Tesla Titan**: mantiene distancia y dispara ráfagas radiales de proyectiles.
 - Matar al boss NO termina el run: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida (ciclo farmear → boss → boss más duro hasta el timer). La única victoria es sobrevivir los 10 minutos; la pantalla final cuenta los bosses derrotados.
+- Pase Steam 2026-07-15: el spawn de boss tiene beat de materialización reforzado con burst rojo, núcleo blanco, anillo de impacto y shake dedicado (`VISUAL.bossSummonVfx`) para que el título `AWAKENS` sea capturable.
 - Dirección futura (abierta, post-validación): cada boss derrotado transiciona a un mapa nuevo estilo Megabonk, culminando en un boss final. El ciclo de tótems actual es el placeholder mecánico de esa estructura.
 - Arco estético del multi-mapa (decidido 2026-07-03): scrapyard → fundición/fábrica → ciudad neón/estación orbital. El mundo es futurista; el scrapyard es el mapa 1, y cada mapa se ve más "futuro" que el anterior (detalle en `DIRECCION_ARTE.md`).
 - Barra de vida del boss en el HUD.
@@ -130,6 +134,7 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 ## Cámara (decidida 2026-07-05, playtest del usuario)
 
 - Cámara fija de seguimiento con offset en `config.CAMERA` — **(0, 24, 19) ≈ 52° de picado**, bajada desde el (0, 27, 15) ≈ 61° original para que las caras de los modelos voxel lean en pantalla. Validada en playtest: rendimiento correcto con enjambre denso y sin problemas de percepción del peligro por el norte de pantalla.
+- Pase Steam 2026-07-15: el jugador tiene una retícula persistente bajo los pies (`VISUAL.playerMarker`): glow tenue + aro cian/blanco + 4 ticks cardinales blancos, con pulso y rotación lenta. Objetivo: lectura en enjambres densos sin cambiar el modelo del player ni colisionar con lenguaje de élite (magenta segmentado) o boss (rojo sólido).
 - Cámara libre/rotable por el jugador: DESCARTADA — el encuadre fijo es parte del balance y de la dirección de arte (decisión razonada, no pendiente).
 
 ## Pipeline de modelos voxel 2D→3D — Implementado 2026-07-04

@@ -157,7 +157,15 @@ export const VISUAL = {
     offset: 1.05,
   },
   /** Dev instrument: live FPS readout, bottom-right corner. */
-  showFps: true,
+  showFps: false,
+  /** Level-up headline beat before the upgrade draft opens. */
+  levelUpIntro: {
+    enabled: true,
+    /** Short enough to keep flow, long enough to read in GIFs/screenshots. */
+    durationS: 0.72,
+    /** Screen-space offset above the projected player position. */
+    screenOffsetY: 92,
+  },
   /** Toon shading: quantizes lighting into hard steps on every lit entity
    *  (bots, player, props, crates) — the painted-toy look. */
   toon: {
@@ -274,8 +282,8 @@ export const VISUAL = {
      *  trigger IS the crit, so the pop speaks the crit family (the icon's
      *  red reticle emblem), not the shared brand cyan. */
     chainRelay: { color: 0xf8fbff, trailCubes: 4, hitColor: 0xe02010, hitCount: 3 },
-    /** Orb-blue burst at the chest when the siphon vacuums the map. */
-    orbSiphon: { color: 0x10a0f0, count: 12 },
+    /** Orb-blue burst when the siphon vacuums the map. */
+    orbSiphon: { color: 0x10a0f0, count: 24, hotColor: 0xf8fbff, hotCount: 8 },
     /** Signal-red burst + sustained crackle ON THE PLAYER while overcharged. */
     overloadTrigger: { color: 0xe02010, count: 12 },
     /** Violet burst + sustained shimmer ON THE PLAYER while phased out. */
@@ -295,6 +303,37 @@ export const VISUAL = {
      *  it shipped with predates the coherence rule) + gold pull aura. */
     magnetronHeart: { color: 0xf2b632, hotColor: 0xe02010, hotCount: 6 },
   },
+  /** Chest open beat for Steam-capture readability: world burst first, UI reel second. */
+  chestVfx: {
+    openColor: 0xf2b632,
+    openCount: 18,
+    hotColor: 0xf8fbff,
+    hotCount: 6,
+    shakeAmp: 0.14,
+    siphonShakeAmp: 0.1,
+  },
+  /** Boss materialization beat: layered red danger + white-hot core + ground shock ring. */
+  bossSummonVfx: {
+    eruptionColor: 0xff3355,
+    eruptionCount: 40,
+    hotColor: 0xf8fbff,
+    hotCount: 12,
+    ringColor: 0xe02010,
+    ringCubes: 30,
+    ringRadius: 3.8,
+    shakeAmp: 0.72,
+  },
+  /** Scrapper arrival beat: warm trade signal, distinct from chest gold and boss red. */
+  merchantVfx: {
+    arrivalColor: 0xffc44d,
+    arrivalCount: 26,
+    hotColor: 0xf8fbff,
+    hotCount: 7,
+    ringColor: 0xf0b000,
+    ringCubes: 20,
+    ringRadius: 2.6,
+    shakeAmp: 0.16,
+  },
   /** Blob shadows: one dark disc under every entity, anchoring it to the
    *  ground. Radius multiplies the entity's collision radius. */
   blobShadow: {
@@ -302,6 +341,28 @@ export const VISUAL = {
     opacity: 0.32,
     radiusScale: 1.2,
     y: 0.04,
+  },
+  /** Persistent player readability marker for Steam-scale chaos. Keep it
+   *  cyan/white and unsegmented so it never collides with elite magenta or
+   *  boss red ring language. */
+  playerMarker: {
+    enabled: true,
+    ringColor: 0x7ee0ff,
+    glowColor: 0xf8fbff,
+    tickColor: 0xf8fbff,
+    ringOpacity: 0.74,
+    glowOpacity: 0.16,
+    tickOpacity: 0.86,
+    innerRadius: 0.68,
+    outerRadius: 0.94,
+    glowRadius: 1.32,
+    tickLength: 0.4,
+    tickWidth: 0.08,
+    tickDistance: 1.12,
+    y: 0.075,
+    pulseHz: 1.05,
+    pulseScale: 0.1,
+    rotateHz: 0.16,
   },
 };
 
@@ -523,6 +584,10 @@ export const XP_ORBS = {
   mergeRadius: 1.6,
   collectRadius: 0.8,
   flySpeed: 22,
+  /** Orb Siphon starts map-wide pulls faster and briefly scales orbs up so the wave reads in footage. */
+  pullAllStartSpeed: 18,
+  pullAllFlashS: 0.45,
+  pullAllScaleBoost: 0.55,
   orbRadius: 0.28,
   /** Global multiplier on every dropped orb's value — the single tuning knob
    *  for run-wide XP income (per-enemy xp values stay canonical). Part of the
@@ -870,12 +935,26 @@ export const ACCOUNT = {
   ],
 };
 
+/** Temporary capture-only overrides. Disable after recording Steam footage. */
+export const RECORDING = {
+  levelUpDraft: {
+    /** Always offer the owned weapon, Attack Speed and Projectile Quantity. */
+    enabled: false,
+    coreRarity: 'gold' as const,
+    coreIds: ['attack-speed', 'projectile-count'] as const,
+  },
+  chestTesting: {
+    /** Force green chests to test Orb Siphon without RNG. Keep false outside tests. */
+    forceGreenChests: false,
+    /** Every opened chest grants Orb Siphon for XP-vacuum testing. Keep false outside tests. */
+    forceOrbSiphonReward: false,
+  },
+};
+
 /** In-run currency (name TBD — icon-first decision 2026-07-09). Tokens merge
  *  like XP orbs so a 400-enemy swarm never floods the ground. */
 export const GOLD = {
-  /** TEMP (2026-07-10): 500 starting gold for the economy playtest ONLY —
-   *  revert to 0 before any capture/release build. */
-  startingGold: 500,
+  startingGold: 0,
   /** 0.2 → 0.25 in the 2026-07-10 economy-generosity pass (+25% income). */
   dropChance: 0.25,
   dropAmount: 1,

@@ -207,6 +207,7 @@ export class Hud {
   private readonly startOverlay: HTMLElement;
   private readonly draftCards: HTMLElement;
   private readonly levelUpOverlay: HTMLElement;
+  private readonly levelUpFlash: HTMLElement;
   private readonly upgradeCards: HTMLElement;
   private readonly endOverlay: HTMLElement;
   private readonly endTitle: HTMLElement;
@@ -309,6 +310,10 @@ export class Hud {
           <div id="upgrade-cards"></div>
           <button id="levelup-discard" class="hidden">Discard</button>
         </div>
+      </div>
+      <div id="levelup-flash" class="hidden" aria-hidden="true">
+        <div class="levelup-flash-ring"></div>
+        <div class="levelup-flash-text">LEVEL UP!</div>
       </div>
       <!-- Fixed-positioned sheet, shown while the level-up overlay is open OR
            a chest reel has landed (CSS :has() gates) — lives outside both
@@ -431,6 +436,7 @@ export class Hud {
     this.startOverlay = mustGet('start-overlay');
     this.draftCards = mustGet('draft-cards');
     this.levelUpOverlay = mustGet('levelup-overlay');
+    this.levelUpFlash = mustGet('levelup-flash');
     this.upgradeCards = mustGet('upgrade-cards');
     this.endOverlay = mustGet('end-overlay');
     this.endTitle = mustGet('end-title');
@@ -1477,6 +1483,22 @@ export class Hud {
       this.upgradeCards.appendChild(el);
     }
     this.levelUpOverlay.classList.remove('hidden');
+  }
+
+  showLevelUpIntro(x: number, y: number): void {
+    this.moveLevelUpIntro(x, y);
+    this.levelUpFlash.classList.remove('hidden', 'play');
+    void this.levelUpFlash.offsetWidth;
+    this.levelUpFlash.classList.add('play');
+  }
+
+  moveLevelUpIntro(x: number, y: number): void {
+    this.levelUpFlash.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px)`;
+  }
+
+  hideLevelUpIntro(): void {
+    this.levelUpFlash.classList.add('hidden');
+    this.levelUpFlash.classList.remove('play');
   }
 
   /** Slot-machine crate opening: the reel cycles through every possible

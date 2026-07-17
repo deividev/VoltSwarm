@@ -1,4 +1,4 @@
-import { ACCOUNT, MAX_WEAPON_LEVEL, PLAYER, TIERS, WEAPON_INFO, describeWeaponLevel, xpForLevel, type WeaponId } from './config';
+import { ACCOUNT, MAX_WEAPON_LEVEL, PLAYER, RECORDING, TIERS, WEAPON_INFO, describeWeaponLevel, xpForLevel, type WeaponId } from './config';
 import type { PlayerStats } from './stats';
 import type { Player } from './player';
 
@@ -349,6 +349,8 @@ export function rollUpgradeChoices(
   const atCoreCap = installedCoreCount(cores) >= ACCOUNT.coreSockets;
   const coreOffered = (id: string): boolean =>
     ACCOUNT.unlockedCores.includes(id) && (!atCoreCap || (cores[id] ?? 0) > 0);
+  const recordingCoreOffered = (id: string): boolean =>
+    !atCoreCap || (cores[id] ?? 0) > 0;
 
   const candidates: UpgradeCard[] = [];
   for (const def of STAT_CARDS) {
@@ -376,6 +378,38 @@ export function rollUpgradeChoices(
     } else if (!atWeaponCap && ACCOUNT.unlockedWeapons.includes(weaponId)) {
       unlockCards.push(makeWeaponCard(weaponId, 0));
     }
+  }
+
+  if (RECORDING.levelUpDraft.enabled) {
+    const forced: UpgradeCard[] = [];
+
+    // With one socket this is the selected starting weapon. If future capture
+    // builds own several, prefer the highest-level weapon; ties keep the
+    // canonical WeaponLevels insertion order from emptyWeaponLevels().
+    const ownedWeapon = (Object.keys(weapons) as WeaponId[])
+      .filter((id) => weapons[id] > 0 && weapons[id] < MAX_WEAPON_LEVEL)
+      .sort((a, b) => weapons[b] - weapons[a])[0];
+    if (ownedWeapon) {
+      forced.push(makeWeaponCard(ownedWeapon, weapons[ownedWeapon]));
+    }
+
+    for (const coreId of RECORDING.levelUpDraft.coreIds) {
+      // Recording-only forced cores may sit outside the normal account pool,
+      // but they still obey socket capacity and installed-core eligibility.
+      if (!recordingCoreOffered(coreId)) continue;
+      if (coreId === PROJECTILE_CARD.id) {
+        // Capture mode deliberately bypasses the normal purple/gold roll gate.
+        forced.push(makeStatCard(PROJECTILE_CARD, RECORDING.levelUpDraft.coreRarity));
+        continue;
+      }
+      const def = STAT_CARDS.find((card) => card.id === coreId);
+      if (!def || (def.available && !def.available(stats))) continue;
+      forced.push(makeStatCard(def, RECORDING.levelUpDraft.coreRarity));
+    }
+
+    const forcedIds = new Set(forced.map((card) => card.id));
+    const legalFill = [...candidates, ...unlockCards].filter((card) => !forcedIds.has(card.id));
+    return [...forced, ...legalFill].slice(0, count);
   }
 
   const picks: UpgradeCard[] = [];
