@@ -31,6 +31,8 @@ export interface CombatCtx {
   ): void;
   /** Pops voxel cubes from the shared burst pool — weapon trails/impacts. */
   spawnBurst(x: number, z: number, color: number, count: number): void;
+  /** Aggregated activity observer; never called from per-enemy hit loops. */
+  weaponActivated(id: WeaponId): void;
 }
 
 function branchMultiplier(
@@ -273,7 +275,7 @@ export class BoltWeapon {
           ctx.stats.attackSpeed * branchMultiplier(ctx, 'bolt', 'cycle')
         );
         const count = 1 + quantityBonus(level) + ctx.stats.projectileCount;
-        this.fireVolley(px, pz, ctx, count);
+        if (this.fireVolley(px, pz, ctx, count)) ctx.weaponActivated('bolt');
       }
     }
 
@@ -335,7 +337,7 @@ export class BoltWeapon {
     this.mesh.instanceMatrix.needsUpdate = true;
   }
 
-  private fireVolley(px: number, pz: number, ctx: CombatCtx, count: number): void {
+  private fireVolley(px: number, pz: number, ctx: CombatCtx, count: number): boolean {
     const range = WEAPONS.bolt.range * ctx.stats.attackRange;
     const targets: number[] = [];
     const taken = new Set<number>();
@@ -355,7 +357,7 @@ export class BoltWeapon {
       taken.add(best);
       targets.push(best);
     }
-    if (targets.length === 0) return;
+    if (targets.length === 0) return false;
     const speed = WEAPONS.bolt.speed * ctx.stats.projectileSpeed;
     for (let n = 0; n < count; n++) {
       const target = targets[n % targets.length];
@@ -364,6 +366,7 @@ export class BoltWeapon {
       if (!e) continue;
       this.launch(px, pz, e.x, e.z, speed);
     }
+    return true;
   }
 
   private launch(px: number, pz: number, tx: number, tz: number, speed: number): void {
@@ -434,6 +437,7 @@ export class PulseWeapon {
         ctx.stats.attackSpeed * branchMultiplier(ctx, 'pulse', 'cycle')
       );
       this.flash = 0.35;
+      ctx.weaponActivated('pulse');
       const damage = levelScale(
         WEAPONS.pulse.damage,
         WEAPONS.pulse.damagePctPerLevel,
@@ -476,6 +480,7 @@ export class PulseWeapon {
 export class BladeWeapon {
   private readonly blades: THREE.Mesh[] = [];
   private angle = 0;
+  private wasActive = false;
 
   constructor(scene: THREE.Scene) {
     // A real voxel SAW (hub + teeth) instead of the flat gray slab.
@@ -499,6 +504,8 @@ export class BladeWeapon {
             this.blades.length,
           )
         : 0;
+    if (count > 0 && !this.wasActive) ctx.weaponActivated('blades');
+    this.wasActive = count > 0;
     const damage = levelScale(
       WEAPONS.blades.damage,
       WEAPONS.blades.damagePctPerLevel,
@@ -540,6 +547,7 @@ export class BladeWeapon {
 
   reset(): void {
     this.angle = 0;
+    this.wasActive = false;
     for (const blade of this.blades) blade.visible = false;
   }
 }
@@ -612,6 +620,7 @@ export class WelderWeapon {
         WEAPONS.welder.damagePctPerLevel,
         1 + (ctx.weaponBranches.welder.damage ?? 0),
       ) * ramp;
+      ctx.weaponActivated('welder');
       ctx.dealDamage(this.target, damage, WEAPON_ACCENT.welder, 'welder');
     }
 
@@ -693,6 +702,7 @@ export class PressWeapon {
           ctx.stats.attackSpeed * branchMultiplier(ctx, 'press', 'cycle')
         );
         this.flash = 0.25;
+        ctx.weaponActivated('press');
         const dist = Math.hypot(e.x - px, e.z - pz) || 1;
         const dirX = (e.x - px) / dist;
         const dirZ = (e.z - pz) / dist;
@@ -793,6 +803,7 @@ export class TireWeapon {
         const e = ctx.enemies.pool[target];
         if (e) {
           this.cooldown = WEAPONS.tire.cooldownS / ctx.stats.attackSpeed;
+          ctx.weaponActivated('tire');
           const baseAngle = Math.atan2(e.x - px, e.z - pz);
           for (let n = 0; n < count; n++) {
             const angle = baseAngle + (n - (count - 1) / 2) * 0.35;
@@ -930,6 +941,7 @@ export class OilWeapon {
           p.z = pz;
           p.life = WEAPONS.oil.puddleLifeS * ctx.stats.duration *
             branchMultiplier(ctx, 'oil', 'duration');
+          ctx.weaponActivated('oil');
           // Splash on drop: dark droplets + one hazard-yellow glint (the
           // icon's label accent) so the drip reads on the dark floor.
           ctx.spawnBurst(px, pz, 0x1a1522, 3);
@@ -1053,6 +1065,7 @@ export class AcidWeapon {
             z.z = e.z;
             z.life = WEAPONS.acid.zoneLifeS * ctx.stats.duration;
             z.bubbleTimer = 0;
+            ctx.weaponActivated('acid');
             // The drum SPLASHES down where it lands.
             ctx.spawnBurst(z.x, z.z, WEAPON_ACCENT.acid, 6);
           }
@@ -1185,6 +1198,7 @@ export class TurbineWeapon {
           const count = 1 + quantityBonus(level) + ctx.stats.projectileCount;
           const baseAngle = Math.atan2(e.x - px, e.z - pz);
           const speed = WEAPONS.turbine.speed * ctx.stats.projectileSpeed;
+          let launched = false;
           for (let n = 0; n < count; n++) {
             const t = this.pool.find((c) => !c.active);
             if (!t) break;
@@ -1198,7 +1212,9 @@ export class TurbineWeapon {
             t.debrisTimer = 0;
             t.hit.clear();
             t.mesh.visible = true;
+            launched = true;
           }
+          if (launched) ctx.weaponActivated('turbine');
         }
       }
     }
@@ -1328,6 +1344,7 @@ export class RicochetWeapon {
               WEAPONS.ricochet.bounces * branchMultiplier(ctx, 'ricochet', 'bounce-count'),
             ) + quantityBonus(level);
             s.hit.clear();
+            ctx.weaponActivated('ricochet');
           }
         }
       }
@@ -1481,6 +1498,7 @@ export class DismantlerWeapon {
         // Every swipe lands at its own angle — a claw, not a stamp.
         this.claw.rotation.y = Math.random() * Math.PI;
         this.strikeScale = 1 + e.radius;
+        ctx.weaponActivated('dismantler');
 
         const threshold = Math.min(
           WEAPONS.dismantler.thresholdCap,

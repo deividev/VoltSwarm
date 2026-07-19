@@ -3,6 +3,53 @@
 
 export const ARENA_HALF_SIZE = 90;
 
+/** Renderer-side audio tuning. All voice, cooldown and fade values are config-owned. */
+export const AUDIO = {
+  /** Final-audio validation gate. Enable exactly one event while reviewing it. */
+  /** TEMP style-search (arc family round 1): prototype manifest + 5 events under review. Revert enabledEvents and paths.manifest after validation. */
+  validation: {
+    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'foundation-music', 'menu-music'] as readonly string[],
+    /** TEMP style-search audition: F6/F7/F8 cycle+preview the bolt/death/chest candidate in-game. */
+    auditionKeys: true,
+  },
+  voiceCaps: { global: 18, sfx: 14, music: 2 },
+  cooldownS: {
+    /** Spaced out so death debris reads as background rain under the weapon
+     *  voice, never as its interleaved reply (tennis-match fix, 2026-07-18). */
+    'enemy-death': 0.16, 'xp-pickup': 0.08, 'gold-pickup': 0.08,
+    'weapon-activation': 0.14, 'player-hit': 0.12, 'ui-confirm': 0.06,
+    'bolt-cannon-fire': 0.11,
+  },
+  fades: { defaultS: 0.04, pauseDuckS: 0.12, pauseMusicGain: 0.22, menuMusicGain: 0.45 },
+  music: {
+    /** Base gain of the in-run music loop. Loud by default — players who find
+     *  it strong turn it down with the Music Volume setting (user 2026-07-18). */
+    runLoopVolume: 0.8,
+    /** Menu theme gain. Compensates fades.menuMusicGain (0.45 duck designed to
+     *  quiet RUN music behind menus) so the dedicated menu theme sits near the
+     *  run bed's perceived level. */
+    menuLoopVolume: 1.5,
+  },
+  paths: {
+    manifest: 'assets/audio/prototypes/manifest.json',
+    finalManifest: 'assets/audio/sfx/manifest.json',
+  },
+  diagnostics: {
+    stressEventCount: 10_000,
+    stressPriority: 0,
+  },
+  benchmark: {
+    scenario: 'audio-swarm-416',
+    seed: 4979220,
+    enemyCount: 400,
+    typeCounts: [240, 112, 48] as const,
+    spawnRadius: 22,
+    sacrificeIntervalS: 0.25,
+    sacrificeBatch: 4,
+  },
+} as const;
+
+
 /** Shared placement search. Failed searches skip/delay a spawn rather than
  *  placing an object outside the floor or overlapping occupied space. */
 export const SPAWN_PLACEMENT = {

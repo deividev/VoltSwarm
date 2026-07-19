@@ -102,7 +102,7 @@ Lo que falta para que las capturas/GIFs vendan la página de Steam:
 
 - ✅ **Pausa** — Escape + pause-on-blur implementados y verificados.
 - ✅ **Build completa + desglose de daño por arma en pantalla final — COMPLETADO 2026-07-17.** La pantalla conserva Weapons/Cores/Mods con el mismo lenguaje visual del RIG. Instrumento de balance sobre el embudo `dealDamage`: daño real sin overkill, atribución de DoT, porcentaje del total y barras comparativas ordenadas.
-- ✅ **Settings in-game — SUPERADO por Settings v3 (2026-07-13, PRD §"Settings v3")**: pantalla completa con sidebar General/Controls, auto-apply (sin botón Apply), remapeo de controles teclado+gamepad, IPC de fullscreen/resolución aplicándose solo al cambiar (fix del parpadeo). Los sliders de volumen existen y persisten; el backend de audio sigue siendo Fase 4
+- ✅ **Settings in-game — SUPERADO por Settings v3 (2026-07-13, PRD §"Settings v3")**: pantalla completa con sidebar General/Controls, auto-apply (sin botón Apply), remapeo de controles teclado+gamepad, IPC de fullscreen/resolución aplicándose solo al cambiar (fix del parpadeo). Los sliders de volumen existen, persisten y gobiernan la Audio Foundation
 - ✅ **Menú principal completo**: Play / Unlocks / Settings / Exit; Settings compartido con pausa; versión visible abajo a la derecha como `vMAJOR.MINOR.PATCH`. `vite.config.ts` lee `package.json` e inyecta `__APP_VERSION__`, por lo que no existe una segunda versión hardcodeada que pueda quedar desincronizada. **Futuro, no implementado:** si el gate da GO, el destino de menú pasa a `Play Solo` y `Play Multiplayer`; no cambia el claim público actual.
 
 ## Fase 4a — Foundation de audio (AHORA; no es el catálogo completo)
@@ -143,6 +143,8 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 
 ## Fase 6 — Steamworks técnico + cierre
 
+0b. **Pantalla "PRESS ANY KEY" antes del menú principal** (apuntado 2026-07-19): resuelve el silencio de autoplay del arranque — el primer gesto activa el AudioContext y el tema de menú entra desde el primer frame del menú. Estándar comercial; pieza de pulido de cierre, no bloquea nada antes.
+0c. **Crossfade entre pistas de música** (apuntado 2026-07-19): fade out/in en toda transición de música (menú → run, run → menú, futuras camas por mapa y capa de boss) en vez del corte seco actual (`stopLoop` ya desvanece la saliente vía `fades.defaultS`, pero la entrante arranca en seco). Implementación esperada: rampa de gain por voz al emitir loops keyed, duraciones en `AUDIO.fades` (config). Pulido de Fase 6 junto a 0b; si el catálogo de audio de Fase 4b mete la capa de boss antes, adelantarlo ahí.
 1. `steamworks.js` a dependencies + `asarUnpack`, logros definidos y llamados (boss kill, survive, nivel X, N runs)
 1b. **Leaderboards de Steam** (API de leaderboards vía steamworks.js): comparar runs propios y de otros jugadores. Decisiones de diseño pendientes: métrica principal (kills totales vs bosses derrotados vs nivel alcanzado — recomendación: un leaderboard por mapa con kills como métrica, y el detalle del run en el desglose), y asumir que es client-authoritative (falsificable — estándar aceptado en indies de este tamaño, no invertir en anti-cheat)
 2. Legal: créditos, licencias de terceros (three.js MIT), EULA si aplica
@@ -161,3 +163,16 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 - Vampire Survivors: $4.99 — el ancla psicológica del impulse-buy
 - Voltswarm entra por debajo del techo, al precio del ancla, con roadmap de mapas/personajes como motor de updates
 - Completed: **Weapon branches for all weapons (2026-07-17):** all 11 weapons now use three original specialisations, each incrementing nominal level and aggregate snapshot power while only its selected runtime behavior gains the rarity-weighted increase, and its card shows any simultaneous Lv3/Lv5 quantity milestone. A draft permits at most one branch per owning weapon; full sockets reserve an eligible branch and installed core before the final legal card, using a run-only Gold fallback rather than duplicating a branch when uniqueness exhausts a supported three-card draft.
+
+
+### Audio Foundation — implemented 2026-07-17
+
+Runtime foundation is implemented: renderer-side lazy `AudioDirector`, settings buses, semantic observer events, config-owned limits and diagnostics. The deterministic offline generator/validation pack is implemented under `tools/audio/`; generated WAV/OGG remain local/regenerable by the deliberate asset-ignore policy. The packaged 400+ audio benchmark passed with the evidence below. Pending: final P1/P2/P3 catalog and music production/licensing workflow. Headless/browser autoplay can validate scheduling/caps but not audible playback.
+
+### Packaged audio swarm evidence (2026-07-17)
+
+Successful local packaged Electron run via `npm run benchmark:audio`: deterministic `audio-swarm-416` (seed 4979220; digest `4979220:240-112-48:0.25:4`), 404 peak / 411 minimum / 411 end active enemies, including normal-HP sacrificial enemies. At 800x600 after 3 s warmup + 10 s rAF sample on Windows 10 / AMD Ryzen 7 3700X / NVIDIA GeForce RTX 2060 (D3D11): 120.10 mean FPS, 119 minimum complete 1 s bucket FPS and 8.5 ms frame-time p99. Actual paths: 9 kills, 7 XP pickups, 14 Gold pickups; audio 47 attempts / 27 accepted, 15 peak voices, 20 cooldown drops, 0 steals/load failures/leaks and 0 active audio voices after cleanup. Evidence: `tmp/perf-audio-output/report.json`. This validates this machine and scenario only, not Steam minimum hardware.
+
+### Audio artistic pre-production gate
+
+Runtime Audio Foundation and its benchmark are technically passed. Artistic audio is not started: the current generated pack is TECH FIXTURE / REJECTED FINAL. Next is user approval of `SOUND_DIRECTION.md` and `SOUND_EVENT_CATALOG.md`, then only six prototypes; final catalog and Suno music remain pending.

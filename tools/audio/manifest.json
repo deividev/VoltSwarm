@@ -1,0 +1,1069 @@
+{
+  "version": "audio-authoring-v3",
+  "generator": {
+    "version": "audio-authoring-v3",
+    "hash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163"
+  },
+  "events": {
+    "ui-confirm": [
+      {
+        "semanticEvent": "ui-confirm",
+        "family": "ui",
+        "recipeId": "ui-confirm",
+        "recipeVersion": 1,
+        "seed": 11,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/ui-confirm-v1.wav",
+          "sha256": "befa91f09583d5e4047ddd77f6900b1e4f1d8a91a1ce33395c5043c55970985d",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 3969,
+          "durationS": 0.09,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+        }
+      }
+    ],
+    "ui-back": [
+      {
+        "semanticEvent": "ui-back",
+        "family": "ui",
+        "recipeId": "ui-confirm",
+        "recipeVersion": 1,
+        "seed": 11,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/ui-confirm-v1.wav",
+          "sha256": "befa91f09583d5e4047ddd77f6900b1e4f1d8a91a1ce33395c5043c55970985d",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 3969,
+          "durationS": 0.09,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+        }
+      }
+    ],
+    "panel-open": [
+      {
+        "semanticEvent": "panel-open",
+        "family": "ui",
+        "recipeId": "ui-confirm",
+        "recipeVersion": 1,
+        "seed": 11,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/ui-confirm-v1.wav",
+          "sha256": "befa91f09583d5e4047ddd77f6900b1e4f1d8a91a1ce33395c5043c55970985d",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 3969,
+          "durationS": 0.09,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+        }
+      }
+    ],
+    "run-start": [
+      {
+        "semanticEvent": "run-start",
+        "family": "ui",
+        "recipeId": "levelup-open",
+        "recipeVersion": 1,
+        "seed": 81,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/levelup-open-v1.wav",
+          "sha256": "faf876ea65542aed8e7405450de3babf93cdb97d50e4d3816d61d83a296f1a90",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 11025,
+          "durationS": 0.25,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/levelup-open-v1.ogg"
+        }
+      }
+    ],
+    "menu-enter": [
+      {
+        "semanticEvent": "menu-enter",
+        "family": "ui",
+        "recipeId": "ui-confirm",
+        "recipeVersion": 1,
+        "seed": 11,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/ui-confirm-v1.wav",
+          "sha256": "befa91f09583d5e4047ddd77f6900b1e4f1d8a91a1ce33395c5043c55970985d",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 3969,
+          "durationS": 0.09,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+        }
+      }
+    ],
+    "pause": [
+      {
+        "semanticEvent": "pause",
+        "family": "ui",
+        "recipeId": "ui-confirm",
+        "recipeVersion": 1,
+        "seed": 11,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/ui-confirm-v1.wav",
+          "sha256": "befa91f09583d5e4047ddd77f6900b1e4f1d8a91a1ce33395c5043c55970985d",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 3969,
+          "durationS": 0.09,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+        }
+      }
+    ],
+    "resume": [
+      {
+        "semanticEvent": "resume",
+        "family": "ui",
+        "recipeId": "ui-confirm",
+        "recipeVersion": 1,
+        "seed": 11,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/ui-confirm-v1.wav",
+          "sha256": "befa91f09583d5e4047ddd77f6900b1e4f1d8a91a1ce33395c5043c55970985d",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 3969,
+          "durationS": 0.09,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+        }
+      }
+    ],
+    "weapon-activation": [
+      {
+        "semanticEvent": "weapon-activation",
+        "family": "weapon",
+        "recipeId": "weapon-activation",
+        "recipeVersion": 1,
+        "seed": 21,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/weapon-activation-v1.wav",
+          "sha256": "7e6face825b54b54a05b98ec7c54e6693c4bdd1428435bcd299ec11ef5adaeb5",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 5292,
+          "durationS": 0.12,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/weapon-activation-v1.ogg"
+        }
+      }
+    ],
+    "bolt-cannon-fire": [
+      {
+        "semanticEvent": "bolt-cannon-fire",
+        "family": "weapon-prototype",
+        "recipeId": "bolt-cannon-fire",
+        "recipeVersion": 3,
+        "seed": 4979,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/bolt-cannon-fire-v1.wav",
+          "sha256": "5e5d78abe289eb1a1b75733a5f9fe711ce5d9357465e03d489711cbefe6c3765",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 5292,
+          "durationS": 0.12,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/bolt-cannon-fire-v1.ogg"
+        }
+      },
+      {
+        "semanticEvent": "bolt-cannon-fire",
+        "family": "weapon-prototype",
+        "recipeId": "bolt-cannon-fire",
+        "recipeVersion": 3,
+        "seed": 4979,
+        "variantIndex": 1,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/bolt-cannon-fire-v2.wav",
+          "sha256": "a959410187daa8d86ceaee55a9a7352ab5124ce1a671127fbe8ed3e66627fc10",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 5292,
+          "durationS": 0.12,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/bolt-cannon-fire-v2.ogg"
+        }
+      },
+      {
+        "semanticEvent": "bolt-cannon-fire",
+        "family": "weapon-prototype",
+        "recipeId": "bolt-cannon-fire",
+        "recipeVersion": 3,
+        "seed": 4979,
+        "variantIndex": 2,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/bolt-cannon-fire-v3.wav",
+          "sha256": "26f119a1065ddd6d149613074d723552d2618f6817611aefe6e822572f29b411",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 5292,
+          "durationS": 0.12,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/bolt-cannon-fire-v3.ogg"
+        }
+      }
+    ],
+    "player-hit": [
+      {
+        "semanticEvent": "player-hit",
+        "family": "player",
+        "recipeId": "player-hit",
+        "recipeVersion": 1,
+        "seed": 61,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/player-hit-v1.wav",
+          "sha256": "ce670da7d9d4608fcd0af9eefc4ecfd44b2db86c4f940da3c110f15433e883f1",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 7056,
+          "durationS": 0.16,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/player-hit-v1.ogg"
+        }
+      }
+    ],
+    "shield-block": [
+      {
+        "semanticEvent": "shield-block",
+        "family": "player",
+        "recipeId": "shield-block",
+        "recipeVersion": 1,
+        "seed": 71,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/shield-block-v1.wav",
+          "sha256": "c1061b8d38d4a18649ab87ffd6671aa0fc3a0867ac3527cec72697d7cc573f62",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 7056,
+          "durationS": 0.16,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/shield-block-v1.ogg"
+        }
+      }
+    ],
+    "enemy-death": [
+      {
+        "semanticEvent": "enemy-death",
+        "family": "death",
+        "recipeId": "enemy-death",
+        "recipeVersion": 1,
+        "seed": 31,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/enemy-death-v1.wav",
+          "sha256": "ed119487fee18bcf31f1aefbccd122eeb331c9186f0554d2f8393ad1078d1c83",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 4851,
+          "durationS": 0.11,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/enemy-death-v1.ogg"
+        }
+      },
+      {
+        "semanticEvent": "enemy-death",
+        "family": "death",
+        "recipeId": "enemy-death",
+        "recipeVersion": 1,
+        "seed": 31,
+        "variantIndex": 1,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/enemy-death-v2.wav",
+          "sha256": "15cc56889d498ad6bb26d04d69b602c00d140a6e42838e3dd00c7c9a8bdbf602",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 4851,
+          "durationS": 0.11,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/enemy-death-v2.ogg"
+        }
+      },
+      {
+        "semanticEvent": "enemy-death",
+        "family": "death",
+        "recipeId": "enemy-death",
+        "recipeVersion": 1,
+        "seed": 31,
+        "variantIndex": 2,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/enemy-death-v3.wav",
+          "sha256": "8f277f34dd39c19ba39c1f3c28f748a7b6d67cfe3a29b501b38498eff8aeb72d",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 4851,
+          "durationS": 0.11,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/enemy-death-v3.ogg"
+        }
+      }
+    ],
+    "xp-pickup": [
+      {
+        "semanticEvent": "xp-pickup",
+        "family": "pickup",
+        "recipeId": "xp-pickup",
+        "recipeVersion": 1,
+        "seed": 41,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/xp-pickup-v1.wav",
+          "sha256": "ab2172c6a9f7fcf91d7d16fea21aaa028412e62d19f9c0ef58318e939fa8e8b7",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 3528,
+          "durationS": 0.08,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/xp-pickup-v1.ogg"
+        }
+      },
+      {
+        "semanticEvent": "xp-pickup",
+        "family": "pickup",
+        "recipeId": "xp-pickup",
+        "recipeVersion": 1,
+        "seed": 41,
+        "variantIndex": 1,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/xp-pickup-v2.wav",
+          "sha256": "ab2172c6a9f7fcf91d7d16fea21aaa028412e62d19f9c0ef58318e939fa8e8b7",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 3528,
+          "durationS": 0.08,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/xp-pickup-v2.ogg"
+        }
+      },
+      {
+        "semanticEvent": "xp-pickup",
+        "family": "pickup",
+        "recipeId": "xp-pickup",
+        "recipeVersion": 1,
+        "seed": 41,
+        "variantIndex": 2,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/xp-pickup-v3.wav",
+          "sha256": "ab2172c6a9f7fcf91d7d16fea21aaa028412e62d19f9c0ef58318e939fa8e8b7",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 3528,
+          "durationS": 0.08,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/xp-pickup-v3.ogg"
+        }
+      }
+    ],
+    "gold-pickup": [
+      {
+        "semanticEvent": "gold-pickup",
+        "family": "pickup",
+        "recipeId": "gold-pickup",
+        "recipeVersion": 1,
+        "seed": 51,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/gold-pickup-v1.wav",
+          "sha256": "2e38937118628ce49cf17b6c3c824a8ddac8c7d78fd57f812172ce2b5fc09794",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 4410,
+          "durationS": 0.1,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/gold-pickup-v1.ogg"
+        }
+      },
+      {
+        "semanticEvent": "gold-pickup",
+        "family": "pickup",
+        "recipeId": "gold-pickup",
+        "recipeVersion": 1,
+        "seed": 51,
+        "variantIndex": 1,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/gold-pickup-v2.wav",
+          "sha256": "2e38937118628ce49cf17b6c3c824a8ddac8c7d78fd57f812172ce2b5fc09794",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 4410,
+          "durationS": 0.1,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/gold-pickup-v2.ogg"
+        }
+      },
+      {
+        "semanticEvent": "gold-pickup",
+        "family": "pickup",
+        "recipeId": "gold-pickup",
+        "recipeVersion": 1,
+        "seed": 51,
+        "variantIndex": 2,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/gold-pickup-v3.wav",
+          "sha256": "2e38937118628ce49cf17b6c3c824a8ddac8c7d78fd57f812172ce2b5fc09794",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 4410,
+          "durationS": 0.1,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/gold-pickup-v3.ogg"
+        }
+      }
+    ],
+    "levelup-open": [
+      {
+        "semanticEvent": "levelup-open",
+        "family": "ui",
+        "recipeId": "levelup-open",
+        "recipeVersion": 1,
+        "seed": 81,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/levelup-open-v1.wav",
+          "sha256": "faf876ea65542aed8e7405450de3babf93cdb97d50e4d3816d61d83a296f1a90",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 11025,
+          "durationS": 0.25,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/levelup-open-v1.ogg"
+        }
+      }
+    ],
+    "levelup-pick": [
+      {
+        "semanticEvent": "levelup-pick",
+        "family": "ui",
+        "recipeId": "levelup-open",
+        "recipeVersion": 1,
+        "seed": 81,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/levelup-open-v1.wav",
+          "sha256": "faf876ea65542aed8e7405450de3babf93cdb97d50e4d3816d61d83a296f1a90",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 11025,
+          "durationS": 0.25,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/levelup-open-v1.ogg"
+        }
+      }
+    ],
+    "chest-open": [
+      {
+        "semanticEvent": "chest-open",
+        "family": "chest",
+        "recipeId": "chest-open",
+        "recipeVersion": 1,
+        "seed": 91,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/chest-open-v1.wav",
+          "sha256": "9ea7caa4ba8abac9cdf8c4324c5329b27184c13d49d309697e6aebf3dfaf9ae2",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 9702,
+          "durationS": 0.22,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/chest-open-v1.ogg"
+        }
+      }
+    ],
+    "chest-reveal": [
+      {
+        "semanticEvent": "chest-reveal",
+        "family": "chest",
+        "recipeId": "chest-reveal",
+        "recipeVersion": 1,
+        "seed": 101,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/chest-reveal-v1.wav",
+          "sha256": "051d3ab88ae1ad7f39f0391f1beb98d6eefd2ab7b2009bc37577747d12a76883",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 14994,
+          "durationS": 0.34,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/chest-reveal-v1.ogg"
+        }
+      }
+    ],
+    "merchant-arrival": [
+      {
+        "semanticEvent": "merchant-arrival",
+        "family": "merchant",
+        "recipeId": "merchant-arrival",
+        "recipeVersion": 1,
+        "seed": 111,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/merchant-arrival-v1.wav",
+          "sha256": "e6ffd65e0d65bd723666350d59cfb17958f195598ef871f40ce877b52dc5c448",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 13230,
+          "durationS": 0.3,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/merchant-arrival-v1.ogg"
+        }
+      }
+    ],
+    "shop-purchase": [
+      {
+        "semanticEvent": "shop-purchase",
+        "family": "pickup",
+        "recipeId": "gold-pickup",
+        "recipeVersion": 1,
+        "seed": 51,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/gold-pickup-v1.wav",
+          "sha256": "2e38937118628ce49cf17b6c3c824a8ddac8c7d78fd57f812172ce2b5fc09794",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 4410,
+          "durationS": 0.1,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/gold-pickup-v1.ogg"
+        }
+      },
+      {
+        "semanticEvent": "shop-purchase",
+        "family": "pickup",
+        "recipeId": "gold-pickup",
+        "recipeVersion": 1,
+        "seed": 51,
+        "variantIndex": 1,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/gold-pickup-v2.wav",
+          "sha256": "2e38937118628ce49cf17b6c3c824a8ddac8c7d78fd57f812172ce2b5fc09794",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 4410,
+          "durationS": 0.1,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/gold-pickup-v2.ogg"
+        }
+      },
+      {
+        "semanticEvent": "shop-purchase",
+        "family": "pickup",
+        "recipeId": "gold-pickup",
+        "recipeVersion": 1,
+        "seed": 51,
+        "variantIndex": 2,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/gold-pickup-v3.wav",
+          "sha256": "2e38937118628ce49cf17b6c3c824a8ddac8c7d78fd57f812172ce2b5fc09794",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 4410,
+          "durationS": 0.1,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/gold-pickup-v3.ogg"
+        }
+      }
+    ],
+    "boss-awaken": [
+      {
+        "semanticEvent": "boss-awaken",
+        "family": "boss",
+        "recipeId": "boss-awaken",
+        "recipeVersion": 1,
+        "seed": 121,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/boss-awaken-v1.wav",
+          "sha256": "a2ce2ed3a0d79b70ca2c31289fdb1c53722938e2f6017ddd1618cf709ecc2b21",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 18522,
+          "durationS": 0.42,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/boss-awaken-v1.ogg"
+        }
+      }
+    ],
+    "boss-attack": [
+      {
+        "semanticEvent": "boss-attack",
+        "family": "boss",
+        "recipeId": "boss-awaken",
+        "recipeVersion": 1,
+        "seed": 121,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/boss-awaken-v1.wav",
+          "sha256": "a2ce2ed3a0d79b70ca2c31289fdb1c53722938e2f6017ddd1618cf709ecc2b21",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 18522,
+          "durationS": 0.42,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/boss-awaken-v1.ogg"
+        }
+      }
+    ],
+    "boss-defeat": [
+      {
+        "semanticEvent": "boss-defeat",
+        "family": "boss",
+        "recipeId": "boss-defeat",
+        "recipeVersion": 1,
+        "seed": 131,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/boss-defeat-v1.wav",
+          "sha256": "e984f034d4fee9b6a23660efa6e60895e2922b3768b86bac9cf6d8b7e8335f31",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 19845,
+          "durationS": 0.45,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/boss-defeat-v1.ogg"
+        }
+      }
+    ],
+    "run-victory": [
+      {
+        "semanticEvent": "run-victory",
+        "family": "run",
+        "recipeId": "run-victory",
+        "recipeVersion": 1,
+        "seed": 141,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/run-victory-v1.wav",
+          "sha256": "98abaa3875a09bae3360210746267c52ea2e865bc1360614547f5e1e4a16cc19",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 22050,
+          "durationS": 0.5,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/run-victory-v1.ogg"
+        }
+      }
+    ],
+    "run-defeat": [
+      {
+        "semanticEvent": "run-defeat",
+        "family": "run",
+        "recipeId": "run-defeat",
+        "recipeVersion": 1,
+        "seed": 151,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/run-defeat-v1.wav",
+          "sha256": "5c37f6de32fb167713ba83a83abeb5c1e3401307ee0657873dace9ae3bba98b1",
+          "sampleRate": 44100,
+          "channels": 1,
+          "bitDepth": 16,
+          "sampleCount": 18522,
+          "durationS": 0.42,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/run-defeat-v1.ogg"
+        }
+      }
+    ],
+    "foundation-music": [
+      {
+        "semanticEvent": "foundation-music",
+        "family": "music",
+        "recipeId": "foundation-music",
+        "recipeVersion": 1,
+        "seed": 161,
+        "variantIndex": 0,
+        "generatorVersion": "audio-authoring-v3",
+        "generatorHash": "d43bf3c3075d9c6b9363909555a0fdb05c74c4fa72d9a6af57d0fac87bdd2163",
+        "wav": {
+          "path": "art/audio/sfx/masters/foundation-music-v1.wav",
+          "sha256": "1c4c6ed2ca887934133b468727f57232f5cd2f4840bd8d44448cec4cb79630b4",
+          "sampleRate": 44100,
+          "channels": 2,
+          "bitDepth": 16,
+          "sampleCount": 176400,
+          "durationS": 4,
+          "peak": 0.9200109866634114,
+          "first": 0,
+          "last": 0,
+          "normalizationTarget": 0.92,
+          "fadeSeconds": 0.008
+        },
+        "runtime": {
+          "format": "ogg",
+          "path": "assets/audio/sfx/foundation-music-v1.ogg"
+        }
+      }
+    ]
+  }
+}

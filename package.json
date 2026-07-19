@@ -6,13 +6,18 @@
   "main": "electron/dist/main.js",
   "scripts": {
     "dev": "vite",
+    "prebuild": "npm run audio:generate",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "electron:build": "tsc -p tsconfig.electron.json && node tools/write-electron-cjs-package.cjs",
     "electron:start": "npm run build && npm run electron:build && electron .",
     "package": "npm run build && npm run electron:build && electron-builder",
-    "package:dir": "npm run build && npm run electron:build && electron-builder --dir"
+    "package:dir": "npm run build && npm run electron:build && electron-builder --dir",
+    "audio:generate": "node tools/audio/generate.mjs",
+    "audio:validate": "node tools/audio/validate.mjs",
+    "audio:foundation-check": "node tools/audio/foundation-check.mjs",
+    "benchmark:audio": "node tools/benchmark-audio-electron.mjs"
   },
   "author": "David Seco Diaz",
   "license": "MIT",

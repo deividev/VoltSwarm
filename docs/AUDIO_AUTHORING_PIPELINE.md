@@ -14,16 +14,16 @@
 
 ### Manifiesto y provenance
 
-El manifiesto versionado debe mapear `semanticEventId → family → variantes → runtime export`, y por asset conservar: receta, seed, hash/version del generador, WAV master, export OGG, fecha de render, normalización objetivo, fades y responsable/cambio de source control. El manifiesto permite que `AudioDirector` no conozca nombres físicos ni reglas de generación.
+El manifiesto versionado mapea `semanticEventId → family → variantes → runtime export`. Por asset conserva los campos deterministas generados: receta/version, seed, índice de variante, versión/hash del generador, hash y formato PCM del WAV, duración, pico, normalización, fade y formato/ruta del export. Git conserva autoría y cambio; no se guardan fecha de render, responsable ni commit por entrada. El manifiesto permite que `AudioDirector` no conozca nombres físicos ni reglas de generación.
 
 **Layout propuesto al iniciar implementación** (todo fuente y manifiestos bajo source control; exports runtime siguen el pipeline de assets del repo):
 
 ```text
-art/audio/sfx/recipes/          # recipe JSON/TS versionado
-art/audio/sfx/masters/          # WAV master por familia/variante
-art/audio/sfx/manifest.json     # semantic event -> export + provenance
-public/assets/audio/sfx/        # OGG pre-renderizados que carga runtime
-tools/audio/                    # generador offline y exportador reproducible
+tools/audio/generate.mjs        # recetas versionadas + generador offline
+tools/audio/manifest.json       # semantic event -> export + provenance
+tools/audio/validate.mjs        # validaci?n read-only y fixtures
+art/audio/sfx/masters/          # WAV masters locales, ignorados/regenerables
+public/assets/audio/sfx/        # OGG/WAV runtime locales, ignorados/regenerables
 ```
 
 Antes de aceptar un lote: reproducir desde receta/seed, verificar hash/manifiesto, revisar picos/normalización/fades y actualizar la referencia del evento semántico. Los thresholds numéricos de mix/runtime pertenecen a config, no al generador ni al director.
@@ -48,3 +48,12 @@ Fuentes oficiales: [Suno commercial use / subscription](https://help.suno.com/en
 - [ ] Música: evidencia de Pro/Premier activa al generar, WAV, prompt, fecha, Suno URL/ID, edición/loop y notas de licencia archivadas.
 - [ ] Música: prompts sin imitación de artistas; términos revisados para el uso previsto.
 - [ ] Runtime: `AUDIO.voiceCaps` config-owned y benchmark 400+/60 FPS registrado con drops de voz/fugas de fuentes.
+
+
+## Implementation status (2026-07-17)
+
+Repository deliverables (currently unstaged until the user stages/commits them): generator scripts, embedded versioned recipes and `tools/audio/manifest.json`. Local/regenerable by policy: `art/audio` WAV masters and `public/assets/audio` runtime exports; both directories are intentionally ignored and regenerate with `npm run audio:generate` (also invoked by `npm run build`). The manifest stores recipe/version/seed, generator hash, variant index, WAV hash plus PCM/duration/peak/fade metadata and the runtime format/path. `npm run audio:validate` validates existing outputs without generating; `npm run audio:foundation-check` generates, validates, re-renders hashes and runs negative fixtures. OGG is preferred when local ffmpeg/libvorbis succeeds; WAV fallback is valid and recorded in the manifest. The validation pack is foundation coverage, not final catalog completion.
+
+## Artistic approval gate
+
+This pipeline is technically valid but its current generated pack is TECH FIXTURE / REJECTED FINAL, not an artistic deliverable. Read `SOUND_DIRECTION.md` and `SOUND_EVENT_CATALOG.md` before authoring. The existing `prebuild`/build flow may mechanically regenerate that same rejected technical fixture when local files are missing; this freeze forbids new final recipes, new artistic assets, or artistic replacement/regeneration until the user approves the briefs and material-first prototype gate. Do not manually alter local masters/exports during the freeze.

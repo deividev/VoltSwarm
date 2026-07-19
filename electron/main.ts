@@ -4,6 +4,7 @@ import * as fs from 'node:fs';
 
 let mainWindow: BrowserWindow | null = null;
 const APP_TITLE = 'Voltswarm';
+const benchmarkMode = app.isPackaged && process.argv.includes('--audio-benchmark');
 
 // Steam SDK client, or null when Steam is disabled. `steamworks.js` is optional:
 // it is required lazily so the app builds and runs without the dependency.
@@ -89,7 +90,10 @@ function createWindow(): void {
     fullscreen: initial.fullscreen,
     useContentSize: true,
     backgroundColor: '#0b0d12',
-    show: false,
+    // Hidden windows are throttled to ~1 FPS on this Windows compositor even
+    // with backgroundThrottling disabled; the explicit benchmark flag is the
+    // one exception because it must measure real rendered frames.
+    show: benchmarkMode,
     autoHideMenuBar: true,
     icon: path.join(__dirname, '..', '..', 'build', 'icon.ico'),
     webPreferences: {
@@ -97,10 +101,11 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       devTools: !app.isPackaged,
+      backgroundThrottling: !benchmarkMode,
     },
   });
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show());
+  if (!benchmarkMode) mainWindow.once('ready-to-show', () => mainWindow?.show());
 
   // A paid app must never die silently: offer a relaunch on renderer crash.
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
@@ -122,7 +127,9 @@ function createWindow(): void {
   if (devServerUrl) {
     void mainWindow.loadURL(devServerUrl);
   } else {
-    void mainWindow.loadFile(path.join(__dirname, '..', '..', 'dist', 'index.html'));
+    void mainWindow.loadFile(path.join(__dirname, '..', '..', 'dist', 'index.html'), {
+      query: benchmarkMode ? { audioBenchmark: '1' } : {},
+    });
   }
 
   mainWindow.on('closed', () => {

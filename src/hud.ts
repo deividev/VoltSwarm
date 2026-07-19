@@ -271,6 +271,7 @@ export class Hud {
     private readonly onResume: () => void,
     private readonly onQuitToMenu: () => void,
     private readonly onSettingsChanged: (settings: GameSettings) => void,
+    private readonly onUiConfirm: () => void,
   ) {
     root.insertAdjacentHTML(
       'beforeend',
@@ -394,17 +395,32 @@ export class Hud {
                   ${RESOLUTIONS.map((item) => `<option value="${item.id}">${item.label}</option>`).join('')}
                 </select>
               </label>
-              <label class="settings-row">
+              <label class="settings-row slider-row">
                 <span>Master Volume</span>
-                <input id="settings-master-volume" type="range" min="0" max="100" step="1" />
+                <span class="slider-group">
+                  <span class="slider-bound">0</span>
+                  <input id="settings-master-volume" type="range" min="0" max="100" step="1" />
+                  <span class="slider-bound">100</span>
+                  <span class="slider-value" id="settings-master-volume-value">--</span>
+                </span>
               </label>
-              <label class="settings-row">
+              <label class="settings-row slider-row">
                 <span>Music Volume</span>
-                <input id="settings-music-volume" type="range" min="0" max="100" step="1" />
+                <span class="slider-group">
+                  <span class="slider-bound">0</span>
+                  <input id="settings-music-volume" type="range" min="0" max="100" step="1" />
+                  <span class="slider-bound">100</span>
+                  <span class="slider-value" id="settings-music-volume-value">--</span>
+                </span>
               </label>
-              <label class="settings-row">
+              <label class="settings-row slider-row">
                 <span>SFX Volume</span>
-                <input id="settings-sfx-volume" type="range" min="0" max="100" step="1" />
+                <span class="slider-group">
+                  <span class="slider-bound">0</span>
+                  <input id="settings-sfx-volume" type="range" min="0" max="100" step="1" />
+                  <span class="slider-bound">100</span>
+                  <span class="slider-value" id="settings-sfx-volume-value">--</span>
+                </span>
               </label>
             </div>
             <div id="settings-page-controls" class="hidden">
@@ -494,6 +510,18 @@ export class Hud {
     this.musicVolume = mustGet('settings-music-volume') as HTMLInputElement;
     this.sfxVolume = mustGet('settings-sfx-volume') as HTMLInputElement;
 
+    // Universal click feedback (user rule 2026-07-18): ANY interactive element
+    // clicked anywhere — menus, shop, level-up cards, settings, unlocks —
+    // plays the UI confirm. Delegated in capture phase so no individual
+    // handler (present or future) needs to remember it.
+    document.addEventListener(
+      'click',
+      (e) => {
+        const target = e.target as HTMLElement | null;
+        if (target?.closest('button, select, .upgrade-card, .unlock-row')) this.onUiConfirm();
+      },
+      { capture: true },
+    );
     mustGet('play-button').addEventListener('click', () => {
       mustGet('menu-overlay').classList.add('hidden');
       this.showDraft();
@@ -526,7 +554,9 @@ export class Hud {
       if (api?.quit) api.quit();
       else window.close();
     });
-    mustGet('resume-button').addEventListener('click', () => this.onResume());
+    mustGet('resume-button').addEventListener('click', () => {
+      this.onResume();
+    });
     mustGet('pause-settings-button').addEventListener('click', () => {
       this.pauseOverlay.classList.add('hidden');
       this.openSettings('pause');
@@ -543,6 +573,13 @@ export class Hud {
       'settings-sfx-volume',
     ]) {
       mustGet(id).addEventListener('change', () => this.applySettingsNow());
+    }
+    // Live value readout while dragging (the row commits on 'change' above).
+    for (const id of ['settings-master-volume', 'settings-music-volume', 'settings-sfx-volume']) {
+      const slider = mustGet(id) as HTMLInputElement;
+      slider.addEventListener('input', () => {
+        mustGet(`${id}-value`).textContent = slider.value;
+      });
     }
     mustGet('settings-back-button').addEventListener('click', () => this.closeSettings());
 
@@ -716,6 +753,9 @@ export class Hud {
     this.masterVolume.value = Math.round(settings.masterVolume * 100).toString();
     this.musicVolume.value = Math.round(settings.musicVolume * 100).toString();
     this.sfxVolume.value = Math.round(settings.sfxVolume * 100).toString();
+    for (const slider of [this.masterVolume, this.musicVolume, this.sfxVolume]) {
+      mustGet(`${slider.id}-value`).textContent = slider.value;
+    }
     this.draftBindings = cloneBindings(settings.bindings);
     this.renderBindings();
   }
@@ -1035,6 +1075,7 @@ export class Hud {
       const min = Number(el.min || 0);
       const max = Number(el.max || 100);
       el.value = String(Math.min(max, Math.max(min, Number(el.value) + dir * 5)));
+      el.dispatchEvent(new Event('input')); // keep the value readout live
       el.dispatchEvent(new Event('change'));
       return true;
     }

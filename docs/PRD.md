@@ -217,3 +217,12 @@ All 11 weapons now use three specialised owned-level cards. Every branch pick ra
 - Junk Ricochet: damage, bounce count, launch cycle. Dismantler: damage, execute threshold, range.
 
 A level-up screen allows at most one branch for each weapon owner. When both sockets are committed, the draft leads with one eligible branch and one installed eligible core, then fills remaining slots from legal alternatives without violating core no-swap. If owner uniqueness would otherwise leave a supported build at two cards, Salvage Dividend supplies a run-only Gold reward instead of a duplicate branch or zero-value core. Fully exhausted builds may still show fewer choices gracefully. `WeaponPower` is persisted only as a compatibility snapshot; combat reads `WeaponBranchLevels` only. Run records optionally persist branch state and remain compatible with older records.
+
+
+## Audio Foundation — Implemented 2026-07-17
+
+`Game` owns observer-style renderer audio; `Hud` does not. `AudioDirector` lazily creates/resumes Web Audio only from a gesture and silently no-ops without context/assets. Runtime selects cached pre-rendered assets only; offline deterministic SFX generation lives in `tools/audio/`. The validation pack covers representative semantic events and diagnostics, not the final audio catalog/music.
+
+### Packaged audio swarm evidence (2026-07-17)
+
+Successful local packaged Electron run via `npm run benchmark:audio`: deterministic `audio-swarm-416` (seed 4979220; digest `4979220:240-112-48:0.25:4`), 404 peak / 411 minimum / 411 end active enemies, including normal-HP sacrificial enemies. At 800x600 after 3 s warmup + 10 s rAF sample on Windows 10 / AMD Ryzen 7 3700X / NVIDIA GeForce RTX 2060 (D3D11): 120.10 mean FPS, 119 minimum complete 1 s bucket FPS and 8.5 ms frame-time p99. Actual paths: 9 kills, 7 XP pickups, 14 Gold pickups; audio 47 attempts / 27 accepted, 15 peak voices, 20 cooldown drops, 0 steals/load failures/leaks and 0 active audio voices after cleanup. Evidence: `tmp/perf-audio-output/report.json`. This validates this machine and scenario only, not Steam minimum hardware.

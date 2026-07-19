@@ -6,6 +6,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import {
   ACCOUNT,
+  AUDIO,
   BOSS,
   CHEST,
   ELITES,
@@ -36,6 +37,7 @@ import { MerchantSystem } from './merchant';
 import { MOD_REGISTRY, barrierCellCapacity, barrierCellRegenS, describeMod, isModAtCopyCap, modPrice, rollModOfTier, rollShopStock, tierPrice, type ModCounts, type ModId } from './mods';
 import { DamageNumbers } from './damage-numbers';
 import { BossSystem } from './boss';
+import { AudioDirector, type AudioEventId } from './audio';
 import { VoxelBurst } from './particles';
 import { Hud, coinHtml } from './hud';
 import {
@@ -116,6 +118,14 @@ export class Game {
   /** Camera shake amplitude, decays exponentially (config.VISUAL.screenShake). */
   private shakeAmp = 0;
   private readonly hud: Hud;
+  private readonly audio: AudioDirector;
+  private benchmarkActive = false;
+  private benchmarkRandom: (() => number) | null = null;
+  private benchmarkOriginalRandom: (() => number) | null = null;
+  private benchmarkSacrificeS = 0;
+  private benchmarkKills = 0;
+  private benchmarkXpPickups = 0;
+  private benchmarkGoldPickups = 0;
 
   private settings: GameSettings = loadSettings();
   private stats: PlayerStats = defaultStats();
@@ -245,7 +255,11 @@ export class Game {
       () => this.resumeRun(),
       () => this.quitToMenu(),
       (settings) => this.updateSettings(settings),
+      () => this.playUiConfirm(),
     );
+    this.audio = new AudioDirector(this.settings);
+    void this.audio.preloadEnabled();
+    if (AUDIO.validation.auditionKeys) this.installAuditionKeys();
     this.hud.syncSettings(this.settings);
     applyWindowSettings(this.settings);
     this.input.setBindings(this.settings.bindings);
@@ -261,8 +275,21 @@ export class Game {
     this.renderer.setAnimationLoop(() => this.frame());
 
     // Dev-only hook so automated smoke/performance tests can inspect state.
-    if (import.meta.env.DEV) {
+    const benchmarkMode = new URLSearchParams(window.location.search).has('audioBenchmark');
+    if (import.meta.env.DEV || benchmarkMode) {
       (window as unknown as Record<string, unknown>)['__voltswarm'] = this;
+      (window as unknown as Record<string, unknown>)['__voltswarmAudio'] = {
+        diagnostics: () => this.audio.diagnostics(),
+        gains: () => this.audio.debugBusGains(),
+        burst: () => this.audio.diagnosticBurst(),
+      };
+    }
+    if (benchmarkMode) {
+      (window as unknown as Record<string, unknown>)['__voltswarmAudioBenchmark'] = {
+        start: () => this.startAudioBenchmark(),
+        snapshot: () => ({ enemies: this.enemies.activeCount, kills: this.benchmarkKills, xpPickups: this.benchmarkXpPickups, goldPickups: this.benchmarkGoldPickups, audio: this.audio.diagnostics() }),
+        cleanup: () => { this.benchmarkActive = false; this.restoreBenchmarkRandom(); this.state = 'paused'; this.enemies.reset(); this.audio.reset(); return this.audio.diagnostics(); },
+      };
     }
   }
 
@@ -302,6 +329,11 @@ export class Game {
     if (--this.warmupFrames <= 0 && this.uiAssetsReady) {
       this.hud.hideLoading();
       this.state = 'playing';
+      this.audio.setMenu(false);
+      this.audio.setPaused(false);
+      this.audio.stopLoop('menu-music-loop'); // menu theme hands over to the run bed
+      this.audio.emit({ id: 'run-start' });
+      this.audio.emit({ id: 'foundation-music', key: 'foundation-run-loop', loop: true, priority: 2, volume: AUDIO.music.runLoopVolume });
       this.clock.getDelta(); // Discard the time spent building + warming up.
     }
   }
@@ -345,6 +377,105 @@ export class Game {
     // after the warmup frames render behind the loading screen.
   }
 
+  /** TEMP style-search audition: cycle the pinned candidate for an event and preview it. */
+  private installAuditionKeys(): void {
+    const map: Partial<Record<string, AudioEventId>> = {
+      F2: 'ui-confirm', F3: 'levelup-intro', F4: 'levelup-open',
+      F6: 'bolt-cannon-fire', F7: 'enemy-death', F8: 'chest-reveal', F9: 'chest-open',
+    };
+    // Deterministic default for RARE events only: pinned to candidate 1 so a
+    // reward never plays a different sound each time. Frequent combat events
+    // (bolt, enemy death) stay UNPINNED on purpose — their entries are
+    // micro-variants of one sound, and rotating them prevents the exact-waveform
+    // repetition that drills into the player's head on long runs.
+    for (const id of Object.values(map)) {
+      if (id && id !== 'bolt-cannon-fire' && id !== 'enemy-death') {
+        this.audio.debugPinVariant(id, 0);
+      }
+    }
+    window.addEventListener('keydown', (e) => {
+      const id = map[e.code];
+      if (!id) return;
+      e.preventDefault();
+      void this.audio.activateFromUserGesture().then(() => {
+        const path = this.audio.debugCycleVariant(id);
+        const name = path ? path.split('/').pop() : 'no candidates loaded';
+        this.hud.toast(`${id}: ${name}`);
+        this.audio.emit({ id, priority: 5 });
+      });
+    });
+  }
+
+  private playUiConfirm(): void {
+    void this.audio.activateFromUserGesture().then(() => {
+      this.audio.emit({ id: 'ui-confirm' });
+      // Autoplay policy: the boot menu cannot start its theme until the first
+      // user gesture — so the first menu click starts it. The keyed loop
+      // dedupes repeats, and by the time this runs after a Play click the
+      // state has already left 'menu', so runs never double-start it.
+      if (this.state === 'menu') {
+        this.audio.emit({ id: 'menu-music', key: 'menu-music-loop', loop: true, priority: 2, volume: AUDIO.music.menuLoopVolume });
+      }
+    });
+  }
+
+  /** Packaged benchmark-only deterministic swarm; never reachable in normal builds. */
+  private startAudioBenchmark(): { scenario: string; seed: number; enemies: number; digest: string } {
+    this.installBenchmarkRandom(AUDIO.benchmark.seed);
+    this.buildRun('bolt');
+    (Object.keys(this.weaponLevels) as WeaponId[]).forEach((id) => { this.weaponLevels[id] = 1; });
+    this.weaponDamage = emptyWeaponLevels();
+    const voltlingCount = AUDIO.benchmark.typeCounts[0] ?? 0;
+    const sparkrunnerCount = AUDIO.benchmark.typeCounts[1] ?? 0;
+    for (let index = 0; index < AUDIO.benchmark.enemyCount; index++) {
+      const typeIndex = index < voltlingCount ? 0 : index < voltlingCount + sparkrunnerCount ? 1 : 2;
+      const angle = (index * 2.399963229728653 + AUDIO.benchmark.seed) % (Math.PI * 2);
+      const radius = AUDIO.benchmark.spawnRadius + (index % 8) * 1.4;
+      const spawned = this.enemies.spawnAt(typeIndex, Math.cos(angle) * radius, Math.sin(angle) * radius, 1000);
+      const enemy = this.enemies.pool[spawned];
+      if (enemy) enemy.speed = 0;
+    }
+    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.state = 'playing';
+    this.audio.resetDiagnostics();
+    this.benchmarkActive = true;
+    this.benchmarkSacrificeS = 0;
+    this.benchmarkKills = 0;
+    this.benchmarkXpPickups = 0;
+    this.benchmarkGoldPickups = 0;
+    this.audio.setMenu(false);
+    this.audio.setPaused(false);
+    this.audio.emit({ id: 'foundation-music', key: 'foundation-run-loop', loop: true, priority: 2, volume: AUDIO.music.runLoopVolume });
+    this.clock.getDelta();
+    return { scenario: AUDIO.benchmark.scenario, seed: AUDIO.benchmark.seed, enemies: this.enemies.activeCount, digest: `${AUDIO.benchmark.seed}:${AUDIO.benchmark.typeCounts.join('-')}:${AUDIO.benchmark.sacrificeIntervalS}:${AUDIO.benchmark.sacrificeBatch}` };
+  }
+
+  private installBenchmarkRandom(seed: number): void {
+    this.restoreBenchmarkRandom();
+    let state = seed >>> 0;
+    this.benchmarkOriginalRandom = Math.random;
+    this.benchmarkRandom = () => { state = (state * 1664525 + 1013904223) >>> 0; return state / 0x100000000; };
+    Math.random = this.benchmarkRandom;
+  }
+
+  private restoreBenchmarkRandom(): void {
+    if (this.benchmarkOriginalRandom) Math.random = this.benchmarkOriginalRandom;
+    this.benchmarkOriginalRandom = null;
+    this.benchmarkRandom = null;
+  }
+
+  private tickAudioBenchmark(dt: number): void {
+    if (!this.benchmarkActive) return;
+    this.benchmarkSacrificeS -= dt;
+    if (this.benchmarkSacrificeS > 0) return;
+    this.benchmarkSacrificeS = AUDIO.benchmark.sacrificeIntervalS;
+    for (let i = 0; i < AUDIO.benchmark.sacrificeBatch; i++) {
+      const angle = (this.benchmarkKills + i) * 1.7;
+      const index = this.enemies.spawnAt(0, Math.cos(angle) * 4, Math.sin(angle) * 4);
+      if (index !== -1) this.goldSys.spawn(Math.cos(angle) * 1.5, Math.sin(angle) * 1.5, GOLD.dropAmount);
+    }
+  }
+
   private applyUpgrade(card: UpgradeCard): void {
     card.apply(
       this.stats,
@@ -358,6 +489,7 @@ export class Game {
         addGold: (amount) => {
           this.gold += amount;
           this.hud.updateGold(this.gold);
+          this.audio.emit({ id: 'gold-pickup' });
         },
       },
     );
@@ -393,7 +525,7 @@ export class Game {
       this.shakeAmp *= Math.max(0, 1 - VISUAL.screenShake.decayPerS * rawDt);
     }
     if (this.state === 'levelup-intro') this.tickLevelUpIntro(dt);
-    this.damageNumbers.update(dt, this.camera);
+    this.damageNumbers.update(dt, this.camera, this.player.position.x, this.player.position.z);
     // The menu is a view OUTSIDE the game: skip the 3D render entirely so no
     // scene runs behind it (the opaque menu backdrop covers the canvas). Every
     // other state — including 'loading' warmup — renders normally.
@@ -431,12 +563,16 @@ export class Game {
 
   private pauseRun(): void {
     this.state = 'paused';
+    this.audio.emit({ id: 'pause' });
+    this.audio.setPaused(true);
     this.hud.showPause(true);
   }
 
   private resumeRun(): void {
     if (this.state !== 'paused') return;
     this.state = 'playing';
+    this.audio.emit({ id: 'resume' });
+    this.audio.setPaused(false);
     this.hud.showPause(false);
     this.clock.getDelta(); // Discard time spent paused.
   }
@@ -450,6 +586,13 @@ export class Game {
     this.hud.showInteractPrompt(null, this.interactLabel());
     this.hud.hideGold();
     this.hud.showSummonPrompt(false, this.interactLabel());
+    this.audio.reset();
+    // reset() dropped every decoded buffer; re-warm during the menu so the next
+    // run's first sounds fire frame-exact (rule: audio lands ON the action).
+    void this.audio.preloadEnabled();
+    this.audio.setMenu(true);
+    this.audio.emit({ id: 'menu-enter' });
+    this.audio.emit({ id: 'menu-music', key: 'menu-music-loop', loop: true, priority: 2, volume: AUDIO.music.menuLoopVolume });
     this.hud.showMainMenu();
     this.clock.getDelta();
   }
@@ -466,6 +609,7 @@ export class Game {
     if (displayChanged) applyWindowSettings(settings);
     this.input.setBindings(settings.bindings);
     this.hud.syncSettings(settings);
+    this.audio.setSettings(settings);
   }
 
   /** Label for the Interact prompt: reflects the live binding and the
@@ -522,6 +666,7 @@ export class Game {
 
   private update(dt: number): void {
     this.elapsedS += dt;
+    this.tickAudioBenchmark(dt);
     const remaining = RUN_DURATION_S - this.elapsedS;
     if (remaining <= 0) {
       this.endRun('sector-cleared');
@@ -583,6 +728,11 @@ export class Game {
       dealDamage: (index, base, hitColor, weaponId) =>
         this.dealDamage(index, base, hitColor, weaponId),
       spawnBurst: (x, z, color, count) => this.burst.spawn(x, z, color, count),
+      weaponActivated: (id) => this.audio.emit({
+        id: id === 'bolt' ? 'bolt-cannon-fire' : 'weapon-activation',
+        key: `weapon-${id}`,
+        priority: 1,
+      }),
     };
     this.weapons.update(dt, px, pz, this.weaponLevels, ctx);
     this.tickDots(dt);
@@ -599,6 +749,7 @@ export class Game {
     );
     if (summoned) {
       this.hud.banner(`${summoned.toUpperCase()} AWAKENS`);
+      this.audio.emit({ id: 'boss-awaken', priority: 3 });
       // Materialization beat: red danger eruption + white-hot core + ground
       // shock ring. This is the boss trailer moment, distinct from death bursts.
       const vfx = VISUAL.bossSummonVfx;
@@ -624,15 +775,19 @@ export class Game {
 
     this.orbs.update(dt, px, pz, this.stats.pickupRange, (value) => {
       const gainedXp = Math.round(value * this.stats.xpGain);
+      if (this.benchmarkActive) this.benchmarkXpPickups++;
       this.damageNumbers.showGain(px, pz, gainedXp, 'xp');
       this.pendingLevelUps += this.progression.grantXp(gainedXp);
+      this.audio.emit({ id: 'xp-pickup' });
     });
 
     this.pickups.update(dt, px, pz, this.stats.luck, collisionObstacles);
     this.goldSys.update(dt, px, pz, this.stats.pickupRange, (value) => {
       this.gold += value;
+      if (this.benchmarkActive) this.benchmarkGoldPickups++;
       this.damageNumbers.showGain(px, pz, value, 'gold');
       this.hud.updateGold(this.gold);
+      this.audio.emit({ id: 'gold-pickup' });
     });
     this.merchant.update(dt);
     this.scheduleMerchant(px, pz);
@@ -661,6 +816,7 @@ export class Game {
     this.maybeShowLevelUp();
   }
 
+
   private spawnBurstRing(x: number, z: number, color: number, count: number, radius: number): void {
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2;
@@ -680,6 +836,8 @@ export class Game {
       this.levelUpIntroRemainingS = VISUAL.levelUpIntro.durationS;
       this.moveLevelUpIntro();
       const pos = this.levelUpIntroScreenPos();
+      // Fanfare rides the LEVEL UP text; the draft UI gets its own sound after.
+      this.audio.emit({ id: 'levelup-intro', priority: 2 });
       this.hud.showLevelUpIntro(pos.x, pos.y);
       return;
     }
@@ -696,6 +854,7 @@ export class Game {
 
   private openLevelUpDraft(): void {
     this.state = 'levelup';
+    this.audio.emit({ id: 'levelup-open', priority: 2 });
     this.hud.showLevelUp(
       rollUpgradeChoices(this.stats, this.weaponLevels, this.coreLevels, this.modCounts),
       this.discardsLeft,
@@ -786,6 +945,7 @@ export class Game {
     chestZ = this.player.position.z,
   ): void {
     this.gold -= price;
+    this.audio.emit({ id: 'chest-open', priority: 2 });
     this.hud.updateGold(this.gold);
     this.pickups.open(index);
     this.burst.spawn(chestX, chestZ, VISUAL.chestVfx.openColor, VISUAL.chestVfx.openCount);
@@ -828,12 +988,15 @@ export class Game {
     }
     this.state = 'chest';
     this.hud.showInteractPrompt(null, this.interactLabel());
+    // Suspense layer: a one-shot riser cut to the reel's 2.6s deceleration,
+    // ending right as transitionend fires the reveal.
+    this.audio.emit({ id: 'chest-spin', priority: 2 });
     this.hud.showChestSpin(
       mod,
       tier,
       // Landing: apply right away so the revealed stat sheet / items list
       // already show what the reward changed.
-      () => this.applyMod(mod),
+      () => { this.audio.emit({ id: 'chest-reveal', priority: 2 }); this.applyMod(mod); },
       // The reward card states the cumulative result after this copy lands.
       (this.modCounts[mod] ?? 0) + 1,
       // Continue clicked: resume the run.
@@ -996,6 +1159,7 @@ export class Game {
 
     // A shield charge blocks the entire hit (before armor even matters).
     if (this.shieldCur > 0) {
+      this.audio.emit({ id: 'shield-block', priority: 3 });
       this.shieldCur -= 1;
       this.damageNumbers.show(this.player.position.x, this.player.position.z, 'BLOCK', false);
       this.player.takeHit(0); // Invuln window, no damage.
@@ -1022,6 +1186,7 @@ export class Game {
     }
 
     const amount = applyArmor(rawDamage, this.stats.armor);
+    this.audio.emit({ id: 'player-hit', priority: 3 });
     this.player.takeHit(amount);
     this.shakeAmp = Math.max(this.shakeAmp, VISUAL.screenShake.hitAmp);
     this.hud.flashHp();
@@ -1059,7 +1224,9 @@ export class Game {
   }
 
   private onEnemyDeath(death: DeathInfo): void {
+    if (this.benchmarkActive) this.benchmarkKills++;
     this.progression.addKill();
+    this.audio.emit({ id: 'enemy-death' });
     const isBoss = this.boss.isBossType(death.typeIndex);
     // Currency + XP drop offset in OPPOSITE directions from the death point so
     // the two pickups never spawn on top of each other (2026-07-09 user note).
@@ -1130,6 +1297,7 @@ export class Game {
       // tougher totem rises shortly — the loop that later becomes new maps.
       const name = ENEMY_TYPES[death.typeIndex]?.name ?? 'The boss';
       this.hud.banner(`${name.toUpperCase()} DESTROYED`);
+      this.audio.emit({ id: 'boss-defeat', priority: 4 });
       this.shakeAmp = Math.max(this.shakeAmp, VISUAL.screenShake.bossKillAmp);
       for (let i = 0; i < BOSS.chestsOnKill; i++) {
         const a = (i / BOSS.chestsOnKill) * Math.PI * 2;
@@ -1480,6 +1648,7 @@ export class Game {
           (id) => !isModAtCopyCap(id, this.modCounts[id] ?? 0),
         );
         this.merchant.arrive(spot.x, spot.z, stock, this.elapsedS);
+        this.audio.emit({ id: 'merchant-arrival', priority: 2 });
         this.hud.banner('THE SCRAPPER HAS ARRIVED');
         // Arrival beat: warm trade burst at the vendor's real location, so the
         // GIF reads "go here" before the shop UI ever opens.
@@ -1508,6 +1677,7 @@ export class Game {
 
   private openShop(): void {
     this.state = 'shop';
+    this.audio.emit({ id: 'panel-open' });
     this.hud.showInteractPrompt(null, this.interactLabel());
     this.renderShop();
   }
@@ -1531,6 +1701,7 @@ export class Game {
         const entry = entries[index];
         if (!entry || this.gold < entry.price) return;
         this.gold -= entry.price;
+        this.audio.emit({ id: 'shop-purchase', priority: 2 });
         this.hud.updateGold(this.gold);
         this.merchant.stock.splice(index, 1);
         this.applyMod(entry.id);
@@ -1579,6 +1750,9 @@ export class Game {
 
   private endRun(outcome: RunOutcome): void {
     this.state = 'ended';
+    this.audio.emit({ id: outcome === 'defeat' ? 'run-defeat' : 'run-victory', priority: 5 });
+    this.audio.stopLoop('foundation-run-loop');
+    this.audio.setPaused(true);
     this.hud.updateTotemIndicator(false, 0, 0, 0);
     this.hud.updateMerchantIndicator(false, 0, 0, 0, 0);
     this.hud.showInteractPrompt(null, this.interactLabel());

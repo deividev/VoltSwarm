@@ -160,6 +160,31 @@
   pointer-events: auto;
   min-width: 0;
 }
+/* Volume sliders: chosen value centered ABOVE the bar, min/max at the flanks. */
+.slider-group {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  min-width: 0;
+}
+.settings-row .slider-value {
+  grid-row: 1;
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 12px;
+  color: #ffd76a;
+}
+.slider-group .slider-bound,
+.slider-group input[type='range'] {
+  grid-row: 2;
+}
+.settings-row .slider-bound {
+  font-size: 9px;
+  font-weight: 400;
+  color: rgba(126, 224, 255, 0.55);
+}
 /* Settings layout: full menu-view screen (key-art backdrop, no game behind),
  * title pinned high, section sidebar at the far LEFT edge, wide centered
  * content, horizontal footer (Back left · Apply right). */
@@ -1069,7 +1094,7 @@ body:has(#end-overlay:not(.hidden)) #build-panel {
   display: none;
 }
 /* Overlays: add the frame + reveal the header, section labels and Mods. */
-body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #build-panel {
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay, #pause-overlay):not(.hidden)) #build-panel {
   padding: 10px 14px 14px;
   background: rgba(16, 20, 27, 0.86);
   border: 2px solid #2b3340;
@@ -1081,12 +1106,12 @@ body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #bui
     8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px)
   );
 }
-body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #build-panel .panel-header,
-body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #build-panel .panel-title,
-body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #build-panel .build-empty.mods {
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay, #pause-overlay):not(.hidden)) #build-panel .panel-header,
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay, #pause-overlay):not(.hidden)) #build-panel .panel-title,
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay, #pause-overlay):not(.hidden)) #build-panel .build-empty.mods {
   display: block;
 }
-body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #build-panel .rig-section.mods {
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay, #pause-overlay):not(.hidden)) #build-panel .rig-section.mods {
   display: flex;
 }
 /* Encapsulating title bar — shared by the RIG and STATS panels (2026-07-11). */
@@ -1234,7 +1259,7 @@ body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #bui
   color: #e8e3d5;
   z-index: 11;
 }
-body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay):not(.hidden)) #stat-sheet {
+body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay, #pause-overlay):not(.hidden)) #stat-sheet {
   display: grid;
 }
 #chest-continue.hidden {

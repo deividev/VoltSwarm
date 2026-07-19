@@ -1,6 +1,6 @@
 # DISEÑO_AUDIO.md — Foundation y lista maestra de SFX/música
 
-> **Estado (2026-07-17):** los sliders Master/Music/SFX de settings (`src/settings.ts`, `src/hud.ts`) existen y persisten, pero todavía no hay backend de audio. **La foundation se implementa ahora**; el catálogo completo se mantiene para después de contenido/balance, antes del cierre de Steamworks.
+> **Estado (2026-07-17):** la Audio Foundation est? implementada: `AudioDirector` sem?ntico, buses Master/Music/SFX ligados a settings persistentes, assets locales pre-renderizados y una prueba de loop musical generado temporal. No equivale al cat?logo final: la producci?n, mezcla y licencia de P1/P2/P3 contin?an despu?s de contenido/balance.
 >
 > **Límite explícito:** foundation ≠ producción de ~95 assets. Antes del catálogo completo, re-auditar esta lista contra el juego terminado: Volt Warden, mapa 2+, contratos, endless y todo lo añadido después del 2026-07-13 no está inventariado aquí. Única excepción: adelantar la música principal si el tráiler final la necesita. El pipeline de autoría, licencias y reproducibilidad vive en `docs/AUDIO_AUTHORING_PIPELINE.md`.
 
@@ -14,7 +14,7 @@
 
 ## Convención de nombres y formato
 
-- Archivos: `public/assets/audio/sfx/<categoria>-<nombre>[-vN].ogg` y `public/assets/audio/music/<nombre>.ogg`
+- Archivos: `public/assets/audio/sfx/<categoria>-<nombre>[-vN].ogg` (o `.wav` si falla `ffmpeg`). El routing, incluida la m?sica temporal, viene siempre de `tools/audio/manifest.json`; no hay una ruta fija de m?sica en config. La m?sica final ir? en su familia exportada cuando exista.
 - Formato: OGG Vorbis (Electron/Chromium lo come nativo), 44.1kHz. SFX mono salvo ambientes/música (estéreo).
 - Prioridad: **P1** = mínimo para que el juego "suene completo" · **P2** = pulido profesional · **P3** = detalle fino post-playtest.
 
@@ -210,3 +210,18 @@ La dificultad escala LINEAL (`difficultyScalar` es el knob único; waves 2.8s→
 | **Total** | **~50** | **~35** | **~10** | **~95** |
 
 **Orden vigente**: (1) foundation `AudioDirector` + buses/settings + presupuesto → (2) contenido/balance/retención → (3) re-auditar inventario → (4) P1 + mezcla/playtest → (5) P2 → (6) P3 post-feedback.
+
+
+## Foundation implementation status (2026-07-17)
+
+Implemented: renderer-side `AudioDirector` with lazy Web Audio, Master/Music/SFX buses tied to settings, cached pre-rendered buffers, config-owned caps/cooldowns/fades, priority drops/stealing, pause/menu ducking, keyed loops, reset diagnostics and DEV burst hook. `Game` emits observer-style semantic events; HUD owns no Web Audio. Missing/suspended contexts and missing assets are silent no-ops.
+
+Implemented authoring validation pack: deterministic offline Node generator with versioned recipes/seeds produces WAV masters and preferred ffmpeg OGG exports (WAV fallback is always valid if OGG export is unavailable), manifest event mapping and validator. It is a representative foundation pack, **not** the final ~95-asset catalog or final Suno music.
+
+## Benchmark packaged de Audio Foundation (2026-07-17)
+
+Benchmark evidence: packaged Electron uses the explicit `--audio-benchmark` flag, a real automated click for Web Audio, seeded `Math.random` for the full scenario, and writes `tmp/perf-audio-output/report.json`. PASS: seed 4979220, digest `4979220:240-112-48:0.25:4`, 404 peak / 411 minimum / 411 end enemies at 800x600, 3 s warmup + 10 s rAF; 120.10 mean FPS, 119 minimum complete 1 s bucket FPS and 8.5 ms p99 on Ryzen 7 3700X + RTX 2060 (D3D11). Actual paths: 9 kills, 7 XP pickups, 14 Gold pickups; audio 47 attempts / 27 accepted, peak 15 voices, 20 cooldown drops, 0 steals/load failures/leaks, cleanup 0 active voices. This validates this machine only. Gotcha: hidden Electron windows throttle rAF to ~1 FPS on this Windows compositor, so the explicit benchmark window is visible; ordinary production stays without benchmark API or DevTools.
+
+## Canonical planning gate
+
+`SOUND_DIRECTION.md` is the sonic bible and `SOUND_EVENT_CATALOG.md` is the exhaustive event/status matrix. The current generated pack is TECH FIXTURE / REJECTED FINAL: it may remain for technical routing and benchmark fixtures only. Do not regenerate, replace, or delete assets until the user approves those briefs and the six-prototype gate.
