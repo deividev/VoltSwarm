@@ -2752,7 +2752,11 @@ body:has(.menu-view:not(.hidden)) #build-panel {
   image-rendering: pixelated;
 }
 
+/* Dims an item icon to read as "already owned". Socket pips are exempt: they
+   are a state diagram, not a trophy, and greying open slots says the opposite
+   of what happened. */
 .contract-row.done .contract-icon { filter: grayscale(0.7) brightness(0.8); }
+.contract-row.done .contract-icon .socket-pips { filter: none; }
 
 /* Sockets have no art, and no single icon says "capacity". The full row —
    filled, the one this contract opens, and the ones still locked — answers

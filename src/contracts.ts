@@ -35,7 +35,9 @@ export type Reward =
   | { kind: 'weapon'; id: WeaponId }
   | { kind: 'core'; id: string }
   | { kind: 'mod'; id: ModId }
-  | { kind: 'socket'; slot: 'weapon' | 'core' }
+  /** `index` is stamped when the socket is actually granted, so a settled
+   *  contract can name the slot IT opened instead of the next one. */
+  | { kind: 'socket'; slot: 'weapon' | 'core'; index?: number }
   | { kind: 'discards'; n: number }
   | { kind: 'next-weapon' }
   | { kind: 'next-core' }
@@ -332,13 +334,32 @@ function grant(reward: Reward): Reward | null {
     case 'socket':
       if (reward.slot === 'weapon') {
         PROFILE.weaponSockets = Math.min(PROFILE.maxWeaponSockets, PROFILE.weaponSockets + 1);
-      } else {
-        PROFILE.coreSockets = Math.min(PROFILE.maxCoreSockets, PROFILE.coreSockets + 1);
+        return { ...reward, index: PROFILE.weaponSockets };
       }
-      return reward;
+      PROFILE.coreSockets = Math.min(PROFILE.maxCoreSockets, PROFILE.coreSockets + 1);
+      return { ...reward, index: PROFILE.coreSockets };
     case 'discards':
       PROFILE.levelupDiscards += reward.n;
       return reward;
+  }
+}
+
+/** The reward's bare name, with no category prefix. Used where the surrounding
+ *  UI already states the category (the Contracts screen groups by it), so the
+ *  line can read "Unlocked: Arc Welder" instead of "Unlocked: Weapon: Arc
+ *  Welder". */
+export function rewardName(reward: Reward | null): string {
+  if (!reward) return 'nothing';
+  switch (reward.kind) {
+    case 'weapon': return WEAPON_INFO[reward.id]?.title ?? reward.id;
+    case 'core': return CORE_TITLES[reward.id] ?? reward.id;
+    case 'mod': return MOD_REGISTRY[reward.id]?.label ?? reward.id;
+    case 'socket': {
+      const noun = reward.slot === 'weapon' ? 'Weapon' : 'Core';
+      return reward.index ? `${noun} slot ${reward.index}` : `${noun} slot`;
+    }
+    case 'discards': return `+${reward.n} level-up discard`;
+    default: return describeReward(reward);
   }
 }
 
@@ -348,7 +369,10 @@ export function describeReward(reward: Reward | null): string {
     case 'weapon': return `Weapon: ${WEAPON_INFO[reward.id]?.title ?? reward.id}`;
     case 'core': return `Core: ${CORE_TITLES[reward.id] ?? reward.id}`;
     case 'mod': return `Mod: ${MOD_REGISTRY[reward.id]?.label ?? reward.id}`;
-    case 'socket': return reward.slot === 'weapon' ? 'New weapon socket' : 'New core socket';
+    case 'socket': {
+      const noun = reward.slot === 'weapon' ? 'weapon' : 'core';
+      return reward.index ? `${noun === 'weapon' ? 'Weapon' : 'Core'} slot ${reward.index}` : `New ${noun} socket`;
+    }
     case 'discards': return `+${reward.n} level-up discard`;
     case 'next-weapon': return 'Next weapon';
     case 'next-core': return 'Next core';

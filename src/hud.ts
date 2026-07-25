@@ -6,6 +6,7 @@ import {
   progressOf,
   resolveReward,
   rewardCategory,
+  rewardName,
   type Contract,
   type EarnedContract,
   type Reward,
@@ -2111,20 +2112,25 @@ function socketPipsHtml(slot: 'weapon' | 'core', done: boolean): string {
 /** Names the reward, and for a socket says what the extra slot lets you DO —
  *  "New core socket" describes the mechanism, not the benefit. */
 function rewardLabelHtml(original: Reward, resolved: Reward | null, done: boolean): string {
+  // A settled contract states plainly what the player now OWNS. The category is
+  // already the column header, so the bare name reads best. Naming it matters
+  // more than the icon: an icon is recognisable only once you know the item.
+  if (done) {
+    // A queue reward surviving to here belongs to a contract settled before its
+    // payout was recorded and the backfill could not attribute it.
+    if (!resolved || resolved.kind.startsWith('next-')) return 'Unlocked';
+    return `Unlocked: ${rewardName(resolved)}`;
+  }
+
   if (original.kind === 'socket') {
-    const noun = original.slot === 'weapon' ? 'Weapon' : 'Core';
-    // A paid contract must not name the NEXT slot number as though it were its
-    // own reward — it granted an earlier one.
-    if (done) return `${noun} slot unlocked`;
+    // Pending sockets state the BENEFIT, not the mechanism: "carry another
+    // weapon" is what the extra slot actually buys you.
     const open = original.slot === 'weapon' ? PROFILE.weaponSockets : PROFILE.coreSockets;
     return original.slot === 'weapon'
       ? `Weapon slot ${open + 1} &mdash; carry another weapon`
       : `Core slot ${open + 1} &mdash; install another core`;
   }
   if (!resolved) return 'Nothing left to unlock';
-  // A queue reward that survived to here belongs to a contract settled before
-  // its payout was recorded; naming the queue would be worse than saying so.
-  if (resolved.kind.startsWith('next-')) return done ? 'Claimed' : describeReward(resolved);
   return describeReward(resolved);
 }
 
