@@ -30,6 +30,12 @@ function settingsFile(): string {
   return path.join(app.getPath('userData'), 'settings.json');
 }
 
+/** Cross-run account progress (unlocks and sockets), kept in its own file so a
+ *  corrupt or reset settings file never costs the player their progression. */
+function accountFile(): string {
+  return path.join(app.getPath('userData'), 'account.json');
+}
+
 function initialWindowSettings(): { fullscreen: boolean; width: number; height: number } {
   try {
     const settings = JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) as {
@@ -149,6 +155,23 @@ void app.whenReady().then(() => {
   ipcMain.on('settings:save', (event, data: string) => {
     try {
       fs.writeFileSync(settingsFile(), data, 'utf8');
+      event.returnValue = true;
+    } catch {
+      event.returnValue = false;
+    }
+  });
+
+  ipcMain.on('account:load', (event) => {
+    try {
+      event.returnValue = fs.readFileSync(accountFile(), 'utf8');
+    } catch {
+      event.returnValue = null;
+    }
+  });
+
+  ipcMain.on('account:save', (event, data: string) => {
+    try {
+      fs.writeFileSync(accountFile(), data, 'utf8');
       event.returnValue = true;
     } catch {
       event.returnValue = false;

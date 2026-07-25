@@ -7,6 +7,8 @@ interface Window {
   electronAPI?: {
     loadSettings(): string | null;
     saveSettings(data: string): void;
+    loadAccount(): string | null;
+    saveAccount(data: string): void;
     setWindowMode(mode: string, width: number, height: number): void;
     quit(): void;
     steam: {

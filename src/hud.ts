@@ -1,4 +1,5 @@
 import { ACCOUNT, DEV_TOOLS, WEAPON_INFO, describeWeaponBranches, type WeaponId } from './config';
+import { resetAccount, saveAccount } from './account';
 import { defaultStats, type PlayerStats } from './stats';
 import { CORE_TITLES, weaponIdFromUpgradeCard, type CoreLevels, type Rarity, type UpgradeCard, type WeaponBranchLevels, type WeaponLevels } from './upgrades';
 import { MOD_IDS, MOD_REGISTRY, UNLOCKED_MOD_IDS, describeMod, modsOfTier, refreshUnlockedMods, type ModCounts, type ModId } from './mods';
@@ -319,6 +320,7 @@ export class Hud {
           <div id="unlocks-columns"></div>
           <div id="unlocks-actions">
             <button id="unlock-all-button">Unlock everything</button>
+            <button id="unlocks-reset-button">Reset progress</button>
             <button id="unlocks-back-button">Back</button>
           </div>
         </div>
@@ -552,6 +554,12 @@ export class Hud {
         // Also open every socket slot (dev testing; contracts drive these later).
         ACCOUNT.weaponSockets = ACCOUNT.maxWeaponSockets;
         ACCOUNT.coreSockets = ACCOUNT.maxCoreSockets;
+        // One write for the whole sweep instead of one per unlocked item.
+        saveAccount();
+        this.renderUnlocks();
+      });
+      mustGet('unlocks-reset-button').addEventListener('click', () => {
+        resetAccount();
         this.renderUnlocks();
       });
     }
@@ -725,6 +733,7 @@ export class Hud {
         if (!item.unlocked) {
           row.addEventListener('click', () => {
             this.unlock(item.kind, item.id);
+            saveAccount();
             this.renderUnlocks();
           });
         }
@@ -761,6 +770,7 @@ export class Hud {
       if (!open) {
         row.addEventListener('click', () => {
           this.unlockSocket(s.kind, s.index);
+          saveAccount();
           this.renderUnlocks();
         });
       }
