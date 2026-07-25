@@ -94,6 +94,13 @@ export function migrateRunHistory(): void {
   if (legacy.length > 0) writeHistory(legacy);
 }
 
+/** Wipes every stored run. Required by a profile reset: the career ledger is
+ *  rebuilt from surviving history at boot, so clearing the profile alone would
+ *  see all the "reset" progress reappear on the next launch. */
+export function clearRunHistory(): void {
+  writeHistory([]);
+}
+
 function parseHistory(raw: string | null | undefined): RunRecordV1[] {
   if (!raw) return [];
   try {

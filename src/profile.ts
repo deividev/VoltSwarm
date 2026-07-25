@@ -1,7 +1,7 @@
 import { PROFILE, WEAPON_INFO, type WeaponId } from './config';
 import { CORE_TITLES } from './upgrades';
 import { MOD_IDS, refreshUnlockedMods, type ModId } from './mods';
-import { loadRunHistory, type RunRecordV1 } from './run-history';
+import { clearRunHistory, loadRunHistory, type RunRecordV1 } from './run-history';
 // Type-only: erased at compile time, so this cannot create a runtime cycle with
 // contracts.ts, which imports LIFETIME from here.
 import type { Reward } from './contracts';
@@ -210,6 +210,9 @@ export function resetProfile(): void {
   PROFILE.unlockedCores = [...DEFAULTS.unlockedCores];
   PROFILE.unlockedMods = [...DEFAULTS.unlockedMods] as ModId[];
   Object.assign(LIFETIME, emptyLifetime());
+  // Run history too, or the boot-time backfill rebuilds the ledger from the
+  // surviving records and every "reset" total is back on the next launch.
+  clearRunHistory();
   refreshUnlockedMods();
   saveProfile();
 }

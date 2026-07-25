@@ -225,6 +225,58 @@ export interface EarnedContract {
   label: string;
 }
 
+/** Rebuilds grantedRewards for contracts settled before that record existed.
+ *
+ *  Queue rewards are consumed in order, so replaying the completed contracts in
+ *  declaration order against the queues recovers what each one handed over.
+ *  Only items the profile actually has are assigned, and each is used once.
+ *
+ *  Not exact if the dev unlock panel granted something the queue would also
+ *  have given — it may attribute that item to a contract. Acceptable: without
+ *  this the row shows no icon and reads "Claimed", which is strictly worse. */
+export function backfillGrantedRewards(): void {
+  const missing = ALL_CONTRACTS.filter(
+    (contract) => LIFETIME.completedContracts.includes(contract.id) && !LIFETIME.grantedRewards[contract.id],
+  );
+  if (missing.length === 0) return;
+
+  const used = new Set<string>();
+  for (const reward of Object.values(LIFETIME.grantedRewards)) {
+    if ('id' in reward) used.add(reward.id);
+  }
+
+  const takeFrom = <T extends string>(queue: readonly T[], owned: readonly T[]): T | undefined =>
+    queue.find((id) => owned.includes(id) && !used.has(id));
+
+  for (const contract of missing) {
+    let resolved: Reward | null = null;
+    switch (contract.reward.kind) {
+      case 'next-weapon': {
+        const id = takeFrom(WEAPON_QUEUE, PROFILE.unlockedWeapons);
+        if (id) resolved = { kind: 'weapon', id };
+        break;
+      }
+      case 'next-core': {
+        const id = takeFrom(CORE_QUEUE, PROFILE.unlockedCores);
+        if (id) resolved = { kind: 'core', id };
+        break;
+      }
+      case 'next-mod': {
+        const id = takeFrom(MOD_QUEUE, PROFILE.unlockedMods as ModId[]);
+        if (id) resolved = { kind: 'mod', id };
+        break;
+      }
+      default:
+        // Signature contracts name their reward outright; nothing to recover.
+        resolved = contract.reward;
+    }
+    if (!resolved) continue;
+    if ('id' in resolved) used.add(resolved.id);
+    LIFETIME.grantedRewards[contract.id] = resolved;
+  }
+  saveProfile();
+}
+
 /** Evaluates every active contract and pays out the newly completed ones.
  *  Call once per finished run, after the ledger has been updated. */
 export function settleContracts(): EarnedContract[] {

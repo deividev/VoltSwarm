@@ -1,7 +1,7 @@
 import './ui.css';
 import { loadProfile } from './profile';
 import { migrateRunHistory } from './run-history';
-import { settleContracts } from './contracts';
+import { backfillGrantedRewards, settleContracts } from './contracts';
 import { Game } from './game';
 
 const container = document.getElementById('app');
@@ -15,6 +15,9 @@ loadProfile();
 // window where the Contracts screen reads COMPLETE while the reward has not
 // been handed over — which happens whenever a contract ships that the player
 // already satisfied, or after a save is restored.
+// Recover payout records for contracts settled before they were tracked, so an
+// older save does not show its finished ladder rungs as "Claimed" with no icon.
+backfillGrantedRewards();
 settleContracts();
 
 new Game(container);
