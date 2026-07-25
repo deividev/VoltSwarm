@@ -1,12 +1,12 @@
 import './ui.css';
-import { loadAccount } from './account';
+import { loadProfile } from './profile';
 import { Game } from './game';
 
 const container = document.getElementById('app');
 if (!container) throw new Error('Missing #app container');
 
-// Before the Game exists: every pool and socket reads ACCOUNT, so stored
+// Before the Game exists: every pool and socket reads PROFILE, so stored
 // progress has to be in place first.
-loadAccount();
+loadProfile();
 
 new Game(container);

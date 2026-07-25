@@ -1,5 +1,5 @@
-import { ACCOUNT, DEV_TOOLS, WEAPON_INFO, describeWeaponBranches, type WeaponId } from './config';
-import { resetAccount, saveAccount } from './account';
+import { PROFILE, DEV_TOOLS, WEAPON_INFO, describeWeaponBranches, type WeaponId } from './config';
+import { resetProfile, saveProfile } from './profile';
 import { defaultStats, type PlayerStats } from './stats';
 import { CORE_TITLES, weaponIdFromUpgradeCard, type CoreLevels, type Rarity, type UpgradeCard, type WeaponBranchLevels, type WeaponLevels } from './upgrades';
 import { MOD_IDS, MOD_REGISTRY, UNLOCKED_MOD_IDS, describeMod, modsOfTier, refreshUnlockedMods, type ModCounts, type ModId } from './mods';
@@ -552,14 +552,14 @@ export class Hud {
         for (const id of Object.keys(CORE_TITLES)) this.unlock('core', id);
         for (const id of MOD_IDS) this.unlock('mod', id);
         // Also open every socket slot (dev testing; contracts drive these later).
-        ACCOUNT.weaponSockets = ACCOUNT.maxWeaponSockets;
-        ACCOUNT.coreSockets = ACCOUNT.maxCoreSockets;
+        PROFILE.weaponSockets = PROFILE.maxWeaponSockets;
+        PROFILE.coreSockets = PROFILE.maxCoreSockets;
         // One write for the whole sweep instead of one per unlocked item.
-        saveAccount();
+        saveProfile();
         this.renderUnlocks();
       });
       mustGet('unlocks-reset-button').addEventListener('click', () => {
-        resetAccount();
+        resetProfile();
         this.renderUnlocks();
       });
     }
@@ -678,7 +678,7 @@ export class Hud {
 
   /** Dev unlock panel (TEMPORARY — the Contracts system will replace it). Lists
    *  every weapon, core and mod with its lock state; unlocking one pushes it
-   *  into ACCOUNT so the pools pick it up on the NEXT run. */
+   *  into PROFILE so the pools pick it up on the NEXT run. */
   private showUnlocks(): void {
     this.renderUnlocks();
     mustGet('unlocks-overlay').classList.remove('hidden');
@@ -690,21 +690,21 @@ export class Hud {
       id,
       name: WEAPON_INFO[id].title,
       icon: cardIconHtml(`weapon-${id}`),
-      unlocked: ACCOUNT.unlockedWeapons.includes(id),
+      unlocked: PROFILE.unlockedWeapons.includes(id),
     }));
     const cores = Object.keys(CORE_TITLES).map((id) => ({
       kind: 'core' as const,
       id,
       name: CORE_TITLES[id] ?? id,
       icon: cardIconHtml(id),
-      unlocked: ACCOUNT.unlockedCores.includes(id),
+      unlocked: PROFILE.unlockedCores.includes(id),
     }));
     const mods = MOD_IDS.map((id) => ({
       kind: 'mod' as const,
       id,
       name: MOD_REGISTRY[id].label,
       icon: `<img class="card-icon" src="${MOD_REGISTRY[id].image}" alt="" />`,
-      unlocked: ACCOUNT.unlockedMods.includes(id),
+      unlocked: PROFILE.unlockedMods.includes(id),
     }));
 
     const columns = mustGet('unlocks-columns');
@@ -733,7 +733,7 @@ export class Hud {
         if (!item.unlocked) {
           row.addEventListener('click', () => {
             this.unlock(item.kind, item.id);
-            saveAccount();
+            saveProfile();
             this.renderUnlocks();
           });
         }
@@ -747,11 +747,11 @@ export class Hud {
     const socketCol = document.createElement('div');
     socketCol.className = 'unlocks-column';
     const socketDefs: { label: string; index: number; kind: 'weapon' | 'core' }[] = [
-      ...Array.from({ length: ACCOUNT.maxWeaponSockets }, (_, i) => ({ label: `Weapon Socket ${i + 1}`, index: i + 1, kind: 'weapon' as const })),
-      ...Array.from({ length: ACCOUNT.maxCoreSockets }, (_, i) => ({ label: `Core Socket ${i + 1}`, index: i + 1, kind: 'core' as const })),
+      ...Array.from({ length: PROFILE.maxWeaponSockets }, (_, i) => ({ label: `Weapon Socket ${i + 1}`, index: i + 1, kind: 'weapon' as const })),
+      ...Array.from({ length: PROFILE.maxCoreSockets }, (_, i) => ({ label: `Core Socket ${i + 1}`, index: i + 1, kind: 'core' as const })),
     ];
     const socketOpen = (s: { index: number; kind: 'weapon' | 'core' }): boolean =>
-      s.index <= (s.kind === 'weapon' ? ACCOUNT.weaponSockets : ACCOUNT.coreSockets);
+      s.index <= (s.kind === 'weapon' ? PROFILE.weaponSockets : PROFILE.coreSockets);
     const socketsUnlocked = socketDefs.filter(socketOpen).length;
     const socketHead = document.createElement('div');
     socketHead.className = 'unlocks-column-head';
@@ -770,7 +770,7 @@ export class Hud {
       if (!open) {
         row.addEventListener('click', () => {
           this.unlockSocket(s.kind, s.index);
-          saveAccount();
+          saveProfile();
           this.renderUnlocks();
         });
       }
@@ -782,21 +782,21 @@ export class Hud {
   /** Dev: raise a socket count so its slot is usable in the next run. */
   private unlockSocket(kind: 'weapon' | 'core', index: number): void {
     if (kind === 'weapon') {
-      ACCOUNT.weaponSockets = Math.min(ACCOUNT.maxWeaponSockets, Math.max(ACCOUNT.weaponSockets, index));
+      PROFILE.weaponSockets = Math.min(PROFILE.maxWeaponSockets, Math.max(PROFILE.weaponSockets, index));
     } else {
-      ACCOUNT.coreSockets = Math.min(ACCOUNT.maxCoreSockets, Math.max(ACCOUNT.coreSockets, index));
+      PROFILE.coreSockets = Math.min(PROFILE.maxCoreSockets, Math.max(PROFILE.coreSockets, index));
     }
   }
 
   private unlock(kind: 'weapon' | 'core' | 'mod', id: string): void {
     if (kind === 'weapon') {
-      if (!ACCOUNT.unlockedWeapons.includes(id as WeaponId)) {
-        ACCOUNT.unlockedWeapons.push(id as WeaponId);
+      if (!PROFILE.unlockedWeapons.includes(id as WeaponId)) {
+        PROFILE.unlockedWeapons.push(id as WeaponId);
       }
     } else if (kind === 'core') {
-      if (!ACCOUNT.unlockedCores.includes(id)) ACCOUNT.unlockedCores.push(id);
+      if (!PROFILE.unlockedCores.includes(id)) PROFILE.unlockedCores.push(id);
     } else {
-      if (!ACCOUNT.unlockedMods.includes(id as ModId)) ACCOUNT.unlockedMods.push(id as ModId);
+      if (!PROFILE.unlockedMods.includes(id as ModId)) PROFILE.unlockedMods.push(id as ModId);
       // UNLOCKED_MOD_IDS is a cached snapshot — rebuild it so the reel/shop
       // pick up the newly unlocked mod on the next run.
       refreshUnlockedMods();
@@ -1186,10 +1186,10 @@ export class Hud {
   }
 
   /** Start-of-run weapon draft: 3 random distinct options out of the
-   *  account's UNLOCKED weapons (contract-locked ones never appear). */
+   *  profile's UNLOCKED weapons (contract-locked ones never appear). */
   private showDraft(): void {
     const all = (Object.keys(WEAPON_INFO) as WeaponId[]).filter((id) =>
-      ACCOUNT.unlockedWeapons.includes(id),
+      PROFILE.unlockedWeapons.includes(id),
     );
     const options: WeaponId[] = [];
     while (options.length < 3 && all.length > 0) {
@@ -1328,8 +1328,8 @@ export class Hud {
         label: `${WEAPON_INFO[weaponId].title}, level ${level}${describeWeaponBranches(weaponId, weaponBranches) ? `; ${describeWeaponBranches(weaponId, weaponBranches)}` : ''}`,
       });
     }
-    for (let i = ownedWeapons; i < ACCOUNT.weaponSockets; i++) weaponTiles += emptyTile;
-    for (let i = ACCOUNT.weaponSockets; i < ACCOUNT.maxWeaponSockets; i++) weaponTiles += lockedTile;
+    for (let i = ownedWeapons; i < PROFILE.weaponSockets; i++) weaponTiles += emptyTile;
+    for (let i = PROFILE.weaponSockets; i < PROFILE.maxWeaponSockets; i++) weaponTiles += lockedTile;
     panel.insertAdjacentHTML('beforeend', `<div class="rig-section">${weaponTiles}</div>`);
 
     panel.insertAdjacentHTML('beforeend', '<div class="panel-title">Cores</div>');
@@ -1344,8 +1344,8 @@ export class Hud {
         label: `${CORE_TITLES[id] ?? id}, level ${cores[id]}`,
       });
     }
-    for (let i = installedCores.length; i < ACCOUNT.coreSockets; i++) coreTiles += emptyTile;
-    for (let i = ACCOUNT.coreSockets; i < ACCOUNT.maxCoreSockets; i++) coreTiles += lockedTile;
+    for (let i = installedCores.length; i < PROFILE.coreSockets; i++) coreTiles += emptyTile;
+    for (let i = PROFILE.coreSockets; i < PROFILE.maxCoreSockets; i++) coreTiles += lockedTile;
     panel.insertAdjacentHTML('beforeend', `<div class="rig-section">${coreTiles}</div>`);
 
     // The Mods section (class `mods`) is hidden in-run and revealed only in the

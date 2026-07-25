@@ -1171,7 +1171,7 @@ export const PICKUPS = {
   // (2026-07-09): chests now hold consumables only. See docs/DESIGN_MEJORAS.md.
 };
 
-/** Fresh-account unlock state — the v1 "new account" defaults. The future
+/** Fresh-profile unlock state — the v1 "new profile" defaults. The future
  *  Contratos de Desguace system (Fase 5) mutates a persisted copy of this;
  *  ALL gating (draft pool, start draft, sockets, mod pool) reads this object
  *  so that swap is a single seam. Canonical default/contract split lives in
@@ -1183,7 +1183,7 @@ export const DRAFT_FALLBACK = {
   salvageDividendGold: 50,
 };
 
-export const ACCOUNT = {
+export const PROFILE = {
   /** Weapon sockets: 1 default, +1 via contract (max 2). */
   weaponSockets: 1,
   /** Core sockets: 2 default, +2 via contracts (max 4). */
@@ -1192,7 +1192,7 @@ export const ACCOUNT = {
   maxWeaponSockets: 2,
   maxCoreSockets: 4,
   /** Level-up discards per run: skip a draft without picking (2026-07-10).
-   *  Lives in ACCOUNT because contracts may raise it later — the ceiling and
+   *  Lives in PROFILE because contracts may raise it later — the ceiling and
    *  unlock pacing are an open design question (see DESIGN_MEJORAS). */
   levelupDiscards: 3,
   unlockedWeapons: ['bolt', 'pulse', 'blades', 'press', 'tire'] as WeaponId[],

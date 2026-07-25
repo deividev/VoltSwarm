@@ -30,10 +30,10 @@ function settingsFile(): string {
   return path.join(app.getPath('userData'), 'settings.json');
 }
 
-/** Cross-run account progress (unlocks and sockets), kept in its own file so a
+/** Cross-run player profile (unlocks and sockets), kept in its own file so a
  *  corrupt or reset settings file never costs the player their progression. */
-function accountFile(): string {
-  return path.join(app.getPath('userData'), 'account.json');
+function profileFile(): string {
+  return path.join(app.getPath('userData'), 'profile.json');
 }
 
 function initialWindowSettings(): { fullscreen: boolean; width: number; height: number } {
@@ -161,17 +161,17 @@ void app.whenReady().then(() => {
     }
   });
 
-  ipcMain.on('account:load', (event) => {
+  ipcMain.on('profile:load', (event) => {
     try {
-      event.returnValue = fs.readFileSync(accountFile(), 'utf8');
+      event.returnValue = fs.readFileSync(profileFile(), 'utf8');
     } catch {
       event.returnValue = null;
     }
   });
 
-  ipcMain.on('account:save', (event, data: string) => {
+  ipcMain.on('profile:save', (event, data: string) => {
     try {
-      fs.writeFileSync(accountFile(), data, 'utf8');
+      fs.writeFileSync(profileFile(), data, 'utf8');
       event.returnValue = true;
     } catch {
       event.returnValue = false;

@@ -10,9 +10,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveSettings: (data: string): void => {
     ipcRenderer.sendSync('settings:save', data);
   },
-  loadAccount: (): string | null => ipcRenderer.sendSync('account:load') as string | null,
-  saveAccount: (data: string): void => {
-    ipcRenderer.sendSync('account:save', data);
+  loadProfile: (): string | null => ipcRenderer.sendSync('profile:load') as string | null,
+  saveProfile: (data: string): void => {
+    ipcRenderer.sendSync('profile:save', data);
   },
   setWindowMode: (mode: string, width: number, height: number): void => {
     ipcRenderer.send('window:set-mode', mode, width, height);

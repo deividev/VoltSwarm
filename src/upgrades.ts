@@ -1,4 +1,4 @@
-import { ACCOUNT, DRAFT_FALLBACK, CORE_BALANCE, CORE_TIER_MAGNITUDES, MAX_WEAPON_LEVEL, RECORDING, TIERS, WEAPON_INFO, WEAPON_UPGRADE_TIER_SCALE, describeWeaponBranch, isBranchWeapon, weaponBranchEntries, xpForLevel, type BranchWeaponId, type WeaponBranchId, type WeaponBranchLevels, type WeaponId } from './config';
+import { PROFILE, DRAFT_FALLBACK, CORE_BALANCE, CORE_TIER_MAGNITUDES, MAX_WEAPON_LEVEL, RECORDING, TIERS, WEAPON_INFO, WEAPON_UPGRADE_TIER_SCALE, describeWeaponBranch, isBranchWeapon, weaponBranchEntries, xpForLevel, type BranchWeaponId, type WeaponBranchId, type WeaponBranchLevels, type WeaponId } from './config';
 import type { PlayerStats } from './stats';
 import type { Player } from './player';
 
@@ -470,7 +470,7 @@ export function coreBenefitsBuild(
 }
 
 /** Rolls `count` distinct cards for a level-up choice.
- *  Everything is double-gated (2026-07-09): by the ACCOUNT unlock state
+ *  Everything is double-gated (2026-07-09): by the PROFILE unlock state
  *  (contract-locked weapons/cores never enter the pool) and by the sockets
  *  (weapon slots cap the unlock cards; core sockets full → only installed
  *  cores appear — no swap). */
@@ -481,10 +481,10 @@ export function rollUpgradeChoices(
   mods: BuildModCounts = {},
   count = 3,
 ): UpgradeCard[] {
-  const atWeaponCap = ownedWeaponCount(weapons) >= ACCOUNT.weaponSockets;
-  const atCoreCap = installedCoreCount(cores) >= ACCOUNT.coreSockets;
+  const atWeaponCap = ownedWeaponCount(weapons) >= PROFILE.weaponSockets;
+  const atCoreCap = installedCoreCount(cores) >= PROFILE.coreSockets;
   const coreOffered = (id: string): boolean =>
-    ACCOUNT.unlockedCores.includes(id) &&
+    PROFILE.unlockedCores.includes(id) &&
     coreBenefitsBuild(id, weapons, mods) &&
     (!atCoreCap || (cores[id] ?? 0) > 0);
   const recordingCoreOffered = (id: string): boolean =>
@@ -517,7 +517,7 @@ export function rollUpgradeChoices(
       for (const [branchId] of weaponBranchEntries(weaponId)) {
         candidates.push(makeWeaponBranchCard(weaponId, branchId, level, rollRarity(stats.luck)));
       }
-    } else if (!atWeaponCap && ACCOUNT.unlockedWeapons.includes(weaponId)) {
+    } else if (!atWeaponCap && PROFILE.unlockedWeapons.includes(weaponId)) {
       unlockCards.push(makeWeaponUnlockCard(weaponId));
     }
   }
@@ -536,7 +536,7 @@ export function rollUpgradeChoices(
     }
 
     for (const coreId of RECORDING.levelUpDraft.coreIds) {
-      // Recording-only forced cores may sit outside the normal account pool,
+      // Recording-only forced cores may sit outside the normal profile pool,
       // but they still obey socket capacity and installed-core eligibility.
       if (!recordingCoreOffered(coreId)) continue;
       if (coreId === PROJECTILE_CARD.id) {

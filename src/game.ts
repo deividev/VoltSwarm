@@ -5,7 +5,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import {
-  ACCOUNT,
+  PROFILE,
   AUDIO,
   BOSS,
   CHEST,
@@ -193,7 +193,7 @@ export class Game {
   private hasteS = 0;
   /** Chest rewards collected this run, for the ITEMS list on level-up. */
   private modCounts: ModCounts = {};
-  /** Draft skips left this run (ACCOUNT.levelupDiscards, contract-raisable). */
+  /** Draft skips left this run (PROFILE.levelupDiscards, contract-raisable). */
   private discardsLeft = 0;
   /** Ticker for the stunned-enemy crackle (VISUAL.modVfx.stunBumper). */
   private stunSparkTimer = 0;
@@ -403,7 +403,7 @@ export class Game {
     this.shieldRegen = 0;
     this.lifestealCooldown = 0;
     this.gold = GOLD.startingGold;
-    this.discardsLeft = ACCOUNT.levelupDiscards;
+    this.discardsLeft = PROFILE.levelupDiscards;
     this.stunBumperCdS = 0;
     this.detonatorKills = 0;
     this.stompDistance = 0;
@@ -957,7 +957,7 @@ export class Game {
     this.hud.moveLevelUpIntro(pos.x, pos.y);
   }
 
-  /** Skip a draft without picking (max ACCOUNT.levelupDiscards per run) —
+  /** Skip a draft without picking (max PROFILE.levelupDiscards per run) —
    *  the level is still consumed, only the choice is passed up. */
   private discardUpgrade(): void {
     this.discardsLeft--;

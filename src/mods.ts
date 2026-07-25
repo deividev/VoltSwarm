@@ -1,4 +1,4 @@
-import { ACCOUNT, MERCHANT, MODS, PICKUPS } from './config';
+import { PROFILE, MERCHANT, MODS, PICKUPS } from './config';
 import { rollRarity, type Rarity } from './upgrades';
 
 // The unified mod pool (docs/DESIGN_MEJORAS.md Lista 4): one list, two doors.
@@ -179,22 +179,22 @@ export const MOD_REGISTRY: Record<ModId, ModInfo> = {
 
 export const MOD_IDS = Object.keys(MOD_REGISTRY) as ModId[];
 
-/** Mods this account has unlocked — contract-locked ones never drop or
- *  appear in the shop (gating state: config.ACCOUNT). Recomputed from ACCOUNT
+/** Mods this profile has unlocked — contract-locked ones never drop or
+ *  appear in the shop (gating state: config.PROFILE). Recomputed from PROFILE
  *  whenever an unlock happens at runtime (dev unlock panel today, contracts
  *  later) via refreshUnlockedMods(); importers see the new value because ESM
  *  bindings are live. */
-export let UNLOCKED_MOD_IDS = MOD_IDS.filter((id) => ACCOUNT.unlockedMods.includes(id));
+export let UNLOCKED_MOD_IDS = MOD_IDS.filter((id) => PROFILE.unlockedMods.includes(id));
 
-/** Rebuild UNLOCKED_MOD_IDS after ACCOUNT.unlockedMods changes at runtime. */
+/** Rebuild UNLOCKED_MOD_IDS after PROFILE.unlockedMods changes at runtime. */
 export function refreshUnlockedMods(): void {
-  UNLOCKED_MOD_IDS = MOD_IDS.filter((id) => ACCOUNT.unlockedMods.includes(id));
+  UNLOCKED_MOD_IDS = MOD_IDS.filter((id) => PROFILE.unlockedMods.includes(id));
 }
 
 /** Tier order high→low, shared by tier capping and the roll fall-down safety. */
 const TIER_ORDER: Rarity[] = ['gold', 'purple', 'blue', 'green', 'gray'];
 
-/** Unlocked mods of an EXACT tier (empty if the account has none there yet). */
+/** Unlocked mods of an EXACT tier (empty if the profile has none there yet). */
 export function unlockedModsOfTier(tier: Rarity): ModId[] {
   return UNLOCKED_MOD_IDS.filter((id) => MOD_REGISTRY[id].tier === tier);
 }
@@ -239,7 +239,7 @@ export function rollModOfTier(
     if (pool.length > 0) return pool[Math.floor(Math.random() * pool.length)] ?? 'repair';
   }
   // A restrictive predicate must not reintroduce an ineligible Mod through
-  // fallback. The default account always has eligible consumables available.
+  // fallback. The default profile always has eligible consumables available.
   return 'repair';
 }
 
