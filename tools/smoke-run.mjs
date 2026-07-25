@@ -112,9 +112,13 @@ mkdirSync(OUTPUT, { recursive: true });
 run('npm.cmd', ['run', 'electron:build']);
 
 const electronPath = (await import('electron')).default;
-const vite = spawn('npx.cmd', ['vite', '--port', String(PORT), '--strictPort'], {
-  cwd: ROOT, stdio: 'pipe', shell: process.platform === 'win32',
-});
+// Spawned through Node directly rather than `npx`/shell: a shell wrapper on
+// Windows means kill() only reaps the cmd.exe wrapper, leaving the real dev
+// server holding the port and this process alive forever.
+const vite = spawn(process.execPath, [
+  resolve(ROOT, 'node_modules/vite/bin/vite.js'),
+  '--port', String(PORT), '--strictPort',
+], { cwd: ROOT, stdio: 'pipe' });
 let electronProcess;
 let browser;
 const results = [];
@@ -251,4 +255,6 @@ const failed = results.filter((result) => !result.pass);
 const report = { timestamp: new Date().toISOString(), seed: SEED, targetRunS: TARGET_RUN_S, total: results.length, failed: failed.length, results };
 writeFileSync(REPORT, JSON.stringify(report, null, 2) + '\n');
 console.log(`\n${results.length - failed.length}/${results.length} weapons passed. Report: ${resolve(REPORT)}`);
-if (failed.length > 0 || results.length === 0) process.exitCode = 1;
+// Explicit exit: Electron and the dev server can leave handles open that would
+// otherwise keep this runner alive after the report is written.
+process.exit(failed.length > 0 || results.length === 0 ? 1 : 0);
