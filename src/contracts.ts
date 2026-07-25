@@ -277,7 +277,16 @@ export function backfillGrantedRewards(): void {
         // Signature contracts name their reward outright; nothing to recover.
         resolved = contract.reward;
     }
-    if (!resolved) continue;
+    if (!resolved) {
+      // Settled but nothing recoverable: an older build marked a spare ladder
+      // rung complete while its queue was already dry, so the player was paid
+      // nothing. Un-settle it rather than leave a rewardless row on the screen
+      // — it costs them nothing and the rung returns when content fills the
+      // slot. Settling now declines this case up front.
+      const at = LIFETIME.completedContracts.indexOf(contract.id);
+      if (at !== -1) LIFETIME.completedContracts.splice(at, 1);
+      continue;
+    }
     if ('id' in resolved) used.add(resolved.id);
     LIFETIME.grantedRewards[contract.id] = resolved;
   }
