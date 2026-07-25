@@ -31,11 +31,16 @@ export interface LifetimeStats {
   bestLevel: number;
   bestDurationS: number;
   bossesDefeated: number;
-  /** Per weapon id. Plain maps so new content needs no migration. */
+  damageTaken: number;
+  goldEarned: number;
+  shopPurchases: number;
+  /** Per weapon id / per chest tier. Plain maps so new content needs no migration. */
   damageByWeapon: Record<string, number>;
   runsByStartingWeapon: Record<string, number>;
   weaponMaxLevel: Record<string, number>;
+  chestsByTier: Record<string, number>;
   bestModsHeld: number;
+  bestGoldEarnedInRun: number;
   /** Ids already folded in, so a backfill can never double-count a run. */
   countedRunIds: string[];
 }
@@ -46,8 +51,9 @@ function emptyLifetime(): LifetimeStats {
   return {
     runsFinished: 0, runsSurvived: 0, totalKills: 0, totalPlayS: 0,
     bestKillsInRun: 0, bestLevel: 0, bestDurationS: 0, bossesDefeated: 0,
+    damageTaken: 0, goldEarned: 0, shopPurchases: 0,
     damageByWeapon: {}, runsByStartingWeapon: {}, weaponMaxLevel: {},
-    bestModsHeld: 0, countedRunIds: [],
+    chestsByTier: {}, bestModsHeld: 0, bestGoldEarnedInRun: 0, countedRunIds: [],
   };
 }
 
@@ -123,6 +129,13 @@ export function recordRunInLifetime(record: RunRecordV1): void {
     LIFETIME.bestModsHeld,
     Object.values(record.modCounts).reduce((total, n) => total + Math.max(0, n), 0),
   );
+  LIFETIME.damageTaken += record.damageTaken ?? 0;
+  LIFETIME.goldEarned += record.goldEarned ?? 0;
+  LIFETIME.shopPurchases += record.shopPurchases ?? 0;
+  LIFETIME.bestGoldEarnedInRun = Math.max(LIFETIME.bestGoldEarnedInRun, record.goldEarned ?? 0);
+  for (const [tier, n] of Object.entries(record.chestsByTier ?? {})) {
+    if (n > 0) LIFETIME.chestsByTier[tier] = (LIFETIME.chestsByTier[tier] ?? 0) + n;
+  }
   if (record.startingWeapon) {
     LIFETIME.runsByStartingWeapon[record.startingWeapon] =
       (LIFETIME.runsByStartingWeapon[record.startingWeapon] ?? 0) + 1;
@@ -205,10 +218,15 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
     bestLevel: num(saved.bestLevel),
     bestDurationS: num(saved.bestDurationS),
     bossesDefeated: num(saved.bossesDefeated),
+    damageTaken: num(saved.damageTaken),
+    goldEarned: num(saved.goldEarned),
+    shopPurchases: num(saved.shopPurchases),
     bestModsHeld: num(saved.bestModsHeld),
+    bestGoldEarnedInRun: num(saved.bestGoldEarnedInRun),
     damageByWeapon: map(saved.damageByWeapon),
     runsByStartingWeapon: map(saved.runsByStartingWeapon),
     weaponMaxLevel: map(saved.weaponMaxLevel),
+    chestsByTier: map(saved.chestsByTier),
     countedRunIds: Array.isArray(saved.countedRunIds)
       ? saved.countedRunIds.filter((id): id is string => typeof id === 'string')
       : [],

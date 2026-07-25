@@ -128,6 +128,11 @@ const SCRAPYARD_MAP: RunMapRef = {
   title: 'Scrapyard',
 };
 
+/** The single difficulty that exists today. Stamped on every run record so a
+ *  future selector does not leave this era's runs unlabelled — leaderboards
+ *  that mix difficulties rank nothing, and a finished run cannot be relabelled. */
+const DIFFICULTY_ID = 'standard';
+
 const tmpProject = new THREE.Vector3();
 
 export class Game {
@@ -193,6 +198,12 @@ export class Game {
    *  contracts ask questions like "finish runs with N different starting
    *  weapons", which weaponLevels alone cannot answer once others are picked up. */
   private startingWeapon: WeaponId | null = null;
+  /** Per-run counters written onto the run record. Contract objectives ask
+   *  about all four, and none can be reconstructed from a finished run. */
+  private runDamageTaken = 0;
+  private runGoldEarned = 0;
+  private runChestsByTier: Record<string, number> = {};
+  private runShopPurchases = 0;
   /** Remaining seconds on temporary crate buffs. */
   private frenzyS = 0;
   private hasteS = 0;
@@ -388,6 +399,10 @@ export class Game {
   private buildRun(startingWeapon: WeaponId): void {
     this.resetRunWorld();
     this.startingWeapon = startingWeapon;
+    this.runDamageTaken = 0;
+    this.runGoldEarned = 0;
+    this.runChestsByTier = {};
+    this.runShopPurchases = 0;
     this.stats = defaultStats();
     this.weaponLevels = emptyWeaponLevels();
     this.weaponPower = emptyWeaponPower();
@@ -536,6 +551,7 @@ export class Game {
       {
         addGold: (amount) => {
           this.gold += amount;
+          this.runGoldEarned += amount;
           this.hud.updateGold(this.gold);
           this.audio.emit({ id: 'gold-pickup' });
         },
@@ -875,6 +891,7 @@ export class Game {
     this.pickups.update(dt, px, pz, this.stats.luck, collisionObstacles);
     this.goldSys.update(dt, px, pz, this.stats.pickupRange, (value) => {
       this.gold += value;
+      this.runGoldEarned += value;
       if (this.benchmarkActive) this.benchmarkGoldPickups++;
       this.damageNumbers.showGain(px, pz, value, 'gold');
       this.hud.updateGold(this.gold);
@@ -1036,6 +1053,7 @@ export class Game {
     chestZ = this.player.position.z,
   ): void {
     this.gold -= price;
+    this.runChestsByTier[tier] = (this.runChestsByTier[tier] ?? 0) + 1;
     this.audio.emit({ id: 'chest-open', priority: 2 });
     this.hud.updateGold(this.gold);
     this.pickups.open(index);
@@ -1277,6 +1295,7 @@ export class Game {
     }
 
     const amount = applyArmor(rawDamage, this.stats.armor);
+    this.runDamageTaken += amount;
     this.audio.emit({ id: 'player-hit', priority: 3 });
     this.player.takeHit(amount);
     this.shakeAmp = Math.max(this.shakeAmp, VISUAL.screenShake.hitAmp);
@@ -1792,6 +1811,7 @@ export class Game {
         const entry = entries[index];
         if (!entry || this.gold < entry.price) return;
         this.gold -= entry.price;
+        this.runShopPurchases += 1;
         this.audio.emit({ id: 'shop-purchase', priority: 2 });
         this.hud.updateGold(this.gold);
         this.merchant.stock.splice(index, 1);
@@ -1851,6 +1871,14 @@ export class Game {
       outcome,
       map: SCRAPYARD_MAP,
       ...(this.startingWeapon ? { startingWeapon: this.startingWeapon } : {}),
+      // No difficulty selector exists yet, so every run is the one and only
+      // curve. Labelling it now means the day a selector lands, these records
+      // are still rankable instead of being an unlabelled blob.
+      difficulty: DIFFICULTY_ID,
+      damageTaken: this.runDamageTaken,
+      goldEarned: this.runGoldEarned,
+      chestsByTier: this.runChestsByTier,
+      shopPurchases: this.runShopPurchases,
       durationS: this.elapsedS,
       level: this.progression.level,
       kills: this.progression.kills,

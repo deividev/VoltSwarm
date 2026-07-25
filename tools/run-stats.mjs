@@ -69,6 +69,34 @@ distribution('level reached', history.map((r) => r.level));
 distribution('duration (s)', history.map((r) => r.durationS));
 distribution('bosses / run', history.map((r) => r.bossesDefeated));
 distribution('total damage', history.map((r) => r.totalDamage ?? 0));
+// Only over runs that actually carry the field: a record written before the
+// counter existed means UNKNOWN, and folding it in as 0 would drag every
+// percentile down and quietly produce thresholds nobody can hit.
+const withField = (key) => history.filter((r) => typeof r[key] === 'number').map((r) => r[key]);
+distribution('damage taken', withField('damageTaken'));
+distribution('gold earned', withField('goldEarned'));
+distribution('shop purchases', withField('shopPurchases'));
+
+const legacy = history.filter((r) => typeof r.damageTaken !== 'number').length;
+if (legacy > 0) {
+  console.log(`\n  (${legacy} of ${history.length} runs predate the per-run counters and are excluded from those rows)`);
+}
+
+const chests = {};
+for (const r of history) {
+  for (const [tier, n] of Object.entries(r.chestsByTier ?? {})) chests[tier] = (chests[tier] ?? 0) + n;
+}
+if (Object.keys(chests).length > 0) {
+  console.log('\nChests opened by tier:');
+  for (const [tier, n] of Object.entries(chests).sort((a, b) => b[1] - a[1])) {
+    console.log(`  ${tier.padEnd(10)} ${String(n).padStart(4)}`);
+  }
+}
+
+const difficulties = {};
+for (const r of history) difficulties[r.difficulty ?? '(unlabelled)'] = (difficulties[r.difficulty ?? '(unlabelled)'] ?? 0) + 1;
+console.log('\nRuns per difficulty:');
+for (const [d, n] of Object.entries(difficulties).sort()) console.log(`  ${d.padEnd(14)} ${String(n).padStart(4)}`);
 
 const finished = history.filter((r) => r.durationS >= 590);
 if (finished.length > 0) {

@@ -22,7 +22,20 @@ export interface RunSnapshot {
   /** Weapon the run was drafted with. Optional so records written before this
    *  field existed stay valid; contracts treat its absence as unknown. */
   startingWeapon?: WeaponId;
+  /** Difficulty the run was played on. Recorded BEFORE a difficulty selector
+   *  exists on purpose: a run that already happened can never be re-labelled,
+   *  and a leaderboard that mixes difficulties ranks nothing. Absent means
+   *  "recorded before difficulties existed", which is not the same as normal. */
+  difficulty?: string;
+  /** Character played. Same impossible-to-backfill argument as difficulty. */
+  characterId?: string;
   durationS: number;
+  /** Per-run counters that contract objectives ask about. Optional because
+   *  older records predate them; absent reads as unknown, never as zero. */
+  damageTaken?: number;
+  goldEarned?: number;
+  chestsByTier?: Record<string, number>;
+  shopPurchases?: number;
   level: number;
   kills: number;
   bossesDefeated: number;
@@ -46,6 +59,10 @@ export interface RunRecordV1 extends Omit<RunSnapshot, 'weaponPower'> {
   totalDamage: number;
   /** Added after v1 shipped; absent in older records and treated as unknown. */
   weaponPower?: WeaponPower;
+  /** Leaderboard ids this record was accepted by. Steam owns the ranking; this
+   *  is only local bookkeeping so a run finished offline can be submitted later
+   *  and never submitted twice. */
+  submittedTo?: string[];
 }
 
 const STORAGE_KEY = 'voltswarm:run-history:v1';
@@ -106,6 +123,12 @@ export function saveRunRecord(snapshot: RunSnapshot): RunRecordV1 {
     outcome: snapshot.outcome,
     map: { ...snapshot.map },
     ...(snapshot.startingWeapon ? { startingWeapon: snapshot.startingWeapon } : {}),
+    ...(snapshot.difficulty ? { difficulty: snapshot.difficulty } : {}),
+    ...(snapshot.characterId ? { characterId: snapshot.characterId } : {}),
+    ...(snapshot.damageTaken !== undefined ? { damageTaken: round3(snapshot.damageTaken) } : {}),
+    ...(snapshot.goldEarned !== undefined ? { goldEarned: Math.max(0, Math.floor(snapshot.goldEarned)) } : {}),
+    ...(snapshot.chestsByTier ? { chestsByTier: { ...snapshot.chestsByTier } } : {}),
+    ...(snapshot.shopPurchases !== undefined ? { shopPurchases: Math.max(0, Math.floor(snapshot.shopPurchases)) } : {}),
     durationS: Math.max(0, Math.round(snapshot.durationS * 1000) / 1000),
     level: Math.max(1, Math.floor(snapshot.level)),
     kills: Math.max(0, Math.floor(snapshot.kills)),
@@ -128,6 +151,10 @@ export function saveRunRecord(snapshot: RunSnapshot): RunRecordV1 {
     console.warn('Could not persist run history.', error);
   }
   return record;
+}
+
+function round3(value: number): number {
+  return Math.max(0, Math.round(value * 1000) / 1000);
 }
 
 function createRunId(): string {
