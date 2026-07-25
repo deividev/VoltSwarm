@@ -12,13 +12,15 @@
 // compare failures. A frame-exact digest needs the fixed-tick simulation seam,
 // which is deliberately out of scope for now.
 import { spawn, spawnSync } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUTPUT = resolve(ROOT, 'tmp/smoke-output');
 const REPORT = resolve(OUTPUT, 'report.json');
+/** Isolated Electron profile so bot runs never touch the real save. */
+const USER_DATA = resolve(OUTPUT, 'userdata');
 const PORT = 5599;
 const CDP_PORT = 9224;
 /** Seconds of IN-GAME time to play per weapon — measured off the run clock, not
@@ -133,9 +135,17 @@ try {
   // Without these, Chromium throttles requestAnimationFrame in a window that is
   // not in the foreground, so the run never leaves the loading screen and every
   // weapon reports a false failure.
+  // Throwaway userData dir. Two reasons: bot runs must never land in the real
+  // run-history.json (balance thresholds get calibrated from that file, and a
+  // bot that circle-strafes and always picks the first card is not a player),
+  // and a wiped profile means every sweep starts from the same fresh unlock
+  // state instead of inheriting whatever the developer has unlocked.
+  rmSync(USER_DATA, { recursive: true, force: true });
+  mkdirSync(USER_DATA, { recursive: true });
   electronProcess = spawn(electronPath, [
     ROOT,
     `--remote-debugging-port=${CDP_PORT}`,
+    `--user-data-dir=${USER_DATA}`,
     '--disable-background-timer-throttling',
     '--disable-renderer-backgrounding',
     '--disable-backgrounding-occluded-windows',
@@ -155,25 +165,36 @@ try {
   // before any app code executes. Suppressing the blur listener is test-side
   // only: an automated window loses focus constantly, and letting the game
   // auto-pause turns the sweep into a pause/resume thrash that never plays.
-  await page.evaluateOnNewDocument((seed) => {
-    let state = seed >>> 0;
+  // Re-registered per attempt with a DIFFERENT seed: a fixed seed makes the
+  // starting draft roll identically on every reload, so it would never offer a
+  // weapon the sweep has not covered yet. Each attempt stays individually
+  // reproducible via SEED + attempt.
+  const installHooks = (seed) => page.evaluateOnNewDocument((s) => {
+    let state = s >>> 0;
     Math.random = () => { state = (state * 1664525 + 1013904223) >>> 0; return state / 0x100000000; };
     const addEventListener = window.addEventListener.bind(window);
     window.addEventListener = (type, listener, options) => {
       if (type === 'blur') return undefined;
       return addEventListener(type, listener, options);
     };
-  }, SEED);
+  }, seed);
+  await installHooks(SEED);
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#play-button', { visible: true, timeout: 30_000 });
-  await page.click('#play-button');
-  await page.waitForSelector('#draft-cards > *', { visible: true, timeout: 30_000 });
-  const weaponCount = await page.$$eval('#draft-cards > *', (cards) => cards.length);
-  if (weaponCount === 0) throw new Error('Starting draft offered no weapons');
-  console.log(`Smoke sweep: ${weaponCount} starting weapons x ${TARGET_RUN_S}s in-game\n`);
+  // The starting draft offers a RANDOM subset of the unlocked weapons and
+  // re-rolls on every reload, so iterating by card index tests whatever landed
+  // in that slot — the same weapon twice, and another never. Cover weapons by
+  // NAME instead, reloading until an uncovered one is offered. The unlocked
+  // count is not queried from the app (that coupling is not worth it): the
+  // sweep simply stops once several consecutive drafts offer nothing new.
+  console.log(`Smoke sweep: every unlocked starting weapon x ${TARGET_RUN_S}s in-game\n`);
 
-  for (let index = 0; index < weaponCount; index++) {
+  const covered = new Set();
+  const MAX_ATTEMPTS = 24;
+  const EXHAUSTED_AFTER = 4;
+  let barren = 0;
+  for (let attempt = 0; attempt < MAX_ATTEMPTS && barren < EXHAUSTED_AFTER; attempt++) {
     const errors = [];
     const onPageError = (error) => errors.push(`pageerror: ${error.message}`);
     const onConsole = (message) => {
@@ -183,16 +204,22 @@ try {
     page.on('console', onConsole);
 
     try {
+      await installHooks(SEED + attempt);
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#play-button', { visible: true, timeout: 30_000 });
       await page.click('#play-button');
       await page.waitForSelector('#draft-cards > *', { visible: true, timeout: 30_000 });
-      const weaponName = await page.evaluate((i) => {
-        const card = document.querySelectorAll('#draft-cards > *')[i];
-        const name = card.querySelector('h3')?.textContent?.trim();
-        card.click();
-        return name ?? `card-${i}`;
-      }, index);
+      const weaponName = await page.evaluate((done) => {
+        const cards = [...document.querySelectorAll('#draft-cards > *')];
+        const pick = cards.find((c) => !done.includes(c.querySelector('h3')?.textContent?.trim() ?? ''));
+        if (!pick) return null; // this draft only re-offers weapons already covered
+        const name = pick.querySelector('h3')?.textContent?.trim() ?? 'unknown';
+        pick.click();
+        return name;
+      }, [...covered]);
+      if (weaponName === null) { barren++; continue; } // re-roll the draft
+      barren = 0;
+      covered.add(weaponName);
 
       const overlaysHandled = { pause: 0, levelup: 0, chest: 0, shop: 0 };
       const started = Date.now();
@@ -236,7 +263,7 @@ try {
         noVoiceLeak: (end.audio?.leakedVoices ?? 0) === 0,
       };
       const pass = Object.values(checks).every(Boolean);
-      results.push({ index, weapon: weaponName, pass, checks, end, overlaysHandled, stoppedBecause, errors: errors.slice(0, 5) });
+      results.push({ weapon: weaponName, pass, checks, end, overlaysHandled, stoppedBecause, errors: errors.slice(0, 5) });
       console.log(`${pass ? 'PASS' : 'FAIL'}  ${weaponName} — ${end.kills} kills, level ${end.level}, ${end.elapsedS.toFixed(0)}s in-game (${stoppedBecause})` +
         (pass ? '' : `\n      failed: ${Object.entries(checks).filter(([, ok]) => !ok).map(([name]) => name).join(', ')}` +
           (errors.length ? `\n      first error: ${errors[0]}` : '')));
