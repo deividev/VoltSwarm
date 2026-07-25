@@ -1,5 +1,5 @@
 import { PROFILE, DEV_TOOLS, WEAPON_INFO, describeWeaponBranches, type WeaponId } from './config';
-import { resetProfile, saveProfile } from './profile';
+import { LIFETIME, resetProfile, saveProfile } from './profile';
 import {
   ACTIVE_CONTRACTS,
   describeReward,
@@ -328,7 +328,7 @@ export class Hud {
         <div id="contracts-panel" class="overlay-panel">
           <div class="panel-header">Contracts</div>
           <p class="overlay-panel-sub" id="contracts-summary"></p>
-          <div id="contracts-list"></div>
+          <div id="contracts-columns"></div>
           <div id="contracts-actions">
             <button id="contracts-back-button">Back</button>
           </div>
@@ -842,7 +842,10 @@ export class Hud {
   private renderContracts(): void {
     const rows = ACTIVE_CONTRACTS.map((contract) => {
       const { current, target } = progressOf(contract.objective);
-      const done = current >= target;
+      // "Done" means SETTLED, not merely "objective met". Settling declines a
+      // spare ladder rung whose queue has run dry, so treating the objective as
+      // the source of truth would paint that rung complete with no reward.
+      const done = LIFETIME.completedContracts.includes(contract.id);
       return {
         contract,
         current: Math.min(current, target),
@@ -853,11 +856,8 @@ export class Hud {
       };
     }).sort((a, b) => (a.done === b.done ? b.ratio - a.ratio : a.done ? 1 : -1));
 
-    mustGet('contracts-summary').textContent =
-      `${rows.filter((r) => r.done).length} of ${rows.length} complete`;
-
-    const list = mustGet('contracts-list');
-    list.innerHTML = '';
+    const host = mustGet('contracts-columns');
+    host.innerHTML = '';
 
     const SECTIONS: { key: RewardCategory; title: string }[] = [
       { key: 'weapon', title: 'Weapons' },
@@ -867,6 +867,17 @@ export class Hud {
       { key: 'other', title: 'Perks' },
     ];
 
+    const COLUMNS = 3;
+    const columns = Array.from({ length: COLUMNS }, () => {
+      const column = document.createElement('div');
+      column.className = 'contracts-column';
+      host.appendChild(column);
+      return { element: column, weight: 0 };
+    });
+
+    let totalShown = 0;
+    let totalDone = 0;
+
     for (const section of SECTIONS) {
       const inSection = rows.filter((r) => rewardCategory(r.contract.reward) === section.key);
       if (inSection.length === 0) continue;
@@ -875,26 +886,57 @@ export class Hud {
       group.className = 'contract-group';
       const head = document.createElement('div');
       head.className = 'contract-group-head';
-      head.innerHTML =
-        `<span>${section.title}</span>` +
-        `<span class="contract-group-count">${inSection.filter((r) => r.done).length}/${inSection.length}</span>`;
       group.appendChild(head);
 
       // Pending rungs of the same ladder all draw from one queue, so resolve
       // them in display order — otherwise every row would advertise the same
       // item as its reward.
       const claimed = new Set<string>();
+      let shown = 0;
+      let done = 0;
       for (const row of inSection) {
-        group.appendChild(this.contractRow(row, claimed));
+        const element = this.contractRow(row, claimed);
+        // A spare ladder rung with nothing left in its queue is not offered:
+        // advertising a contract that cannot pay is worse than hiding it until
+        // new content fills the slot.
+        if (!element) continue;
+        group.appendChild(element);
+        shown++;
+        if (row.done) done++;
       }
-      list.appendChild(group);
+      if (shown === 0) continue;
+      // Counted after filtering so the header cannot promise rows that are not
+      // on screen.
+      head.innerHTML =
+        `<span>${section.title}</span>` +
+        `<span class="contract-group-count">${done}/${shown}</span>`;
+      totalShown += shown;
+      totalDone += done;
+
+      // Drop each section into whichever column is currently shortest. Sections
+      // differ a lot in length (Cores has twice the rows of Mods), and a plain
+      // row-major grid would leave a tall gap under every short one. Balancing
+      // by row count keeps this working as content is added.
+      const target = columns.reduce((a, b) => (a.weight <= b.weight ? a : b));
+      target.element.appendChild(group);
+      target.weight += shown;
     }
+
+    mustGet('contracts-summary').textContent = `${totalDone} of ${totalShown} complete`;
   }
 
   private contractRow(
     row: { contract: Contract; current: number; target: number; done: boolean; asTime: boolean },
     claimed: Set<string>,
-  ): HTMLElement {
+  ): HTMLElement | null {
+    // A settled contract shows what it actually gave; a pending one shows what
+    // it would give. Contracts settled before grantedRewards existed fall back
+    // to the declared reward.
+    const resolved = row.done
+      ? LIFETIME.grantedRewards[row.contract.id] ?? row.contract.reward
+      : resolveReward(row.contract.reward, claimed);
+    if (!row.done && resolved === null) return null;
+
     const item = document.createElement('div');
     item.className = `contract-row${row.done ? ' done' : ''}`;
 
@@ -904,7 +946,6 @@ export class Hud {
     const filled = row.target > 0 ? Math.round((row.current / row.target) * CELLS) : 0;
     const cells = Array.from({ length: CELLS }, (_, i) => `<i class="${i < filled ? 'on' : ''}"></i>`).join('');
 
-    const resolved = row.done ? row.contract.reward : resolveReward(row.contract.reward, claimed);
     item.innerHTML =
       `<div class="contract-icon">${rewardIconHtml(resolved, row.done)}</div>` +
       '<div class="contract-body">' +
@@ -2088,6 +2129,9 @@ function rewardLabelHtml(original: Reward, resolved: Reward | null, done: boolea
       : `Core slot ${open + 1} &mdash; install another core`;
   }
   if (!resolved) return 'Nothing left to unlock';
+  // A queue reward that survived to here belongs to a contract settled before
+  // its payout was recorded; naming the queue would be worse than saying so.
+  if (resolved.kind.startsWith('next-')) return done ? 'Claimed' : describeReward(resolved);
   return describeReward(resolved);
 }
 

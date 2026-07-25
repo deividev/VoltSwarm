@@ -2589,19 +2589,39 @@ body:has(.menu-view:not(.hidden)) #build-panel {
    panel for players; that one stays behind DEV_TOOLS for testing.
    ────────────────────────────────────────────────────────────────────── */
 #contracts-panel {
-  width: min(760px, calc(100vw - 48px));
+  /* .overlay-panel caps width at calc(100vw - 798px) — 482px on a 1280 screen —
+     and positions itself absolutely. The unlocks panel opts out the same way. */
+  position: static;
+  left: auto;
+  top: auto;
+  transform: none;
+  width: min(1180px, calc(100vw - 48px));
+  max-width: min(1180px, calc(100vw - 48px));
+  max-height: calc(100vh - 90px);
 }
 
-#contracts-list {
+#contracts-columns {
+  /* Grid, not CSS multi-column: multi-column inside a height-capped scroller
+     flows sideways and produces a horizontal scrollbar. Columns are filled by
+     the renderer, which balances sections by row count. */
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+  overflow-y: auto;
+  max-height: min(58vh, 560px);
+  padding: 4px 2px;
+}
+
+.contracts-column {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  /* Group headers sit flush against the scroll edge without it. */
-  padding-top: 2px;
-  max-height: min(56vh, 520px);
-  overflow-y: auto;
-  padding-right: 4px;
+  min-width: 0;
 }
+
+@media (max-width: 1100px) { #contracts-columns { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 720px)  { #contracts-columns { grid-template-columns: 1fr; } }
 
 .contract-row {
   display: grid;

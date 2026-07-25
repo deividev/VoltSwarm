@@ -232,8 +232,16 @@ export function settleContracts(): EarnedContract[] {
   for (const contract of ACTIVE_CONTRACTS) {
     if (LIFETIME.completedContracts.includes(contract.id)) continue;
     if (!isComplete(contract)) continue;
-    LIFETIME.completedContracts.push(contract.id);
     const granted = grant(contract.reward);
+    // A ladder deliberately carries more rungs than its queue has entries, so
+    // new content lands in a slot that already exists. Until then the spare
+    // rung stays PENDING rather than settling for nothing: marking it complete
+    // would quietly spend the player's achievement on an empty reward.
+    if (granted === null) continue;
+    LIFETIME.completedContracts.push(contract.id);
+    // Record WHAT was handed over: a ladder rung's declared reward is "the next
+    // queue entry", which says nothing once it has been claimed.
+    if (granted) LIFETIME.grantedRewards[contract.id] = granted;
     earned.push({ contract, granted, label: describeReward(granted) });
   }
   if (earned.length > 0) {

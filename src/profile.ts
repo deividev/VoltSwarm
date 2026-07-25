@@ -2,6 +2,9 @@ import { PROFILE, WEAPON_INFO, type WeaponId } from './config';
 import { CORE_TITLES } from './upgrades';
 import { MOD_IDS, refreshUnlockedMods, type ModId } from './mods';
 import { loadRunHistory, type RunRecordV1 } from './run-history';
+// Type-only: erased at compile time, so this cannot create a runtime cycle with
+// contracts.ts, which imports LIFETIME from here.
+import type { Reward } from './contracts';
 
 // Cross-run player profile. Mirrors the settings persistence seam
 // (src/settings.ts): Electron writes a JSON file under userData, the browser
@@ -48,6 +51,11 @@ export interface LifetimeStats {
   /** Contract ids already paid out. Rewards are never revoked, so raising a
    *  threshold later cannot take back what a player already earned. */
   completedContracts: string[];
+  /** What each contract actually handed over, keyed by contract id. A ladder
+   *  rung's reward is "the next queue entry", which is meaningless once it has
+   *  been claimed — without this the screen would show a settled rung as
+   *  "Next mod" with no icon instead of naming the mod it gave. */
+  grantedRewards: Record<string, Reward>;
   /** Ids already folded in, so a backfill can never double-count a run. */
   countedRunIds: string[];
 }
@@ -61,7 +69,7 @@ function emptyLifetime(): LifetimeStats {
     damageTaken: 0, goldEarned: 0, shopPurchases: 0,
     damageByWeapon: {}, runsByStartingWeapon: {}, weaponMaxLevel: {},
     chestsByTier: {}, bestModsHeld: 0, bestGoldEarnedInRun: 0,
-    bestMinimalRunS: 0, bestFlawlessRunS: 0, completedContracts: [],
+    bestMinimalRunS: 0, bestFlawlessRunS: 0, completedContracts: [], grantedRewards: {},
     countedRunIds: [],
   };
 }
@@ -250,6 +258,7 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
     completedContracts: Array.isArray(saved.completedContracts)
       ? saved.completedContracts.filter((id): id is string => typeof id === 'string')
       : [],
+    grantedRewards: rewardMap(saved.grantedRewards),
     damageByWeapon: map(saved.damageByWeapon),
     runsByStartingWeapon: map(saved.runsByStartingWeapon),
     weaponMaxLevel: map(saved.weaponMaxLevel),
@@ -269,6 +278,20 @@ function mergeUnlocks(defaults: string[], saved: unknown, valid: Set<string>): s
     if (typeof id === 'string' && valid.has(id) && !result.includes(id)) result.push(id);
   }
   return result;
+}
+
+/** Keeps only entries that still look like a reward, so a hand-edited or
+ *  partially-written save degrades to 'unknown' rather than crashing a render. */
+function rewardMap(value: unknown): Record<string, Reward> {
+  const out: Record<string, Reward> = {};
+  if (value && typeof value === 'object') {
+    for (const [id, reward] of Object.entries(value as Record<string, unknown>)) {
+      if (reward && typeof reward === 'object' && typeof (reward as Reward).kind === 'string') {
+        out[id] = reward as Reward;
+      }
+    }
+  }
+  return out;
 }
 
 function clampSockets(value: unknown, fallback: number, max: number): number {
