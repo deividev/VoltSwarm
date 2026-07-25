@@ -38,7 +38,8 @@ export type Reward =
   | { kind: 'socket'; slot: 'weapon' | 'core' }
   | { kind: 'discards'; n: number }
   | { kind: 'next-weapon' }
-  | { kind: 'next-item' };
+  | { kind: 'next-core' }
+  | { kind: 'next-mod' };
 
 export interface Contract {
   id: string;
@@ -59,22 +60,17 @@ export interface Contract {
  *  Safe to reorder or extend at any time: what a player has been granted is
  *  recorded as unlocked IDS, never as a position in this list, so shuffling it
  *  can neither hand out a duplicate nor skip an entry. */
-const WEAPON_QUEUE: WeaponId[] = ['welder', 'acid', 'turbine', 'dismantler', 'oil'];
+export const WEAPON_QUEUE: WeaponId[] = ['welder', 'acid', 'turbine', 'dismantler', 'oil'];
 
-const ITEM_QUEUE: Reward[] = [
-  { kind: 'core', id: 'crit-chance' },
-  { kind: 'mod', id: 'coolant-burst' as ModId },
-  { kind: 'core', id: 'crit-damage' },
-  { kind: 'core', id: 'duration' },
-  { kind: 'core', id: 'evasion' },
-  { kind: 'mod', id: 'chain-relay' as ModId },
-  { kind: 'core', id: 'thorns' },
-  { kind: 'core', id: 'lifesteal' },
-  { kind: 'core', id: 'luck' },
-  { kind: 'core', id: 'projectile-count' },
-  { kind: 'core', id: 'chaos' },
-  { kind: 'core', id: 'cursed' },
+/** Split per category rather than one mixed queue: it lets the core drip and
+ *  the mod drip be tuned independently, and it means a ladder rung always
+ *  belongs to exactly one section of the Contracts screen. */
+export const CORE_QUEUE: string[] = [
+  'crit-chance', 'crit-damage', 'duration', 'evasion', 'thorns',
+  'lifesteal', 'luck', 'projectile-count', 'chaos', 'cursed',
 ];
+
+export const MOD_QUEUE: ModId[] = ['coolant-burst' as ModId, 'chain-relay' as ModId];
 
 const SIGNATURE: Contract[] = [
   {
@@ -123,7 +119,7 @@ const SIGNATURE: Contract[] = [
     id: 'proving-ground', title: 'Proving Ground',
     description: `Finish runs with ${CONTRACTS.provingGroundWeapons} different starting weapons.`,
     objective: { type: 'distinct-starting-weapons', n: CONTRACTS.provingGroundWeapons },
-    reward: { kind: 'next-item' },
+    reward: { kind: 'next-core' },
     latent: 'Reward becomes the second character once characters exist.',
   },
   {
@@ -137,10 +133,14 @@ const SIGNATURE: Contract[] = [
     id: 'two-of-a-kind', title: 'Two of a Kind',
     description: 'Survive a full run with two different characters.',
     objective: { type: 'survive', seconds: CONTRACTS.fullRunSeconds },
-    reward: { kind: 'next-item' },
+    reward: { kind: 'next-core' },
     latent: 'Characters are not implemented.',
   },
 ];
+
+/** Rung numerals. Repeating 'I' produced "Arsenal IIII"; a table is enough for
+ *  any ladder length worth showing, and falls back to digits beyond it. */
+const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 
 /** Builds a ladder: same objective type at rising thresholds, each rung paying
  *  the next queue entry. New content needs an appended queue entry, not a new
@@ -155,7 +155,7 @@ function ladder(
 ): Contract[] {
   return thresholds.map((n, index) => ({
     id: `${prefix}-${index + 1}`,
-    title: `${title} ${'I'.repeat(index + 1)}`,
+    title: `${title} ${ROMAN[index] ?? String(index + 1)}`,
     description: describe(n),
     objective: make(n),
     reward,
@@ -170,19 +170,19 @@ const LADDERS: Contract[] = [
   ...ladder('scrap-quota', 'Scrap Quota', CONTRACTS.ladders.scrapQuota,
     (n) => ({ type: 'lifetime-kills', n }),
     (n) => `Destroy ${n.toLocaleString('en-US')} machines.`,
-    { kind: 'next-item' }),
+    { kind: 'next-core' }),
   ...ladder('veteran', 'Veteran', CONTRACTS.ladders.veteran,
     (n) => ({ type: 'finish-runs', n }),
     (n) => `Finish ${n} runs.`,
-    { kind: 'next-item' }),
+    { kind: 'next-core' }),
   ...ladder('ascension', 'Ascension', CONTRACTS.ladders.ascension,
     (n) => ({ type: 'reach-level', n }),
     (n) => `Reach level ${n} in a run.`,
-    { kind: 'next-item' }),
+    { kind: 'next-core' }),
   ...ladder('endurance', 'Endurance', CONTRACTS.ladders.endurance,
     (n) => ({ type: 'survive', seconds: n }),
     (n) => `Survive ${Math.round(n / 60)} minutes in a run.`,
-    { kind: 'next-item' }),
+    { kind: 'next-mod' }),
 ];
 
 export const ALL_CONTRACTS: Contract[] = [...SIGNATURE, ...LADDERS];
@@ -252,12 +252,13 @@ function grant(reward: Reward): Reward | null {
       const id = WEAPON_QUEUE.find((w) => !PROFILE.unlockedWeapons.includes(w));
       return id ? grant({ kind: 'weapon', id }) : null;
     }
-    case 'next-item': {
-      const next = ITEM_QUEUE.find((item) =>
-        item.kind === 'core'
-          ? !PROFILE.unlockedCores.includes(item.id)
-          : item.kind === 'mod' && !PROFILE.unlockedMods.includes(item.id));
-      return next ? grant(next) : null;
+    case 'next-core': {
+      const id = CORE_QUEUE.find((c) => !PROFILE.unlockedCores.includes(c));
+      return id ? grant({ kind: 'core', id }) : null;
+    }
+    case 'next-mod': {
+      const id = MOD_QUEUE.find((m) => !PROFILE.unlockedMods.includes(m));
+      return id ? grant({ kind: 'mod', id }) : null;
     }
     case 'weapon':
       if (!PROFILE.unlockedWeapons.includes(reward.id)) PROFILE.unlockedWeapons.push(reward.id);
@@ -290,6 +291,52 @@ export function describeReward(reward: Reward | null): string {
     case 'socket': return reward.slot === 'weapon' ? 'New weapon socket' : 'New core socket';
     case 'discards': return `+${reward.n} level-up discard`;
     case 'next-weapon': return 'Next weapon';
-    case 'next-item': return 'Next upgrade';
+    case 'next-core': return 'Next core';
+    case 'next-mod': return 'Next mod';
+  }
+}
+
+/** Which section of the Contracts screen a contract belongs to. */
+export type RewardCategory = 'weapon' | 'core' | 'mod' | 'socket' | 'other';
+
+export function rewardCategory(reward: Reward): RewardCategory {
+  switch (reward.kind) {
+    case 'weapon': case 'next-weapon': return 'weapon';
+    case 'core': case 'next-core': return 'core';
+    case 'mod': case 'next-mod': return 'mod';
+    case 'socket': return 'socket';
+    case 'discards': return 'other';
+  }
+}
+
+/** Resolves what a reward would actually hand over, so the screen can show a
+ *  real name and icon instead of "Next core".
+ *
+ *  `claimed` accumulates across a section: several pending rungs all draw from
+ *  the same queue, so without it every one of them would advertise the SAME
+ *  item. Walking them in display order shows what completing them in that
+ *  order would give. */
+export function resolveReward(reward: Reward, claimed: Set<string>): Reward | null {
+  switch (reward.kind) {
+    case 'next-weapon': {
+      const id = WEAPON_QUEUE.find((w) => !PROFILE.unlockedWeapons.includes(w) && !claimed.has(w));
+      if (!id) return null;
+      claimed.add(id);
+      return { kind: 'weapon', id };
+    }
+    case 'next-core': {
+      const id = CORE_QUEUE.find((c) => !PROFILE.unlockedCores.includes(c) && !claimed.has(c));
+      if (!id) return null;
+      claimed.add(id);
+      return { kind: 'core', id };
+    }
+    case 'next-mod': {
+      const id = MOD_QUEUE.find((m) => !PROFILE.unlockedMods.includes(m) && !claimed.has(m));
+      if (!id) return null;
+      claimed.add(id);
+      return { kind: 'mod', id };
+    }
+    default:
+      return reward;
   }
 }

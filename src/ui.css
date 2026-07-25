@@ -2596,12 +2596,18 @@ body:has(.menu-view:not(.hidden)) #build-panel {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  /* Group headers sit flush against the scroll edge without it. */
+  padding-top: 2px;
   max-height: min(56vh, 520px);
   overflow-y: auto;
   padding-right: 4px;
 }
 
 .contract-row {
+  display: grid;
+  grid-template-columns: 48px 1fr;
+  align-items: center;
+  gap: 12px;
   padding: 8px 12px 10px;
   border: 2px solid #2b3340;
   border-left: 3px solid #3fa9f5;
@@ -2684,3 +2690,66 @@ body:has(.menu-view:not(.hidden)) #build-panel {
 @media (prefers-reduced-motion: reduce) {
   .end-contracts-more { animation: none; opacity: 1; }
 }
+
+/* Contracts screen: one section per unlock category, each row led by the
+   reward's own art so the player sees WHAT is at stake, not just its name. */
+.contract-group { margin-bottom: 14px; }
+
+.contract-group-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: #f2b632;
+  padding: 0 2px 6px;
+  border-bottom: 2px solid #2b3340;
+  margin-bottom: 8px;
+}
+
+.contract-group-count { color: #8a94a2; font-size: 8px; }
+
+.contract-icon {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.contract-icon .card-icon {
+  width: 44px;
+  height: 44px;
+  image-rendering: pixelated;
+}
+
+.contract-row.done .contract-icon { filter: grayscale(0.7) brightness(0.8); }
+
+/* Sockets have no art, and no single icon says "capacity". The full row —
+   filled, the one this contract opens, and the ones still locked — answers
+   "what does this give me" without a caption. */
+.socket-pips {
+  display: flex;
+  gap: 3px;
+}
+
+.socket-pips i {
+  width: 9px;
+  height: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid #2b3340;
+}
+
+.socket-pips i.filled {
+  background: #3fa9f5;
+  border-color: #3fa9f5;
+  box-shadow: 0 0 5px rgba(63, 169, 245, 0.5);
+}
+
+.socket-pips i.next {
+  background: rgba(242, 182, 50, 0.25);
+  border-color: #f2b632;
+  box-shadow: 0 0 7px rgba(242, 182, 50, 0.55);
+}
+
+.contract-body { min-width: 0; }

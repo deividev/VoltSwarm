@@ -1,6 +1,16 @@
 import { PROFILE, DEV_TOOLS, WEAPON_INFO, describeWeaponBranches, type WeaponId } from './config';
 import { resetProfile, saveProfile } from './profile';
-import { ACTIVE_CONTRACTS, describeReward, progressOf, type EarnedContract } from './contracts';
+import {
+  ACTIVE_CONTRACTS,
+  describeReward,
+  progressOf,
+  resolveReward,
+  rewardCategory,
+  type Contract,
+  type EarnedContract,
+  type Reward,
+  type RewardCategory,
+} from './contracts';
 import { defaultStats, type PlayerStats } from './stats';
 import { CORE_TITLES, weaponIdFromUpgradeCard, type CoreLevels, type Rarity, type UpgradeCard, type WeaponBranchLevels, type WeaponLevels } from './upgrades';
 import { MOD_IDS, MOD_REGISTRY, UNLOCKED_MOD_IDS, describeMod, modsOfTier, refreshUnlockedMods, type ModCounts, type ModId } from './mods';
@@ -833,36 +843,80 @@ export class Hud {
     const rows = ACTIVE_CONTRACTS.map((contract) => {
       const { current, target } = progressOf(contract.objective);
       const done = current >= target;
-      const asTime = 'seconds' in contract.objective;
-      return { contract, current: Math.min(current, target), target, done, asTime, ratio: target > 0 ? current / target : 0 };
+      return {
+        contract,
+        current: Math.min(current, target),
+        target,
+        done,
+        asTime: 'seconds' in contract.objective,
+        ratio: target > 0 ? current / target : 0,
+      };
     }).sort((a, b) => (a.done === b.done ? b.ratio - a.ratio : a.done ? 1 : -1));
 
-    const completed = rows.filter((r) => r.done).length;
-    mustGet('contracts-summary').textContent = `${completed} of ${rows.length} complete`;
+    mustGet('contracts-summary').textContent =
+      `${rows.filter((r) => r.done).length} of ${rows.length} complete`;
 
     const list = mustGet('contracts-list');
     list.innerHTML = '';
-    for (const row of rows) {
-      const item = document.createElement('div');
-      item.className = `contract-row${row.done ? ' done' : ''}`;
-      // Cells rather than a smooth fill: the whole HUD speaks in segmented
-      // bars, and a continuous gradient here would read as a different game.
-      const CELLS = 12;
-      const filled = row.target > 0 ? Math.round((row.current / row.target) * CELLS) : 0;
-      const cells = Array.from(
-        { length: CELLS },
-        (_, i) => `<i class="${i < filled ? 'on' : ''}"></i>`,
-      ).join('');
-      item.innerHTML =
-        `<div class="contract-head">` +
-        `<span class="contract-title">${row.contract.title}</span>` +
-        `<span class="contract-count">${row.done ? 'COMPLETE' : `${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}`}</span>` +
-        `</div>` +
+
+    const SECTIONS: { key: RewardCategory; title: string }[] = [
+      { key: 'weapon', title: 'Weapons' },
+      { key: 'core', title: 'Cores' },
+      { key: 'mod', title: 'Mods' },
+      { key: 'socket', title: 'Sockets' },
+      { key: 'other', title: 'Perks' },
+    ];
+
+    for (const section of SECTIONS) {
+      const inSection = rows.filter((r) => rewardCategory(r.contract.reward) === section.key);
+      if (inSection.length === 0) continue;
+
+      const group = document.createElement('section');
+      group.className = 'contract-group';
+      const head = document.createElement('div');
+      head.className = 'contract-group-head';
+      head.innerHTML =
+        `<span>${section.title}</span>` +
+        `<span class="contract-group-count">${inSection.filter((r) => r.done).length}/${inSection.length}</span>`;
+      group.appendChild(head);
+
+      // Pending rungs of the same ladder all draw from one queue, so resolve
+      // them in display order — otherwise every row would advertise the same
+      // item as its reward.
+      const claimed = new Set<string>();
+      for (const row of inSection) {
+        group.appendChild(this.contractRow(row, claimed));
+      }
+      list.appendChild(group);
+    }
+  }
+
+  private contractRow(
+    row: { contract: Contract; current: number; target: number; done: boolean; asTime: boolean },
+    claimed: Set<string>,
+  ): HTMLElement {
+    const item = document.createElement('div');
+    item.className = `contract-row${row.done ? ' done' : ''}`;
+
+    // Cells rather than a smooth fill: the whole HUD speaks in segmented bars,
+    // and a continuous gradient here would read as a different game.
+    const CELLS = 12;
+    const filled = row.target > 0 ? Math.round((row.current / row.target) * CELLS) : 0;
+    const cells = Array.from({ length: CELLS }, (_, i) => `<i class="${i < filled ? 'on' : ''}"></i>`).join('');
+
+    const resolved = row.done ? row.contract.reward : resolveReward(row.contract.reward, claimed);
+    item.innerHTML =
+      `<div class="contract-icon">${rewardIconHtml(resolved, row.done)}</div>` +
+      '<div class="contract-body">' +
+        '<div class="contract-head">' +
+          `<span class="contract-title">${row.contract.title}</span>` +
+          `<span class="contract-count">${row.done ? 'COMPLETE' : `${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}`}</span>` +
+        '</div>' +
         `<div class="contract-desc">${row.contract.description}</div>` +
         `<div class="contract-bar">${cells}</div>` +
-        `<div class="contract-reward">${describeReward(row.contract.reward)}</div>`;
-      list.appendChild(item);
-    }
+        `<div class="contract-reward">${rewardLabelHtml(row.contract.reward, resolved, row.done)}</div>` +
+      '</div>';
+    return item;
   }
 
   /** The payout beat. Rendered only when something was earned: an empty
@@ -1983,6 +2037,58 @@ export class Hud {
     );
     this.endOverlay.classList.remove('hidden');
   }
+}
+
+/** The reward's own art, so the screen shows WHAT you get, not just its name.
+ *  Weapons, cores and mods each already have an icon pipeline; sockets have no
+ *  art at all, so they get a diagram instead (see socketPipsHtml). */
+function rewardIconHtml(reward: Reward | null, done: boolean): string {
+  if (!reward) return '';
+  switch (reward.kind) {
+    case 'weapon': return cardIconHtml(`weapon-${reward.id}`);
+    case 'core': return cardIconHtml(reward.id);
+    case 'mod': {
+      const image = MOD_REGISTRY[reward.id]?.image;
+      return image ? `<img class="card-icon" src="${image}" alt="" />` : '';
+    }
+    case 'socket': return socketPipsHtml(reward.slot, done);
+    case 'discards': return '<img class="card-icon" src="assets/2d/icon-ui-coin-v2.png" alt="" />';
+    default: return '';
+  }
+}
+
+/** A socket reward is a capacity change, which no single icon conveys. Drawing
+ *  the whole row — filled, the one this opens, and the ones still locked —
+ *  answers "what does this actually give me" at a glance. */
+function socketPipsHtml(slot: 'weapon' | 'core', done: boolean): string {
+  const open = slot === 'weapon' ? PROFILE.weaponSockets : PROFILE.coreSockets;
+  const max = slot === 'weapon' ? PROFILE.maxWeaponSockets : PROFILE.maxCoreSockets;
+  const pips = Array.from({ length: max }, (_, i) => {
+    if (i < open) return '<i class="filled"></i>';
+    // Only a PENDING contract highlights the slot it would open. Marking one
+    // on an already-paid contract would advertise the next socket as if this
+    // one still granted it.
+    if (i === open && !done) return '<i class="next"></i>';
+    return '<i></i>';
+  }).join('');
+  return `<div class="socket-pips">${pips}</div>`;
+}
+
+/** Names the reward, and for a socket says what the extra slot lets you DO —
+ *  "New core socket" describes the mechanism, not the benefit. */
+function rewardLabelHtml(original: Reward, resolved: Reward | null, done: boolean): string {
+  if (original.kind === 'socket') {
+    const noun = original.slot === 'weapon' ? 'Weapon' : 'Core';
+    // A paid contract must not name the NEXT slot number as though it were its
+    // own reward — it granted an earlier one.
+    if (done) return `${noun} slot unlocked`;
+    const open = original.slot === 'weapon' ? PROFILE.weaponSockets : PROFILE.coreSockets;
+    return original.slot === 'weapon'
+      ? `Weapon slot ${open + 1} &mdash; carry another weapon`
+      : `Core slot ${open + 1} &mdash; install another core`;
+  }
+  if (!resolved) return 'Nothing left to unlock';
+  return describeReward(resolved);
 }
 
 /** Objectives measured in seconds read as time; everything else stays a count.
