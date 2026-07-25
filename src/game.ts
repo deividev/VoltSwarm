@@ -104,6 +104,7 @@ import {
 } from './settings';
 import { saveRunRecord, type RunMapRef, type RunOutcome } from './run-history';
 import { recordRunInLifetime, saveProfile } from './profile';
+import { settleContracts } from './contracts';
 
 type GameState =
   | 'menu'
@@ -1890,10 +1891,15 @@ export class Game {
       coreLevels: this.coreLevels,
       modCounts: this.modCounts,
     });
-    // Career ledger before the end screen: contract evaluation will hang off
-    // this same point, so the reveal can land on the results panel.
+    // Ledger first, then contracts read it. Single evaluation point per run:
+    // a contract published later completes retroactively for a player who
+    // already met it, and rewards land in exactly one place.
     recordRunInLifetime(record);
     saveProfile();
+    const earnedContracts = settleContracts();
+    for (const earned of earnedContracts) {
+      console.info(`Contract complete: ${earned.contract.title} -> ${earned.label}`);
+    }
     this.hud.showEnd(
       outcome,
       SCRAPYARD_MAP,

@@ -41,6 +41,13 @@ export interface LifetimeStats {
   chestsByTier: Record<string, number>;
   bestModsHeld: number;
   bestGoldEarnedInRun: number;
+  /** Longest finished run carrying ONE weapon and ZERO mods. */
+  bestMinimalRunS: number;
+  /** Longest finished run that took no damage at all. */
+  bestFlawlessRunS: number;
+  /** Contract ids already paid out. Rewards are never revoked, so raising a
+   *  threshold later cannot take back what a player already earned. */
+  completedContracts: string[];
   /** Ids already folded in, so a backfill can never double-count a run. */
   countedRunIds: string[];
 }
@@ -53,7 +60,9 @@ function emptyLifetime(): LifetimeStats {
     bestKillsInRun: 0, bestLevel: 0, bestDurationS: 0, bossesDefeated: 0,
     damageTaken: 0, goldEarned: 0, shopPurchases: 0,
     damageByWeapon: {}, runsByStartingWeapon: {}, weaponMaxLevel: {},
-    chestsByTier: {}, bestModsHeld: 0, bestGoldEarnedInRun: 0, countedRunIds: [],
+    chestsByTier: {}, bestModsHeld: 0, bestGoldEarnedInRun: 0,
+    bestMinimalRunS: 0, bestFlawlessRunS: 0, completedContracts: [],
+    countedRunIds: [],
   };
 }
 
@@ -129,6 +138,19 @@ export function recordRunInLifetime(record: RunRecordV1): void {
     LIFETIME.bestModsHeld,
     Object.values(record.modCounts).reduce((total, n) => total + Math.max(0, n), 0),
   );
+  // Style feats, derived from the record rather than tracked live: a run counts
+  // as minimal when exactly one weapon was carried and no mod was taken, and as
+  // flawless when it recorded zero damage taken. Records written before the
+  // damageTaken counter existed cannot claim flawless — unknown is not zero.
+  const weaponsCarried = Object.values(record.weaponLevels).filter((level) => level > 0).length;
+  const modsTaken = Object.values(record.modCounts).reduce((total, n) => total + Math.max(0, n), 0);
+  if (weaponsCarried <= 1 && modsTaken === 0) {
+    LIFETIME.bestMinimalRunS = Math.max(LIFETIME.bestMinimalRunS, record.durationS);
+  }
+  if (record.damageTaken === 0) {
+    LIFETIME.bestFlawlessRunS = Math.max(LIFETIME.bestFlawlessRunS, record.durationS);
+  }
+
   LIFETIME.damageTaken += record.damageTaken ?? 0;
   LIFETIME.goldEarned += record.goldEarned ?? 0;
   LIFETIME.shopPurchases += record.shopPurchases ?? 0;
@@ -223,6 +245,11 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
     shopPurchases: num(saved.shopPurchases),
     bestModsHeld: num(saved.bestModsHeld),
     bestGoldEarnedInRun: num(saved.bestGoldEarnedInRun),
+    bestMinimalRunS: num(saved.bestMinimalRunS),
+    bestFlawlessRunS: num(saved.bestFlawlessRunS),
+    completedContracts: Array.isArray(saved.completedContracts)
+      ? saved.completedContracts.filter((id): id is string => typeof id === 'string')
+      : [],
     damageByWeapon: map(saved.damageByWeapon),
     runsByStartingWeapon: map(saved.runsByStartingWeapon),
     weaponMaxLevel: map(saved.weaponMaxLevel),

@@ -1385,3 +1385,38 @@ export function difficultyScalar(elapsedS: number, cursedBonus: number): number 
   const timeRamp = Math.min(elapsedS / 480, 1);
   return Math.min(timeRamp * (1 + cursedBonus) + cursedBonus * 0.15, 1.6);
 }
+
+/** Contract thresholds. Every number a contract objective compares against
+ *  lives here so recalibration after playtests never touches system code.
+ *
+ *  CALIBRATION STATUS: placeholders anchored to a single recorded full run
+ *  (625 kills, level 22, ~53k damage over 10:00). They need a few dozen human
+ *  runs on the CURRENT balance table before they mean anything — read the
+ *  distribution with `npm run stats`, not intuition. */
+export const CONTRACTS = {
+  /** Signature milestones, hand-authored for the moments a player remembers. */
+  firstBossKill: 1,
+  fullRunSeconds: 595,
+  bossHunterKills: 5,
+  fullLoadoutLevel: 25,
+  /** One full run landed 625; this is meant to need a strong build, not a miracle. */
+  overkillKillsInRun: 800,
+  /** Longest run finished carrying ONE weapon and ZERO mods. */
+  puristSeconds: 595,
+  /** Longest run finished without taking a single point of damage. */
+  flawlessSeconds: 300,
+  provingGroundWeapons: 4,
+  twoOfAKindCharacters: 2,
+
+  /** Ladders. Each rung pays out the next entry from its reward queue, so
+   *  adding content means appending to the queue, never authoring a contract. */
+  ladders: {
+    /** Damage with one weapon that counts as "mastered". ~one full run. */
+    masteryDamage: 50_000,
+    arsenal: [1, 2, 3, 4, 5],
+    scrapQuota: [300, 1_500, 5_000, 12_000],
+    veteran: [3, 8, 15, 25],
+    ascension: [10, 15, 20],
+    endurance: [120, 240, 360],
+  },
+} as const;
