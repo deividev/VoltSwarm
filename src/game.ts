@@ -103,6 +103,7 @@ import {
   type GameSettings,
 } from './settings';
 import { saveRunRecord, type RunMapRef, type RunOutcome } from './run-history';
+import { recordRunInLifetime, saveProfile } from './profile';
 
 type GameState =
   | 'menu'
@@ -188,6 +189,10 @@ export class Game {
    *  runs (rAF fires before paint, so the first loading frame is just shown). */
   private loadingDelay = 0;
   private elapsedS = 0;
+  /** The weapon this run was drafted with. Recorded on the run record because
+   *  contracts ask questions like "finish runs with N different starting
+   *  weapons", which weaponLevels alone cannot answer once others are picked up. */
+  private startingWeapon: WeaponId | null = null;
   /** Remaining seconds on temporary crate buffs. */
   private frenzyS = 0;
   private hasteS = 0;
@@ -382,6 +387,7 @@ export class Game {
 
   private buildRun(startingWeapon: WeaponId): void {
     this.resetRunWorld();
+    this.startingWeapon = startingWeapon;
     this.stats = defaultStats();
     this.weaponLevels = emptyWeaponLevels();
     this.weaponPower = emptyWeaponPower();
@@ -1841,9 +1847,10 @@ export class Game {
     this.hud.updateTotemIndicator(false, 0, 0, 0);
     this.hud.updateMerchantIndicator(false, 0, 0, 0, 0);
     this.hud.showInteractPrompt(null, this.interactLabel());
-    saveRunRecord({
+    const record = saveRunRecord({
       outcome,
       map: SCRAPYARD_MAP,
+      ...(this.startingWeapon ? { startingWeapon: this.startingWeapon } : {}),
       durationS: this.elapsedS,
       level: this.progression.level,
       kills: this.progression.kills,
@@ -1855,6 +1862,10 @@ export class Game {
       coreLevels: this.coreLevels,
       modCounts: this.modCounts,
     });
+    // Career ledger before the end screen: contract evaluation will hang off
+    // this same point, so the reveal can land on the results panel.
+    recordRunInLifetime(record);
+    saveProfile();
     this.hud.showEnd(
       outcome,
       SCRAPYARD_MAP,

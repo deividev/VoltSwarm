@@ -19,6 +19,9 @@ export interface RunMapRef {
 export interface RunSnapshot {
   outcome: RunOutcome;
   map: RunMapRef;
+  /** Weapon the run was drafted with. Optional so records written before this
+   *  field existed stay valid; contracts treat its absence as unknown. */
+  startingWeapon?: WeaponId;
   durationS: number;
   level: number;
   kills: number;
@@ -102,6 +105,7 @@ export function saveRunRecord(snapshot: RunSnapshot): RunRecordV1 {
     buildVersion: __APP_VERSION__,
     outcome: snapshot.outcome,
     map: { ...snapshot.map },
+    ...(snapshot.startingWeapon ? { startingWeapon: snapshot.startingWeapon } : {}),
     durationS: Math.max(0, Math.round(snapshot.durationS * 1000) / 1000),
     level: Math.max(1, Math.floor(snapshot.level)),
     kills: Math.max(0, Math.floor(snapshot.kills)),

@@ -17,6 +17,7 @@
     "package:dir": "npm run build && npm run electron:build && electron-builder --dir",
     "check:release-flags": "node tools/check-release-flags.mjs",
     "test:smoke": "node tools/smoke-run.mjs",
+    "stats": "node tools/run-stats.mjs",
     "audio:generate": "node tools/audio/generate.mjs",
     "audio:validate": "node tools/audio/validate.mjs",
     "audio:foundation-check": "node tools/audio/foundation-check.mjs",
