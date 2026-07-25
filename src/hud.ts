@@ -1,4 +1,4 @@
-import { ACCOUNT, WEAPON_INFO, describeWeaponBranches, type WeaponId } from './config';
+import { ACCOUNT, DEV_TOOLS, WEAPON_INFO, describeWeaponBranches, type WeaponId } from './config';
 import { defaultStats, type PlayerStats } from './stats';
 import { CORE_TITLES, weaponIdFromUpgradeCard, type CoreLevels, type Rarity, type UpgradeCard, type WeaponBranchLevels, type WeaponLevels } from './upgrades';
 import { MOD_IDS, MOD_REGISTRY, UNLOCKED_MOD_IDS, describeMod, modsOfTier, refreshUnlockedMods, type ModCounts, type ModId } from './mods';
@@ -305,12 +305,13 @@ export class Hud {
         </div>
         <div id="menu-buttons">
           <button id="play-button">Play</button>
-          <button id="unlocks-button">Unlocks</button>
+          ${DEV_TOOLS.unlockPanel ? '<button id="unlocks-button">Unlocks</button>' : ''}
           <button id="menu-settings-button">Settings</button>
           <button id="exit-button">Exit</button>
         </div>
         <div id="version-tag">v${__APP_VERSION__}</div>
       </div>
+      ${DEV_TOOLS.unlockPanel ? `
       <div id="unlocks-overlay" class="overlay menu-view hidden">
         <div id="unlocks-panel" class="overlay-panel">
           <div class="panel-header">Unlocks</div>
@@ -321,7 +322,7 @@ export class Hud {
             <button id="unlocks-back-button">Back</button>
           </div>
         </div>
-      </div>
+      </div>` : ''}
       <div id="start-overlay" class="overlay menu-view hidden">
         <h2>Choose your starting weapon</h2>
         <p class="stats-line">More weapons, cores and sockets unlock through contracts</p>
@@ -535,23 +536,25 @@ export class Hud {
     mustGet('menu-settings-button').addEventListener('click', () => {
       this.openSettings('menu');
     });
-    mustGet('unlocks-button').addEventListener('click', () => {
-      mustGet('menu-overlay').classList.add('hidden');
-      this.showUnlocks();
-    });
-    mustGet('unlocks-back-button').addEventListener('click', () => {
-      mustGet('unlocks-overlay').classList.add('hidden');
-      mustGet('menu-overlay').classList.remove('hidden');
-    });
-    mustGet('unlock-all-button').addEventListener('click', () => {
-      for (const id of Object.keys(WEAPON_INFO) as WeaponId[]) this.unlock('weapon', id);
-      for (const id of Object.keys(CORE_TITLES)) this.unlock('core', id);
-      for (const id of MOD_IDS) this.unlock('mod', id);
-      // Also open every socket slot (dev testing; contracts drive these later).
-      ACCOUNT.weaponSockets = ACCOUNT.maxWeaponSockets;
-      ACCOUNT.coreSockets = ACCOUNT.maxCoreSockets;
-      this.renderUnlocks();
-    });
+    if (DEV_TOOLS.unlockPanel) {
+      mustGet('unlocks-button').addEventListener('click', () => {
+        mustGet('menu-overlay').classList.add('hidden');
+        this.showUnlocks();
+      });
+      mustGet('unlocks-back-button').addEventListener('click', () => {
+        mustGet('unlocks-overlay').classList.add('hidden');
+        mustGet('menu-overlay').classList.remove('hidden');
+      });
+      mustGet('unlock-all-button').addEventListener('click', () => {
+        for (const id of Object.keys(WEAPON_INFO) as WeaponId[]) this.unlock('weapon', id);
+        for (const id of Object.keys(CORE_TITLES)) this.unlock('core', id);
+        for (const id of MOD_IDS) this.unlock('mod', id);
+        // Also open every socket slot (dev testing; contracts drive these later).
+        ACCOUNT.weaponSockets = ACCOUNT.maxWeaponSockets;
+        ACCOUNT.coreSockets = ACCOUNT.maxCoreSockets;
+        this.renderUnlocks();
+      });
+    }
     mustGet('exit-button').addEventListener('click', () => {
       const api = (window as unknown as { electronAPI?: { quit?: () => void } }).electronAPI;
       if (api?.quit) api.quit();

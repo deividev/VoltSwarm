@@ -9,6 +9,7 @@ import {
   AUDIO,
   BOSS,
   CHEST,
+  DEV_TOOLS,
   ELITES,
   ENEMY_TYPES,
   GOLD,
@@ -300,7 +301,7 @@ export class Game {
     );
     this.audio = new AudioDirector(this.settings);
     void this.audio.preloadEnabled();
-    if (AUDIO.validation.auditionKeys) this.installAuditionKeys();
+    if (DEV_TOOLS.auditionKeys) this.installAuditionKeys();
     this.hud.syncSettings(this.settings);
     applyWindowSettings(this.settings);
     this.input.setBindings(this.settings.bindings);

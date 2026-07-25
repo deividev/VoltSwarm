@@ -3,14 +3,25 @@
 
 export const ARENA_HALF_SIZE = 90;
 
+/** Developer instruments that must NEVER reach a paying player. `npm run package`
+ *  refuses to build while any of these is true (tools/check-release-flags.mjs),
+ *  so leaving one on during a playtest cannot silently ship. */
+export const DEV_TOOLS: { unlockPanel: boolean; auditionKeys: boolean } = {
+  /** Main-menu "Unlocks" panel: unlocks every weapon/core/mod and opens all
+   *  sockets. The Contracts system deletes this panel outright once it lands. */
+  unlockPanel: true,
+  /** F2-F9 hotkeys that cycle and preview SFX variants in-game while authoring
+   *  audio. Turn back on for the full-catalog audio pass. */
+  auditionKeys: false,
+};
+
 /** Renderer-side audio tuning. All voice, cooldown and fade values are config-owned. */
 export const AUDIO = {
-  /** Final-audio validation gate. Enable exactly one event while reviewing it. */
-  /** TEMP style-search (arc family round 1): prototype manifest + 5 events under review. Revert enabledEvents and paths.manifest after validation. */
+  /** Events allowed to play. An event missing from this list stays silent even
+   *  when the manifest ships an asset for it, so anything audible in a release
+   *  is a deliberate choice rather than a leftover. */
   validation: {
     enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'foundation-music', 'menu-music'] as readonly string[],
-    /** TEMP style-search audition: F6/F7/F8 cycle+preview the bolt/death/chest candidate in-game. */
-    auditionKeys: true,
   },
   voiceCaps: { global: 18, sfx: 14, music: 2 },
   cooldownS: {
