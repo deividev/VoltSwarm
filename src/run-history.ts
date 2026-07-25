@@ -48,14 +48,49 @@ export interface RunRecordV1 extends Omit<RunSnapshot, 'weaponPower'> {
 const STORAGE_KEY = 'voltswarm:run-history:v1';
 const MAX_STORED_RUNS = 250;
 
+/** Records live in userData/run-history.json under Electron so balance passes
+ *  can read real play data with ordinary tooling; localStorage stays as the
+ *  browser fallback AND as the source for the one-time migration of runs
+ *  recorded before the file existed. */
 export function loadRunHistory(): RunRecordV1[] {
+  const fromFile = parseHistory(window.electronAPI?.loadRunHistory());
+  if (fromFile.length > 0) return fromFile;
+  return parseHistory(window.localStorage.getItem(STORAGE_KEY));
+}
+
+/** Call once at boot. Copies any localStorage-era history into the file so
+ *  playtest runs recorded before the file existed are not stranded in the
+ *  Chromium LevelDB, where no external tool can reach them. Runs at startup
+ *  rather than lazily, because otherwise the rescue would only happen if the
+ *  player happened to finish another run.
+ *
+ *  NOTE: localStorage is per ORIGIN. Records written by a packaged build live
+ *  under file://, so this only finds them when the app boots the same way the
+ *  player runs it — a dev-server session sees its own separate store. */
+export function migrateRunHistory(): void {
+  if (!window.electronAPI) return;
+  if (parseHistory(window.electronAPI.loadRunHistory()).length > 0) return;
+  const legacy = parseHistory(window.localStorage.getItem(STORAGE_KEY));
+  if (legacy.length > 0) writeHistory(legacy);
+}
+
+function parseHistory(raw: string | null | undefined): RunRecordV1[] {
+  if (!raw) return [];
   try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed) ? parsed.filter(isRunRecordV1) : [];
   } catch {
     return [];
+  }
+}
+
+function writeHistory(history: RunRecordV1[]): void {
+  const raw = JSON.stringify(history, null, 2);
+  window.electronAPI?.saveRunHistory(raw);
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  } catch {
+    // Quota exceeded in the browser fallback: the file write above still holds.
   }
 }
 
@@ -84,8 +119,7 @@ export function saveRunRecord(snapshot: RunSnapshot): RunRecordV1 {
   };
 
   try {
-    const history = [record, ...loadRunHistory()].slice(0, MAX_STORED_RUNS);
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+    writeHistory([record, ...loadRunHistory()].slice(0, MAX_STORED_RUNS));
   } catch (error) {
     console.warn('Could not persist run history.', error);
   }

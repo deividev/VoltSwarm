@@ -36,6 +36,12 @@ function profileFile(): string {
   return path.join(app.getPath('userData'), 'profile.json');
 }
 
+/** Per-run records. A plain JSON file rather than localStorage so balance
+ *  passes can read real play data with ordinary tooling. */
+function runHistoryFile(): string {
+  return path.join(app.getPath('userData'), 'run-history.json');
+}
+
 function initialWindowSettings(): { fullscreen: boolean; width: number; height: number } {
   try {
     const settings = JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) as {
@@ -172,6 +178,23 @@ void app.whenReady().then(() => {
   ipcMain.on('profile:save', (event, data: string) => {
     try {
       fs.writeFileSync(profileFile(), data, 'utf8');
+      event.returnValue = true;
+    } catch {
+      event.returnValue = false;
+    }
+  });
+
+  ipcMain.on('run-history:load', (event) => {
+    try {
+      event.returnValue = fs.readFileSync(runHistoryFile(), 'utf8');
+    } catch {
+      event.returnValue = null;
+    }
+  });
+
+  ipcMain.on('run-history:save', (event, data: string) => {
+    try {
+      fs.writeFileSync(runHistoryFile(), data, 'utf8');
       event.returnValue = true;
     } catch {
       event.returnValue = false;

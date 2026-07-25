@@ -9,6 +9,8 @@ interface Window {
     saveSettings(data: string): void;
     loadProfile(): string | null;
     saveProfile(data: string): void;
+    loadRunHistory(): string | null;
+    saveRunHistory(data: string): void;
     setWindowMode(mode: string, width: number, height: number): void;
     quit(): void;
     steam: {

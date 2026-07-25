@@ -14,6 +14,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveProfile: (data: string): void => {
     ipcRenderer.sendSync('profile:save', data);
   },
+  loadRunHistory: (): string | null => ipcRenderer.sendSync('run-history:load') as string | null,
+  saveRunHistory: (data: string): void => {
+    ipcRenderer.sendSync('run-history:save', data);
+  },
   setWindowMode: (mode: string, width: number, height: number): void => {
     ipcRenderer.send('window:set-mode', mode, width, height);
   },
