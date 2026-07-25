@@ -2,12 +2,12 @@
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Próxima arquitectura aprobada (2026-07-17; aún no implementada)
+## Estado de la arquitectura (actualizado 2026-07-25, v0.5.4)
 
-1. Foundation de audio: `AudioDirector` semántico, buses Master/Music/SFX conectados a settings, no-op seguro, reanudación tras gesto y presupuesto de voces apto para 400+ enemigos. No incluye producir el catálogo completo.
-2. Preparación/viabilidad multijugador: aislar `RunSimulation` y sesión con tick fijo, RNG de gameplay con semilla, `PlayerId` + comandos snapshot, IDs de entidad estables, snapshot/digest serializable y renderer/HUD/audio observadores. El gate concluye GO/NO-GO; no promete multiplayer público. Ver `docs/MULTIPLAYER_FEASIBILITY.md`.
-3. Si el gate es GO: el menú futuro/no implementado ofrece `Play Solo` y `Play Multiplayer`; el primer objetivo es exactamente 2 jugadores local split-screen con cámaras/viewports independientes → Steam Remote Play Together que transmite la vista del host. La arquitectura es agnóstica a 1–4 `PlayerId`, pero no promete 4 jugadores local. Co-op online peer-host (hasta 4; una cámara full-screen por cliente) exige aprobación posterior y snapshots host-authoritative. Hybrid local+online y dedicated servers están fuera de alcance.
-4. Después: contenido/balance/retención, incluida diferenciación jugable completa de personajes, luego catálogo de audio y Steamworks/cierre.
+1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
+2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
+3. ⏸️ **Preparación/viabilidad multijugador — DIFERIDA A POST-LANZAMIENTO (decisión del usuario 2026-07-25).** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno, para una feature que `MULTIPLAYER_FEASIBILITY.md` documenta como no diferenciadora, no prometida y que puede terminar NO-GO — mientras el contenido que decide si el juego vale su precio quedaba comprimido. Del gate se rescató solo la mitad barata: cobertura de smoke tests. **El determinismo de tick fijo, el RNG sembrado y los snapshots siguen sin implementar**, y por eso tampoco se guarda semilla en los registros de run. Si el gate se retoma y da GO, el primer objetivo sigue siendo exactamente 2 jugadores local split-screen; online peer-host exige aprobación posterior; hybrid y dedicated servers quedan fuera de alcance.
+4. **AHORA:** arco de run completo (Mapa 2 → gameplay de Volt Warden → 3 personajes diferenciados) → balance y retención con datos reales → catálogo de audio → Steamworks/cierre.
 
 ## P1 — Estructural
 
@@ -125,8 +125,8 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 
 - **Vista fuera del juego**: al abrir la app, el menú es una vista DOM opaca con fondo key-art; el 3D NO se renderiza detrás (`game.ts` salta el render en estado `menu`). Botones: Play / Unlocks / Settings / Exit. Play → draft de arma inicial → carga → run. La esquina inferior derecha muestra `vMAJOR.MINOR.PATCH`; `vite.config.ts` lee `package.json` durante el build e inyecta `__APP_VERSION__`, evitando duplicar la versión manualmente.
 - **Pantalla de carga con warmup** (estado `loading`): al elegir arma, se muestra una pantalla de carga que monta el mundo y renderiza unos frames ocultos antes de revelar el juego, para que no se vea el bajón de rendimiento del arranque. Es el hook donde entra una animación de carga más elaborada.
-- **Panel de desbloqueos (dev/temporal)**: 3 columnas Armas / Orbes / Mods; desbloquear un ítem lo empuja a `ACCOUNT` en vivo para poder playtestear con todo abierto. Lo reemplazarán los Contratos de Desguace (Fase 5); mientras tanto permite validar el contenido completo. Persistencia solo de sesión (in-memory).
-- Criterio de aceptación: el menú no arrastra FPS (3D apagado), el warmup elimina el hitch visible al dar Play, y el panel de desbloqueos refleja el estado real de los pools (armas/cores leen `ACCOUNT` vivo; mods vía `refreshUnlockedMods()`).
+- **Panel de desbloqueos (dev/temporal) — SUPERSEDED 2026-07-25**: 3 columnas Armas / Orbes / Mods; desbloquear un ítem lo empujaba a `ACCOUNT` (hoy `PROFILE`) en vivo para playtestear con todo abierto. **Lo reemplazaron los Contratos**; el panel sobrevive solo como herramienta de desarrollo detrás de `DEV_TOOLS.unlockPanel` y ya no llega a builds de release. Su persistencia era solo de sesión; la real vive ahora en `src/profile.ts`.
+- Criterio de aceptación: el menú no arrastra FPS (3D apagado), el warmup elimina el hitch visible al dar Play, y el panel refleja el estado real de los pools (armas/cores leen `PROFILE` vivo; mods vía `refreshUnlockedMods()`).
 
 ### Informe de daño por arma (Implementado 2026-07-17)
 
@@ -226,3 +226,52 @@ A level-up screen allows at most one branch for each weapon owner. When both soc
 ### Packaged audio swarm evidence (2026-07-17)
 
 Successful local packaged Electron run via `npm run benchmark:audio`: deterministic `audio-swarm-416` (seed 4979220; digest `4979220:240-112-48:0.25:4`), 404 peak / 411 minimum / 411 end active enemies, including normal-HP sacrificial enemies. At 800x600 after 3 s warmup + 10 s rAF sample on Windows 10 / AMD Ryzen 7 3700X / NVIDIA GeForce RTX 2060 (D3D11): 120.10 mean FPS, 119 minimum complete 1 s bucket FPS and 8.5 ms frame-time p99. Actual paths: 9 kills, 7 XP pickups, 14 Gold pickups; audio 47 attempts / 27 accepted, 15 peak voices, 20 cooldown drops, 0 steals/load failures/leaks and 0 active audio voices after cleanup. Evidence: `tmp/perf-audio-output/report.json`. This validates this machine and scenario only, not Steam minimum hardware.
+
+
+## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.4)
+
+Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
+
+### Perfil (`src/profile.ts`)
+
+`PROFILE` (antes `ACCOUNT`, renombrado porque `upgrades.ts` ya exporta una clase `Progression` para la progresión DENTRO de la run) guarda desbloqueos y sockets. Se persiste en `userData/profile.json` por IPC de Electron, con `localStorage` como fallback de navegador, espejando la costura de `settings.ts`.
+
+Reglas que no se rompen:
+
+- **`PROFILE` se muta EN SU SITIO, nunca se reemplaza.** Todo consumidor de gating (pool del draft, draft inicial, sockets, pool de mods) tiene una referencia viva; reemplazar el objeto los desconecta a todos en silencio. `loadProfile()` corre en `main.ts` ANTES de construir `Game`.
+- **Los techos de diseño (`maxWeaponSockets`/`maxCoreSockets`) NO se persisten**: son constantes de balance, así que subirlos alcanza a saves existentes.
+- Las listas de desbloqueo se **mergean sobre los defaults** y se filtran contra los registries reales: promover un ítem a desbloqueado-por-defecto llega a jugadores existentes, y un save editado a mano no puede inyectar un id fantasma.
+
+`LIFETIME` es el ledger monótono de carrera (runs, kills, mejores marcas, bosses y tipos de boss, daño por arma, runs por arma inicial, oro, cofres por tier, compras, hazañas de estilo). Vive aparte del historial **porque el historial se corta en 250 runs** y un contrato de "10.000 kills acumuladas" perdería terreno al envejecer las runs. Es idempotente por id de run, así que rellenar retroactivamente nunca infla totales.
+
+### Historial de runs (`src/run-history.ts`)
+
+Los registros pasan a `userData/run-history.json` (antes solo `localStorage`, dentro del LevelDB de Chromium, ilegible para herramientas). `migrateRunHistory()` corre al arrancar, no de forma perezosa: migrar dentro de `loadRunHistory()` solo se disparaba al TERMINAR una run. **Aviso: `localStorage` es por ORIGEN** — lo escrito por un build empaquetado vive bajo `file://` y una sesión de dev server ve otro almacén.
+
+Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (reservado), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
+
+### Contratos (`src/contracts.ts`)
+
+Arquitectura que separa RITMO de CONTENIDO, para que añadir contenido nunca obligue a escribir un contrato:
+
+- **Contratos firma** (~10) escritos a mano, nombran su premio: sockets, primer boss, desafíos de maestría.
+- **Peldaños de escalera** generados de plantilla que pagan "el siguiente de una cola" (`WEAPON_QUEUE`, `CORE_QUEUE`, `MOD_QUEUE`). Añadir un arma es un `push`; el peldaño ya existe.
+
+Decisiones que sostienen el diseño:
+
+- Lo otorgado se guarda como **IDS**, nunca como posición en la cola: reordenar la cola no puede duplicar ni saltear.
+- **Lo otorgado nunca se revoca**, así que subir un umbral no le quita nada a quien ya lo tenía.
+- Las escaleras llevan **más peldaños que ítems** a propósito. Un peldaño sin premio disponible **ni se liquida ni se ofrece**; reaparece cuando la cola crece.
+- `progressOf()` devuelve actual y objetivo, sirviendo a la vez para "¿está hecho?" y la barra de progreso, que así no pueden discrepar.
+- Se evalúa **una vez por run terminada** contra el ledger, y también al arrancar, así un contrato publicado después se completa retroactivamente sin dejar una ventana donde la pantalla diga COMPLETE sin haber pagado.
+- Los contratos cuyo contenido no existe (personajes) quedan **latentes**: definidos, nunca evaluados, nunca mostrados.
+
+Umbrales en `config.ts` `CONTRACTS`, marcados como **placeholders**: están anclados a una sola run registrada y necesitan decenas de runs humanas del balance actual antes de significar algo.
+
+### UI
+
+Pantalla de Contratos desde el menú (una columna por categoría: Weapons/Cores/Mods/Sockets/Perks), ordenada por cercanía a completarse, con el arte del premio en cada fila y barras de celdas segmentadas. Los sockets usan un diagrama de pips en vez de icono, porque ninguna imagen comunica "capacidad". Reveal al terminar la run entre las stats y el desglose de daño, solo si se ganó algo, con tope de 5 filas.
+
+### Herramientas de desarrollo
+
+`npm run test:smoke` (una run real por arma inicial, perfil aislado), `npm run stats` (percentiles para calibrar umbrales, nunca promedios), `npm run reset:profile` (escribe perfiles vacíos, no los borra: `loadProfile` cae a `localStorage` si falta el archivo y resucitaría el save), `npm run check:release-flags` (hook `prepackage` que aborta el build con cualquier instrumento de dev encendido).
