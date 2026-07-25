@@ -38,6 +38,10 @@ export class BossSystem {
   /** Telegraph window between the summon key press and the boss appearing. */
   private summonTimer = 0;
   bossesDefeated = 0;
+  /** Which boss KINDS fell this run, by type name. A plain count cannot answer
+   *  "defeat every kind of boss", and the kind is only known here — the run
+   *  record would have no way to reconstruct it afterwards. */
+  readonly defeatedTypes = new Set<string>();
 
   /** Pillar+skull primitives, swapped async for the voxel portal gate. */
   private readonly totemBody: THREE.Group;
@@ -371,6 +375,8 @@ export class BossSystem {
   /** Called by the game when a boss dies: schedules the next, tougher totem. */
   onBossDefeated(): void {
     this.state = 'done';
+    const name = ENEMY_TYPES[this.bossTypeIndex]?.name;
+    if (name) this.defeatedTypes.add(name);
     this.bossIndex = -1;
     this.bossesDefeated += 1;
     this.hpMult *= BOSS.respawnHpGrowth;
@@ -384,5 +390,6 @@ export class BossSystem {
     this.hpMult = 1;
     this.respawnTimer = 0;
     this.bossesDefeated = 0;
+    this.defeatedTypes.clear();
   }
 }

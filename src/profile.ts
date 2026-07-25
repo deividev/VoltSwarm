@@ -34,6 +34,9 @@ export interface LifetimeStats {
   bestLevel: number;
   bestDurationS: number;
   bossesDefeated: number;
+  /** Union of every boss KIND ever defeated. A count cannot answer "defeat
+   *  every kind", and the set only grows, so it survives the history cap. */
+  bossTypesDefeated: string[];
   damageTaken: number;
   goldEarned: number;
   shopPurchases: number;
@@ -65,7 +68,7 @@ export const LIFETIME: LifetimeStats = emptyLifetime();
 function emptyLifetime(): LifetimeStats {
   return {
     runsFinished: 0, runsSurvived: 0, totalKills: 0, totalPlayS: 0,
-    bestKillsInRun: 0, bestLevel: 0, bestDurationS: 0, bossesDefeated: 0,
+    bestKillsInRun: 0, bestLevel: 0, bestDurationS: 0, bossesDefeated: 0, bossTypesDefeated: [],
     damageTaken: 0, goldEarned: 0, shopPurchases: 0,
     damageByWeapon: {}, runsByStartingWeapon: {}, weaponMaxLevel: {},
     chestsByTier: {}, bestModsHeld: 0, bestGoldEarnedInRun: 0,
@@ -139,6 +142,9 @@ export function recordRunInLifetime(record: RunRecordV1): void {
   LIFETIME.totalKills += record.kills;
   LIFETIME.totalPlayS += record.durationS;
   LIFETIME.bossesDefeated += record.bossesDefeated;
+  for (const kind of record.bossTypesDefeated ?? []) {
+    if (!LIFETIME.bossTypesDefeated.includes(kind)) LIFETIME.bossTypesDefeated.push(kind);
+  }
   LIFETIME.bestKillsInRun = Math.max(LIFETIME.bestKillsInRun, record.kills);
   LIFETIME.bestLevel = Math.max(LIFETIME.bestLevel, record.level);
   LIFETIME.bestDurationS = Math.max(LIFETIME.bestDurationS, record.durationS);
@@ -251,6 +257,9 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
     bestLevel: num(saved.bestLevel),
     bestDurationS: num(saved.bestDurationS),
     bossesDefeated: num(saved.bossesDefeated),
+    bossTypesDefeated: Array.isArray(saved.bossTypesDefeated)
+      ? saved.bossTypesDefeated.filter((k): k is string => typeof k === 'string')
+      : [],
     damageTaken: num(saved.damageTaken),
     goldEarned: num(saved.goldEarned),
     shopPurchases: num(saved.shopPurchases),

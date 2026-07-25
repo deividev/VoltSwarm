@@ -34,6 +34,9 @@ export interface RunSnapshot {
    *  older records predate them; absent reads as unknown, never as zero. */
   damageTaken?: number;
   goldEarned?: number;
+  /** Boss KINDS defeated, by type name. bossesDefeated is only a count, and
+   *  "defeat every kind of boss" cannot be answered from a count. */
+  bossTypesDefeated?: string[];
   chestsByTier?: Record<string, number>;
   shopPurchases?: number;
   level: number;
@@ -134,6 +137,7 @@ export function saveRunRecord(snapshot: RunSnapshot): RunRecordV1 {
     ...(snapshot.characterId ? { characterId: snapshot.characterId } : {}),
     ...(snapshot.damageTaken !== undefined ? { damageTaken: round3(snapshot.damageTaken) } : {}),
     ...(snapshot.goldEarned !== undefined ? { goldEarned: Math.max(0, Math.floor(snapshot.goldEarned)) } : {}),
+    ...(snapshot.bossTypesDefeated ? { bossTypesDefeated: [...snapshot.bossTypesDefeated] } : {}),
     ...(snapshot.chestsByTier ? { chestsByTier: { ...snapshot.chestsByTier } } : {}),
     ...(snapshot.shopPurchases !== undefined ? { shopPurchases: Math.max(0, Math.floor(snapshot.shopPurchases)) } : {}),
     durationS: Math.max(0, Math.round(snapshot.durationS * 1000) / 1000),

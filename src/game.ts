@@ -1878,6 +1878,7 @@ export class Game {
       difficulty: DIFFICULTY_ID,
       damageTaken: this.runDamageTaken,
       goldEarned: this.runGoldEarned,
+      bossTypesDefeated: [...this.boss.defeatedTypes],
       chestsByTier: this.runChestsByTier,
       shopPurchases: this.runShopPurchases,
       durationS: this.elapsedS,

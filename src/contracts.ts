@@ -1,4 +1,4 @@
-import { CONTRACTS, PROFILE, WEAPON_INFO, type WeaponId } from './config';
+import { BOSS_TYPE_INDEXES, CONTRACTS, PROFILE, WEAPON_INFO, type WeaponId } from './config';
 import { CORE_TITLES } from './upgrades';
 import { MOD_REGISTRY, refreshUnlockedMods, type ModId } from './mods';
 import { LIFETIME, saveProfile, type LifetimeStats } from './profile';
@@ -26,6 +26,8 @@ export type Objective =
   | { type: 'reach-level'; n: number }
   | { type: 'survive'; seconds: number }
   | { type: 'defeat-bosses'; n: number }
+  /** Distinct boss KINDS, not a count of kills. */
+  | { type: 'boss-kinds'; n: number }
   | { type: 'weapons-mastered'; n: number }
   | { type: 'distinct-starting-weapons'; n: number }
   | { type: 'minimal-run'; seconds: number }
@@ -127,9 +129,11 @@ const SIGNATURE: Contract[] = [
   {
     id: 'foreman', title: 'Foreman',
     description: 'Defeat every kind of boss.',
-    objective: { type: 'defeat-bosses', n: 3 },
+    // Target read from the roster, so adding a boss raises the bar by itself.
+    // It was hardcoded to 3 against a roster of 2, and as a defeat-bosses COUNT
+    // — which would have meant "kill three bosses", not "kill each kind".
+    objective: { type: 'boss-kinds', n: BOSS_TYPE_INDEXES.length },
     reward: { kind: 'mod', id: 'magnetron-heart' as ModId },
-    latent: 'Run records count bosses but not which TYPE; needs per-type tracking.',
   },
   {
     id: 'two-of-a-kind', title: 'Two of a Kind',
@@ -202,6 +206,7 @@ export function progressOf(objective: Objective, stats: LifetimeStats = LIFETIME
     case 'reach-level': return { current: stats.bestLevel, target: objective.n };
     case 'survive': return { current: stats.bestDurationS, target: objective.seconds };
     case 'defeat-bosses': return { current: stats.bossesDefeated, target: objective.n };
+    case 'boss-kinds': return { current: stats.bossTypesDefeated.length, target: objective.n };
     case 'minimal-run': return { current: stats.bestMinimalRunS, target: objective.seconds };
     case 'flawless-run': return { current: stats.bestFlawlessRunS, target: objective.seconds };
     case 'weapons-mastered':
