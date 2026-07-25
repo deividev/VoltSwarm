@@ -2087,7 +2087,7 @@ function rewardIconHtml(reward: Reward | null, done: boolean): string {
       return image ? `<img class="card-icon" src="${image}" alt="" />` : '';
     }
     case 'socket': return socketPipsHtml(reward.slot, done);
-    case 'discards': return '<img class="card-icon" src="assets/2d/icon-ui-coin-v2.png" alt="" />';
+    case 'discards': return '<img class="card-icon" src="assets/2d/icon-ui-discard.png" alt="" />';
     default: return '';
   }
 }
