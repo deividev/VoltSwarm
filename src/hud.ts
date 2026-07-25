@@ -1,5 +1,6 @@
 import { PROFILE, DEV_TOOLS, WEAPON_INFO, describeWeaponBranches, type WeaponId } from './config';
 import { resetProfile, saveProfile } from './profile';
+import { ACTIVE_CONTRACTS, describeReward, progressOf, type EarnedContract } from './contracts';
 import { defaultStats, type PlayerStats } from './stats';
 import { CORE_TITLES, weaponIdFromUpgradeCard, type CoreLevels, type Rarity, type UpgradeCard, type WeaponBranchLevels, type WeaponLevels } from './upgrades';
 import { MOD_IDS, MOD_REGISTRY, UNLOCKED_MOD_IDS, describeMod, modsOfTier, refreshUnlockedMods, type ModCounts, type ModId } from './mods';
@@ -306,11 +307,22 @@ export class Hud {
         </div>
         <div id="menu-buttons">
           <button id="play-button">Play</button>
+          <button id="contracts-button">Contracts</button>
           ${DEV_TOOLS.unlockPanel ? '<button id="unlocks-button">Unlocks</button>' : ''}
           <button id="menu-settings-button">Settings</button>
           <button id="exit-button">Exit</button>
         </div>
         <div id="version-tag">v${__APP_VERSION__}</div>
+      </div>
+      <div id="contracts-overlay" class="overlay menu-view hidden">
+        <div id="contracts-panel" class="overlay-panel">
+          <div class="panel-header">Contracts</div>
+          <p class="overlay-panel-sub" id="contracts-summary"></p>
+          <div id="contracts-list"></div>
+          <div id="contracts-actions">
+            <button id="contracts-back-button">Back</button>
+          </div>
+        </div>
       </div>
       ${DEV_TOOLS.unlockPanel ? `
       <div id="unlocks-overlay" class="overlay menu-view hidden">
@@ -356,6 +368,7 @@ export class Hud {
       <div id="end-overlay" class="overlay hidden">
         <h1 id="end-title"></h1>
         <p id="end-stats" class="stats-line"></p>
+        <div id="end-contracts" class="hidden"></div>
         <div id="end-run-summary">
           <section id="end-run-build">
             <h2 class="panel-header">Run Build</h2>
@@ -537,6 +550,15 @@ export class Hud {
     });
     mustGet('menu-settings-button').addEventListener('click', () => {
       this.openSettings('menu');
+    });
+    mustGet('contracts-button').addEventListener('click', () => {
+      mustGet('menu-overlay').classList.add('hidden');
+      this.renderContracts();
+      mustGet('contracts-overlay').classList.remove('hidden');
+    });
+    mustGet('contracts-back-button').addEventListener('click', () => {
+      mustGet('contracts-overlay').classList.add('hidden');
+      mustGet('menu-overlay').classList.remove('hidden');
     });
     if (DEV_TOOLS.unlockPanel) {
       mustGet('unlocks-button').addEventListener('click', () => {
@@ -803,6 +825,91 @@ export class Hud {
     }
   }
 
+  /** The goal-setting surface: what is left, and how close it is. Sorted by
+   *  how near completion each one is, so the top of the list is always the
+   *  answer to "what should I chase this run". Completed ones sink to the
+   *  bottom as a record rather than disappearing. */
+  private renderContracts(): void {
+    const rows = ACTIVE_CONTRACTS.map((contract) => {
+      const { current, target } = progressOf(contract.objective);
+      const done = current >= target;
+      const asTime = 'seconds' in contract.objective;
+      return { contract, current: Math.min(current, target), target, done, asTime, ratio: target > 0 ? current / target : 0 };
+    }).sort((a, b) => (a.done === b.done ? b.ratio - a.ratio : a.done ? 1 : -1));
+
+    const completed = rows.filter((r) => r.done).length;
+    mustGet('contracts-summary').textContent = `${completed} of ${rows.length} complete`;
+
+    const list = mustGet('contracts-list');
+    list.innerHTML = '';
+    for (const row of rows) {
+      const item = document.createElement('div');
+      item.className = `contract-row${row.done ? ' done' : ''}`;
+      // Cells rather than a smooth fill: the whole HUD speaks in segmented
+      // bars, and a continuous gradient here would read as a different game.
+      const CELLS = 12;
+      const filled = row.target > 0 ? Math.round((row.current / row.target) * CELLS) : 0;
+      const cells = Array.from(
+        { length: CELLS },
+        (_, i) => `<i class="${i < filled ? 'on' : ''}"></i>`,
+      ).join('');
+      item.innerHTML =
+        `<div class="contract-head">` +
+        `<span class="contract-title">${row.contract.title}</span>` +
+        `<span class="contract-count">${row.done ? 'COMPLETE' : `${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}`}</span>` +
+        `</div>` +
+        `<div class="contract-desc">${row.contract.description}</div>` +
+        `<div class="contract-bar">${cells}</div>` +
+        `<div class="contract-reward">${describeReward(row.contract.reward)}</div>`;
+      list.appendChild(item);
+    }
+  }
+
+  /** The payout beat. Rendered only when something was earned: an empty
+   *  "0 contracts" box would turn most deaths into a reminder of failure.
+   *  Rows reveal one after another instead of all at once — a player returning
+   *  after a backlog can settle many at the same time, and nine lines landing
+   *  together read as a log dump, not a reward. */
+  private renderEarnedContracts(earned: EarnedContract[]): void {
+    const host = mustGet('end-contracts');
+    host.classList.toggle('hidden', earned.length === 0);
+    host.innerHTML = '';
+    if (earned.length === 0) return;
+
+    const header = document.createElement('div');
+    header.className = 'end-contracts-header';
+    header.textContent = earned.length > 1 ? `${earned.length} Contracts Complete` : 'Contract Complete';
+    host.appendChild(header);
+
+    const list = document.createElement('div');
+    list.className = 'end-contracts-list';
+    host.appendChild(list);
+
+    // Cap the rows rather than let the block scroll. A scrollbar inside a
+    // reward moment reads as a log, and a tall block pushes the run title off
+    // the top of the screen. The overflow is summarised; the Contracts screen
+    // holds the full record.
+    const MAX_ROWS = 5;
+    for (const [index, item] of earned.slice(0, MAX_ROWS).entries()) {
+      const row = document.createElement('div');
+      row.className = 'end-contract-row';
+      row.style.animationDelay = `${index * 0.14}s`;
+      row.innerHTML =
+        `<span class="end-contract-name">${item.contract.title}</span>` +
+        '<span class="end-contract-arrow" aria-hidden="true">&gt;&gt;</span>' +
+        `<span class="end-contract-reward">${item.label}</span>`;
+      list.appendChild(row);
+    }
+
+    if (earned.length > MAX_ROWS) {
+      const more = document.createElement('div');
+      more.className = 'end-contracts-more';
+      more.style.animationDelay = `${MAX_ROWS * 0.14}s`;
+      more.textContent = `+${earned.length - MAX_ROWS} more — see Contracts`;
+      list.appendChild(more);
+    }
+  }
+
   showPause(visible: boolean): void {
     this.pauseOverlay.classList.toggle('hidden', !visible);
   }
@@ -1008,6 +1115,7 @@ export class Hud {
   // action. Overlay priority: topmost-first (settings sits over pause).
   private static readonly NAV_OVERLAYS = [
     'settings-overlay',
+    'contracts-overlay',
     'unlocks-overlay',
     'shop-overlay',
     'chest-overlay',
@@ -1120,7 +1228,7 @@ export class Hud {
     }
     if (input.consumeGamepadPress(1)) {
       const back = container.querySelector<HTMLElement>(
-        '#settings-back-button, #unlocks-back-button, #shop-leave-button, ' +
+        '#settings-back-button, #contracts-back-button, #unlocks-back-button, #shop-leave-button, ' +
           '#chest-continue, #resume-button, #restart-button',
       );
       if (back && back.offsetParent !== null) back.click();
@@ -1773,8 +1881,10 @@ export class Hud {
     weaponDamage: Readonly<Record<WeaponId, number>>,
     coreLevels: CoreLevels,
     modCounts: ModCounts,
+    earnedContracts: EarnedContract[] = [],
   ): void {
     this.endTitle.textContent = RUN_OUTCOME_TITLES[outcome];
+    this.renderEarnedContracts(earnedContracts);
     const m = Math.floor(survivedS / 60);
     const s = Math.floor(survivedS % 60);
     const separator = '<span class="end-stat-separator" aria-hidden="true">·</span>';
@@ -1873,6 +1983,15 @@ export class Hud {
     );
     this.endOverlay.classList.remove('hidden');
   }
+}
+
+/** Objectives measured in seconds read as time; everything else stays a count.
+ *  The distinction has to come from the objective TYPE, never from the size of
+ *  the number — "300 kills" formatted as a duration would say 5:00. */
+function fmtProgress(value: number, asTime: boolean): string {
+  const total = Math.floor(value);
+  if (!asTime) return String(total);
+  return `${Math.floor(total / 60)}:${(total % 60).toString().padStart(2, '0')}`;
 }
 
 function mustGet(id: string): HTMLElement {

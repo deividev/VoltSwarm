@@ -2516,3 +2516,171 @@ body:has(.menu-view:not(.hidden)) #build-panel {
   gap: 14px;
   margin-top: 6px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────
+   Contract payout on the results screen. Sits between the run stats and
+   the analytical Run Build / Damage Report blocks on purpose: those answer
+   "how did I do", this answers "what did I win", and the reward beat is
+   what decides whether the player starts another run. Hidden entirely when
+   nothing was earned — an empty box would make most deaths read as failure.
+   ────────────────────────────────────────────────────────────────────── */
+#end-contracts {
+  width: min(1000px, calc(100vw - 40px));
+  padding: 10px 14px 12px;
+  border: 2px solid #6b5a1f;
+  background: rgba(38, 30, 10, 0.9);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.07),
+    inset 0 -3px 0 rgba(0, 0, 0, 0.5),
+    0 0 18px rgba(242, 182, 50, 0.22);
+  clip-path: polygon(
+    0 8px, 8px 8px, 8px 0,
+    calc(100% - 8px) 0, calc(100% - 8px) 8px, 100% 8px,
+    100% calc(100% - 8px), calc(100% - 8px) calc(100% - 8px), calc(100% - 8px) 100%,
+    8px 100%, 8px calc(100% - 8px), 0 calc(100% - 8px)
+  );
+}
+
+.end-contracts-header {
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: #f2b632;
+  text-align: center;
+  margin-bottom: 10px;
+  text-shadow: 0 0 10px rgba(242, 182, 50, 0.5);
+}
+
+.end-contracts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.end-contract-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.32);
+  border-left: 3px solid #f2b632;
+  font-size: 10px;
+  /* Staggered per row (delay set inline) so a batch reveals in sequence
+     instead of landing as a wall of text. */
+  opacity: 0;
+  animation: contract-reveal 0.36s steps(6) forwards;
+}
+
+.end-contract-name { color: #e7ecf3; text-align: right; }
+.end-contract-arrow { color: #f2b632; font-size: 9px; }
+.end-contract-reward { color: #f2b632; text-align: left; }
+
+@keyframes contract-reveal {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .end-contract-row { animation: none; opacity: 1; }
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+   Contracts screen — the goal-setting surface. Replaces the dev Unlocks
+   panel for players; that one stays behind DEV_TOOLS for testing.
+   ────────────────────────────────────────────────────────────────────── */
+#contracts-panel {
+  width: min(760px, calc(100vw - 48px));
+}
+
+#contracts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: min(56vh, 520px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.contract-row {
+  padding: 8px 12px 10px;
+  border: 2px solid #2b3340;
+  border-left: 3px solid #3fa9f5;
+  background: rgba(16, 20, 27, 0.86);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.05), inset 0 -3px 0 rgba(0, 0, 0, 0.5);
+}
+
+.contract-row.done {
+  border-left-color: #5fd068;
+  opacity: 0.62;
+}
+
+.contract-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.contract-title { font-size: 10px; color: #e7ecf3; }
+.contract-count { font-size: 8px; color: #8a94a2; letter-spacing: 1px; }
+.contract-row.done .contract-count { color: #5fd068; }
+
+.contract-desc {
+  font-size: 8px;
+  color: #8a94a2;
+  margin: 5px 0 7px;
+  line-height: 1.6;
+}
+
+/* Segmented cells, matching the HP/XP bars. A smooth gradient fill here would
+   read as a different game sitting inside this one. */
+.contract-bar {
+  display: flex;
+  gap: 2px;
+  height: 8px;
+}
+
+.contract-bar i {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.contract-bar i.on {
+  background: #3fa9f5;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 6px rgba(63, 169, 245, 0.5);
+}
+
+.contract-row.done .contract-bar i.on {
+  background: #5fd068;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 6px rgba(95, 208, 104, 0.45);
+}
+
+.contract-reward {
+  margin-top: 7px;
+  font-size: 8px;
+  color: #f2b632;
+}
+
+.contract-row.done .contract-reward { color: #5fd068; }
+
+#contracts-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 14px;
+}
+
+/* Overflow summary for a settled backlog: the block stays short so the run
+   title is never pushed off the top of the results screen. */
+.end-contracts-more {
+  text-align: center;
+  font-size: 8px;
+  color: #8a94a2;
+  padding-top: 3px;
+  opacity: 0;
+  animation: contract-reveal 0.36s steps(6) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .end-contracts-more { animation: none; opacity: 1; }
+}

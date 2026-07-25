@@ -1897,9 +1897,6 @@ export class Game {
     recordRunInLifetime(record);
     saveProfile();
     const earnedContracts = settleContracts();
-    for (const earned of earnedContracts) {
-      console.info(`Contract complete: ${earned.contract.title} -> ${earned.label}`);
-    }
     this.hud.showEnd(
       outcome,
       SCRAPYARD_MAP,
@@ -1912,6 +1909,7 @@ export class Game {
       this.weaponDamage,
       this.coreLevels,
       this.modCounts,
+      earnedContracts,
     );
   }
 }

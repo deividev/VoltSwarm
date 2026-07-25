@@ -207,7 +207,9 @@ try {
       await installHooks(SEED + attempt);
       await page.reload({ waitUntil: 'domcontentloaded' });
       await page.waitForSelector('#play-button', { visible: true, timeout: 30_000 });
-      await page.click('#play-button');
+      // evaluate().click() rather than page.click(): the latter hit-tests for a
+      // clickable point and loses a race with the menu's layout/animation.
+      await page.evaluate(() => document.querySelector('#play-button').click());
       await page.waitForSelector('#draft-cards > *', { visible: true, timeout: 30_000 });
       const weaponName = await page.evaluate((done) => {
         const cards = [...document.querySelectorAll('#draft-cards > *')];
