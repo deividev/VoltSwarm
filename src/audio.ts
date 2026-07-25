@@ -4,17 +4,18 @@ import type { GameSettings } from './settings';
 export type AudioEventId =
   | 'ui-confirm' | 'ui-back' | 'panel-open' | 'run-start' | 'menu-enter'
   | 'pause' | 'resume' | 'weapon-activation' | 'player-hit' | 'shield-block'
-  | 'bolt-cannon-fire'
+  | 'bolt-cannon-fire' | 'pulse-fire' | 'blades-spin' | 'blades-loop' | 'blades-hit' | 'welder-beam' | 'press-slam'
+  | 'tire-launch' | 'oil-drop' | 'acid-throw' | 'acid-loop' | 'turbine-launch' | 'turbine-loop' | 'ricochet-throw' | 'dismantler-swipe'
   | 'enemy-death' | 'xp-pickup' | 'gold-pickup' | 'levelup-intro' | 'levelup-open' | 'levelup-pick'
   | 'chest-open' | 'chest-spin' | 'chest-reveal' | 'merchant-arrival' | 'shop-purchase'
-  | 'boss-awaken' | 'boss-attack' | 'boss-defeat' | 'run-victory' | 'run-defeat'
+  | 'boss-portal' | 'boss-awaken' | 'boss-attack' | 'boss-defeat' | 'run-victory' | 'run-defeat'
   | 'foundation-music' | 'menu-music';
 
-export interface AudioEvent { id: AudioEventId; key?: string; priority?: number; volume?: number; loop?: boolean; }
+export interface AudioEvent { id: AudioEventId; key?: string; priority?: number; volume?: number; loop?: boolean; bus?: 'sfx' | 'music'; pos?: { x: number; z: number }; }
 export interface AudioDiagnostics { activeVoices: number; peakActiveVoices: number; drops: number; steals: number; loadFailures: number; leakedVoices: number; attempts: number; accepted: number; contextState: string; }
 export interface AudioBusGains { master: number; sfx: number; music: number; }
 
-type Voice = { source: AudioBufferSourceNode; gain: GainNode; bus: 'sfx' | 'music'; priority: number; key?: string };
+type Voice = { source: AudioBufferSourceNode; gain: GainNode; bus: 'sfx' | 'music'; priority: number; key?: string; loop: boolean; volume: number };
 type ManifestAsset = { runtime: { path: string; format: 'ogg' | 'wav' } };
 type Manifest = { events?: Partial<Record<AudioEventId, ManifestAsset[]>> };
 
@@ -34,6 +35,10 @@ export class AudioDirector {
   /** Style-audition pins: event -> fixed variant index (dev cycling via debugCycleVariant). */
   private readonly pinnedVariant = new Map<AudioEventId, number>();
   private generation = 0;
+  private sfxLoopsSuspended = false;
+  private listenerX = 0;
+  private listenerZ = 0;
+  private hasListener = false;
   private paused = false;
   private menu = true;
   private drops = 0;
@@ -86,7 +91,42 @@ export class AudioDirector {
     if (!this.context || this.context.state !== 'running') return;
     void this.play(event, this.generation);
   }
-  setPaused(paused: boolean): void { this.paused = paused; this.applyGains(AUDIO.fades.pauseDuckS); }
+  /** Update the listener (player) world position for distance attenuation of
+   *  world-positioned one-shots (`emit({pos})`). Call each frame while playing. */
+  setListener(x: number, z: number): void { this.listenerX = x; this.listenerZ = z; this.hasListener = true; }
+  /** World-distance volume multiplier for a sound at `pos` (the RULE): 1 at the
+   *  listener, falling linearly to `minVolume` at/beyond `maxHearingDistance`. */
+  private spatialGain(pos: { x: number; z: number }): number {
+    if (!this.hasListener) return 1;
+    const dist = Math.hypot(pos.x - this.listenerX, pos.z - this.listenerZ);
+    const k = Math.max(0, 1 - dist / AUDIO.spatial.maxHearingDistance);
+    return AUDIO.spatial.minVolume + (1 - AUDIO.spatial.minVolume) * k;
+  }
+  /** Ducks the run music (pause-style). Safe to call every frame — no-ops when
+   *  unchanged so the ramp isn't re-armed each tick. Driven from the game state
+   *  so ANY in-game overlay (pause, level-up, chest, shop, game over) ducks the
+   *  music the same way pause does. */
+  setPaused(paused: boolean): void {
+    if (paused === this.paused) return;
+    this.paused = paused;
+    this.applyGains(AUDIO.fades.pauseDuckS);
+  }
+  /** Silence sustained sfx loops (weapon hums) while the run isn't actively
+   *  simulating — any modal overlay (pause, level-up, chest, shop, game over).
+   *  Scoped to sfx-bus LOOPS only: one-shots and menu/UI clicks still sound.
+   *  Driven every frame from the game state, so it self-heals; no-ops when the
+   *  target hasn't changed to avoid re-arming the ramp each frame. */
+  setSfxLoopsSuspended(suspended: boolean): void {
+    if (suspended === this.sfxLoopsSuspended) return;
+    this.sfxLoopsSuspended = suspended;
+    if (!this.context) return;
+    const at = this.context.currentTime;
+    for (const v of this.voices) {
+      if (v.bus === 'sfx' && v.loop) {
+        v.gain.gain.setTargetAtTime(suspended ? 0 : v.volume, at, AUDIO.fades.pauseDuckS);
+      }
+    }
+  }
   setMenu(menu: boolean): void { this.menu = menu; this.applyGains(AUDIO.fades.pauseDuckS); }
   reset(): void {
     this.generation++;
@@ -96,9 +136,31 @@ export class AudioDirector {
     for (const voice of [...this.voices]) this.stopVoice(voice, AUDIO.fades.defaultS);
     this.keyed.clear();
   }
+  /** Live-set a keyed loop's volume — e.g. distance attenuation for a world-
+   *  positioned zone loop (acid pool). Updates the stored target so an
+   *  overlay-suspend still restores to the LATEST value; ramps the gain smoothly
+   *  unless this sfx loop is currently suspended (then stay muted). Safe to call
+   *  every frame. */
+  setLoopVolume(key: string, volume: number): void {
+    const voice = this.keyed.get(key);
+    if (!voice) return;
+    voice.volume = volume;
+    const muted = this.sfxLoopsSuspended && voice.bus === 'sfx' && voice.loop;
+    if (this.context && !muted) {
+      voice.gain.gain.setTargetAtTime(volume, this.context.currentTime, AUDIO.fades.defaultS);
+    }
+  }
   stopLoop(key: string): void {
     const voice = this.keyed.get(key);
-    if (voice) this.stopVoice(voice, AUDIO.fades.defaultS);
+    if (!voice) return;
+    this.stopVoice(voice, AUDIO.fades.defaultS);
+    // Free the key NOW, not on the voice's onended (~0.16s later). Otherwise a
+    // quick re-attack inside the fade window is rejected by play()'s duplicate
+    // guard, then the old voice ends leaving nothing playing while the weapon
+    // still thinks it's active → the loop stays silent until the next stop/start
+    // (welder re-attack bug, 2026-07-21). onended's identity check (keyed.get ===
+    // voice) stops it from clobbering a newer voice that reclaimed the key.
+    if (this.keyed.get(key) === voice) this.keyed.delete(key);
   }
   diagnostics(): AudioDiagnostics { return { activeVoices: this.voices.size, peakActiveVoices: this.peakActiveVoices, drops: this.drops, steals: this.steals, loadFailures: this.loadFailures, leakedVoices: this.leaks, attempts: this.attempts, accepted: this.accepted, contextState: this.context?.state ?? 'unavailable' }; }
   resetDiagnostics(): void { this.drops = 0; this.steals = 0; this.loadFailures = 0; this.leaks = 0; this.attempts = 0; this.accepted = 0; this.peakActiveVoices = this.voices.size; }
@@ -148,7 +210,10 @@ export class AudioDirector {
     const buffer = await this.loadBuffer(path, token);
     if (token !== this.generation || !buffer || !this.context || !this.sfx || !this.music) return;
     if (event.loop && event.key && this.keyed.has(event.key)) return;
-    const bus = event.loop ? 'music' : 'sfx'; const cap = bus === 'music' ? AUDIO.voiceCaps.music : AUDIO.voiceCaps.sfx;
+    // Loops default to the music bus (menu/foundation music), but a weapon loop
+    // can pin itself to the sfx bus so it obeys the SFX slider and never fights
+    // the 2-voice music cap.
+    const bus = event.bus ?? (event.loop ? 'music' : 'sfx'); const cap = bus === 'music' ? AUDIO.voiceCaps.music : AUDIO.voiceCaps.sfx;
     const existing = [...this.voices].filter(v => v.bus === bus);
     if (this.voices.size >= AUDIO.voiceCaps.global || existing.length >= cap) {
       const victim = existing.sort((a, b) => a.priority - b.priority)[0];
@@ -158,9 +223,14 @@ export class AudioDirector {
     }
     if (token !== this.generation) return;
     const source = this.context.createBufferSource(); const gain = this.context.createGain();
-    source.buffer = buffer; source.loop = Boolean(event.loop); gain.gain.value = event.volume ?? 1;
+    // A sfx loop born while the run is suspended starts silent, then ramps up
+    // when play resumes (setSfxLoopsSuspended). Prevents a one-frame blip.
+    const startMuted = Boolean(event.loop) && bus === 'sfx' && this.sfxLoopsSuspended;
+    // World-positioned sounds attenuate by the listener's distance (the RULE).
+    const spatial = event.pos ? this.spatialGain(event.pos) : 1;
+    source.buffer = buffer; source.loop = Boolean(event.loop); gain.gain.value = startMuted ? 0 : (event.volume ?? 1) * spatial;
     source.connect(gain); gain.connect(bus === 'music' ? this.music : this.sfx);
-    const voice: Voice = { source, gain, bus, priority: event.priority ?? 0, key: event.key };
+    const voice: Voice = { source, gain, bus, priority: event.priority ?? 0, key: event.key, loop: Boolean(event.loop), volume: event.volume ?? 1 };
     this.voices.add(voice); if (event.key) this.keyed.set(event.key, voice);
     this.peakActiveVoices = Math.max(this.peakActiveVoices, this.voices.size);
     source.onended = () => {

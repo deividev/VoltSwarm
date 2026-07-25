@@ -154,6 +154,10 @@ export class BossSystem {
   /** True while the player stands in the summon zone of the idle totem. */
   playerInSummonZone = false;
 
+  /** True only on the frame the telegraph (idle → summoning) begins, so the
+   *  caller can start the portal-charge sound in sync with the spin-up. */
+  summonJustBegan = false;
+
   /** Returns the summoned boss's name when the summon triggers this frame.
    *  The summon only fires when the player presses the summon key inside the
    *  zone — walking through the scrapyard never triggers it by accident. */
@@ -167,6 +171,7 @@ export class BossSystem {
     obstacles: Obstacle[],
   ): string | null {
     this.playerInSummonZone = false;
+    this.summonJustBegan = false;
     if (this.state === 'idle') {
       this.totem.rotation.y += dt * 0.8;
       const dx = px - this.totem.position.x;
@@ -179,6 +184,7 @@ export class BossSystem {
         // giving the player time to reposition before it materializes.
         this.playerInSummonZone = false;
         this.state = 'summoning';
+        this.summonJustBegan = true;
         this.summonTimer = BOSS.summonDelayS;
         this.summonElapsed = 0;
       }

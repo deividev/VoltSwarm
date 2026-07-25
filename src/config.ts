@@ -8,7 +8,7 @@ export const AUDIO = {
   /** Final-audio validation gate. Enable exactly one event while reviewing it. */
   /** TEMP style-search (arc family round 1): prototype manifest + 5 events under review. Revert enabledEvents and paths.manifest after validation. */
   validation: {
-    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'foundation-music', 'menu-music'] as readonly string[],
+    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'foundation-music', 'menu-music'] as readonly string[],
     /** TEMP style-search audition: F6/F7/F8 cycle+preview the bolt/death/chest candidate in-game. */
     auditionKeys: true,
   },
@@ -17,10 +17,31 @@ export const AUDIO = {
     /** Spaced out so death debris reads as background rain under the weapon
      *  voice, never as its interleaved reply (tennis-match fix, 2026-07-18). */
     'enemy-death': 0.16, 'xp-pickup': 0.08, 'gold-pickup': 0.08,
-    'weapon-activation': 0.14, 'player-hit': 0.12, 'ui-confirm': 0.06,
+    /** Long enough that being surrounded reads as a steady "taking damage"
+     *  throb, not machine-gun fire from many simultaneous contacts (2026-07-19). */
+    'weapon-activation': 0.14, 'player-hit': 0.4, 'ui-confirm': 0.06,
     'bolt-cannon-fire': 0.11,
+    'pulse-fire': 0.1, 'press-slam': 0.12, 'ricochet-throw': 0.1,
+    'blades-spin': 0.1, 'tire-launch': 0.1, 'dismantler-swipe': 0.1, 'turbine-launch': 0.1, 'acid-throw': 0.1,
+    /** Throttles a swarm of blade contacts into a steady tick, not a
+     *  machine-gun (frequent = invisible). */
+    'blades-hit': 0.09,
   },
   fades: { defaultS: 0.04, pauseDuckS: 0.12, pauseMusicGain: 0.22, menuMusicGain: 0.45 },
+  /** World-positioned zone loops (acid pool sizzle): the game attenuates the
+   *  loop volume by the player's distance to the NEAREST active zone, so it
+   *  fades out as the player walks away. Base is the level at distance 0. */
+  acidLoop: { baseVolume: 0.42, maxHearingDistance: 32 },
+  /** Turbine tornado TRAVEL-roar loop: fades with the player's distance to the
+   *  nearest flying tornado (they spin off far across the map). */
+  turbineLoop: { baseVolume: 0.4, maxHearingDistance: 40 },
+  /** RULE — world-distance attenuation for ONE-SHOTS that happen at a world
+   *  position away from the player (impacts/effects that land off the player,
+   *  e.g. the acid drum, the dismantler claw). `emit({pos})` scales volume by
+   *  the listener's distance. Player-centered fires (bolt/pulse/…) pass no pos =
+   *  full. `minVolume` is a floor so your OWN weapon is still audible at range;
+   *  beyond `maxHearingDistance` the sound sits at the floor. */
+  spatial: { maxHearingDistance: 40, minVolume: 0.35 },
   music: {
     /** Base gain of the in-run music loop. Loud by default — players who find
      *  it strong turn it down with the Music Volume setting (user 2026-07-18). */
@@ -851,7 +872,7 @@ export const WEAPON_INFO: Record<WeaponId, { title: string; description: string 
   },
   turbine: {
     title: 'Turbine Fan',
-    description: 'Launches tornadoes that shove the swarm away.',
+    description: 'Launches vortices that shove the swarm away.',
   },
   ricochet: {
     title: 'Junk Ricochet',
@@ -918,7 +939,7 @@ export const WEAPON_QUANTITY_UNIT: Partial<Record<WeaponId, string>> = {
   bolt: 'projectile',
   blades: 'blade',
   tire: 'tire',
-  turbine: 'tornado',
+  turbine: 'vortex',
   ricochet: 'bounce',
 };
 
@@ -991,7 +1012,7 @@ export const WEAPON_BRANCHES = {
   },
   turbine: {
     damage: { title: 'Blade Torque', stat: 'damage', perPower: WEAPONS.turbine.damagePctPerLevel },
-    radius: { title: 'Intake Collar', stat: 'tornado radius', perPower: 0.1 },
+    radius: { title: 'Intake Collar', stat: 'vortex radius', perPower: 0.1 },
     knockback: { title: 'Gust Piston', stat: 'knockback', perPower: 0.12 },
   },
   ricochet: {

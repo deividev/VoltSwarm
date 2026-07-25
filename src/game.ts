@@ -39,6 +39,47 @@ import { DamageNumbers } from './damage-numbers';
 import { BossSystem } from './boss';
 import { AudioDirector, type AudioEventId } from './audio';
 import { VoxelBurst } from './particles';
+
+/** Per-weapon fire sound. Weapons without a dedicated asset yet fall back to
+ *  the (silent-by-default) generic 'weapon-activation' via the ?? in the hook. */
+const WEAPON_FIRE_SFX: Partial<Record<WeaponId, AudioEventId>> = {
+  bolt: 'bolt-cannon-fire',
+  pulse: 'pulse-fire',
+  blades: 'blades-spin',
+  // welder is NOT here: its weaponActivated fires PER TICK, which would
+  // machine-gun a one-shot. The beam is a sustained loop (WEAPON_LOOP_SFX).
+  press: 'press-slam',
+  tire: 'tire-launch',
+  oil: 'oil-drop',
+  acid: 'acid-throw',
+  turbine: 'turbine-launch',
+  ricochet: 'ricochet-throw',
+  dismantler: 'dismantler-swipe',
+};
+
+/** Continuous per-weapon audio loops (sustained hum while active), distinct
+ *  from the one-shot fire SFX above. Only weapons that are ALWAYS-on while
+ *  owned belong here — the loop starts on the spin-up edge and stops when the
+ *  weapon deactivates. Extend for welder (per-frame beam) once refactored. */
+const WEAPON_LOOP_SFX: Partial<Record<WeaponId, { id: AudioEventId; volume: number }>> = {
+  // Per-weapon loop level: blades is a quiet ambient hum (user wanted it low),
+  // welder is the present "epic beam" — they must NOT share one volume.
+  blades: { id: 'blades-loop', volume: 0.22 },
+  welder: { id: 'welder-beam', volume: 0.55 },
+  // Acid starts SILENT — its volume is driven each frame by the player's
+  // distance to the nearest pool (AcidWeapon.setWeaponLoopVolume), so it fades
+  // in to the right level instead of blipping at full when a distant pool spawns.
+  acid: { id: 'acid-loop', volume: 0 },
+  // Turbine tornado travel-roar — same distance-driven pattern (starts silent).
+  turbine: { id: 'turbine-loop', volume: 0 },
+};
+
+/** Per-weapon impact ticks — a hit sound that associates the strike with the
+ *  weapon. Throttled by the audio cooldown so a swarm of contacts reads as a
+ *  steady tick, not a machine-gun. Only weapons that benefit belong here. */
+const WEAPON_HIT_SFX: Partial<Record<WeaponId, AudioEventId>> = {
+  blades: 'blades-hit',
+};
 import { Hud, coinHtml } from './hud';
 import {
   createRenderer,
@@ -516,6 +557,17 @@ export class Game {
       if (this.input.consumePausePress()) this.handleEscape();
       this.hud.tickMenuNav(this.input);
     }
+    // Weapon hums (sfx loops) only belong to live play — silence them under any
+    // modal overlay (pause, level-up, chest, shop, game over) so they don't
+    // drone behind the UI. Single choke point; self-heals every frame.
+    this.audio.setSfxLoopsSuspended(this.state !== 'playing');
+    // Duck the run music under any in-game modal overlay — the same treatment
+    // pause already gave it, now for level-up/chest/shop/game-over too. Menu and
+    // loading keep their own music handling (setMenu), so they're excluded.
+    this.audio.setPaused(
+      this.state === 'paused' || this.state === 'levelup' || this.state === 'levelup-intro' ||
+      this.state === 'chest' || this.state === 'shop' || this.state === 'ended',
+    );
     if (this.state === 'loading') this.tickLoading();
     else if (this.state === 'playing') this.update(dt);
     updateCamera(this.camera, this.player.position);
@@ -695,6 +747,9 @@ export class Game {
 
     const px = this.player.position.x;
     const pz = this.player.position.z;
+    // The player is the audio listener — drives distance attenuation of
+    // world-positioned sounds (acid pool loop, acid drum, dismantler claw).
+    this.audio.setListener(px, pz);
     const difficulty = difficultyScalar(this.elapsedS, this.stats.cursedDifficulty);
 
     this.enemies.update(
@@ -728,11 +783,34 @@ export class Game {
       dealDamage: (index, base, hitColor, weaponId) =>
         this.dealDamage(index, base, hitColor, weaponId),
       spawnBurst: (x, z, color, count) => this.burst.spawn(x, z, color, count),
-      weaponActivated: (id) => this.audio.emit({
-        id: id === 'bolt' ? 'bolt-cannon-fire' : 'weapon-activation',
+      weaponActivated: (id, x, z) => this.audio.emit({
+        id: WEAPON_FIRE_SFX[id] ?? 'weapon-activation',
         key: `weapon-${id}`,
         priority: 1,
+        // World-positioned fires (acid drum, dismantler claw) attenuate by
+        // distance; player-centered fires pass no pos → full volume.
+        pos: x !== undefined && z !== undefined ? { x, z } : undefined,
       }),
+      startWeaponLoop: (id) => {
+        const loop = WEAPON_LOOP_SFX[id];
+        if (!loop) return;
+        // High priority so the sustained loop survives sfx-cap eviction during
+        // heavy combat; sfx bus so it obeys the SFX slider, not Music.
+        this.audio.emit({
+          id: loop.id,
+          key: `weapon-loop-${id}`,
+          loop: true,
+          bus: 'sfx',
+          priority: 5,
+          volume: loop.volume,
+        });
+      },
+      stopWeaponLoop: (id) => this.audio.stopLoop(`weapon-loop-${id}`),
+      setWeaponLoopVolume: (id, volume) => this.audio.setLoopVolume(`weapon-loop-${id}`, volume),
+      weaponHit: (id) => {
+        const hitId = WEAPON_HIT_SFX[id];
+        if (hitId) this.audio.emit({ id: hitId, key: `weapon-hit-${id}`, priority: 1 });
+      },
     };
     this.weapons.update(dt, px, pz, this.weaponLevels, ctx);
     this.tickDots(dt);
@@ -747,7 +825,13 @@ export class Game {
       this.enemyShots,
       collisionObstacles,
     );
+    if (this.boss.summonJustBegan) {
+      // Portal charge: the tension layer that fills the 2.5s telegraph, cut
+      // precisely when the boss erupts (keyed one-shot → stopLoop below).
+      this.audio.emit({ id: 'boss-portal', key: 'boss-portal', priority: 2 });
+    }
     if (summoned) {
+      this.audio.stopLoop('boss-portal');
       this.hud.banner(`${summoned.toUpperCase()} AWAKENS`);
       this.audio.emit({ id: 'boss-awaken', priority: 3 });
       // Materialization beat: red danger eruption + white-hot core + ground

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { VISUAL, WEAPONS, levelScale, quantityBonus, weaponBranchMultiplier, type BranchWeaponId, type WeaponBranchId, type WeaponId } from './config';
+import { AUDIO, VISUAL, WEAPONS, levelScale, quantityBonus, weaponBranchMultiplier, type BranchWeaponId, type WeaponBranchId, type WeaponId } from './config';
 import { litMaterial } from './toon';
 import type { EnemySystem } from './enemies';
 import type { PlayerStats } from './stats';
@@ -31,8 +31,24 @@ export interface CombatCtx {
   ): void;
   /** Pops voxel cubes from the shared burst pool — weapon trails/impacts. */
   spawnBurst(x: number, z: number, color: number, count: number): void;
-  /** Aggregated activity observer; never called from per-enemy hit loops. */
-  weaponActivated(id: WeaponId): void;
+  /** Aggregated activity observer; never called from per-enemy hit loops.
+   *  `x`/`z` (optional) mark a WORLD position for the fire sound when the effect
+   *  lands AWAY from the player (acid drum, dismantler claw) — the audio then
+   *  attenuates it by the listener's distance (the world-distance RULE). Omit
+   *  for player-centered fires (bolt/pulse/…) so they play at full volume. */
+  weaponActivated(id: WeaponId, x?: number, z?: number): void;
+  /** Start a continuous per-weapon audio loop (e.g. the orbiting saws' hum).
+   *  Idempotent — the audio director dedups by owner key, so re-calling while
+   *  the loop is alive is a no-op. */
+  startWeaponLoop(id: WeaponId): void;
+  /** Stop a weapon's continuous loop when it deactivates. */
+  stopWeaponLoop(id: WeaponId): void;
+  /** Live-set a weapon loop's volume — e.g. distance attenuation for a
+   *  world-positioned zone loop (acid pool). Safe to call every frame. */
+  setWeaponLoopVolume(id: WeaponId, volume: number): void;
+  /** Per-weapon impact tick, fired on contact. Safe to call from the per-enemy
+   *  hit loop — the audio cooldown throttles a swarm of hits to a steady tick. */
+  weaponHit(id: WeaponId): void;
 }
 
 function branchMultiplier(
@@ -504,7 +520,14 @@ export class BladeWeapon {
             this.blades.length,
           )
         : 0;
-    if (count > 0 && !this.wasActive) ctx.weaponActivated('blades');
+    // Orbiting saws are continuous: the rev one-shot fires on the spin-up edge,
+    // then a sustained hum loops for as long as the blades are up.
+    if (count > 0 && !this.wasActive) {
+      ctx.weaponActivated('blades');
+      ctx.startWeaponLoop('blades');
+    } else if (count === 0 && this.wasActive) {
+      ctx.stopWeaponLoop('blades');
+    }
     this.wasActive = count > 0;
     const damage = levelScale(
       WEAPONS.blades.damage,
@@ -540,6 +563,7 @@ export class BladeWeapon {
         if (dSq <= reach * reach && visibleFrom(ctx, bx, bz, e.x, e.z)) {
           e.bladeHitTimer = WEAPONS.blades.hitCooldownS;
           ctx.dealDamage(i, damage, WEAPON_ACCENT.blades, 'blades');
+          ctx.weaponHit('blades');
         }
       }
     }
@@ -563,6 +587,16 @@ export class WelderWeapon {
   private tickTimer = 0;
   /** Drives the smooth beam undulation (replaces per-frame randomness). */
   private time = 0;
+  /** Beam-audio edge tracking: the continuous arc loop starts when the beam
+   *  ignites (acquires a target) and stops when it drops it. */
+  private wasActive = false;
+
+  /** Reconcile the sustained beam loop with the beam's on/off state. */
+  private updateBeamLoop(active: boolean, ctx: CombatCtx): void {
+    if (active && !this.wasActive) ctx.startWeaponLoop('welder');
+    else if (!active && this.wasActive) ctx.stopWeaponLoop('welder');
+    this.wasActive = active;
+  }
 
   constructor(scene: THREE.Scene) {
     // Segmented voxel weld arc (was one stretched translucent box): a chain
@@ -582,6 +616,7 @@ export class WelderWeapon {
   update(dt: number, px: number, pz: number, level: number, ctx: CombatCtx): void {
     if (level <= 0) {
       this.arc.count = 0;
+      this.updateBeamLoop(false, ctx);
       return;
     }
 
@@ -605,8 +640,11 @@ export class WelderWeapon {
     const e = ctx.enemies.pool[this.target];
     if (this.target === -1 || !e || !e.active) {
       this.arc.count = 0;
+      this.updateBeamLoop(false, ctx);
       return;
     }
+    // A valid target = the beam is lit: start the sustained arc loop.
+    this.updateBeamLoop(true, ctx);
 
     this.lockTime += dt;
     this.tickTimer -= dt;
@@ -659,6 +697,8 @@ export class WelderWeapon {
     this.lockTime = 0;
     this.tickTimer = 0;
     this.arc.count = 0;
+    // Run reset stops all loops via audio.reset(); re-arm the edge tracker.
+    this.wasActive = false;
   }
 }
 
@@ -1023,6 +1063,8 @@ export class AcidWeapon {
   private cooldown = 0;
   /** Drives the corrosive-pool opacity breathing. */
   private time = 0;
+  /** Zone-loop audio edge tracking (the corrosive sizzle while any pool lives). */
+  private loopActive = false;
 
   constructor(scene: THREE.Scene) {
     // Same voxel-splat language as the oil puddles, acid green.
@@ -1065,7 +1107,8 @@ export class AcidWeapon {
             z.z = e.z;
             z.life = WEAPONS.acid.zoneLifeS * ctx.stats.duration;
             z.bubbleTimer = 0;
-            ctx.weaponActivated('acid');
+            // The drum lands AWAY from the player → attenuate by distance.
+            ctx.weaponActivated('acid', z.x, z.z);
             // The drum SPLASHES down where it lands.
             ctx.spawnBurst(z.x, z.z, WEAPON_ACCENT.acid, 6);
           }
@@ -1091,6 +1134,8 @@ export class AcidWeapon {
       WEAPONS.acid.dpsPctPerLevel,
       1 + (ctx.weaponBranches.acid.damage ?? 0),
     );
+    let anyActive = false;
+    let nearestSq = Infinity;
     for (let i = 0; i < this.zones.length; i++) {
       const z = this.zones[i];
       if (!z || !z.active) continue;
@@ -1100,6 +1145,10 @@ export class AcidWeapon {
         this.mesh.setMatrixAt(i, HIDDEN);
         continue;
       }
+      // A live pool: track it for the distance-attenuated corrosion loop.
+      anyActive = true;
+      const pdSq = (z.x - px) * (z.x - px) + (z.z - pz) * (z.z - pz);
+      if (pdSq < nearestSq) nearestSq = pdSq;
       for (let n = 0; n < ctx.enemies.pool.length; n++) {
         const e = ctx.enemies.pool[n];
         if (!e || !e.active) continue;
@@ -1127,10 +1176,23 @@ export class AcidWeapon {
       this.mesh.setMatrixAt(i, tmpMatrix);
     }
     this.mesh.instanceMatrix.needsUpdate = true;
+
+    // Corrosion sizzle loop: one shared voice while any pool lives, its volume
+    // attenuated by the player's distance to the NEAREST pool (fades as you
+    // walk away — the sound lives in the world, not on the player).
+    if (anyActive && !this.loopActive) ctx.startWeaponLoop('acid');
+    else if (!anyActive && this.loopActive) ctx.stopWeaponLoop('acid');
+    if (anyActive) {
+      const dist = Math.sqrt(nearestSq);
+      const atten = Math.max(0, 1 - dist / AUDIO.acidLoop.maxHearingDistance);
+      ctx.setWeaponLoopVolume('acid', AUDIO.acidLoop.baseVolume * atten);
+    }
+    this.loopActive = anyActive;
   }
 
   reset(): void {
     this.cooldown = 0;
+    this.loopActive = false;
     for (let i = 0; i < this.zones.length; i++) {
       const z = this.zones[i];
       if (z) z.active = false;
@@ -1156,6 +1218,8 @@ interface Tornado {
 export class TurbineWeapon {
   private readonly pool: Tornado[] = [];
   private cooldown = 0;
+  /** Travel-roar loop edge tracking (the tornado roars while it flies). */
+  private loopActive = false;
 
   constructor(scene: THREE.Scene) {
     // Voxel tornado: three tilted rings of CUBES widening with height (was
@@ -1228,6 +1292,8 @@ export class TurbineWeapon {
       branchMultiplier(ctx, 'turbine', 'radius');
     const knockback = WEAPONS.turbine.knockbackForce *
       branchMultiplier(ctx, 'turbine', 'knockback');
+    let anyActive = false;
+    let nearestSq = Infinity;
     for (const t of this.pool) {
       if (!t.active) continue;
       const previousX = t.x;
@@ -1246,6 +1312,10 @@ export class TurbineWeapon {
         t.mesh.visible = false;
         continue;
       }
+      // A flying tornado: track it for the distance-attenuated travel-roar loop.
+      anyActive = true;
+      const pdSq = (t.x - px) * (t.x - px) + (t.z - pz) * (t.z - pz);
+      if (pdSq < nearestSq) nearestSq = pdSq;
       const speed = Math.hypot(t.vx, t.vz) || 1;
       for (let n = 0; n < ctx.enemies.pool.length; n++) {
         const e = ctx.enemies.pool[n];
@@ -1272,10 +1342,23 @@ export class TurbineWeapon {
       t.mesh.rotation.y += dt * 12;
       t.mesh.scale.setScalar(ctx.stats.area * branchMultiplier(ctx, 'turbine', 'radius'));
     }
+
+    // Travel-roar loop: one shared voice while any tornado flies, attenuated by
+    // the player's distance to the NEAREST one (it fades as the tornado spins
+    // off across the map — the world-distance rule).
+    if (anyActive && !this.loopActive) ctx.startWeaponLoop('turbine');
+    else if (!anyActive && this.loopActive) ctx.stopWeaponLoop('turbine');
+    if (anyActive) {
+      const dist = Math.sqrt(nearestSq);
+      const atten = Math.max(0, 1 - dist / AUDIO.turbineLoop.maxHearingDistance);
+      ctx.setWeaponLoopVolume('turbine', AUDIO.turbineLoop.baseVolume * atten);
+    }
+    this.loopActive = anyActive;
   }
 
   reset(): void {
     this.cooldown = 0;
+    this.loopActive = false;
     for (const t of this.pool) {
       t.active = false;
       t.mesh.visible = false;
@@ -1498,7 +1581,8 @@ export class DismantlerWeapon {
         // Every swipe lands at its own angle — a claw, not a stamp.
         this.claw.rotation.y = Math.random() * Math.PI;
         this.strikeScale = 1 + e.radius;
-        ctx.weaponActivated('dismantler');
+        // The claw strikes the enemy AWAY from the player → attenuate by distance.
+        ctx.weaponActivated('dismantler', e.x, e.z);
 
         const threshold = Math.min(
           WEAPONS.dismantler.thresholdCap,

@@ -178,11 +178,57 @@ export const CHEST_SEAM = 0x8a94a2;
 export const PORTAL_STEEL = 0x161a21;
 export const PORTAL_RED = 0xff3355;
 export const PORTAL_RED_DEEP = 0xa8172e;
+// Foreman palette — read off the reference render (measured-palette rule,
+// §6). Deliberately NOT the shared BONE/YELLOW/DARK/CYAN constants: this
+// reference's cream is warmer, its yellow less orange than the enemy YELLOW,
+// and its visor cyan more saturated than the pale CYAN. Only four entries are
+// needed because the conversion sheets are AUTHORED flat (no light/shadow
+// ramp to keep in-family — see tools/make-foreman-sheets.mjs).
+export const FOREMAN_CREAM = 0xe7dfcb;
+export const FOREMAN_YELLOW = 0xf0b429;
+export const FOREMAN_DARK = 0x2b2e35;
+export const FOREMAN_CYAN = 0x46d9ec;
 
 /** Background swatches shared by every reference sheet. */
 const BACKGROUND = [0x10141d, 0x151a22, 0x000000];
 
 export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
+  foreman: {
+    kind: 'player',
+    // Hand-authored flat sheets (tools/make-foreman-sheets.mjs) drawn at the
+    // model's exact 33x50 voxel resolution, so downsampleMap is a lossless
+    // 1:1 mapping — every authored cell IS one voxel column.
+    ref: 'assets/2d/ref-foreman-front-v1.png',
+    // Measured-profile pipeline. voxelizeMultiView is WRONG for this subject:
+    // the arms hang clear of the torso, and the hull cross-product would
+    // phantom-fill those gaps (the scaffold limitation, icon-voxelizer.ts).
+    sideProfileRef: 'assets/2d/ref-foreman-side-v1.png',
+    backPaintRef: 'assets/2d/ref-foreman-back-v1.png',
+    // Hero resolution: single instance, always centre-screen. 50 rows at
+    // 0.04 lands the model at the ~2u height of the existing player rig.
+    targetWidth: 33,
+    voxelSize: 0.04,
+    bodyColor: FOREMAN_CREAM,
+    palette: [FOREMAN_CREAM, FOREMAN_YELLOW, FOREMAN_DARK, FOREMAN_CYAN],
+    // Cyan is deliberately NOT frontOnly: that path insets it 2 voxels, and a
+    // slot that deep swallows the visor at the game's 3/4 camera angle. As a
+    // plain interior detail it sinks 1 and still backfills with armour, so no
+    // cyan bleeds onto the sides.
+    frontOnly: [],
+    // Two-tone hull: cream plates and yellow trim are both armour, so the
+    // charcoal frame is the only colour that carves relief.
+    armorColors: [FOREMAN_CREAM, FOREMAN_YELLOW],
+    // With sideProfileRef the depth per row is measured, so these bands only
+    // supply each volume's own centre/half-width for the left-right falloff:
+    // one band spanning the arms would make the legs read as near-centre and
+    // extrude them as deep as the chest.
+    segments: [
+      { from: 0, to: 0.24 }, // head
+      { from: 0.24, to: 0.7 }, // shoulders, chest, arms
+      { from: 0.7, to: 1 }, // knees down
+    ],
+    raisedTopFraction: 0,
+  },
   voltling: {
     kind: 'enemy',
     ref: 'assets/2d/ref-voltling-front.png',

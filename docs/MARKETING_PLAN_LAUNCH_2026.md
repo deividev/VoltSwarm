@@ -1,699 +1,768 @@
-# Voltswarm - Plan de marketing (baseline original 2026-08-01 -> 2026-11-04)
+# Voltswarm - campana de wishlists en X, Reddit y Steam (20-07-2026 - lanzamiento)
 
-## Estado del plan
+> **Resultado buscado:** empezar a construir audiencia el lunes **20-07-2026** y llegar a **1.000 wishlists o mas en el ultimo dia cerrado de Steam Wishlist Reporting anterior al lanzamiento** (`W_final`). Guardar su `as_of_date_pt`; registrar aparte `release_activated_at_utc`. No afirmar un total inmediato en vivo salvo contador live verificado por el publisher. El **04-11-2026** es un *stretch target interno*, no una fecha publica comprometida.
+>
+> **Estado verificado al 19-07-2026:** el publisher creo la pagina y la envio a revision; Valve todavia no ha confirmado aprobacion, publicacion ni visibilidad como Coming Soon. No existe URL/App ID confirmado en este documento.
 
-> **Estado interno (2026-07-17):** **miércoles 4 de noviembre de 2026** es el stretch target agresivo para el alcance completo planificado. No es una estimación segura, una fecha confirmada ni una promesa pública. Revalidar después de Audio Foundation y del GO/NO-GO multijugador; si un gate medido falla, re-baselinar de forma visible en vez de ocultar el riesgo. La fecha Coming Soon **sigue dependiendo de la aprobación real de Steam**: 2026-08-01 permanece solo como supuesto histórico, no como operación confirmada.
+## Decisiones no negociables
 
-**Scope freeze del stretch:** sin host migration, dedicated servers ni hybrid local+online; exactamente 3 personajes de lanzamiento, aproximadamente 30 contratos y sin expansión de contenido no planificada. El calendario histórico inferior se conserva por contexto, pero los checkpoints siguientes son los gates internos actuales, no claims de features ya existentes.
+| Tema | Decision operativa |
+| --- | --- |
+| Inicio | La campana T0 empieza el 20-07 aunque Steam siga revisando la pagina. |
+| Activacion Steam | T1 ocurre unicamente cuando el publisher confirme que la pagina esta publica. Antes de T1 no se escribe "now on Steam", no se enlaza una URL no verificada y no se pide wishlist. |
+| Objetivo | `W_final >= 1.000`, definido como el ultimo dia cerrado de Wishlist Reporting anterior al release, con `as_of_date_pt`. `release_activated_at_utc` se registra aparte. Sin contador live verificado no existe claim de total inmediato. |
+| Fecha | 04-11-2026 sigue siendo objetivo interno agresivo. No se publica hasta superar el gate de fecha de este documento. |
+| Producto | Lanzamiento completo directo; **sin demo publica y sin Steam Next Fest** segun la estrategia actual. |
+| Multiplayer/co-op | No se promociona, etiqueta ni promete antes del GO documentado, implementacion terminada y verificacion jugable. "Como minimo co-op 2" es una intencion condicionada, no una feature actual. |
+| Disclosure publico sobre IA | La unica redaccion autorizada es: `The game does not contain AI-generated content. AI-generated content is used just for Steam cover.` No se parafrasea ni amplia mientras Steam no se actualice oficialmente. |
+| Formato por plataforma | Desde 23-07-2026, X y Reddit usan solo MP4 de alta calidad o capturas PNG/JPG; nunca GIF. Steam puede usar GIF, MP4 o capturas segun convenga. |
+| Etica | Cero spam, engagement falso, cuentas coordinadas o posts disfrazados de preguntas. Cada publicacion debe aportar prueba real o una conversacion honesta. |
 
-| Checkpoint interno agresivo | Gate / entrega planificada |
-|---|---|
-| Jul 26 | Audio Foundation + generador offline; no implica catálogo completo listo. |
-| Aug 16 | Readiness multijugador determinista; evidencia para GO/NO-GO, no co-op publicado. |
-| Aug 30 | Local 2P split-screen + Steam Remote Play Together. |
-| Sep 20 | Peer-host online Steam nativo; requiere aprobación posterior y snapshots host-authoritative. |
-| Oct 11 | Map 2, boss, 3 personajes y ~30 contratos. |
-| Oct 25 | Audio completo + Steamworks. |
-| Oct 26–Nov 4 | RC/QA. |
+## Camino rapido: que hacer el lunes 20-07
 
-Baseline histórico: lanzamiento propuesto para **miércoles 4 de noviembre de 2026**; supuesto de página Coming Soon pública el **sábado 1 de agosto de 2026**.
+1. Registrar `W0` si la pagina ya esta publica; si no, registrar `page_status=under_review`.
+2. Preparar la hoja de medicion y reservar identificadores UTM, sin inventar la URL base.
+3. Publicar en X una pieza gameplay-first sin CTA a Steam mientras siga T0.
+4. Leer reglas actuales de cada subreddit candidato, participar de forma util y guardar evidencia del rules check.
+5. Dejar preparado el paquete T1: post fijado de X, primer enlace UTM y una publicacion Reddit apta para **un solo** subreddit.
+6. Revisar +24 h y +72 h como preliminares; decidir solo con cohortes cerradas: primeras 24 h a +120 h y/o primeras 72 h a +168 h.
 
-Canales permitidos por este plan:
+### Roles operativos
 
-- **Steam**: centro de conversion, wishlists, announcements y lanzamiento.
-- **X**: frecuencia, clips cortos, GIFs, recordatorio de wishlist.
-- **Reddit**: uso minimo y quirurgico, solo gameplay-first.
+| Rol | Responsabilidad |
+| --- | --- |
+| Publisher / Steamworks data owner | Confirmar T1/release; registrar `W0`, `W_final`, `as_of_date_pt` y `release_activated_at_utc`; exportar cohortes preliminares +24/+72 y cerradas +120/+168. |
+| Content publisher | Preparar, comprobar claims/reglas, publicar y responder en X/Reddit. |
+| Analytics / decision owner | Mantener dashboard y formulas; comparar piezas; decidir `double_down`, `iterate`, `hold` o `kill_format`. |
 
-## Estrategia
+### Dashboard del lunes (15 minutos)
 
-En el **baseline original** de agosto a noviembre no buscamos "postear por postear". Buscamos transformar curiosidad en wishlists y, en noviembre, wishlists en ventas. El mensaje central debe repetirse con variantes:
+| Campo | Valor semanal |
+| --- | --- |
+| Estado | `page_status`; gate de fecha; gate co-op |
+| Objetivo | `W_actual / W_target`; `gap`; `R`; dias restantes |
+| Ritmo | wishlists ultimos 7 dias; `required_weekly`; Trusted/Tracked Visits requeridas |
+| Funnel | `c_low / c_base / c_high`; conversion real; tracked share |
+| Contenido | ganador finalizado; pieza X; candidato Reddit + rules check |
+| Decision | una hipotesis a probar; formato a mantener/iterar; owner y fecha |
+| Riesgo | aprobacion, asset, medicion o claim bloqueado |
 
-> Voltswarm es un 3D voxel bullet-heaven donde un robot solitario convierte caos industrial en una tormenta de proyectiles.
+---
 
-No vendemos "IA". Vendemos gameplay real: caos legible, armas auto-aim, decisiones de build, cofres, tienda, bosses y estetica voxel industrial.
+## 1. Embudo y matematicas del objetivo
 
-## Fechas externas verificadas
+### Formula base
 
-| Fecha | Evento | Decision para Voltswarm |
-| --- | --- | --- |
-| 2026-08-01 | Baseline superseded: supuesto de página Steam pública | Inicio de campaña de wishlist solo si el re-baseline y la aprobación real de Steam lo confirman. |
-| 2026-10-01 -> 2026-10-08 | Steam Autumn Sale 2026 | No pelear contra el ruido de ofertas; contenido ligero y visual. |
-| 2026-10-19 -> 2026-10-26 | Steam Next Fest October 2026 | No participamos si mantenemos estrategia sin demo. Usar la semana para recordar fecha, no para fingir evento. |
-| 2026-10-21 | Checkpoint derivado del stretch: 14 días antes del objetivo interno | Revisar solo si los gates sostienen el stretch; no es fecha pública bloqueada. |
-| 2026-11-04 | Stretch target interno agresivo | Preparación de announcement/post solo si los gates y Steam sostienen la fecha; no es promesa pública. |
-| 2026-12-17 -> 2027-01-04 | Steam Winter Sale | Oportunidad post-lanzamiento, no parte de este plan principal. |
+Definiciones al momento T1 (pagina publica):
 
-Notas Steam:
+- `W0` = wishlists totales reales al empezar a medir. Hoy es desconocido.
+- `R = max(0, 1000 - W0)` = wishlists restantes.
+- `D = dias entre T1 y la fecha interna de lanzamiento vigente`.
+- `ritmo_diario = R / D`.
+- `ritmo_semanal = 7R / D`.
+- `objetivo_acumulado(d) = W0 + R * d / D`, donde `d` son dias transcurridos desde T1.
 
-- La Coming Soon page debe estar visible al menos **2 semanas** antes de publicar el juego.
-- El launch discount puede durar **7-14 dias**; Steam sugiere normalmente **10%-15%**.
-- Next Fest requiere demo jugable publica; nuestra estrategia actual es **sin demo publica**.
+**Escenario ilustrativo, no forecast:** si T1 fuera 20-07, `W0=0` y el objetivo interno continuara en 04-11, habria 107 dias: **9,35 wishlists/dia** o **65,42/semana**. Si T1 se retrasa, se recalcula; NO se oculta el incremento de ritmo necesario.
 
-## Reglas por canal
+### Funnel T1: wishlists restantes -> visitas Steam requeridas
 
-### Steam
+No se inventa una tasa. Tras T1, completar las tres tasas con datos reales comparables y conservar la fuente/ventana:
 
-Objetivo: convertir interes en wishlists y ventas.
+- `c = UTM wishlists / Tracked Visits`.
+- `t = Tracked Visits / Trusted Visits`.
+- `Tracked Visits requeridas = R / c`.
+- `Trusted Visits requeridas = R / (c * t)`.
+- `Tracked Visits semanales = (R / c) * 7 / D`.
 
-Usar announcements solo cuando haya algo claro:
+| Escenario | Tasa que debe cargar analytics owner | Tracked Visits necesarias | Trusted Visits necesarias |
+| --- | --- | ---: | ---: |
+| Low | `c_low` = percentil/tasa conservadora real | `R / c_low` | `R / (c_low * t)` |
+| Base | `c_base` = baseline real acordada | `R / c_base` | `R / (c_base * t)` |
+| High | `c_high` = tasa fuerte real, no aspiracional | `R / c_high` | `R / (c_high * t)` |
 
-- pagina publicada
-- explicacion de sistema importante
-- fecha de lanzamiento
-- semana de lanzamiento
-- lanzamiento
+Hasta disponer de baseline, las tasas quedan **en blanco** y el modelo no produce un numero de visitas defendible. Este funnel estima visitas atribuibles; `W_final` sigue siendo el criterio de aceptacion porque parte del trafico social puede quedar sin atribuir.
 
-Tono: pulido, directo, sin diario interno largo.
+### Checkpoints semanales
 
-### X
+La columna absoluta solo ilustra `T1=20-07` y `W0=0`. La columna valida para operar es el porcentaje de `R`; si T1 cambia, la hoja redistribuye el runway desde la fecha real.
 
-Objetivo: presencia constante y prueba visual.
+| Revision | % de `R` acumulado | Ilustracion absoluta | Accion si estamos por debajo |
+| --- | ---: | ---: | --- |
+| 27-07 | 6,5% | 65 | Validar T1/medicion; no juzgar formatos con una sola muestra. |
+| 03-08 | 13,1% | 131 | Repetir el mejor hook con otro asset. |
+| 10-08 | 19,6% | 196 | Continuar bootstrap; no matar formatos antes de 6 piezas comparables finalizadas. |
+| 17-08 | 26,2% | 262 | Reordenar pilares por UTM wishlists, no por likes. |
+| 24-08 | 32,7% | 327 | Crear 2 variantes del ganador, sin subir cadencia aun. |
+| 31-08 | 39,3% | 393 | Auditar store-page click-to-wishlist con publisher. |
+| 07-09 | 45,8% | 458 | Refrescar post fijado y primer frame de clips. |
+| 14-09 | 52,3% | 523 | Reservar los 3 mejores assets para la recta final. |
+| 21-09 | 58,9% | 589 | Recalcular ritmo y reforzar el pilar de mayor conversion. |
+| 28-09 | 65,4% | 654 | Si falta >10 puntos porcentuales, revision extraordinaria. |
+| 05-10 | 72,0% | 720 | Confirmar si el gate de fecha permite iniciar countdown. |
+| 12-10 | 78,5% | 785 | Solo anunciar fecha si el gate esta en verde. |
+| 19-10 | 85,0% | 850 | Mantener presencia sin fingir participacion en Next Fest. |
+| 26-10 | 91,6% | 916 | Activar paquete final solo con RC/QA y fecha publica. |
+| 02-11 | 98,1% | 981 | Recordatorio final; no compensar con spam. |
+| Activacion de release | 100% | 1.000 | Tomar `W_final` del ultimo dia cerrado anterior con `as_of_date_pt`; registrar aparte `release_activated_at_utc`. Launch copy solo tras confirmacion. |
 
-Formato preferido:
+### KPI: jerarquia y lectura
 
-- clips/GIFs de 5-12 segundos
-- 1 captura fuerte + 1 frase
-- posts simples con CTA a Steam
-- post fijado siempre apuntando a Steam
+| Nivel | KPI | Calculo / fuente | Uso |
+| --- | --- | --- | --- |
+| Norte | Wishlists netas totales | Steamworks, cierre semanal | Saber si se alcanza la meta. |
+| Conversion atribuida | Wishlists UTM | Steam UTM Analytics | Comparar canal/campana/contenido. Es un minimo atribuible, no toda la causalidad. |
+| Calidad de trafico | `wishlist_utm / tracked_visits` | Steam UTM Analytics | Evaluar intencion entre usuarios identificables. |
+| Trafico | Total / Trusted / Tracked Visits | Steam UTM Analytics | Distinguir alcance, trafico fiable y trafico logueado. |
+| X | impresiones, video views, engagement rate, profile visits, link clicks si esta disponible | X Analytics + UTM | Diagnosticar hook y salida hacia Steam. |
+| Reddit | upvotes, ratio, comentarios sustantivos, moderacion, UTM visits cuando haya link permitido | Reddit + UTM | Validar encaje comunitario; no perseguir karma vacio. |
+| Produccion | piezas publicadas / planificadas, horas invertidas, assets agotados | hoja interna | Evitar que marketing comprometa el juego. |
 
-Cadencia:
+> Steam atribuye conversiones UTM durante 72 h desde cada visita y finaliza cada dia de visita 4 dias despues. Por eso +24/+72 son preliminares. Cohortes comparables: primeras 24 h de visitas cerradas a +120 h; primeras 72 h cerradas a +168 h.
 
-- Agosto/septiembre: 3-5 posts por semana.
-- Octubre: 4-6 posts por semana.
-- Semana de lanzamiento: 1 post diario minimo.
+---
 
-### Reddit
+## 2. Dos modos de activacion: T0 y T1
 
-Objetivo: descubrimiento ocasional, no canal principal.
+### T0 - pagina aun no publica
 
-Reglas:
+**Objetivo:** construir reconocimiento, aprender que prueba visual atrae y preparar comunidad sin falsos CTA.
 
-- Maximo 1 post cada 3-4 semanas.
-- Post gameplay-first, no anuncio puro.
-- No liderar con IA. Si preguntan, responder transparente y breve.
-- No discutir sobre IA. Una respuesta y fuera.
-- No repetir el mismo post en varios subreddits.
+- X: 3 posts originales/semana, 2 bloques de 20 minutos para responder e interactuar con cuentas afines.
+- Reddit: comentar con utilidad en 2-3 hilos relevantes/semana; maximo 1 post original candidato y solo si pasa reglas. No se fuerza un post si no hay encaje.
+- CTA permitido: "Follow for development updates" o una pregunta genuina cuyo resultado si vaya a usarse.
+- CTA prohibido: "Wishlist now", `[STEAM LINK]`, "page live" o fecha de lanzamiento.
+- Medicion: alcance, retencion del clip, interaccion cualitativa, follows y temas preguntados.
 
-Respuesta segura si preguntan por IA:
+### T1 - pagina publica confirmada
+
+Ejecutar dentro de las primeras 24 horas posteriores a confirmacion del publisher:
+
+- [ ] Registrar fecha/hora T1, `W0`, URL y App ID reales en la hoja privada.
+- [ ] Crear enlaces UTM desde la URL verificada.
+- [ ] El domingo de activación T1, publicar el post X page-live con el mejor MP4, URL pública verificada y UTM; fijarlo.
+- [ ] El mismo domingo de activación T1, actualizar la bio/enlace del perfil de X con la URL pública verificada de Steam.
+- [ ] Responder a conversaciones activas con el enlace solo cuando sea relevante; nunca pegarlo en masa.
+- [ ] Publicar en Reddit solo si hay subreddit y formato que pasaron el rules check ese mismo dia.
+- [ ] Publicar el Beat S1 de Steam dentro de 24-48 h, solo con permisos, cover y claims verificados.
+- [ ] Capturar baseline de Steam a las 24 h, 72 h preliminar, 96 h final y 7 dias.
+
+---
+
+## 3. Mensaje y pilares de contenido
+
+**Pitch operativo, solo sobre gameplay confirmado:**
+
+> Voltswarm is a 3D voxel bullet-heaven where movement and build choices turn one robot into an industrial projectile storm.
+
+| Pilar | Prueba | Assets actuales | Accion buscada |
+| --- | --- | --- | --- |
+| Caos legible | enjambre grande y supervivencia avanzada | GIF 05/08; shots 06/08 | detener scroll -> ver clip completo -> wishlist tras T1 |
+| Build decisions | draft y efecto visible de una mejora | GIF 02; shot 07 | comentar eleccion -> entender profundidad -> wishlist |
+| Recompensa | cofre, recompensa y vacuum de XP | GIF 01/04/07; shots 01/02 | compartir momento satisfactorio -> wishlist |
+| Ritmo de run | Scrapper/tienda entre combates | GIF 06; shot 04 | descubrir sistema -> visitar Steam |
+| Picos de tension | spawn y combate de Crusher King | GIF 03/09; shots 03/05/09 | completar clip -> visitar Steam |
+| Identidad | voxel "industrial toy", siluetas y color | crops honestos de shots 06/08/09 | reconocer Voltswarm sin depender del logo |
+| Construccion abierta | leccion concreta de legibilidad, VFX o balance | before/after nuevo, solo si existe | conversacion util en Reddit; confianza |
+
+**No usar como pilar hasta que exista y pase gates:** multiplayer, co-op, Mapa 2, Volt Warden final, 3 personajes, ~30 contratos, fecha o descuento.
+
+### Capacidad realista
+
+| Trabajo semanal | Presupuesto |
+| --- | ---: |
+| X originales | 3 (lunes/miercoles/viernes); 4 solo en T1, anuncio de fecha o launch week |
+| X community blocks | 3 x 20 min (martes, jueves y sábado) |
+| Reddit posts | 0-1; maximo 2 promociones honestas en cualquier ventana movil de 30 dias entre todos los subreddits |
+| Reddit participation | 2-3 comentarios utiles/semana, sin link salvo relevancia clara |
+| Steam Events | 1 beat significativo cada 2-3 semanas desde T1; excepcion: trailer, one-week y launch. |
+| Asset nuevo | maximo 1 recorte/subtitulado de material existente; captura nueva solo cuando pruebe una mejora real |
+| Analitica | +24/+72 preliminar; cohorte 24 h a +120 h y cohorte 72 h a +168 h; revision semanal solo con cohortes finalizadas. |
+
+No aumentar frecuencia para corregir una mala conversion. Primero mejorar hook, primer frame, claridad de gameplay y pagina Steam.
+
+### Ritmo semanal: publicar, aportar y medir
+
+- **Lunes, miércoles y viernes:** slots principales de publicación en X; Reddit y Steam solo cuando el calendario y sus gates los habiliten.
+- **Martes, jueves y sábado:** un bloque de 20 minutos para 2–5 replies útiles desde la cuenta de Voltswarm en conversaciones relevantes. Aportar una observación concreta sobre gameplay, diseño o desarrollo; nunca respuestas genéricas, engagement bait o enlaces no solicitados. Incluir un enlace solo si responde directamente a una pregunta y las reglas del espacio lo permiten.
+- **Domingo, 10:00 Europe/Madrid:** preparar la semana siguiente y comparar la semana que acaba de cerrar con sus objetivos. No es un slot público obligatorio; una activación excepcional de domingo (por ejemplo, T1 page-live) requiere gate, materiales y aprobación individual.
+
+Los replies sirven para ganar reconocimiento y aprender el lenguaje de la audiencia, no para reemplazar posts propios ni para forzar tráfico. Registrar conversación, tema, resultado cualitativo y cualquier visita/enlace permitido.
+
+---
+
+## 4. Calendario editorial exacto
+
+Cada semana conserva 3 slots X: **Proof** (clip), **System** (explicacion), **Conversation** (pregunta/observacion). Reddit usa solo el angulo indicado si las reglas lo permiten. En T0, sustituir cualquier wishlist CTA por follow/update.
+
+| Semana | Tema y entrega X | Reddit community-first | Gate/CTA |
+| --- | --- | --- | --- |
+| 20-26 jul | Identidad T0: lunes (combate/auto-aim) y miercoles (build). El slot de conversacion del viernes se cancelo el 23-07 para no repetir el combate ni usar GIF; reservar la siguiente pieza para footage MP4 nuevo del domingo. | Presentarse mediante comentarios utiles. Post solo si hay un angulo tecnico honesto sobre legibilidad. | T0 por defecto. Si T1 ocurre, activar page-live aparte. |
+| 27 jul-2 ago | Page-live si esta aprobada; miércoles: teaser MP4 de cofre + absorción de XP (sin explicar el sistema completo); boss/Crusher King queda para el ángulo Reddit y/o fallback. | 1 post posible sobre telegraphing del boss, en un solo subreddit. | Wishlist solo desde T1. Reservar el tratamiento profundo de cofre/XP para agosto. |
+| 3-9 ago | Early choice -> late chaos: GIF 02 + GIF 05/08; encuesta real de build. | Debate de diseno sobre hacer legible un bullet-heaven 3D. | Medir cual combo genera visitas cualificadas. |
+| 10-16 ago | Loot ceremony: GIF 01/07 y shot 01. | Sin promocion; responder a threads de rewards/juice. | Repetir solo el hook ganador. |
+| 17-23 ago | XP vacuum y progreso: GIF 04 + shot 02/07. | Post opcional sobre feedback visual de pickups, sin pregunta falsa. | CTA Steam si T1. |
+| 24-30 ago | Meet the Scrapper: GIF 06 + shot 04; explicar pausa economica in-run. | Un unico post de sistema si el subreddit admite dev posts. | No mencionar co-op aunque exista checkpoint interno. |
+| 31 ago-6 sep | Crusher King: GIF 09 -> GIF 03 -> shot 05. | Post tecnico sobre spawn telegraph; no reutilizar el post de julio. | Mejor pieza pasa a banco final. |
+| 7-13 sep | Industrial toy identity: crops de shots 08/09 y paleta/silueta. | Conversacion de direccion visual, con contexto suficiente en el cuerpo. | Sin claims de contenido futuro. |
+| 14-20 sep | Run loop recap: combat -> level-up -> chest -> shop, un sistema por post. | No post promocional; aportar a conversaciones existentes. | Refrescar pinned X con el mejor formato. |
+| 21-27 sep | "Controlled mess": GIF 05 vs GIF 08 como test A/B secuencial, no simultaneo. | Post de learnings solo si incluye una conclusion concreta. | Recalcular `R/D`. |
+| 28 sep-4 oct | Best-of Q3: 3 ganadores con hooks nuevos, no repost identico. | Sin post salvo oportunidad organica clara. | Auditoria de KPI + store page. |
+| 5-11 oct | Picos de tension: boss/chest/swarm. Preparar copy de fecha, no publicarlo aun. | Participacion normal, cero countdown. | Gate de fecha inicia revision. |
+| 12-18 oct | Si fecha aprobada: announcement + clip mas fuerte + wishlist reminder. Si no: "development continues" con gameplay actual. | Un post de progreso honesto, fecha solo si publica y reglas lo permiten. | Fecha condicionada. |
+| 19-25 oct | Build/shop/boss durante Next Fest, sin decir ni insinuar participacion. | No capitalizar Next Fest con spam; participar solo donde aporte. | Estrategia sigue sin demo. |
+| 26 oct-1 nov | Si RC/fecha en verde: "one week", feature proof, mejor GIF. Si no, seguir evergreen sin countdown. | Post pre-launch maximo en un subreddit y solo con permiso. | Activar launch pack solo con gate. |
+| 2-4 nov | Countdown y "out now" unicamente con release confirmada. | Un post de lanzamiento maximo, en una sola comunidad que lo permita. | Conversion final; si no hay release, re-baseline publico claro. |
+
+---
+
+
+## 5. Playbook de Steam Events & Announcements
+
+### Decision y guardarrailes
+
+Steam es el **hogar de conversion**, no un devlog diario. X prueba hooks; Reddit construye confianza; Steam reune la prueba completa junto al boton de wishlist. Su copy se escribe desde cero.
+
+- Maximo **7 beats** desde T1, separados 2-3 semanas salvo trailer, one-week y launch. Si T1 se retrasa, fusionar o eliminar; no comprimir.
+- Mantener **1, maximo 2 eventos Library homepage-visible**. Ocultar/expirar el teaser sustituido de Library homepage no borra su archivo.
+- La store page muestra como maximo dos eventos recientes en su bloque: cada beat debe mejorar esa pareja.
+- Reservar `Featured Event` para un hito grande y espaciado: trailer y, despues, lanzamiento.
+- No usar **Small Update / Patch Notes** para page-live, trailer, fecha o launch: queda fuera de superficies de alta visibilidad.
+- Elegir la categoria de anuncio/noticia segun el contenido y confirmar las superficies en el preview de Steamworks. No asumir Store homepage.
+- Solo contenido disponible al lanzamiento. Sin fecha, demo, descuento, co-op o multiplayer hasta sus gates.
+- No introducir el tema de IA en announcements, comentarios o plantillas salvo que una regla lo exija o alguien pregunte. En ese caso, responder unicamente con el disclosure publico canonico de la seccion 9, sin parafrasearlo ni ampliarlo.
+
+**Follow no es wishlist:** Follow distribuye noticias por Activity Feed/News Hub. Wishlist es la conversion objetivo y puede generar notificacion de lanzamiento. Medir `follower_delta` y `wishlist_net_delta` por separado; nunca sumar followers al objetivo de 1.000.
+
+### Calendario ejecutable: 7 beats
+
+Todos usan una categoria de anuncio/noticia confirmada en la UI, **nunca Patch Notes**.
+
+| Beat | Ventana | Objetivo / working title | Prueba, asset y CTA | Visibilidad | Gate / fallback | Medicion |
+| --- | --- | --- | --- | --- | --- | --- |
+| S1 | T1 +24-48 h | Wishlist abierta: **`Voltswarm Steam page is now available to wishlist`** | Pitch, 3 sistemas reales, GIF/shot 08. Wishlist; follow secundario. | Store product page + Community Hub + feeds si preview confirma. No Featured. | Coming Soon, URL y App ID confirmados; si no, draft. | Impressions, reads, read rate y deltas +24/+72 preliminar; +120/+168 cohortes cerradas. |
+| S2 | No antes de T1 +2 semanas; objetivo T1 +2-3 semanas | Builds: **`From one upgrade to an industrial projectile storm`** | Level-up -> consecuencia -> late build. GIF 02 + 05; shot 07. | Anuncio; no Featured. Evaluar ocultar S1. | Upgrades implementados. Fallback: early vs late run actual. | Reads, comentarios, follower/wishlist delta. |
+| S3 | T1 +5-6 semanas y minimo 2 semanas tras el beat publicado anterior | Sistema: **`Meet the Scrapper`** | Decision, intercambio, regreso al combate. GIF 06 + shot 04. | Anuncio; no Featured; dejar solo S2/S3 visibles. | Scrapper cerrado. Fallback: **`Crusher King changes the run`**, GIF 09 -> 03. Si ninguno, SKIP. | Impressions, reads y deltas. |
+| S4 | T1 +8-9 semanas y minimo 2 semanas tras el beat publicado anterior | Confianza: **`Keeping a 3D swarm readable`** | Problema -> cambio -> prueba. GIF 05/08; before/after real. | Anuncio de desarrollo; no Featured. | Requiere asset before/after documentado y resultado reproducible. Sin ese asset: SKIP. No publicar cifras FPS sin evidencia. | Read rate, comentarios utiles y deltas. |
+| S5 | T1 +11-12 semanas y minimo 2 semanas tras el beat publicado anterior; objetivo **14-15 oct** | Pico: **`Voltswarm - Gameplay Trailer`** | Trailer gameplay-first, 3 bullets reales, cover/header y GIF payoff. | Featured solo si preview/owner confirma; ocultar teaser sustituido. | Trailer aprobado y store sincronizada. Sin trailer aprobado: SKIP o renombrar con precision como anuncio de gameplay actual; nunca usar `Trailer`. Puede salir sin fecha: `Coming to Steam`. Co-op solo tras gate. | Views disponibles, impressions/reads y deltas +24/+72 preliminar; +120/+168 cohortes cerradas. |
+| S6 | Exactamente 7 dias antes del timestamp publico verificado; **28 oct solo si release 4 nov** | Conversion: **`Voltswarm launches in one week`** | Fecha/hora, 3 razones, cutdown 10-15 s. | Anuncio visible; un solo Featured. | Gate completo de fecha/release de la seccion 9, incluido build Valve-approved, checklist, permisos, pricing/package y dry-run. Si falla: SKIP. | Reads, delta diario y gap a 1.000. |
+| S7 | Release confirmado | Jugadores: **`Voltswarm is out now`** | Contenido real, launch cut 20-30 s, precio/descuento verificados, soporte. | Categoria vigente de launch; unico Featured; ocultar/expirar S6. | Steam confirma release activo y se registra `release_activated_at_utc`. Si se retrasa, reprogramar; no renombrar S6. | Impressions/reads, trafico/ventas; separar `W_final` del post-release. |
+
+### Steam dentro del calendario cruzado
+
+**Prioridad determinista si falta runway:** S1 es obligatorio. Mantener separacion minima de 2 semanas; recortar primero S3 y despues S4. S2 se conserva si cabe. S5 existe solo si pasa el gate de trailer; de lo contrario se omite o se publica con nombre exacto de gameplay actual.
+
+| Semana | Accion Steam |
+| --- | --- |
+| 20 jul-2 ago | Preparar permisos/cover; S1 unicamente si ocurre T1. |
+| 3-16 ago | S2 cuando hayan pasado 2-3 semanas desde S1. |
+| 17-30 ago | Medir S2 y preparar S3; sin evento adicional. |
+| 31 ago-6 sep | S3 solo si han pasado 2 semanas desde S2; sin sistema cerrado o sin runway, saltar primero. |
+| 7-20 sep | Preparar prueba reproducible S4. |
+| 21-27 sep | S4 solo 2 semanas despues de S3 y con before/after documentado; si no, saltar. |
+| 28 sep-11 oct | Sin evento; QA y draft privado del trailer. |
+| 12-18 oct | S5 el 14-15 oct solo con trailer aprobado y separacion minima; si no, SKIP o anuncio de gameplay correctamente nombrado. |
+| 19-25 oct | Sostener S5; no fingir Next Fest. |
+| 26 oct-1 nov | S6 exactamente T_release -7 dias; 28 oct solo si el timestamp verificado es 4 nov. |
+| 2-4 nov | S7 solo tras release confirmado. |
+
+### Produccion
+
+- **Event Cover obligatorio: 800 x 450 px**, usando template oficial. Una idea visual; Steam ya muestra nombre/icono.
+- **Event Header recomendado: 1920 x 622 px**, respetando zonas seguras. Header propio para S1, S5 y S7.
+- **Spotlight/Featured:** no inventar formato independiente; preparar mediante preview/crop desde cover/header. Featured no promete Store homepage.
+- **Cuerpo:** 1 GIF de prueba + 1 imagen secundaria maximo operativo. Steam admite JPG/PNG/GIF y presenta imagenes del cuerpo hasta 800 px de ancho.
+- Derivar desde `art/steam/gif/` y `art/steam/screenshots/`; exportar aparte, sin tocar masters. Registrar beat, fuente, build, fecha, claims, idioma y owner. Base English; Steam lo usa como fallback.
+
+### Checklist operativo
+
+- [ ] T1, URL/App ID y permiso `Edit App Marketing Data`.
+- [ ] Separacion 2-3 semanas o excepcion final.
+- [ ] Claims verificados contra build/gates; store sincronizada.
+- [ ] Categoria y preview correctas; NO Patch Notes.
+- [ ] Cover y header/Featured con templates actuales.
+- [ ] Solo 1-2 eventos Library homepage-visible.
+- [ ] Titulo/summary/apertura claros; gameplay real; English/localizaciones, crops, enlaces y accesibilidad revisados.
+- [ ] Segunda persona revisa draft; publisher confirma autor/hora.
+- [ ] Reservar hasta una hora de posible revision/retraso en Library; no coordinar X al minuto.
+- [ ] Responder 60-90 min; capturar metricas +24/+72 preliminar; +120/+168 cohortes cerradas.
+- [ ] Ocultar teaser sustituido; decidir `keep`, `iterate` o `retire` solo con cohorte cerrada +120 o +168.
+
+### Metricas y atribucion
+
+Steam Events Stats cuenta **impressions** cuando el banner entra en pantalla y **reads/clicks** cuando se abre el evento. Solo cuenta usuarios logueados y unicos, registra su primera ubicacion y actualiza aproximadamente cada hora.
+
+| Campo | Lectura |
+| --- | --- |
+| `event_impressions` | Alcance interno, por ubicacion. |
+| `event_reads` / `event_read_rate` | Aperturas unicas; fuerza de cover+titulo. |
+| `follower_delta` | Manage Members antes/despues; NO wishlists. |
+| `wishlist_net_delta` | Wishlist reporting al mismo corte; correlacion temporal, no atribucion individual. |
+| `comments_quality` | Preguntas/objeciones utiles para store/trailer. |
+
+**No usar UTM externo para trafico interno de Steam Events.** Evaluar con Events Stats + follower delta + wishlist net delta en +24/+72 preliminar; +120/+168 cohortes cerradas. X y Reddit mantienen enlaces directos a la store page con sus UTMs. Si comparten el evento, sus reads externos son amplificacion, no wishlists atribuibles al evento.
+
+### Outlines English
 
 ```text
-We use AI-assisted art workflows as part of production, but the game is real playable gameplay: systems, balance, code, VFX, UI, and Steam media are built and curated by us. The focus is the actual game feel.
+S1 - Voltswarm Steam page is now available to wishlist
+Opening: Voltswarm is a 3D voxel bullet-heaven built around movement, positioning, and auto-aim weapon builds.
+Proof: [large-swarm GIF] + three verified gameplay bullets.
+CTA: Wishlist Voltswarm. Follow for future development announcements.
 ```
-
-## Banco de contenido necesario
-
-### Baseline original: antes del 1 de agosto
-
-- [ ] 5-8 screenshots finales 1920x1080.
-- [ ] 3-5 GIFs/loops para About This Game.
-- [ ] 8-12 clips reutilizables para X.
-- [ ] 2 clips de level-up.
-- [ ] 2 clips de cofre.
-- [ ] 2 clips de tienda/Scrapper.
-- [ ] 2 clips de boss.
-- [ ] Post fijado de X con link Steam.
-- [ ] Steam announcement de pagina publicada.
-- [ ] Short description final.
-- [ ] About This Game final.
-- [ ] Tags/features revisados conservadoramente.
-- [ ] Requisitos de sistema medidos o conservadores.
-
-### Baseline original: antes del 10 de octubre
-
-- [ ] 2026-11-04 es stretch interno, no fecha confirmada; revalidar tras Audio Foundation y GO/NO-GO.
-- [ ] Asset para announcement de fecha.
-- [ ] Mejor clip estilo mini-trailer.
-- [ ] Launch discount decidido: 10% o 15%.
-- [ ] Copy de lanzamiento preparado.
-
-### Baseline original: antes del 1 de noviembre
-
-- [ ] Announcement Steam de lanzamiento redactado.
-- [ ] Post X de lanzamiento redactado.
-- [ ] Post Reddit opcional redactado.
-- [ ] 3 clips backup listos.
-- [ ] Build final/release candidate alineada con la pagina.
-
-## Calendario operativo (cronología histórica; ejecutar solo si los gates sostienen el stretch)
-
-### Baseline original - Semana 1 - 2026-08-01 a 2026-08-07 - Página publicada (no asumida hoy)
-
-Objetivo del baseline: abrir campaña de wishlist una vez aprobada la página y re-baselinado el calendario.
-
-Steam:
-
-- Publicar announcement: **Voltswarm is now on Steam**.
-- Preparar:
-  - mejor GIF de combate
-  - 2 screenshots
-  - pitch corto
-  - link Steam
-
-X:
-
-- Fijar post con link Steam.
-- Publicar 4 piezas:
-  1. Page live + mejor GIF.
-  2. Captura de enjambre.
-  3. Clip Bolt Cannon chaos.
-  4. GIF de cofre o level-up.
-
-Reddit:
-
-- Opcional 1 post solo si el clip es muy fuerte.
-- Titulo sugerido:
 
 ```text
-Working on a 3D voxel bullet-heaven where the screen becomes a robot factory storm
+S2 - From one upgrade to an industrial projectile storm
+Opening: A Voltswarm run starts readable and becomes dangerous by choice.
+Proof: Level-up decision -> visible combat consequence.
+CTA: Wishlist Voltswarm if you enjoy this kind of build escalation.
 ```
-
-No usar tono de venta agresivo.
-
-### Semana 2 - 2026-08-08 a 2026-08-14 - Fantasia principal
-
-Objetivo: explicar auto-aim + movimiento + build.
-
-Steam:
-
-- Sin announcement salvo que el post de apertura necesite refuerzo.
-
-X:
-
-- 3-4 posts:
-  - Bolt Cannon.
-  - Early run vs late run.
-  - Captura con muchos enemigos.
-  - Frase: no manual aiming, movement + build decisions.
-
-Contenido a preparar:
-
-- 1 clip temprano.
-- 1 clip tardio.
-- 1 still frame potente.
-
-### Semana 3 - 2026-08-15 a 2026-08-21 - Builds y level-up
-
-Objetivo: demostrar profundidad.
-
-Steam:
-
-- Announcement: **Building a projectile storm**.
-- Incluir:
-  - captura de level-up
-  - GIF eligiendo Projectile Quantity o Attack Speed
-  - explicacion simple de weapons/cores/mods
-
-X:
-
-- 4 posts:
-  - GIF level-up.
-  - Captura de paneles build/stats.
-  - Clip de upgrade impactando en combate.
-  - Pregunta: "Attack Speed or Projectile Quantity?"
-
-Reddit:
-
-- No usar salvo que el GIF de build funcione muy bien en X.
-
-### Semana 4 - 2026-08-22 a 2026-08-28 - Cofres y recompensa
-
-Objetivo: vender ceremonia de loot.
-
-Steam:
-
-- Sin announcement grande.
-
-X:
-
-- 3-4 posts:
-  - chest reveal GIF
-  - captura de reward tier alto
-  - explicacion corta de mods
-  - clip de combate despues de recompensa fuerte
-
-Preparar:
-
-- 1 GIF corto 5s.
-- 1 GIF largo 8-10s.
-
-### Semana 5 - 2026-08-29 a 2026-09-04 - The Scrapper / tienda
-
-Objetivo: mostrar economia in-run y personaje.
-
-Steam:
-
-- Announcement: **Meet the Scrapper**.
-- Incluir:
-  - screenshot tienda
-  - clip entrando/comprando
-  - explicacion de compras mid-run
-
-X:
-
-- 4 posts:
-  - tienda abierta
-  - entrada al Scrapper
-  - compra concreta
-  - post con flavor del personaje
-
-Reddit:
-
-- Opcional si el enfoque es diseno de tienda, no wishlist.
-
-### Semana 6 - 2026-09-05 a 2026-09-11 - Boss / portal
-
-Objetivo: mostrar picos de tension.
-
-Steam:
-
-- Announcement solo si el clip de boss es muy bueno.
-
-X:
-
-- 4 posts:
-  - portal/arrival
-  - boss fight
-  - screenshot con boss bar
-  - frase sobre romper el ritmo del swarm
-
-Preparar:
-
-- 1 clip boss legible.
-- 1 clip boss caotico.
-
-### Semana 7 - 2026-09-12 a 2026-09-18 - Identidad visual
-
-Objetivo: vender industrial toy aesthetic.
-
-Steam:
-
-- Announcement: **Making chaos readable**.
-- Incluir:
-  - screenshot con menos enemigos
-  - close-up de modelos voxel
-  - explicacion de siluetas/color/lectura
-
-X:
-
-- 3-4 posts:
-  - beauty shot
-  - close-up player/enemies
-  - clip swarm moviendose
-  - captura de props/fabrica
-
-Reddit:
-
-- Solo si se plantea como post tecnico de legibilidad visual.
-
-### Semana 8 - 2026-09-19 a 2026-09-25 - Recap de sistemas
-
-Objetivo: mostrar paquete completo.
-
-Steam:
-
-- Announcement: **What is already in Voltswarm?**
-- Bullets:
-  - auto-aim weapons
-  - level-up builds
-  - chests
-  - shop
-  - bosses
-  - voxel factory world
-
-X:
-
-- 1 thread corto de sistemas.
-- 2-3 GIFs reutilizando mejores clips.
-
-Preparar:
-
-- Imagen/thread con 4 sistemas: combat, level-up, chest, shop.
-
-### Semana 9 - 2026-09-26 a 2026-10-02 - Entrada a Autumn Sale
-
-Objetivo: mantenerse presente sin competir fuerte contra rebajas.
-
-Steam:
-
-- No announcement durante los primeros dias de sale.
-
-X:
-
-- 3 posts ligeros:
-  - mejor GIF combate
-  - captura fuerte
-  - wishlist reminder
-
-Reddit:
-
-- No usar.
-
-### Semana 10 - 2026-10-03 a 2026-10-09 - Steam Autumn Sale
-
-Objetivo: presencia baja, preparar fecha.
-
-Steam:
-
-- Opcional post corto despues del 8 de octubre: **Launching next month**.
-
-X:
-
-- Maximo 3 posts:
-  - launching next month
-  - boss screenshot
-  - wishlist CTA
-
-Preparar:
-
-- Announcement de fecha.
-- Post fijado nuevo para X.
-
-### Semana 11 - 2026-10-10 a 2026-10-16 - Anuncio de fecha
-
-Objetivo histórico: preparar una fecha de lanzamiento; el 4 de noviembre es stretch interno, no compromiso operativo/público.
-
-Steam:
-
-- Announcement: **Voltswarm launches November 4**.
-- Incluir:
-  - mejor clip corto
-  - fecha exacta
-  - wishlist CTA
-
-X:
-
-- Cambiar post fijado.
-- 5 posts:
-  1. Fecha + Steam link.
-  2. Combat clip.
-  3. Level-up clip.
-  4. Chest clip.
-  5. Boss clip.
-
-Reddit:
-
-- Opcional 1 post si las reglas lo permiten.
-- Enfoque: gameplay + fecha, no venta agresiva.
-
-### Semana 12 - 2026-10-17 a 2026-10-23 - Semana Next Fest sin demo
-
-Objetivo: no parecer ausentes, pero sin fingir participacion.
-
-Steam:
-
-- No announcement de Next Fest.
-- Si preguntan por demo: estrategia actual es full launch directo.
-
-X:
-
-- 4 posts:
-  - combat
-  - boss
-  - build
-  - shop
-
-Importante:
-
-- **Checkpoint stretch 2026-10-21:** la ventana de 14 días solo aplica si los gates mantienen el objetivo; no hay fecha pública bloqueada hoy.
-
-Preparar:
-
-- Launch week assets.
-- Launch discount.
-- Store copy final.
-
-### Semana 13 - 2026-10-24 a 2026-10-30 - Prueba final
-
-Objetivo: mostrar que el juego esta listo.
-
-Steam:
-
-- Announcement: **One week until launch**.
-- Incluir:
-  - clip mas fuerte
-  - feature bullet list
-  - launch discount si ya esta decidido
-
-X:
-
-- 5-6 posts:
-  - countdown
-  - battle GIF
-  - shop GIF
-  - chest GIF
-  - boss GIF
-  - screenshot thread
-
-Reddit:
-
-- No usar salvo oportunidad natural muy fuerte.
-
-Preparar:
-
-- Launch day announcement.
-- Launch day X post.
-- Reddit launch post opcional.
-- 3 clips backup.
-
-### Semana 14 - 2026-10-31 a 2026-11-03 - Countdown final
-
-Objetivo: convertir wishlists sin spamear.
-
-Steam:
-
-- Opcional announcement el 2026-11-02: **Launches this week**.
-
-X:
-
-- 2026-10-31: clip caotico si encaja con Halloween, sin forzarlo.
-- 2026-11-01: 3 dias.
-- 2026-11-02: 2 dias.
-- 2026-11-03: manana.
-
-Checklist:
-
-- [ ] Build final/release candidate listo.
-- [ ] Launch discount configurado.
-- [ ] Store page final.
-- [ ] Announcement preparado.
-- [ ] Steam link final.
-
-### Stretch target interno - lanzamiento propuesto miércoles 2026-11-04 (no confirmado públicamente)
-
-Objetivo: convertir wishlists en compras.
-
-Steam:
-
-- Publicar announcement: **Voltswarm is out now**.
-- Incluir:
-  - launch discount
-  - mejor GIF de combate
-  - 4-5 bullets de features
-  - link/play now
-
-X:
-
-- Fijar post de lanzamiento.
-- 3 posts:
-  1. Out now + Steam link.
-  2. Mejor combat GIF.
-  3. Thank-you post al final del dia.
-
-Reddit:
-
-- Opcional 1 post maximo.
-- Solo donde este permitido.
-- Titulo sugerido:
 
 ```text
-My 3D voxel bullet-heaven Voltswarm launched today after months of tuning projectile chaos
+S3 - Meet the Scrapper
+Opening: Not every important decision happens while firing.
+Proof: Trade -> change -> return to combat.
+CTA: Wishlist on Steam.
 ```
-
-## Templates Steam (históricos; actualizar si los gates fuerzan re-baseline)
-
-### Baseline original - Page live 2026-08-01 (pendiente de aprobación real y re-baseline)
-
-Titulo:
 
 ```text
-Voltswarm is now on Steam
+S4 - Keeping a 3D swarm readable
+Opening: More enemies only work if the next safe move stays visible.
+Proof: Problem -> verified change -> current swarm footage.
+CTA: Follow for updates; wishlist to play the finished run.
 ```
-
-Cuerpo:
 
 ```text
-Voltswarm is now live on Steam and available to wishlist.
-
-It is a 3D voxel bullet-heaven about surviving industrial robot swarms with auto-aim weapons, build choices, chests, shops, and boss fights.
-
-Wishlist on Steam: [LINK]
+S5 - Voltswarm - Gameplay Trailer
+Opening: Movement, builds, bosses, and one robot becoming an industrial projectile storm.
+CTA: Wishlist Voltswarm. [Coming to Steam / VERIFIED PUBLIC DATE]
 ```
-
-### Build systems - 2026-08-15
-
-Titulo:
 
 ```text
-Building a projectile storm
+S6 - Voltswarm launches in one week
+Opening: Voltswarm launches on [VERIFIED PUBLIC DATE].
+CTA: Wishlist now to receive Steam's release notification.
 ```
-
-Cuerpo:
 
 ```text
-In Voltswarm, you do not manually aim. Your job is movement, positioning, and build decisions.
-
-Level-ups let you stack weapons, cores, and mods until the screen turns into a controlled mess of bolts, orbs, blades, and explosions.
-
-Wishlist Voltswarm: [LINK]
+S7 - Voltswarm is out now
+Opening: The swarm is live. Voltswarm is now available on Steam.
+CTA: Play on Steam. [VERIFIED PRICE/DISCOUNT ONLY]
 ```
 
-### Release date - 2026-10-10
+---
 
-Titulo:
+## 6. Playbook de X
+
+### Estructura de cada post
+
+1. **Hook en una linea:** consecuencia visible, no descripcion generica.
+2. **Una sola idea:** boss, build, cofre o swarm; nunca el feature dump completo.
+3. **Visual nativo:** el payoff debe aparecer en el primer segundo o primer frame.
+4. **CTA:** ninguno/seguir en T0; wishlist con UTM en T1; "out now" solo el dia confirmado.
+5. **Respuesta:** durante los primeros 60-90 min, contestar preguntas reales y anotar lenguaje del publico.
+
+### Reglas operativas
+
+- Subir GIF/video directamente; no depender de que el enlace genere preview.
+- Mantener copy conciso y conversacional; usar hashtags solo si aportan descubrimiento, nunca una nube.
+- No poner el enlace en todas las piezas. Cadencia T1 sugerida: 2 posts prueba pura + 1 post con CTA por semana.
+- El post fijado si contiene el enlace UTM `x / organic / page_live|evergreen|release`.
+- No publicar el mismo asset con el mismo hook dentro de 30 dias. Reuso valido = nuevo aprendizaje, crop o framing.
+- Responder a jugadores y desarrolladores como personas, no convertir cada reply en un pitch.
+- Registrar cada publicacion antes de salir para no perder su `utm_content`.
+- No introducir el tema de IA en posts, replies o plantillas salvo que una regla lo exija o alguien pregunte. En ese caso, usar unicamente el disclosure publico canonico de la seccion 9.
+
+### Templates X (English)
+
+**T0 - gameplay proof**
 
 ```text
-Voltswarm launches November 4
+No manual aiming. Just movement, positioning, and a build that is getting wildly out of control.
+
+Voltswarm is a 3D voxel bullet-heaven in development.
 ```
 
-Cuerpo:
+**T1 - page live / pinned**
 
 ```text
-Voltswarm launches on November 4, 2026.
+Voltswarm is now available to wishlist on Steam.
 
-Wishlist now to get notified when it releases.
+Turn one robot into an industrial projectile storm through movement, auto-aim weapons, and build choices.
 
-Expect auto-aim weapons, chaotic voxel swarms, mid-run shops, chest rewards, and boss fights inside a dead industrial factory world.
+Wishlist: [VERIFIED UTM LINK]
 ```
 
-### Stretch target interno - Launch day 2026-11-04 (no confirmado públicamente)
-
-Titulo:
+**Swarm proof**
 
 ```text
-Voltswarm is out now
+The challenge is not putting hundreds of robots on screen.
+It is making the next safe move readable.
+
+Wishlist Voltswarm: [VERIFIED UTM LINK]
 ```
 
-Cuerpo:
+**Build conversation**
 
 ```text
-Voltswarm is out now on Steam.
+One upgrade slot. Two bad ideas in the best possible way:
 
-Turn a lone robot into a projectile storm: stack weapons, cores, and mods, survive industrial swarms, open chests, visit the Scrapper, and fight bosses.
-
-Play now: [LINK]
+Attack Speed or Projectile Quantity?
 ```
 
-## Templates X
-
-### Wishlist
+**Boss proof**
 
 ```text
-Voltswarm is now on Steam.
+A good boss entrance gives you just enough time to understand that the run has changed.
 
-A 3D voxel bullet-heaven where a lone robot turns industrial chaos into unstoppable firepower.
-
-Wishlist: [LINK]
+Voltswarm on Steam: [VERIFIED UTM LINK]
 ```
 
-### Combat clip
+**Date - locked behind gate**
 
 ```text
-This is what happens when Bolt Cannon meets Projectile Quantity + Attack Speed.
+Voltswarm launches on [VERIFIED PUBLIC DATE].
 
-Wishlist Voltswarm on Steam: [LINK]
+Wishlist on Steam and get notified at release: [VERIFIED UTM LINK]
 ```
 
-### Level-up
-
-```text
-No manual aiming.
-Just movement, positioning, and increasingly irresponsible build choices.
-
-Wishlist Voltswarm: [LINK]
-```
-
-### Chest
-
-```text
-The correct amount of loot ceremony is: more.
-
-Wishlist Voltswarm on Steam: [LINK]
-```
-
-### Release date
-
-```text
-Voltswarm launches November 4, 2026.
-
-Wishlist now and get ready for voxel robot chaos: [LINK]
-```
-
-### Launch day
+**Launch - confirmed only**
 
 ```text
 Voltswarm is OUT NOW on Steam.
 
-Survive the swarm. Stack the build. Become the projectile storm.
+Survive the swarm. Shape the build. Become the projectile storm.
 
-Play now: [LINK]
+Play now: [VERIFIED UTM LINK]
 ```
 
-## Politica Reddit
+---
 
-Usar Reddit solo cuando el post tenga valor incluso sin link de Steam.
+## 7. Playbook de Reddit: comunidad antes que distribucion
 
-Buenos angulos:
+Reddit no es un replicador de X. El objetivo es encontrar **una comunidad donde la pieza aporte valor por si misma**. No hay lista permanente de subreddits "seguros": reglas, flairs y megathreads cambian.
 
-- clip de gameplay muy fuerte
-- leccion de diseno sobre legibilidad en bullet-heavens
-- before/after de VFX
-- devlog corto sobre hacer caos legible
+### Shortlist priorizada (verificada 19-07-2026)
 
-Evitar:
+La prioridad se basa en **afinidad de jugadores + camino permitido a una promocion honesta**, no en volumen bruto. Ninguna comunidad garantiza wishlists. **Todas las filas requieren volver a leer reglas, wiki, fijados y flairs el mismo dia de publicar**; si difieren de esta captura, mandan las reglas nuevas.
 
-- tono de venta directa
-- reposts repetidos
-- framing de IA
-- discutir sobre IA
-- publicar donde las reglas sean ambiguas
+| Rango | Comunidad | Por que encaja | Camino permitido y caveats actuales | Veredicto |
+| ---: | --- | --- | --- | --- |
+| A1 | `r/survivorslikes` | Publico exacto: survivor-likes, horde survival y bullet-heavens. | Acepta gameplay, capturas, ventas y actualizaciones; tambien auto-shooters/wave survival. La unica frecuencia escrita es no publicar varias veces al dia, pero el plan impone **maximo 1 aparicion cada 4 semanas** para no contribuir a la fatiga promocional. Usar contenido SFW, flair correcto y disclosure de desarrollador. Puede llevar Steam UTM solo desde T1. | **Prioridad A.** Primera prueba de trafico cualificado. |
+| A2 | `r/roguelites` | Jugadores del genero cercano; Voltswarm encaja solo si el post explica honestamente su estructura roguelite/survivor-like. | La regla visible adopta moderacion abierta y solo veta sitewide spam/NSFW, pero hay quejas recientes de usuarios por saturacion de autopromocion. Publicar **solo un hito fuerte cada 6-8 semanas**, nunca una micro-actualizacion; disclosure, clip autocontenido y participacion previa. Link Steam: `VERIFY BEFORE POSTING` con reglas/fijados del dia. | **Prioridad A condicionada.** Alta afinidad, alto riesgo de rechazo comunitario. |
+| Condicionada | `r/IndieGaming` | Audiencia de jugadores indie; en abstracto admite devlogs, GIFs, screenshots y trailers originales. | Cuenta de al menos 1 semana con historial real; **1 submission cada 2 semanas** y no repetir contenido. Su regla exige declarar GenAI usado en cualquier aspecto del desarrollo o promocion. Si el post no muestra la Steam cover y el rules check del dia confirma que el disclosure es suficiente, incluir el texto canonico exacto. Si el post, enlace o preview puede mostrar la cover, queda bloqueado hasta permiso escrito de moderacion solicitado con ese mismo texto. | **Prioridad B condicionada.** Fuera de la rotacion base hasta resolver el check concreto. |
+| Bloqueado | `r/indiegames` | Comunidad orientada a jugadores y descubrimiento, con prohibicion de posts GenAI y reglas contra feedback promocional disfrazado. | Aplicar el disclosure canonico exacto de la seccion 9. Como un enlace a Steam o su preview puede mostrar la cover, no publicar ni asumir una excepcion: solo reconsiderar tras **aprobacion escrita explicita de moderacion**, usando en modmail ese mismo texto exacto. | **Bloqueado salvo permiso escrito.** Fuera de la rotacion activa. |
+| B1 | `r/BulletHeavens` | Encaje semantico exacto, pero comunidad mucho menor; sirve para lenguaje y feedback de conocedores. | La pagina visible no mostraba reglas comunitarias propias el 19-07 y mostraba la senal de moderacion/app **`Stop AI`**. Aunque aparecen promociones con Steam, eso **no equivale a permiso**. Si el post, enlace o preview puede mostrar la Steam cover, pedir permiso a moderacion y usar unicamente el disclosure canonico exacto en el modmail. No publicar hasta respuesta escrita favorable ni duplicar la pieza de `r/survivorslikes`. | **Prioridad B bloqueada hasta permiso.** No presentarlo como canal permitido. |
+| B2 | `r/IndieDev` | Util para aprendizajes de produccion, legibilidad y postmortems. | La propia guia dice que es una sala de pares, no la audiencia objetivo; GIFs/imagenes funcionan mejor y Steam/Kickstarter/YouTube reciben poca atencion. No hay limite general estricto visible; capsulas comparativas solo los miercoles. Sin CTA de wishlist: aportar una conclusion tecnica real. | **Prioridad B.** Confianza/feedback, efecto wishlist indirecto. |
+| B3 | `r/gamedevscreens` | Adecuado para una captura o GIF visual fuerte y conversacion entre devs. | No habia reglas comunitarias visibles en la pagina publica consultada. `VERIFY BEFORE POSTING`; no asumir que un feed lleno de showcases autoriza link Steam, frecuencia o CTA. Usar asset visual distinto y sin venta agresiva. | **Prioridad B.** Awareness entre pares; no canal de conversion principal. |
+| - | `r/playmygame` | La comunidad exige jugar, no solo wishlist. | El juego debe ser jugable gratis **ahora** mediante build/demo, o sortear al menos 10 keys; tambien exige enlace directo y limita a 1 post/mes. Los anuncios de juegos completos de pago solo se aceptan en `Trailer Tuesday`. Voltswarm mantiene estrategia sin demo. | **Evitar pre-lanzamiento.** Reevaluar el martes posterior al lanzamiento solo si el juego completo cumple la regla vigente. |
+| - | `r/gamedev` | Gran comunidad, pero de profesionales/desarrolladores, no compradores objetivo. | Prohibe showcases y autopromocion directa; un link solo vale dentro de feedback, postmortem, analytics o aprendizaje sustantivo. Un CTA de wishlist o trailer promocional viola el proposito. | **Evitar para adquisicion directa.** Solo postmortem futuro con datos y aprendizaje reales. |
 
-Si el post se vuelve hostil, no debatir. Una respuesta educada o silencio.
+**Decision operativa:** empezar por `r/survivorslikes`; el unico segundo candidato activo es `r/roguelites`, de forma condicionada y con baja frecuencia. `r/IndieGaming` queda fuera de la rotacion base hasta resolver su check concreto y pasa a bloqueado si la cover puede aparecer sin permiso escrito. `r/indiegames` no se desbloquea por suposicion y `r/BulletHeavens` tampoco se presenta como canal permitido: ambos requieren el control indicado en su fila. Toda consulta a moderacion usa el disclosure canonico exacto, sin ampliaciones. El resto no justifica sacrificar desarrollo por alcance teorico.
 
-## Checklist final (stretch interno; re-baselinar si fallan gates)
+### Rotacion Reddit inicial
 
-### Para 2026-10-10
+Maximo **1 post total por semana y 2 promociones directas en cualquier ventana movil de 30 dias** entre todas las comunidades. Los huecos no promocionales se usan para 2-3 comentarios utiles; no se rellenan por obligacion. Cada fila usa asset, titular y tesis distintos: **cero cross-post del mismo material/copy**. Una pieza de reserva **reemplaza** un slot promocional programado; nunca se suma como un tercer post dentro de la ventana de 30 dias.
 
-- [ ] Announcement de fecha listo.
-- [ ] X pinned post de fecha listo.
-- [ ] Screenshots finales elegidos.
-- [ ] GIFs/loops finales elegidos.
-- [ ] Launch discount decidido.
+| Ciclo | Comunidad | Pieza exclusiva | Angulo | CTA / enlace |
+| --- | --- | --- | --- | --- |
+| 1 - primeras 72 h tras T1 | `r/survivorslikes` | GIF 08, gran enjambre | Presentacion directa: auto-aim, movimiento y build en un survivor-like 3D; developer disclosure claro. | Steam UTM en el cuerpo solo si el rules check del dia lo permite. |
+| 2 - 10-14 dias despues | Sin post promocional | Ningun asset | Participacion util mientras madura el historial de cuenta y se prepara el siguiente hito distinto. | Sin enlace propio. |
+| 3 - semana sin promocion | Sin post propio | Ningun asset | Comentar con sustancia en conversaciones de build readability, bosses o survivor-likes. | Sin link propio salvo peticion genuina y regla compatible. |
+| 4 - siguiente mes | `r/roguelites` | GIF 06, Scrapper | Como la decision de gastar/reciclar cambia el ritmo de una run; hito, no micro-devlog. | Steam solo si `VERIFY BEFORE POSTING` queda resuelto; si no, post autocontenido sin CTA. |
+| 5 - 6-8 semanas tras el primer A | Sin post promocional por defecto | Ningun asset | Reservar capacidad para el trailer o un hito real; no sustituir falta de permiso con otra comunidad al azar. | Sin enlace propio. |
+| Reserva cualitativa, bloqueada | `r/BulletHeavens` | GIF 04, XP vacuum | Satisfaccion del pickup y lectura con horda; no reutilizar el swarm de A1. | Solo reemplaza un slot existente tras permiso escrito si la cover puede aparecer; modmail con el disclosure canonico exacto por la senal `Stop AI`. |
 
-### Para 2026-10-21
+No publicar el anuncio de pagina, el trailer ni el lanzamiento en varias comunidades a la vez. Para el trailer de octubre se elige **una sola** comunidad activa usando los resultados UTM y la recepcion acumulada; la pieza de lanzamiento va a otra solo si sus reglas lo permiten, el asset/copy son realmente distintos y reemplaza —no anade— un slot de la ventana movil. Sin demo se mantiene fuera `r/playmygame`; fecha y co-op siguen bloqueados por sus gates.
 
-- [ ] Fecha bloqueada.
-- [ ] Store page final.
-- [ ] Release build review claro.
-- [ ] Nada de cambios arriesgados en fecha.
+### Checklist obligatorio por post
 
-### Para 2026-11-01
+Guardar una fila por subreddit y publicacion:
 
-- [ ] Launch announcement redactado.
-- [ ] Post X de lanzamiento redactado.
-- [ ] Reddit opcional redactado.
-- [ ] 3 clips backup listos.
-- [ ] Steam link final.
+- [ ] Lei hoy las reglas, wiki, post fijado y flairs desde la interfaz del subreddit.
+- [ ] La autopromocion esta permitida en este formato/dia/megathread.
+- [ ] Revise la politica GenAI vigente y confirme si alcanza la Steam cover, enlaces o previews que puedan mostrarla.
+- [ ] Complete el control `canonical_ai_disclosure_match = yes/no` y confirme si `steam_cover_ai_visible = yes/no` en el asset, enlace o preview enviado.
+- [ ] Si la comunidad prohibe GenAI o su regla es ambigua y la Steam cover puede aparecer, obtuve aprobacion escrita explicita despues de enviar solo el disclosure canonico exacto; sin respuesta o con respuesta ambigua, el subreddit sigue bloqueado.
+- [ ] Mi historial reciente muestra participacion real, no solo enlaces propios.
+- [ ] El titulo declara el contexto de desarrollador; no disfraza promocion como feedback.
+- [ ] Si pido feedback, existe una decision concreta abierta y explicare despues que cambio.
+- [ ] El contenido aporta valor sin abrir Steam.
+- [ ] No publique esta pieza en otro subreddit ni voy a cross-postearla en cadena.
+- [ ] El enlace esta permitido; si no, queda fuera del post y no se fuerza en comentarios.
+- [ ] Elegi flair correcto y elimine lenguaje de venta que incumpla la norma local.
+- [ ] Puedo quedarme 60-90 min para responder con sustancia.
+- [ ] Registre URL de reglas, fecha/hora y captura/nota de evidencia.
 
-### Stretch interno: para 2026-11-04 (re-baselinar si fallan gates)
+**Si alguna respuesta es "no" o ambigua: no publicar; preguntar a moderacion o usar otro formato.**
 
-- [ ] Publicar announcement Steam.
-- [ ] Fijar post X de lanzamiento.
-- [ ] Monitorizar comunidad/foros Steam.
-- [ ] Separar issues tecnicos de respuestas de marketing.
+### Flujo operativo
+
+1. Lunes: seleccionar una conversacion o aprendizaje de la semana, no "el clip que toca distribuir".
+2. Martes: comprobar reglas de un subreddit candidato.
+3. Miercoles/jueves: publicar solo alli; nunca copiar el mismo titulo/cuerpo en varios sitios.
+4. Primeras 24 h: responder, agradecer criticas y no discutir votos/moderacion.
+5. A +72 h: lectura preliminar. Cerrar cohorte 24 h a +120 h y/o cohorte 72 h a +168 h. Retirar antes solo por rechazo, remocion o incumplimiento.
+
+### Nota especifica sobre r/indiegames
+
+La aclaracion enlazada por moderacion distingue autopromocion honesta de posts promocionales disfrazados de peticion de feedback, pero **no anula su prohibicion GenAI**. Aplicar el disclosure canonico exacto de la seccion 9. Como un enlace o preview puede mostrar la cover, `r/indiegames` permanece bloqueado salvo aprobacion escrita explicita de moderacion; el modmail debe incluir ese mismo texto exacto y nada mas. Incluso con permiso, no titular "Which one do you prefer?" si la decision ya esta cerrada o si el proposito real es pegar el enlace.
+
+### Templates Reddit (English; adaptar a las reglas reales)
+
+**Technical/value post - no link required**
+
+```text
+Title: What helped us keep a 3D bullet-heaven readable when the swarm gets dense
+
+We found that enemy count was not the main readability problem. The harder problem was preserving a clear silhouette for the player, threats, and safe movement while weapons covered the arena.
+
+This clip shows the current result. The next thing we are evaluating is whether the boss telegraph stays readable once the build becomes this dense.
+
+I am the developer of Voltswarm. I am happy to explain the approach or hear where the visual hierarchy breaks for you.
+```
+
+**Honest promotion - only where explicitly allowed**
+
+```text
+Title: I am making Voltswarm, a 3D voxel bullet-heaven about turning one robot into a projectile storm
+
+This is a short clip from a late run. The game uses auto-aim weapons, so the player's decisions are movement, positioning, and how the build develops.
+
+The Steam page is live here if you want to follow it: [VERIFIED SUBREDDIT-SPECIFIC UTM LINK]
+
+Disclosure: I am the developer. Feedback is welcome, but this is a promotion post rather than a disguised feedback request.
+```
+
+**Launch - one allowed community maximum**
+
+```text
+Title: Voltswarm, a 3D voxel bullet-heaven, is out now on Steam
+
+Voltswarm has launched with auto-aim combat, build choices, chest rewards, shops, and boss fights.
+
+Here is a short gameplay clip showing the current game. Steam: [VERIFIED SUBREDDIT-SPECIFIC UTM LINK]
+
+Disclosure: I am the developer, and this is a launch promotion post posted under this community's current rules.
+```
+
+No afirmar "our", "solo developer", duracion de desarrollo u otra biografia si no se ha verificado para la publicacion concreta.
+
+---
+
+## 8. UTM y hoja de medicion
+
+### Taxonomia
+
+Usar minusculas ASCII, guiones bajos, sin datos personales y sin cambiar nombres a mitad de campana.
+
+| Parametro | Valores | Ejemplo |
+| --- | --- | --- |
+| `utm_source` | `x`, `reddit` | `reddit` |
+| `utm_medium` | `organic_social`, `community` | `community` |
+| `utm_campaign` | `coming_soon_2026`, `date_announce_2026`, `launch_2026` | `coming_soon_2026` |
+| `utm_content` | `{yyyymmdd}_{pillar}_{format}_{variant}` | `20260817_build_gif_a` |
+
+Ejemplo estructural, **no URL real**:
+
+```text
+[VERIFIED STEAM APP URL]?utm_source=x&utm_medium=organic_social&utm_campaign=coming_soon_2026&utm_content=20260720_swarm_gif_a
+```
+
+Para Reddit, un `utm_content` distinto por subreddit; nunca usarlo como excusa para cross-postear.
+
+### Campos minimos de la hoja
+
+| Bloque | Campos |
+| --- | --- |
+| Identidad | `post_id`, `published_at_utc`, `owner`, `platform`, `subreddit`, `post_url` |
+| Contenido | `week`, `pillar`, `format`, `asset_file`, `hook`, `cta`, `claim_gate`, `variant` |
+| Compliance | `page_status`, `rules_url`, `rules_checked_at`, `flair`, `developer_disclosure`, `canonical_ai_disclosure_match`, `steam_cover_ai_visible`, `moderator_approval_ref`, `moderation_status` |
+| UTM | `base_url_verified`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `final_url` |
+| +24 h | Preliminar: social reach/engagement y primeras 24 h de visitas Steam, sin decision de conversion. |
+| +72 h | Preliminar: primeras 72 h de visitas; todavia contiene dias sin finalizar. |
+| +120 h | **Cohorte cerrada 24 h:** visitas ocurridas en [0,24 h), evaluadas 96 h despues de cerrar esa cohorte. |
+| +168 h | **Cohorte cerrada 72 h:** visitas ocurridas en [0,72 h), evaluadas 96 h despues de cerrar esa cohorte. |
+| Resultado | `utm_wishlist_cvr` por cohorte cerrada, rolling median comparable, horas, decision y aprendizaje. |
+| Control | `W_actual` con su `as_of_date_pt`, `W_target`, `gap`, `R`, `D`, `required_daily`, `required_weekly` |
+
+### Bucle preliminar y cohortes cerradas
+
+**A +24 h y +72 h (preliminar)**
+
+- Verificar post/enlace, evaluar hook y responder.
+- Importar alcance, visitas y conversiones solo como lectura provisional.
+- No declarar ganador, calcular medianas ni decidir por conversion.
+
+**A +120 h: cohorte cerrada de primeras 24 h**
+
+- Filtrar visitas cuyo timestamp cae entre publicacion y +24 h.
+- Como cada dia de visita tuvo 96 h para finalizar, calcular `c`, `t` y resultado de esa cohorte.
+- Comparar solo con otras cohortes cerradas de 24 h del mismo canal/formato.
+
+**A +168 h: cohorte cerrada de primeras 72 h**
+
+- Filtrar visitas entre publicacion y +72 h.
+- Calcular `c`, `t` y resultado tras 96 h adicionales.
+- Comparar solo con cohortes cerradas de 72 h. Nunca mezclar mediana 24 h con resultado 72 h.
+- Separar problema de alcance de problema de conversion y elegir `double_down`, `iterate`, `hold` o `kill_format`.
+
+**Viernes semanal**
+
+- Capturar el ultimo dia cerrado de Wishlist Reporting y guardar `as_of_date_pt`.
+- Recalcular `R/D`.
+- Elegir un unico experimento; las decisiones de conversion esperan a la cohorte cerrada correspondiente.
+
+### Umbrales de decision
+
+**Bootstrap:** hasta tener 6 cohortes cerradas y comparables del mismo ancho (24 h o 72 h), no existe mediana estable. El default es `hold`/`iterate`. Solo hay stop inmediato por compliance, remocion o rechazo claro.
+
+| Decision | Umbral con cohorte finalizada comparable | Siguiente accion |
+| --- | --- | --- |
+| Double down | >=1,5x mediana de Trusted Visits o >=1,25x mediana de CVR con >=20 Tracked Visits; sin senal negativa | 2 variaciones en 14 dias, mismo principio y assets distintos. |
+| Iterar | 0,75-1,49x mediana, o buen debate pero CTA debil | Cambiar una variable y probar una vez. |
+| Hold | <20 Tracked Visits o muestra insuficiente | Acumular 3 cohortes comparables antes de concluir. |
+| Kill format | Baseline de 6 cohortes y 3 pruebas adicionales: <0,5x mediana y sin comentarios utiles/wishlists atribuibles | Retirar formato 30 dias; conservar pilar. |
+| Stop inmediato | Regla incumplida, moderacion negativa, claim no verificado o rechazo claro | Corregir/retirar y no repostear. |
+
+No "matar Reddit" o "matar X" por una publicacion. Se mata un formato/hook despues de evidencia comparable.
+
+---
+
+## 9. Gates de claims publicos
+
+### Disclosure publico canonico sobre IA
+
+La unica redaccion publica autorizada es, verbatim:
+
+> The game does not contain AI-generated content. AI-generated content is used just for Steam cover.
+
+- No parafrasear, resumir ni ampliar esta redaccion en X, Reddit, Steam Events/Announcements, modmail, respuestas de prensa, templates, campos de compliance o comentarios.
+- X y Steam no introducen el tema salvo que una regla lo exija o alguien pregunte; si ocurre, se responde solo con el texto exacto anterior.
+- En Reddit, registrar si la Steam cover aparece en el asset, enlace o preview. Una prohibicion GenAI o una regla ambigua mantiene el canal bloqueado cuando la cover pueda aparecer, salvo permiso escrito de moderacion solicitado con el texto exacto anterior.
+- **Change-control unico:** si cambia el disclosure, actualizar primero la pagina de Steam o publicarla en la misma release coordinada; despues actualizar juntos este plan, las evaluaciones de Reddit, todos los templates y las respuestas outbound. Hasta entonces gobierna exclusivamente el texto anterior.
+
+### Gate de fecha de lanzamiento
+
+La fecha solo pasa de interna a publica cuando **todas** las casillas estan confirmadas por sus responsables:
+
+- [ ] Publisher confirma Coming Soon publica y el timestamp de release que se comunicara.
+- [ ] Product owner confirma scope congelado.
+- [ ] La build candidata ha superado la revision de Valve y figura aprobada para release.
+- [ ] Store page/build changes necesarios estan publicados y aprobados; QA confirma cero bloqueantes.
+- [ ] Steamworks Release Checklist esta **completado**, no solo preparado.
+- [ ] La cuenta que activara tiene `Publish app changes to Steam` y `Manage pricing and discounts`.
+- [ ] Precio, package y territorios de venta estan configurados y verificados; descuento solo si fue aprobado.
+- [ ] Publisher realizo un dry-run documentado de los controles `Release App`/activacion sin ejecutar el release.
+- [ ] La fecha respeta el minimo de dos semanas de Coming Soon.
+- [ ] Store page, Steam Events, X, Reddit y documentos se actualizan coordinadamente.
+
+Hasta entonces usar `Coming to Steam` solo despues de T1, sin dia concreto.
+
+### Gate multiplayer/co-op
+
+No usar "multiplayer", "co-op", "2 player", "Remote Play Together", "online co-op", sus tags o iconografia hasta cumplir:
+
+1. GO documentado en `docs/MULTIPLAYER_FEASIBILITY.md`.
+2. Modo exacto implementado de extremo a extremo; no basta infraestructura o menu.
+3. Test funcional repetible con exactamente la configuracion que se anunciara.
+4. Rendimiento y estabilidad validados bajo los objetivos del proyecto, incluido el enjambre.
+5. UX de entrada/salida, controles, pausa y fallos cubierta.
+6. Store copy/tags aprobados por product owner y publisher con wording exacto.
+7. Assets capturados del build verificado; no mockups.
+
+Un GO arquitectonico por si solo NO autoriza marketing. Si solo queda validado local 2P, se anuncia unicamente local 2P; no se extrapola a online o 4 jugadores.
+
+---
+
+## 10. Contingencias
+
+| Evento | Respuesta publica | Respuesta operativa |
+| --- | --- | --- |
+| Aprobacion Steam se retrasa | Seguir mostrando desarrollo; no decir que la pagina esta live ni pedir wishlist. | Mantener T0, preparar assets y comunidad; al T1 recalcular `D`, `R/D` y checkpoints. |
+| T1 posterior al 31-07 | No esconder el retraso si ya se comunico la meta de pagina; hablar solo de estado confirmado. | Elevar ritmo requerido en la hoja, no frecuencia ciega; revisar fecha interna si el runway y gates ya no son creibles. |
+| Feedback de Valve | No especular sobre causa/plazo. | Publisher responde; campana T1 espera nueva aprobacion/publicacion. |
+| Gate multiplayer = NO-GO | No anunciar, etiquetar ni insinuar co-op. | Lanzar/marketear solo features verificadas; retirar toda plantilla provisional de co-op. Revalidar fecha/scope. |
+| Co-op no llega a calidad | Igual que NO-GO: no prometer "coming later" sin decision nueva. | Sacarlo del scope/claims; priorizar RC y single-player probado. |
+| Fecha no supera gate | Sin countdown ni "November 4". | Re-baselinar calendario, UTM campaign y copy; publicar fecha solo cuando sea defendible. |
+| Wishlists van bajo ritmo | No spamear ni comprar engagement. | Auditar store conversion, duplicar formatos ganadores, mejorar primer segundo y concentrar Reddit en valor. |
+| Formato ganador agota asset | No repetir identico. | Derivar crop/subtitulo o capturar nueva prueba solo despues de una mejora real. |
+
+---
+
+## 11. Inventario de assets y rotacion
+
+El paquete final v1 contiene 9 screenshots y 9 GIFs revisados. Fuente de verdad: `art/steam/STEAM-MEDIA-MANIFEST.md`.
+
+| Momento | GIF | Screenshot | Uso recomendado |
+| --- | --- | --- | --- |
+| Chest reward | `steam-gif-01-chest-open-reward.gif`, `steam-gif-07-green-chest-reward.gif` | `steam-shot-01-chest-reward.png` | recompensa, rareza, ceremony |
+| Level-up/build | `steam-gif-02-level-up-draft.gif` | `steam-shot-07-level-up-draft.png` | decision de build, encuesta genuina |
+| Boss fight | `steam-gif-03-boss-fight.gif` | `steam-shot-05-crusher-king-fight.png` | tension y combate legible |
+| XP vacuum | `steam-gif-04-chest-xp-vacuum.gif` | `steam-shot-02-chest-xp-vacuum.png` | feedback y progreso |
+| Surrounded combat | `steam-gif-05-epic-surrounded.gif` | `steam-shot-06-advanced-surrounded.png` | caos controlado |
+| Scrapper | `steam-gif-06-scrapper-shop.gif` | `steam-shot-04-scrapper-shop-open.png` | economia y ritmo de run |
+| Large swarm | `steam-gif-08-large-swarm.gif` | `steam-shot-08-large-swarm.png` | pieza hero reservada para T1/pinned test; T0 usa GIF 05 |
+| Boss spawn | `steam-gif-09-crusher-king-spawn.gif` | `steam-shot-03-boss-title-spawn.png`, `steam-shot-09-crusher-king-title.png` | telegraph y presentacion |
+
+Reglas:
+
+- Mantener nombres/rutas; no editar masters para un post.
+- Crear derivados en carpeta de campana solo si hace falta subtitulo/crop y registrar el asset fuente.
+- No presentar screenshots como multiplayer ni como contenido futuro.
+- Reservar GIF 08, GIF 09 y el ganador medido para T1, fecha y lanzamiento respectivamente; la eleccion final depende de datos, no preferencias.
+
+---
+
+## 12. Que esta verificado y que es interno
+
+### Hechos de plataforma verificados
+
+- Valve indica que una Coming Soon permite crear audiencia y wishlists; para productos nuevos debe estar publica al menos dos semanas antes del lanzamiento.
+- La pagina requiere revision/aprobacion y, despues, la accion de publicarla como Coming Soon.
+- Steam Events & Announcements puede aparecer en la store page del producto, Community Hub, Library y feeds segun categoria/contexto; los seguidores reciben eventos en Activity Feed y News Hub.
+- La store page presenta como maximo dos eventos recientes; Valve recomienda mantener uno o, como maximo, dos eventos Library homepage-visible y ocultar teasers sustituidos.
+- Events Stats cuenta usuarios unicos logueados, impressions y reads por primera ubicacion, con actualizacion aproximada cada hora.
+- Event Cover es obligatorio a 800 x 450 px; Event Header es recomendado a 1920 x 622 px; las imagenes del cuerpo aparecen hasta 800 px de ancho.
+- Steam UTM Analytics acepta parametros `utm_source`, `utm_campaign`, `utm_medium` y `utm_content`, distingue Total/Trusted/Tracked Visits, cuenta conversiones de usuarios tracked dentro de 72 horas y finaliza el dato 4 dias despues de la visita.
+- X recomienda copy conciso, CTA claro, evitar hashtags excesivos y usar media para destacar.
+- Reddit considera spam las acciones repetidas/no solicitadas y cada comunidad puede aplicar reglas adicionales.
+- La aclaracion de r/indiegames rechaza la autopromocion disfrazada de feedback; no sustituye comprobar sus reglas vigentes.
+
+### Objetivos, decisiones o supuestos internos
+
+- `W_final >= 1.000` en el ultimo dia cerrado de Wishlist Reporting anterior al release, guardando `as_of_date_pt`; objetivo interno, no garantia. `release_activated_at_utc` se registra aparte.
+- 04-11-2026: stretch target interno condicionado, no fecha publica.
+- T1 durante la semana del 20-07: expectativa, no confirmacion de Valve.
+- Sin demo/Next Fest: estrategia actual del proyecto, no requisito de plataforma.
+- Cadencia, thresholds y forecast: marco operativo que se ajustara con datos reales.
+- Multiplayer/co-op: sujeto a GO/NO-GO e implementacion; hoy no es un claim publico autorizado.
+- Disclosure publico de IA vigente: `The game does not contain AI-generated content. AI-generated content is used just for Steam cover.` No existe otra redaccion autorizada en este plan.
 
 ## Referencias
 
-- Steamworks Upcoming Events: https://partner.steamgames.com/doc/marketing/upcoming_events
-- Steam Next Fest October 2026: https://partner.steamgames.com/doc/marketing/upcoming_events/nextfest/2026october
-- Steam Discounting / Launch Discount: https://partner.steamgames.com/doc/marketing/discounts
-- Steam Release Options: https://partner.steamgames.com/doc/store/types
+- [Steamworks - Coming Soon](https://partner.steamgames.com/doc/store/coming_soon)
+- [Steamworks - Wishlist Reporting](https://partner.steamgames.com/doc/marketing/wishlist/reporting)
+- [Steamworks - Release Process](https://partner.steamgames.com/doc/store/releasing)
+- [Steamworks - Events and Announcements Tools](https://partner.steamgames.com/doc/marketing/event_tools)
+- [Steamworks - Events and Announcements Visibility](https://partner.steamgames.com/doc/marketing/event_tools/visibility)
+- [Steamworks - Events and Announcements Stats](https://partner.steamgames.com/doc/marketing/event_tools/stats)
+- [Steamworks - Followers](https://partner.steamgames.com/doc/marketing/followers)
+- [Steamworks - Visibility on Steam](https://partner.steamgames.com/doc/marketing/visibility)
+- [Steamworks - Event Graphical Assets](https://partner.steamgames.com/doc/store/assets/eventassets)
+- [Steamworks - UTM Analytics](https://partner.steamgames.com/doc/marketing/utm_analytics)
+- [X Business - Organic best practices](https://business.x.com/en/basics/organic-best-practices)
+- [Reddit Help - Spam](https://support.reddithelp.com/hc/en-us/articles/360043504051/Spam)
+- [r/indiegames - clarification on developer self-promotion disguised as feedback](https://www.reddit.com/r/indiegames/comments/1esd7yf/new_rule_no_more_developer_self_promotion_posts/)
+- [r/indiegames - reglas actuales](https://www.reddit.com/r/indiegames/)
+- [r/IndieGaming - reglas actuales](https://www.reddit.com/r/IndieGaming/)
+- [r/survivorslikes - reglas actuales](https://www.reddit.com/r/survivorslikes/)
+- [r/roguelites - reglas y descripcion actuales](https://www.reddit.com/r/roguelites/)
+- [r/roguelites - debate reciente sobre saturacion promocional](https://www.reddit.com/r/roguelites/comments/1uxzl27/sub_is_degenerating_into_roguelike_dev/)
+- [r/BulletHeavens - pagina actual; sin reglas comunitarias visibles en la verificacion](https://www.reddit.com/r/BulletHeavens/)
+- [r/IndieDev - reglas y guia actuales](https://www.reddit.com/r/IndieDev/)
+- [r/gamedevscreens - pagina actual; sin reglas comunitarias visibles en la verificacion](https://www.reddit.com/r/gamedevscreens/)
+- [r/playmygame - reglas actuales](https://www.reddit.com/r/playmygame/)
+- [r/gamedev - reglas actuales](https://www.reddit.com/r/gamedev/)
+- `docs/ROADMAP_STEAM.md` - orden, fecha interna y estado operativo.
+- `docs/MULTIPLAYER_FEASIBILITY.md` - gate GO/NO-GO y alcance.
+- `art/steam/STEAM-MEDIA-MANIFEST.md` - inventario final de assets.

@@ -547,6 +547,9 @@ export class Hud {
       for (const id of Object.keys(WEAPON_INFO) as WeaponId[]) this.unlock('weapon', id);
       for (const id of Object.keys(CORE_TITLES)) this.unlock('core', id);
       for (const id of MOD_IDS) this.unlock('mod', id);
+      // Also open every socket slot (dev testing; contracts drive these later).
+      ACCOUNT.weaponSockets = ACCOUNT.maxWeaponSockets;
+      ACCOUNT.coreSockets = ACCOUNT.maxCoreSockets;
       this.renderUnlocks();
     });
     mustGet('exit-button').addEventListener('click', () => {
@@ -725,6 +728,50 @@ export class Hud {
         col.appendChild(row);
       }
       columns.appendChild(col);
+    }
+
+    // Sockets column (dev: locked slots the "Unlock everything" button opens;
+    // contracts will drive these later — this UI is a testing stand-in).
+    const socketCol = document.createElement('div');
+    socketCol.className = 'unlocks-column';
+    const socketDefs: { label: string; index: number; kind: 'weapon' | 'core' }[] = [
+      ...Array.from({ length: ACCOUNT.maxWeaponSockets }, (_, i) => ({ label: `Weapon Socket ${i + 1}`, index: i + 1, kind: 'weapon' as const })),
+      ...Array.from({ length: ACCOUNT.maxCoreSockets }, (_, i) => ({ label: `Core Socket ${i + 1}`, index: i + 1, kind: 'core' as const })),
+    ];
+    const socketOpen = (s: { index: number; kind: 'weapon' | 'core' }): boolean =>
+      s.index <= (s.kind === 'weapon' ? ACCOUNT.weaponSockets : ACCOUNT.coreSockets);
+    const socketsUnlocked = socketDefs.filter(socketOpen).length;
+    const socketHead = document.createElement('div');
+    socketHead.className = 'unlocks-column-head';
+    socketHead.textContent = `Sockets (${socketsUnlocked}/${socketDefs.length})`;
+    socketCol.appendChild(socketHead);
+    for (const s of socketDefs) {
+      const open = socketOpen(s);
+      const row = document.createElement('button');
+      row.className = `unlock-row${open ? ' unlocked' : ''}`;
+      row.disabled = open;
+      row.innerHTML =
+        `<span class="unlock-name">${s.label}</span>` +
+        (open
+          ? '<span class="unlock-state">✓</span>'
+          : '<img class="unlock-state-lock" src="assets/2d/icon-ui-lock-v2.png" alt="locked" />');
+      if (!open) {
+        row.addEventListener('click', () => {
+          this.unlockSocket(s.kind, s.index);
+          this.renderUnlocks();
+        });
+      }
+      socketCol.appendChild(row);
+    }
+    columns.appendChild(socketCol);
+  }
+
+  /** Dev: raise a socket count so its slot is usable in the next run. */
+  private unlockSocket(kind: 'weapon' | 'core', index: number): void {
+    if (kind === 'weapon') {
+      ACCOUNT.weaponSockets = Math.min(ACCOUNT.maxWeaponSockets, Math.max(ACCOUNT.weaponSockets, index));
+    } else {
+      ACCOUNT.coreSockets = Math.min(ACCOUNT.maxCoreSockets, Math.max(ACCOUNT.coreSockets, index));
     }
   }
 

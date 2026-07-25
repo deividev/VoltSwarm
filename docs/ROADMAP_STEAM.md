@@ -129,6 +129,7 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 - Semilla de layout aleatoria por run, escalera extendida de bosses/elites, meta-progresión ligera y contenido adicional desbloqueable.
 - **Volt Warden — modelo REVISAR antes de usar:** existe un voxelizado de prueba en `src/models/registry.ts` clave `final-boss`, pero sus vistas lateral y trasera no alcanzan calidad de marketing. Rediseñar/terminar el modelo 360° al implementar su gameplay de boss final del Mapa 2.
 - **Diferenciación jugable de personajes** (workstream propio, tras balancear la base): cada personaje debe definir loadout/arma inicial, perfil de stats, regla pasiva o signature y un tradeoff significativo; no basta una silueta. El contenido exacto sigue en diseño en `DESIGN_MEJORAS.md`.
+- **CANDIDATO DE DISEÑO — Dash (origen: comentario en X al post del 2026-07-22).** Idea del usuario: que todos los personajes tengan un dash para dar más movimiento al combate. **Veredicto de diseño (a favor, con condiciones):** encaja en ESTE juego — el jugador solo controla el movimiento (auto-apuntado innegociable), así que un dash **enriquece la única capa de skill** sin romper esa regla; la presentación 3D "juguete" lo hace verse/sentirse genial (burst de estela voxel = propulsor de robot, on-theme); es feature moderna esperada. **RIESGO PRINCIPAL:** puede **trivializar la tensión central del swarm** (que NO puedas escapar fácil) — sobre todo con i-frames + cooldown corto, que aplanan el "quedar rodeado". **Recomendaciones para cuando se prototipe:** (1) **arrancar SIN i-frames** — dash de puro reposicionamiento, seguís vulnerable; agregar i-frames solo si el feel lo pide (conecta con la duda ya pendiente "i-frames en dodge/block ¿intencional?" más abajo). (2) **NO idéntico para todos** — que sea base pero **tuneado por personaje** (distancia/cooldown, o cambiarlo por más HP/escudo en algún personaje); un dash fotocopiado gasta una palanca de diferenciación. **Timing:** decisión de feel núcleo, prototipar en la pasada de movimiento/personajes de Fase 5, NO mid-audio. Es sistémico: toca cooldown, distancia, i-frames, interacción con knockback/slows, bindings teclado+gamepad, VFX y SFX, y obliga a re-balancear densidad/velocidad de enemigos.
 - **Retención (gap-analysis vs Megabonk completo, 2026-07-04):**
   - **Contratos de Desguace**: misiones tipo "mata X con Y / sobrevive sin daño N min" → desbloqueos. Es el motor de retención de Megabonk (~240 quests) traducido a nuestro tema.
   - **Desbloqueos de contenido**: v1 lanza con ~5-6 armas disponibles y el resto se "reconstruye desde restos" completando contratos (mismo contenido, mucha más longevidad percibida; lore gratis de desguace).
@@ -144,6 +145,7 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 ## Fase 6 — Steamworks técnico + cierre
 
 0b. **Pantalla "PRESS ANY KEY" antes del menú principal** (apuntado 2026-07-19): resuelve el silencio de autoplay del arranque — el primer gesto activa el AudioContext y el tema de menú entra desde el primer frame del menú. Estándar comercial; pieza de pulido de cierre, no bloquea nada antes.
+0d. **Secuencia de muerte del jugador** (apuntado 2026-07-19): hoy al morir se salta INSTANTÁNEamente a la pantalla de resultados, sin respiro. Añadir una transición/animación de muerte (p.ej. reventón voxel del jugador + slow-mo/fundido breve + stinger de audio `run-defeat`) entre el fin de la partida y la pantalla de datos. Game-feel de cierre; combina con el stinger de derrota del Batch C de audio.
 0c. **Crossfade entre pistas de música** (apuntado 2026-07-19): fade out/in en toda transición de música (menú → run, run → menú, futuras camas por mapa y capa de boss) en vez del corte seco actual (`stopLoop` ya desvanece la saliente vía `fades.defaultS`, pero la entrante arranca en seco). Implementación esperada: rampa de gain por voz al emitir loops keyed, duraciones en `AUDIO.fades` (config). Pulido de Fase 6 junto a 0b; si el catálogo de audio de Fase 4b mete la capa de boss antes, adelantarlo ahí.
 1. `steamworks.js` a dependencies + `asarUnpack`, logros definidos y llamados (boss kill, survive, nivel X, N runs)
 1b. **Leaderboards de Steam** (API de leaderboards vía steamworks.js): comparar runs propios y de otros jugadores. Decisiones de diseño pendientes: métrica principal (kills totales vs bosses derrotados vs nivel alcanzado — recomendación: un leaderboard por mapa con kills como métrica, y el detalle del run en el desglose), y asumir que es client-authoritative (falsificable — estándar aceptado en indies de este tamaño, no invertir en anti-cheat)
@@ -153,9 +155,28 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 
 ## Post-lanzamiento (del gap-analysis vs Megabonk; NO bloquean v1)
 
+- **Wiki / web de contenido** (referencia: la wiki de Megabonk). **Timing:** NO antes del congelamiento de contenido (fin de Fase 5) y de tener jugadores — una wiki documenta contenido *estable* y necesita audiencia; hecha antes nace desactualizada y sin retorno. Momento ideal: en/tras el lanzamiento. **Regla de arquitectura (decidida con el usuario 2026-07-22):** NO escribirla a mano — **generarla desde `src/config.ts`** (armas/mods/cores/stats/descripciones ya son datos; el juego ya deriva el texto de cartas con `describeWeaponLevel`/`describeWeaponBranch`). Así se auto-sincroniza y no se pudre. Hasta entonces, el marketing pre-lanzamiento lo hacen la página de Steam + cápsula + GIFs + screenshots, no una wiki.
 - **Economía dual**: moneda in-run (tienda a mitad de run) + moneda meta que compra los desbloqueos de contratos — el par oro/plata de Megabonk.
 - **Estaciones de carga** (shrines): interactuables de mapa con boosts temporales, para el mapa 2 en adelante.
 - Mapas adicionales posteriores al arco base Mapa 1 → Mapa 2 → Volt Warden, evoluciones de armas y más personajes después del roster comprometido para el lanzamiento completo.
+
+## Extracción del boilerplate 3D (apuntado 2026-07-23; NO bloquea v1)
+
+**Objetivo:** al TERMINAR el desarrollo de Voltswarm, hacer una pasada de cosecha para llevar los sistemas game-agnostic que Voltswarm validó en producción al boilerplate compartido `../Three.js_Boilerplate`, y así arrancar el próximo juego 3D con semanas de ventaja. El boilerplate ya tiene el ESQUELETO limpio y con tests (`core/loop`, `scene-manager`, `input/bindings`, `audio/bus+mixer`, `state/persistence`, `serialization`, `editor`, `steam-service`, empaquetado Electron); Voltswarm tiene las VÍSCERAS probadas peleando (voxelizer, InstancedMesh a 400+, toon/VFX, `AudioDirector` validado in-game frame a frame). La tarea es reconciliar los dos, no crear una tercera base.
+
+**Regla de disciplina NO NEGOCIABLE — extraer por USO, no por adivinanza:** un sistema sube a la base solo cuando un SEGUNDO juego 3D lo necesita de verdad. Voltswarm es el uso #1; el próximo juego es el uso #2 y es lo que PRUEBA que la base es reutilizable. La base se construye MIENTRAS se hace el juego #2 (copiás de Voltswarm → si el juego nuevo lo necesita igual, baja a la base; si solo sirvió a Voltswarm, se queda acá). Aviso de la trampa ya vivida: el boilerplate trae un editor + serialización que Voltswarm nunca usó = generalidad especulativa. No tratar eso como sagrado; queda en cuarentena hasta que un juego lo reclame.
+
+**Reparto a revisar cuando toque (borrador, confirmar contra el estado real del `src/` de entonces):**
+
+| Va a la base (game-agnostic) | Se queda en el juego |
+| --- | --- |
+| Loop + fixed timestep, scene-manager, state machine | Armas, mods, cartas, oleadas, bosses |
+| Input/bindings/gamepad, settings, persistencia | Diseño de enemigos, economía in-run |
+| Audio director + buses (las tripas probadas de Voltswarm) | Balance, config de gameplay |
+| Voxelizer + InstancedMesh crowd + toon/VFX | Contenido, temática, HUD específico |
+| Empaquetado Electron + steam-service | |
+
+Nota: el voxelizer y el toon van a la base como OPCIONALES — el próximo juego puede usar otro estilo de arte 3D y la base no debe atarlo a voxel.
 
 ## Referencias de mercado
 
