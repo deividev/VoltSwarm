@@ -9,7 +9,7 @@ export const ARENA_HALF_SIZE = 90;
 export const DEV_TOOLS: { unlockPanel: boolean; auditionKeys: boolean } = {
   /** Main-menu "Unlocks" panel: unlocks every weapon/core/mod and opens all
    *  sockets. The Contracts system deletes this panel outright once it lands. */
-  unlockPanel: true,
+  unlockPanel: false,
   /** F2-F9 hotkeys that cycle and preview SFX variants in-game while authoring
    *  audio. Turn back on for the full-catalog audio pass. */
   auditionKeys: false,

@@ -1,16 +1,22 @@
 // Wipes saved progression so the next launch starts as a brand new player.
 // Development only.
 //
-// Deletes profile.json and run-history.json, and BOTH must go: the career
-// ledger is rebuilt from surviving run history at boot, so removing the profile
-// alone would see every total reappear.
+// Writes EMPTY files rather than deleting them. Deleting looks equivalent but
+// is not: loadProfile() reads `electronAPI.loadProfile() ?? localStorage`, and a
+// missing file returns null, so the game would fall through and resurrect the
+// old save from localStorage — which saveProfile() also writes to. An empty
+// file is present, parses, and yields the fresh-profile defaults, so the
+// fallback is never consulted.
+//
+// Both files must be cleared: the career ledger is rebuilt from surviving run
+// history at boot, so clearing the profile alone would see every total return.
 //
 // Settings are left alone — resolution and volume are not progression.
 //
 // Reports every location it inspects, because localStorage is per ORIGIN and
 // per Electron user-data dir: a build launched a different way keeps its own
 // separate save, and "my progress is not here" is usually that.
-import { existsSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import os from 'node:os';
 
@@ -31,34 +37,33 @@ for (const dir of CANDIDATES) {
   if (!existsSync(dir)) continue;
 
   console.log(`\n${dir}`);
-  for (const file of ['profile.json', 'run-history.json']) {
+  // `{}` normalises to the fresh-profile defaults, `[]` is an empty history,
+  // so neither needs the renderer's default tables duplicated here.
+  for (const [file, blank] of [['profile.json', '{}'], ['run-history.json', '[]']]) {
     const path = resolve(dir, file);
-    if (!existsSync(path)) {
-      console.log(`  ${file.padEnd(18)} absent`);
-      continue;
+    let summary = 'absent';
+    if (existsSync(path)) {
+      try {
+        const data = JSON.parse(readFileSync(path, 'utf8'));
+        summary = Array.isArray(data)
+          ? `${data.length} runs`
+          : `${data.lifetime?.runsFinished ?? 0} runs, ${data.lifetime?.completedContracts?.length ?? 0} contracts`;
+      } catch { summary = 'unreadable'; }
     }
-    let summary = '';
-    try {
-      const data = JSON.parse(readFileSync(path, 'utf8'));
-      summary = Array.isArray(data)
-        ? `${data.length} runs`
-        : `${data.lifetime?.runsFinished ?? 0} runs, ${data.lifetime?.completedContracts?.length ?? 0} contracts`;
-    } catch { summary = 'unreadable'; }
-    rmSync(path);
-    console.log(`  ${file.padEnd(18)} REMOVED (${summary})`);
+    writeFileSync(path, blank);
+    console.log(`  ${file.padEnd(18)} CLEARED (was: ${summary})`);
     removed++;
   }
 }
 
 console.log(
   removed > 0
-    ? `\nRemoved ${removed} file(s). The next launch starts from a fresh profile.`
-    : '\nNothing to remove.',
+    ? `\nCleared ${removed} file(s). The next launch starts from a fresh profile.`
+    : '\nNothing to clear.',
 );
 console.log(
   '\nIf progress you expected is still there, it lives in a store this cannot reach:\n' +
   '  - a browser session (npm run dev) keeps its own localStorage per origin\n' +
   '  - an Electron run with --user-data-dir keeps its own folder\n' +
-  'The in-game Unlocks panel has a Reset progress button that clears whichever\n' +
-  'store the running build is actually using.',
+  'Run the game from Electron (npm run electron:start) so it reads these files.',
 );
