@@ -867,14 +867,6 @@ export class Hud {
       { key: 'other', title: 'Perks' },
     ];
 
-    const COLUMNS = 3;
-    const columns = Array.from({ length: COLUMNS }, () => {
-      const column = document.createElement('div');
-      column.className = 'contracts-column';
-      host.appendChild(column);
-      return { element: column, weight: 0 };
-    });
-
     let totalShown = 0;
     let totalDone = 0;
 
@@ -913,13 +905,14 @@ export class Hud {
       totalShown += shown;
       totalDone += done;
 
-      // Drop each section into whichever column is currently shortest. Sections
-      // differ a lot in length (Cores has twice the rows of Mods), and a plain
-      // row-major grid would leave a tall gap under every short one. Balancing
-      // by row count keeps this working as content is added.
-      const target = columns.reduce((a, b) => (a.weight <= b.weight ? a : b));
-      target.element.appendChild(group);
-      target.weight += shown;
+      // One column per category. Each column is a single, complete list, which
+      // is easier to scan than sections stacked inside shared columns — and the
+      // whole grid scrolls as one, so a long category does not trap its own
+      // scrollbar. Empty categories get no column at all.
+      const column = document.createElement('div');
+      column.className = 'contracts-column';
+      column.appendChild(group);
+      host.appendChild(column);
     }
 
     mustGet('contracts-summary').textContent = `${totalDone} of ${totalShown} complete`;

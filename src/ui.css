@@ -2429,8 +2429,11 @@ body:has(.menu-view:not(.hidden)) #build-panel {
 }
 #unlocks-columns {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  /* One equal track per category, however many the renderer created.
+     auto-fit with minmax(0, 1fr) cannot resolve a count and collapsed to 3. */
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 10px;
   width: 100%;
   overflow-y: auto;
   padding: 4px 2px;
@@ -2602,11 +2605,13 @@ body:has(.menu-view:not(.hidden)) #build-panel {
 
 #contracts-columns {
   /* Grid, not CSS multi-column: multi-column inside a height-capped scroller
-     flows sideways and produces a horizontal scrollbar. Columns are filled by
-     the renderer, which balances sections by row count. */
+     flows sideways and produces a horizontal scrollbar.
+     One equal track per category, however many the renderer created —
+     `repeat(auto-fit, minmax(0, 1fr))` cannot resolve a count and collapses. */
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 10px;
   align-items: start;
   width: 100%;
   overflow-y: auto;
@@ -2620,15 +2625,14 @@ body:has(.menu-view:not(.hidden)) #build-panel {
   min-width: 0;
 }
 
-@media (max-width: 1100px) { #contracts-columns { grid-template-columns: repeat(2, 1fr); } }
-@media (max-width: 720px)  { #contracts-columns { grid-template-columns: 1fr; } }
+
 
 .contract-row {
   display: grid;
-  grid-template-columns: 48px 1fr;
+  grid-template-columns: 34px 1fr;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px 10px;
+  gap: 8px;
+  padding: 6px 8px 8px;
   border: 2px solid #2b3340;
   border-left: 3px solid #3fa9f5;
   background: rgba(16, 20, 27, 0.86);
@@ -2644,18 +2648,19 @@ body:has(.menu-view:not(.hidden)) #build-panel {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 12px;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-.contract-title { font-size: 10px; color: #e7ecf3; }
+.contract-title { font-size: 9px; color: #e7ecf3; }
 .contract-count { font-size: 8px; color: #8a94a2; letter-spacing: 1px; }
 .contract-row.done .contract-count { color: #5fd068; }
 
 .contract-desc {
   font-size: 8px;
   color: #8a94a2;
-  margin: 5px 0 7px;
-  line-height: 1.6;
+  margin: 4px 0 6px;
+  line-height: 1.5;
 }
 
 /* Segmented cells, matching the HP/XP bars. A smooth gradient fill here would
@@ -2683,7 +2688,8 @@ body:has(.menu-view:not(.hidden)) #build-panel {
 }
 
 .contract-reward {
-  margin-top: 7px;
+  margin-top: 6px;
+  line-height: 1.4;
   font-size: 8px;
   color: #f2b632;
 }
@@ -2730,16 +2736,16 @@ body:has(.menu-view:not(.hidden)) #build-panel {
 .contract-group-count { color: #8a94a2; font-size: 8px; }
 
 .contract-icon {
-  width: 48px;
-  height: 48px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .contract-icon .card-icon {
-  width: 44px;
-  height: 44px;
+  width: 32px;
+  height: 32px;
   image-rendering: pixelated;
 }
 
@@ -2754,7 +2760,7 @@ body:has(.menu-view:not(.hidden)) #build-panel {
 }
 
 .socket-pips i {
-  width: 9px;
+  width: 7px;
   height: 14px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid #2b3340;
@@ -2773,3 +2779,16 @@ body:has(.menu-view:not(.hidden)) #build-panel {
 }
 
 .contract-body { min-width: 0; }
+
+/* Narrow windows cannot carry five readable columns; fall back to stacked
+   rows so the text never collapses into two words per line. */
+@media (max-width: 1000px) {
+  #contracts-columns {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  #contracts-columns { grid-template-columns: minmax(0, 1fr); }
+}
