@@ -103,10 +103,30 @@ export class Player {
 
       const glowGeometry = new THREE.CircleGeometry(VISUAL.playerMarker.glowRadius, 32);
       glowGeometry.rotateX(-Math.PI / 2);
+      // A plain circle has a HARD rim, so the "glow" read as a flat grey plate
+      // stamped on the floor — most obvious at spawn, where the player stands
+      // still. Vertex colours fade it to black towards the edge; under additive
+      // blending black contributes nothing, which is a true radial falloff
+      // without a texture or a second material.
+      {
+        const position = glowGeometry.getAttribute('position');
+        const colors = new Float32Array(position.count * 3);
+        const radius = VISUAL.playerMarker.glowRadius;
+        for (let i = 0; i < position.count; i++) {
+          const dist = Math.hypot(position.getX(i), position.getZ(i));
+          // Squared falloff: linear still leaves a visible ring at the rim.
+          const strength = Math.max(0, 1 - dist / radius) ** 2;
+          colors[i * 3] = strength;
+          colors[i * 3 + 1] = strength;
+          colors[i * 3 + 2] = strength;
+        }
+        glowGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      }
       this.markerGlow = new THREE.Mesh(
         glowGeometry,
         new THREE.MeshBasicMaterial({
           color: VISUAL.playerMarker.glowColor,
+          vertexColors: true,
           transparent: true,
           opacity: VISUAL.playerMarker.glowOpacity,
           depthWrite: false,
