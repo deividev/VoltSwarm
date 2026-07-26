@@ -64,7 +64,13 @@ export interface Contract {
  *  Safe to reorder or extend at any time: what a player has been granted is
  *  recorded as unlocked IDS, never as a position in this list, so shuffling it
  *  can neither hand out a duplicate nor skip an entry. */
-export const WEAPON_QUEUE: WeaponId[] = ['welder', 'acid', 'turbine', 'dismantler', 'oil'];
+/** Oil Sprayer is deliberately ABSENT (user decision 2026-07-26): it deals no
+ *  damage, so it is out of the unlock path until it is redesigned or dropped.
+ *  Nothing else was removed — its WeaponId, WEAPON_INFO entry, icon, VFX and
+ *  implementation all still exist, and the dev unlock panel can still grant it
+ *  for testing. Putting it back is adding `'oil'` to this array; the Arsenal
+ *  ladder already carries a spare rung waiting for it. */
+export const WEAPON_QUEUE: WeaponId[] = ['welder', 'acid', 'turbine', 'dismantler'];
 
 /** Split per category rather than one mixed queue: it lets the core drip and
  *  the mod drip be tuned independently, and it means a ladder rung always

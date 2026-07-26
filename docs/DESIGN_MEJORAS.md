@@ -124,7 +124,7 @@ La base Megabonk que adoptamos: cada arma tiene **su propia lista de stats mejor
 | Arc Welder ✅ | Rayo continuo al más cercano; el daño CRECE mientras no cambie de objetivo (anti-kiting inverso) | Power, Alcance, Ramp/s |
 | Hydraulic Press ✅ | Pistón que aplasta una franja frontal cada X s | Power, Cycle, Ancho de franja |
 | Tire Fire - implemented | Burning tire that rolls through the swarm | Damage, tire size, travel distance |
-| Oil Sprayer ✅ | Charcos que ralentizan al enjambre; 0 daño — control puro | Radio de charco, Fuerza de ralentización, Duración |
+| Oil Sprayer ⏸️ FUERA DEL CAMINO DE DESBLOQUEO (2026-07-26) | Charcos que ralentizan al enjambre; 0 daño — control puro | Radio de charco, Fuerza de ralentización, Duración |
 | Acid Drum ✅ (renombrada de "Acid Flask" 2026-07-05 — el frasco de cristal leía como poción medieval, no encajaba en la estética industrial/futurista) | Bidones industriales que dejan zona corrosiva con DoT | Power (DoT), Cycle, Radio de zona |
 | Turbine Fan - implemented | Tornado launcher that shoves the swarm | Damage, tornado radius, knockback |
 | Junk Ricochet ✅ | Chatarra cargada que rebota entre enemigos | Power, Cycle, +Rebote |
@@ -147,13 +147,15 @@ La base Megabonk que adoptamos: cada arma tiene **su propia lista de stats mejor
 | Hydraulic Press | +12% damage · +5% width | — | ✅ Default |
 | Tire Fire | Damage / tire size / travel distance branches | +1 tire | Default |
 | Arc Welder | +10% damage · +8% ramp rate | — | 🔒 Contrato |
-| Oil Sprayer | +6% puddle radius · +4% slow | — | 🔒 Contrato |
+| Oil Sprayer | +6% puddle radius · +4% slow | — | ⏸️ Fuera del camino de desbloqueo (2026-07-26) |
 | Acid Drum | +10% DoT DPS · +5% zone radius | — | 🔒 Contrato |
 | Turbine Fan | Damage / tornado radius / knockback branches | +1 tornado | Contract |
 | Junk Ricochet | +10% damage | +1 bounce | 🔒 Contrato |
 | Dismantler | Damage / execute threshold / claw range branches | - | Contract |
 
-Reparto **5 default / 6 contrato** (espeja el ~5-6 del roadmap): los 5 default cubren un arquetipo básico cada uno y TODOS se sostienen solos — con 1 socket de arma en cuenta nueva, un arma de 0 daño en el pool default sería una trampa (por eso Oil Sprayer va tras contrato). Los contratos enseñan mecánicas avanzadas: ramp, control, DoT, rebote, ejecución.
+Reparto **5 default / 6 contrato** (espeja el ~5-6 del roadmap): los 5 default cubren un arquetipo básico cada uno y TODOS se sostienen solos — con 1 socket de arma en cuenta nueva, un arma de 0 daño en el pool default sería una trampa. Los contratos enseñan mecánicas avanzadas: ramp, control, DoT, rebote, ejecución.
+
+**⏸️ Oil Sprayer — FUERA DEL CAMINO DE DESBLOQUEO (decisión del usuario 2026-07-26).** Con 1 socket de arma, un arma de 0 daño no es "control puro", es una run perdida; el mismo argumento que la mantenía fuera del pool default la deja también fuera de los contratos. **No se borró nada**: `WeaponId`, `WEAPON_INFO`, icono, VFX e implementación siguen enteros, y el panel dev todavía la desbloquea para pruebas. Solo se quitó de `WEAPON_QUEUE` en `contracts.ts`, con lo que las armas por contrato pasan a **5 obtenibles** (Junk Ricochet por First Blood + 4 por la escalera Arsenal) y el peldaño Arsenal V queda de repuesto, oculto hasta que haya un arma que dar. Volver a meterla = añadir `'oil'` a ese array. Sigue sin sonido a propósito: no se produce SFX para un arma que quizá se rediseñe.
 
 **Revisión pendiente (apuntada 2026-07-09, post-arte v1)**: cuando la v1 de arte + capturas + página Steam esté cerrada, pase a fondo del elenco de armas — si todas tienen sentido y qué ideas nuevas bien ambientadas merecen entrar.
 
