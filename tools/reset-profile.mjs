@@ -11,6 +11,11 @@
 // Both files must be cleared: the career ledger is rebuilt from surviving run
 // history at boot, so clearing the profile alone would see every total return.
 //
+// This is enough on its own since the run-history migration became one-shot.
+// Before that, an empty history file looked identical to "never migrated", so
+// every reset re-imported the legacy runs from localStorage and the ledger
+// rebuilt itself from them — the reset silently undid itself on next launch.
+//
 // Settings are left alone — resolution and volume are not progression.
 //
 // Reports every location it inspects, because localStorage is per ORIGIN and

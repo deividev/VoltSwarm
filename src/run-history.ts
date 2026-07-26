@@ -69,6 +69,10 @@ export interface RunRecordV1 extends Omit<RunSnapshot, 'weaponPower'> {
 }
 
 const STORAGE_KEY = 'voltswarm:run-history:v1';
+/** Set once the legacy localStorage history has been moved into the file.
+ *  Deliberately NOT cleared by a profile reset: it records that a migration
+ *  already happened, which stays true no matter how often progress is wiped. */
+const MIGRATED_KEY = 'voltswarm:run-history:migrated';
 const MAX_STORED_RUNS = 250;
 
 /** Records live in userData/run-history.json under Electron so balance passes
@@ -92,9 +96,21 @@ export function loadRunHistory(): RunRecordV1[] {
  *  player runs it — a dev-server session sees its own separate store. */
 export function migrateRunHistory(): void {
   if (!window.electronAPI) return;
-  if (parseHistory(window.electronAPI.loadRunHistory()).length > 0) return;
+  // ONE-SHOT, and the marker is what makes it so. Without it, an EMPTY history
+  // file is indistinguishable from "never migrated", so every profile reset
+  // re-imported the same legacy runs from localStorage and the career ledger
+  // rebuilt itself from them — a reset that silently undid itself.
+  if (window.localStorage.getItem(MIGRATED_KEY)) return;
+  if (parseHistory(window.electronAPI.loadRunHistory()).length > 0) {
+    window.localStorage.setItem(MIGRATED_KEY, '1');
+    return;
+  }
   const legacy = parseHistory(window.localStorage.getItem(STORAGE_KEY));
-  if (legacy.length > 0) writeHistory(legacy);
+  if (legacy.length > 0) window.electronAPI.saveRunHistory(JSON.stringify(legacy, null, 2));
+  window.localStorage.setItem(MIGRATED_KEY, '1');
+  // The records now live in the file; leaving the old key around only gives a
+  // future reset something to resurrect.
+  window.localStorage.removeItem(STORAGE_KEY);
 }
 
 /** Wipes every stored run. Required by a profile reset: the career ledger is
@@ -102,6 +118,11 @@ export function migrateRunHistory(): void {
  *  see all the "reset" progress reappear on the next launch. */
 export function clearRunHistory(): void {
   writeHistory([]);
+  // Under Electron the file is authoritative, so drop the mirror too — it is
+  // only a browser fallback, and a stale copy is exactly what resurrects runs.
+  if (window.electronAPI) {
+    try { window.localStorage.removeItem(STORAGE_KEY); } catch { /* quota/storage disabled */ }
+  }
 }
 
 function parseHistory(raw: string | null | undefined): RunRecordV1[] {

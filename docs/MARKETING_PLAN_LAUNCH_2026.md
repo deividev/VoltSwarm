@@ -4,6 +4,11 @@
 >
 > **Estado verificado al 19-07-2026:** el publisher creo la pagina y la envio a revision; Valve todavia no ha confirmado aprobacion, publicacion ni visibilidad como Coming Soon. No existe URL/App ID confirmado en este documento.
 
+## Estado operativo — 26 de julio de 2026
+
+- **T1 público verificado:** `https://store.steampowered.com/app/4979220/Voltswarm/` está accesible como Coming Soon; antes de una acción pública registrar la hora efectiva de T1 y la fuente de Steamworks.
+- **Baseline actual reportado:** 6 wishlists. Con el objetivo interno de 1.000 y 101 días desde el 27 de julio hasta el 4 de noviembre, el ritmo operativo pasa a 9,84/día o 69/semana; el checkpoint del 2 de agosto es 75 acumuladas. No es forecast ni fecha pública.
+- **Primera señal X:** post del 20: 32 impresiones / 12 engagements / 1 visita de perfil; post del 22: 22 / 9 / 0. Las muestras no permiten elegir ganador; abrir UTMs y medir la primera cohorte T1 antes de iterar.
 ## Decisiones no negociables
 
 | Tema | Decision operativa |

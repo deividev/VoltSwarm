@@ -2,7 +2,7 @@
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Estado de la arquitectura (actualizado 2026-07-25, v0.5.5)
+## Estado de la arquitectura (actualizado 2026-07-25, v0.5.6)
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
@@ -228,7 +228,7 @@ A level-up screen allows at most one branch for each weapon owner. When both soc
 Successful local packaged Electron run via `npm run benchmark:audio`: deterministic `audio-swarm-416` (seed 4979220; digest `4979220:240-112-48:0.25:4`), 404 peak / 411 minimum / 411 end active enemies, including normal-HP sacrificial enemies. At 800x600 after 3 s warmup + 10 s rAF sample on Windows 10 / AMD Ryzen 7 3700X / NVIDIA GeForce RTX 2060 (D3D11): 120.10 mean FPS, 119 minimum complete 1 s bucket FPS and 8.5 ms frame-time p99. Actual paths: 9 kills, 7 XP pickups, 14 Gold pickups; audio 47 attempts / 27 accepted, 15 peak voices, 20 cooldown drops, 0 steals/load failures/leaks and 0 active audio voices after cleanup. Evidence: `tmp/perf-audio-output/report.json`. This validates this machine and scenario only, not Steam minimum hardware.
 
 
-## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.5)
+## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 
