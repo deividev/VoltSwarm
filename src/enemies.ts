@@ -147,7 +147,7 @@ export class EnemySystem {
     this.eliteAura.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.eliteAura.frustumCulled = false;
     this.eliteAura.count = 0;
-    if (VISUAL.groundMarkersOnTop) this.eliteAura.renderOrder = 5;
+    if (VISUAL.groundMarkersOnTop) this.eliteAura.renderOrder = VISUAL.renderOrders.groundMarker;
     scene.add(this.eliteAura);
 
     // Boss-exclusive marker: a wide double red ring, matching the totem and
@@ -173,7 +173,7 @@ export class EnemySystem {
     this.bossAura.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.bossAura.frustumCulled = false;
     this.bossAura.count = 0;
-    if (VISUAL.groundMarkersOnTop) this.bossAura.renderOrder = 5;
+    if (VISUAL.groundMarkersOnTop) this.bossAura.renderOrder = VISUAL.renderOrders.groundMarker;
     scene.add(this.bossAura);
 
     // Blob shadows: one dark disc per active enemy, anchoring everything to

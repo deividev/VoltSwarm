@@ -442,12 +442,20 @@ export const VISUAL = {
    *  across the feet of whoever stands on them, which is cheaper than losing
    *  the signal.
    *
-   *  DEFAULT OFF — measured 2026-07-26 and it looks WORSE: without depth test
-   *  the ring and glow also draw over the BODY standing on them, slicing the
-   *  player in half. Fixing prop occlusion needs the marker to pass behind
-   *  characters but in front of scenery, which one depth flag cannot express.
-   *  Kept as a flag so the comparison can be repeated. */
-  groundMarkersOnTop: false,
+   *  Getting this right needs explicit QUEUE ordering, not just a depth flag.
+   *  Three.js always draws transparent after opaque, so simply dropping
+   *  depthTest on a transparent marker also put it over the player's body. The
+   *  markers therefore join the OPAQUE queue (additive blending works without
+   *  the `transparent` flag) and the three layers are ordered by hand:
+   *
+   *      scenery 0  →  markers 1  →  characters 2
+   *
+   *  so a crate cannot chop the marker, and the marker cannot cover the body
+   *  standing on it. Opacity has to be baked into the colours, because
+   *  `material.opacity` is ignored outside the transparent queue. */
+  groundMarkersOnTop: true,
+  /** Draw order for the three ground layers above. */
+  renderOrders: { scenery: 0, groundMarker: 1, character: 2 },
   /*  cyan/white and unsegmented so it never collides with elite magenta or
    *  boss red ring language. */
   playerMarker: {

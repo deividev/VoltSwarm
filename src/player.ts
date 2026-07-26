@@ -94,11 +94,10 @@ export class Player {
     if (VISUAL.playerMarker.enabled) {
       this.markerGroup = new THREE.Group();
       this.markerGroup.position.y = VISUAL.playerMarker.y;
-      // Drawn last and without depth testing when groundMarkersOnTop is set, so
-      // a crate standing on the floor cannot chop the marker into grey blocks.
-      // The whole group shares the order, keeping glow, ring and ticks stacked
-      // in the sequence they are added rather than by camera distance.
-      if (VISUAL.groundMarkersOnTop) this.markerGroup.renderOrder = 5;
+      // Ordered between scenery and characters (see VISUAL.groundMarkersOnTop):
+      // a crate cannot chop the marker, and the marker cannot cover the body
+      // standing on it.
+      if (VISUAL.groundMarkersOnTop) this.markerGroup.renderOrder = VISUAL.renderOrders.groundMarker;
       scene.add(this.markerGroup);
 
       const glowGeometry = new THREE.CircleGeometry(VISUAL.playerMarker.glowRadius, 32);
@@ -115,7 +114,9 @@ export class Player {
         for (let i = 0; i < position.count; i++) {
           const dist = Math.hypot(position.getX(i), position.getZ(i));
           // Squared falloff: linear still leaves a visible ring at the rim.
-          const strength = Math.max(0, 1 - dist / radius) ** 2;
+          // Opacity is baked in: material.opacity is ignored in the opaque
+          // queue, which is where these markers now live.
+          const strength = Math.max(0, 1 - dist / radius) ** 2 * VISUAL.playerMarker.glowOpacity;
           colors[i * 3] = strength;
           colors[i * 3 + 1] = strength;
           colors[i * 3 + 2] = strength;
@@ -127,7 +128,7 @@ export class Player {
         new THREE.MeshBasicMaterial({
           color: VISUAL.playerMarker.glowColor,
           vertexColors: true,
-          transparent: true,
+          transparent: !VISUAL.groundMarkersOnTop,
           opacity: VISUAL.playerMarker.glowOpacity,
           depthWrite: false,
           depthTest: !VISUAL.groundMarkersOnTop,
@@ -146,8 +147,12 @@ export class Player {
       this.markerRing = new THREE.Mesh(
         ringGeometry,
         new THREE.MeshBasicMaterial({
-          color: VISUAL.playerMarker.ringColor,
-          transparent: true,
+          // Additive in the opaque queue: material.opacity is ignored there, so
+          // it has to be baked into the colour.
+          color: new THREE.Color(VISUAL.playerMarker.ringColor).multiplyScalar(
+            VISUAL.groundMarkersOnTop ? VISUAL.playerMarker.ringOpacity : 1,
+          ),
+          transparent: !VISUAL.groundMarkersOnTop,
           opacity: VISUAL.playerMarker.ringOpacity,
           depthWrite: false,
           depthTest: !VISUAL.groundMarkersOnTop,
@@ -163,8 +168,10 @@ export class Player {
         VISUAL.playerMarker.tickLength,
       );
       const tickMaterial = new THREE.MeshBasicMaterial({
-        color: VISUAL.playerMarker.tickColor,
-        transparent: true,
+        color: new THREE.Color(VISUAL.playerMarker.tickColor).multiplyScalar(
+          VISUAL.groundMarkersOnTop ? VISUAL.playerMarker.tickOpacity : 1,
+        ),
+        transparent: !VISUAL.groundMarkersOnTop,
         opacity: VISUAL.playerMarker.tickOpacity,
         depthWrite: false,
         depthTest: !VISUAL.groundMarkersOnTop,
@@ -184,6 +191,7 @@ export class Player {
       }
     }
 
+    if (VISUAL.groundMarkersOnTop) this.mesh.renderOrder = VISUAL.renderOrders.character;
     scene.add(this.mesh);
 
     // The image-derived voxel model loads async and swaps in over the
