@@ -133,6 +133,18 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 - Playtests con datos del desglose por arma (55 combinaciones de build)
 - Selector de dificultad alimentando `difficultyScalar` + persistencia de mejor run — los registros ya se estampan con `difficulty: 'standard'` para que las runs de esta época sigan siendo rankeables cuando el selector exista
 - **Visión cerrada de la run completa:** Mapa 1 durante 10 minutos → transición conservando la build → Mapa 2 durante otros 10 minutos → enfrentamiento final contra **Volt Warden**.
+- **⚠️ DECISIÓN ABIERTA, a resolver ANTES de construir el Mapa 2 (planteada por el usuario 2026-07-26): ¿la transición al Mapa 2 exige matar al boss del Mapa 1?** La visión de arriba es puramente TEMPORAL (10 minutos), no pide boss. Añadir ese requisito choca con lo que miden las primeras runs humanas:
+  - **0 bosses invocados en 6 runs**, incluidas las 2 que llegaron completas a 10:00. El portal aparece a 45-65 unidades del centro y hay que caminar hasta él y pulsar interactuar; con datos en la mano, nadie lo hace.
+  - **Solo 2 de 6 runs (33%) llegan al final.** Las otras mueren en 76s, 94s, 154s y 291s — la mitad por debajo de los 3 minutos.
+  - Combinando ambas: un gate de boss dejaría a la mayoría de jugadores **sin ver nunca la mitad del juego**.
+  - Ese mismo hueco ya bloquea la progresión hoy: `Boss Hunter` otorga el ÚNICO socket de arma, así que el perfil de prueba está en 4/4 sockets de core y **1/2 de arma**, con 16 cores y 15 mods desbloqueados pero una sola arma equipable.
+
+  **El fondo del problema:** el portal está diseñado como OBJETIVO SECUNDARIO (opcional, hay que ir a buscarlo) y se estaría usando como CAMINO CRÍTICO. O el boss pasa a ser camino crítico de verdad (aparece solo al cerrar los 10:00, sin depender de que lo encuentres), o el gate no es el boss. Las opciones a evaluar entonces, con datos frescos del Mapa 1 ya balanceado:
+  1. Boss automático al cumplirse los 10:00 — elimina el problema de descubrimiento; el portal opcional queda para invocaciones extra y recompensa.
+  2. Gate por supervivencia (llegar a 10:00), con el boss opcional y premiado.
+  3. Mantener el portal opcional pero telegrafiarlo mucho más fuerte y acercarlo.
+
+  Cualquiera de las tres exige **antes** revisar oleadas y daño del Mapa 1: con un 33% de supervivencia actual, el gate lo pone la dificultad, no el boss.
 - Semilla de layout aleatoria por run, escalera extendida de bosses/elites, meta-progresión ligera y contenido adicional desbloqueable.
 - **Volt Warden — modelo REVISAR antes de usar:** existe un voxelizado de prueba en `src/models/registry.ts` clave `final-boss`, pero sus vistas lateral y trasera no alcanzan calidad de marketing. Rediseñar/terminar el modelo 360° al implementar su gameplay de boss final del Mapa 2.
 - **Diferenciación jugable de personajes** (workstream propio, tras balancear la base): cada personaje debe definir loadout/arma inicial, perfil de stats, regla pasiva o signature y un tradeoff significativo; no basta una silueta. El contenido exacto sigue en diseño en `DESIGN_MEJORAS.md`.
