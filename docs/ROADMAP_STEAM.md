@@ -145,6 +145,31 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
   3. Mantener el portal opcional pero telegrafiarlo mucho más fuerte y acercarlo.
 
   Cualquiera de las tres exige **antes** revisar oleadas y daño del Mapa 1: con un 33% de supervivencia actual, el gate lo pone la dificultad, no el boss.
+
+### Bloque Mapa 2 + Volt Warden — decisiones a cerrar ANTES de implementar
+
+Lista levantada 2026-07-26 a petición del usuario. Ninguna es "escribir código": todas cambian qué código hay que escribir, y varias son irreversibles una vez haya jugadores.
+
+**1. El gate de transición.** Ver la decisión abierta de arriba. Es la primera porque condiciona a las demás.
+
+**2. Continuidad de la dificultad — HAY UN TECHO YA ALCANZADO.** `difficultyScalar` es `min(elapsedS / 480, 1)`: la rampa **topa a los 8 minutos**, así que los últimos 2 del Mapa 1 ya son planos. Si el Mapa 2 sigue con el mismo reloj, **arranca al máximo y no tiene recorrido**: sus 10 minutos jugarían exactamente igual que el minuto 8. Opciones:
+   - Extender la rampa al arco completo (480 → ~1080) y recalibrar el Mapa 1 entero. Coherente, pero rebalancea lo ya validado.
+   - Dar al Mapa 2 su propia curva con un multiplicador base por mapa. Aísla el Mapa 1 de la recalibración; es la opción de menor riesgo para lo ya probado.
+   - Reiniciar el reloj en el Mapa 2 con una base más alta. Simple, pero produce un bajón de intensidad justo al entrar, que es el peor momento para perder tensión.
+
+**3. Qué se conserva al cruzar.** La build (armas/cores/mods) está decidido que sí. Falta decidir explícitamente: **vida actual** (¿se cura al entrar, se conserva, se cura parcialmente?), **oro**, **nivel y curva de XP** (¿sigue subiendo desde el nivel alcanzado, con qué coste?), y **descartes de level-up restantes**. Recomendación: curar algo al cruzar es lo que convierte la transición en un premio en vez de en un castigo por haber sobrevivido justo.
+
+**4. ¿Una run o dos?** Hoy `saveRunRecord` escribe UN registro por partida y ya lleva `map`. Si el arco son dos mapas hay que decidir si es un registro de 20 minutos o dos encadenados. Afecta a leaderboards (¿se rankea el arco completo o cada mapa?), a `npm run stats` y a los contratos que miden duración — `Second Wind` pide "sobrevivir una run completa" y esa frase deja de ser unívoca.
+
+**5. Atribución de la muerte.** El registro debe decir **en qué mapa** terminó la run, o los percentiles mezclan dos poblaciones distintas y no se podrá ver si el Mapa 2 mata más que el 1. Es un campo, y es irrecuperable a posteriori: hay que añadirlo ANTES de la primera run del Mapa 2.
+
+**6. Duración total del arco: 20 minutos sin guardado.** Riesgo de retención real, sobre todo con el 33% de finalización actual. Un jugador que muere en el minuto 17 pierde 17 minutos. Decidir si hay algún punto de retorno (¿el arco se reintenta desde el Mapa 2?, ¿o se acepta la pérdida como en el género?) y si 10+10 es el reparto correcto o conviene 8+8.
+
+**7. Volt Warden.** Su modelo existe (`src/models/registry.ts`, clave `final-boss`) pero sus vistas lateral y trasera no llegan a calidad de marketing: hay que **rehacer las hojas medidas** al implementarlo. Y no tiene NINGUNA mecánica diseñada — fases, telegrafías, patrones y si el arena cambia para la pelea.
+
+**8. Elenco del Mapa 2.** ¿Enemigos nuevos, los 6 actuales reescalados, o una mezcla? La dirección de arte ya fija el arco (chatarrería → fundición → ciudad neón), así que el Mapa 2 es la fundición y eso condiciona siluetas y paleta. Todo enemigo nuevo se valida con el enjambre a 400+.
+
+**Qué instrumentar ANTES de empezar el bloque:** el campo de mapa en el registro de muerte (punto 5) y unas cuantas runs humanas del Mapa 1 ya balanceado, para no diseñar la dificultad del Mapa 2 sobre un Mapa 1 que todavía mata al 67%.
 - Semilla de layout aleatoria por run, escalera extendida de bosses/elites, meta-progresión ligera y contenido adicional desbloqueable.
 - **Volt Warden — modelo REVISAR antes de usar:** existe un voxelizado de prueba en `src/models/registry.ts` clave `final-boss`, pero sus vistas lateral y trasera no alcanzan calidad de marketing. Rediseñar/terminar el modelo 360° al implementar su gameplay de boss final del Mapa 2.
 - **Diferenciación jugable de personajes** (workstream propio, tras balancear la base): cada personaje debe definir loadout/arma inicial, perfil de stats, regla pasiva o signature y un tradeoff significativo; no basta una silueta. El contenido exacto sigue en diseño en `DESIGN_MEJORAS.md`.
