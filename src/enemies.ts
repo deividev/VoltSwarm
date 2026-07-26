@@ -132,8 +132,13 @@ export class EnemySystem {
     this.eliteAura = new THREE.InstancedMesh(
       auraGeometry,
       new THREE.MeshBasicMaterial({
-        color: auraCfg.color,
-        transparent: true,
+        // Opacity baked in: outside the transparent queue material.opacity is
+        // ignored. Staying transparent would put this ring after every opaque
+        // object, painting it across the body it belongs to.
+        color: new THREE.Color(auraCfg.color).multiplyScalar(
+          VISUAL.groundMarkersOnTop ? auraCfg.opacity : 1,
+        ),
+        transparent: !VISUAL.groundMarkersOnTop,
         opacity: auraCfg.opacity,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
@@ -160,8 +165,11 @@ export class EnemySystem {
     this.bossAura = new THREE.InstancedMesh(
       bossRingGeometry ?? new THREE.RingGeometry(0.85, 1.2, 32),
       new THREE.MeshBasicMaterial({
-        color: 0xff3355,
-        transparent: true,
+        // Opacity baked in: outside the transparent queue material.opacity is
+        // ignored, and staying transparent is what let this ring paint itself
+        // across the boss's body — the transparent queue always draws last.
+        color: new THREE.Color(0xff3355).multiplyScalar(VISUAL.groundMarkersOnTop ? 0.9 : 1),
+        transparent: !VISUAL.groundMarkersOnTop,
         opacity: 0.9,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
@@ -206,6 +214,9 @@ export class EnemySystem {
       const mesh = new THREE.InstancedMesh(buildBotGeometry(typeIndex, type), material, type.capacity);
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.frustumCulled = false;
+      // Above the ground markers, so the half of an elite or boss ring that
+      // falls behind the body is hidden by it instead of painted across it.
+      if (VISUAL.groundMarkersOnTop) mesh.renderOrder = VISUAL.renderOrders.character;
       scene.add(mesh);
       this.meshes.push(mesh);
 

@@ -6,6 +6,15 @@ import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
 import { litMaterial } from './toon';
 
+/** Three.js sorts render items PER MESH and does not inherit renderOrder from a
+ *  parent, so setting it on a Group silently does nothing. Every descendant has
+ *  to carry it. */
+export function setRenderOrder(root: THREE.Object3D, order: number): void {
+  root.traverse((child) => {
+    child.renderOrder = order;
+  });
+}
+
 export class Player {
   readonly mesh: THREE.Group;
   readonly position = new THREE.Vector3(0, 0, 0);
@@ -97,7 +106,7 @@ export class Player {
       // Ordered between scenery and characters (see VISUAL.groundMarkersOnTop):
       // a crate cannot chop the marker, and the marker cannot cover the body
       // standing on it.
-      if (VISUAL.groundMarkersOnTop) this.markerGroup.renderOrder = VISUAL.renderOrders.groundMarker;
+      // Applied per mesh below as each layer is added (renderOrder is not inherited).
       scene.add(this.markerGroup);
 
       const glowGeometry = new THREE.CircleGeometry(VISUAL.playerMarker.glowRadius, 32);
@@ -189,9 +198,14 @@ export class Player {
         this.markerGroup.add(tick);
         this.markerTicks.push(tick);
       }
+
+      // Every marker mesh, not the group: renderOrder is not inherited.
+      if (VISUAL.groundMarkersOnTop) {
+        setRenderOrder(this.markerGroup, VISUAL.renderOrders.groundMarker);
+      }
     }
 
-    if (VISUAL.groundMarkersOnTop) this.mesh.renderOrder = VISUAL.renderOrders.character;
+    if (VISUAL.groundMarkersOnTop) setRenderOrder(this.mesh, VISUAL.renderOrders.character);
     scene.add(this.mesh);
 
     // The image-derived voxel model loads async and swaps in over the
@@ -215,6 +229,8 @@ export class Player {
         }
       }
       this.mesh.add(voxelMesh);
+      // The swapped-in model must keep the character order too.
+      if (VISUAL.groundMarkersOnTop) setRenderOrder(this.mesh, VISUAL.renderOrders.character);
     } catch (error) {
       console.warn('Player voxel model unavailable, keeping primitive rig:', error);
     }
