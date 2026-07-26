@@ -731,7 +731,15 @@ export const WEAPONS = {
     hitRadius: 1.0,
   },
   pulse: {
-    cooldownS: 2.4,
+    /** 2.4 -> 1.4 (playtest 2026-07-26). Volt Pulse read as weak to start with,
+     *  but its damage was not the problem: it needs about four enemies inside
+     *  the radius just to match Bolt Cannon, and that density does not exist in
+     *  the first minutes — an mid-run weapon handed to a starting player.
+     *  Raising damage would inflate the late game, where it is already strong.
+     *  The dead air was the real cost: unlike Orbital Blades, where the player
+     *  controls contact by moving, Pulse offers nothing to do between shots.
+     *  ONE change this pass — damage deliberately untouched. */
+    cooldownS: 1.4,
     damage: 10,
     radius: 6,
     radiusPctPerLevel: 0.06,
