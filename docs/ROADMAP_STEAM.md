@@ -1,6 +1,6 @@
 # Voltswarm — Roadmap a Steam
 
-Fecha: 2026-07-25. Versión de desarrollo actual: **v0.5.6**.
+Fecha: 2026-07-26. Versión de desarrollo actual: **v0.6.5**.
 
 **⚠️ ORDEN REORDENADO POR DECISIÓN DEL USUARIO (2026-07-25): el gate de viabilidad multijugador se DIFIERE a post-lanzamiento.** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno del 4 de noviembre, para una feature que este mismo roadmap documenta como no diferenciadora, no prometida públicamente y que puede terminar en NO-GO — mientras el Mapa 2, el gameplay de Volt Warden, los 3 personajes y los contratos quedaban comprimidos en ~3 semanas. Del gate se rescató solo la mitad barata: cobertura de smoke tests (`npm run test:smoke`). El determinismo de tick fijo sigue diferido.
 

@@ -2,7 +2,7 @@
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Estado de la arquitectura (actualizado 2026-07-25, v0.5.6)
+## Estado de la arquitectura (actualizado 2026-07-26, v0.6.5)
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
@@ -275,3 +275,30 @@ Pantalla de Contratos desde el menú (una columna por categoría: Weapons/Cores/
 ### Herramientas de desarrollo
 
 `npm run test:smoke` (una run real por arma inicial, perfil aislado), `npm run stats` (percentiles para calibrar umbrales, nunca promedios), `npm run reset:profile` (escribe perfiles vacíos, no los borra: `loadProfile` cae a `localStorage` si falta el archivo y resucitaría el save), `npm run check:release-flags` (hook `prepackage` que aborta el build con cualquier instrumento de dev encendido).
+
+
+## Pulido visual y de feel — Implementado 2026-07-26 (v0.5.6 → v0.6.2)
+
+Todo salido de playtests reales del usuario, no de auditoría interna.
+
+### Marcadores de suelo (jugador, élite, boss)
+
+Los anillos son planos a pocos centímetros del suelo (blob shadow 0.04, aura élite 0.07, aura boss 0.08, marcador del jugador 0.075-0.10), y contenedores y bidones son cubos opacos apoyados en ese mismo suelo. La escenografía los cortaba en bloques grises, y el anillo del boss se pintaba encima de su propio cuerpo.
+
+Se resuelve con **ordenación explícita de cola**, no con un flag de profundidad. Three.js dibuja toda la cola transparente después de la opaca, así que un marcador transparente sin `depthTest` acababa por encima del jugador además de por encima de la caja. Los marcadores pasan a la **cola opaca** (el blending aditivo no necesita la bandera `transparent`) y las tres capas se ordenan a mano vía `VISUAL.renderOrders`:
+
+```
+escenografía 0  →  marcadores 1  →  personajes 2
+```
+
+Consecuencias que hay que respetar al tocar esto: `material.opacity` se ignora fuera de la cola transparente, así que la opacidad va **horneada en el color** (y en los colores de vértice del glow); y `renderOrder` **no se hereda de un `Group`**, por lo que hace falta el helper `setRenderOrder()` de `player.ts`. Reversible entero con `VISUAL.groundMarkersOnTop = false`.
+
+El "glow" del marcador del jugador era un `CircleGeometry` pelado —borde duro, leído como placa gris estampada— y ahora tiene caída radial cuadrada por colores de vértice; bajo blending aditivo el negro no aporta, así que es un degradado real sin textura.
+
+### Ruleta del cofre
+
+Nunca puede mostrar dos mods iguales en celdas contiguas. Había dos causas: la tira era un ciclo del pool con el premio pegado al final (si el ciclo terminaba en el premio, quedaban dos iguales — ~1 de cada 4 aperturas), y los tiers pequeños no daban para una ruleta (purple tiene 2 mods, **gold tiene 1**: mostraba 19 celdas idénticas). Ahora la tira se construye como ids y se sanean adyacencias sin tocar nunca la celda del premio, y por debajo de 3 entradas el giro toma prestados mods de otros tiers **solo como paisaje** — el tier lo sigue diciendo el marco de la carta y la celda donde aterriza es siempre el premio del tier correcto.
+
+### Balance
+
+**Volt Pulse: cooldown 2.4 → 1.4s, daño sin tocar.** Su daño no era el problema: a 10 por pulso cada 2.4s necesita ~4 enemigos en el radio solo para igualar a Bolt Cannon, y esa densidad no existe en los primeros minutos — un arma de media run en manos de quien empieza. Subir el daño habría inflado el late, donde ya es fuerte. El coste real era el aire muerto: a diferencia de Orbital Blades, donde el jugador controla el contacto moviéndose, Pulse no ofrece nada que hacer entre disparo y disparo.
