@@ -1888,7 +1888,19 @@ export class Hud {
     // pool only if the tier is somehow empty. Tier is capped to a populated
     // one at spawn, so cross-tier teasing never happens.
     const tierPool = modsOfTier(tier);
-    const spinPool = tierPool.length > 0 ? tierPool : UNLOCKED_MOD_IDS;
+    const spinPool = tierPool.length > 0 ? [...tierPool] : [...UNLOCKED_MOD_IDS];
+    // A reel needs variety to read as a reel. Purple holds two mods and gold
+    // holds one, so a strict same-tier strip either alternates A/B/A/B or shows
+    // one icon nineteen times — which is precisely what "the reel looks rigged"
+    // looks like. Below three entries it borrows other tiers purely as passing
+    // scenery; the tier is still signalled by the card frame, and the cell it
+    // LANDS on is always the rolled tier's prize.
+    if (spinPool.length < 3) {
+      for (const id of MOD_IDS) {
+        if (spinPool.length >= 4) break;
+        if (!spinPool.includes(id)) spinPool.push(id);
+      }
+    }
     const cellHtml = (id: ModId | undefined): string => {
       const entry = id ? MOD_REGISTRY[id] : undefined;
       const locked = id ? !UNLOCKED_MOD_IDS.includes(id) : false;
@@ -1898,13 +1910,34 @@ export class Hud {
       return `<div class="chest-cell${locked ? ' locked' : ''}">${iconHtml(entry)}${lock}</div>`;
     };
     const startIdx = Math.floor(Math.random() * spinPool.length);
-    let cells = '';
+    const strip: (ModId | undefined)[] = [];
     for (let i = 0; i < cellCount; i++) {
-      cells += cellHtml(spinPool[(startIdx + i) % spinPool.length]);
+      strip.push(spinPool[(startIdx + i) % spinPool.length]);
     }
+    strip.push(finalMod); // always unlocked → never padlocked
+
+    // No two neighbours may show the same mod. The prize is appended after a
+    // straight cycle of the pool, so whenever that cycle happened to end on the
+    // prize the reel stopped on a visible pair — which reads as a rigged reel
+    // even though the roll was fair. The LAST cell is the prize and must never
+    // be swapped, so a collision there is fixed by changing the cell before it.
+    // A pool of one cannot avoid repeats and is left alone.
+    if (spinPool.length > 1) {
+      const fix = (index: number): void => {
+        const replacement = spinPool.find(
+          (id) => id !== strip[index - 1] && id !== strip[index + 1],
+        );
+        if (replacement) strip[index] = replacement;
+      };
+      for (let i = 1; i < strip.length - 1; i++) {
+        if (strip[i] === strip[i - 1]) fix(i);
+      }
+      const last = strip.length - 1;
+      if (strip[last] === strip[last - 1]) fix(last - 1);
+    }
+
     const final = MOD_REGISTRY[finalMod];
-    cells += cellHtml(finalMod); // always unlocked → never padlocked
-    reel.innerHTML = cells;
+    reel.innerHTML = strip.map(cellHtml).join('');
 
     const land = (): void => {
       icon.innerHTML = iconHtml(final);
