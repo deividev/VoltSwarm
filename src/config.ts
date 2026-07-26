@@ -434,7 +434,21 @@ export const VISUAL = {
     y: 0.04,
   },
   /** Persistent player readability marker for Steam-scale chaos. Keep it
-   *  cyan/white and unsegmented so it never collides with elite magenta or
+  /** Ground readability markers (player marker, elite aura, boss aura) are flat
+   *  meshes a few centimetres above the floor, so any crate or barrel standing
+   *  on that floor occludes them — the ring reads as chopped by grey boxes.
+   *  These rings are SIGNALS, not painted decals: "that one is an elite" has to
+   *  survive walking behind scenery. Drawing them on top costs a thin overdraw
+   *  across the feet of whoever stands on them, which is cheaper than losing
+   *  the signal.
+   *
+   *  DEFAULT OFF — measured 2026-07-26 and it looks WORSE: without depth test
+   *  the ring and glow also draw over the BODY standing on them, slicing the
+   *  player in half. Fixing prop occlusion needs the marker to pass behind
+   *  characters but in front of scenery, which one depth flag cannot express.
+   *  Kept as a flag so the comparison can be repeated. */
+  groundMarkersOnTop: false,
+  /*  cyan/white and unsegmented so it never collides with elite magenta or
    *  boss red ring language. */
   playerMarker: {
     enabled: true,

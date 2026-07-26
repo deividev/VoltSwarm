@@ -137,6 +137,9 @@ export class EnemySystem {
         opacity: auraCfg.opacity,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
+        // "That one is an elite" has to survive walking behind a crate; see
+        // VISUAL.groundMarkersOnTop.
+        depthTest: !VISUAL.groundMarkersOnTop,
         side: THREE.DoubleSide,
       }),
       ELITE_AURA_CAPACITY,
@@ -144,6 +147,7 @@ export class EnemySystem {
     this.eliteAura.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.eliteAura.frustumCulled = false;
     this.eliteAura.count = 0;
+    if (VISUAL.groundMarkersOnTop) this.eliteAura.renderOrder = 5;
     scene.add(this.eliteAura);
 
     // Boss-exclusive marker: a wide double red ring, matching the totem and
@@ -161,6 +165,7 @@ export class EnemySystem {
         opacity: 0.9,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
+        depthTest: !VISUAL.groundMarkersOnTop,
         side: THREE.DoubleSide,
       }),
       BOSS_TYPE_INDEXES.length,
@@ -168,6 +173,7 @@ export class EnemySystem {
     this.bossAura.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.bossAura.frustumCulled = false;
     this.bossAura.count = 0;
+    if (VISUAL.groundMarkersOnTop) this.bossAura.renderOrder = 5;
     scene.add(this.bossAura);
 
     // Blob shadows: one dark disc per active enemy, anchoring everything to

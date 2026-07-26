@@ -9,6 +9,8 @@
 - **T1 público verificado:** `https://store.steampowered.com/app/4979220/Voltswarm/` está accesible como Coming Soon; antes de una acción pública registrar la hora efectiva de T1 y la fuente de Steamworks.
 - **Baseline actual reportado:** 6 wishlists. Con el objetivo interno de 1.000 y 101 días desde el 27 de julio hasta el 4 de noviembre, el ritmo operativo pasa a 9,84/día o 69/semana; el checkpoint del 2 de agosto es 75 acumuladas. No es forecast ni fecha pública.
 - **Primera señal X:** post del 20: 32 impresiones / 12 engagements / 1 visita de perfil; post del 22: 22 / 9 / 0. Las muestras no permiten elegir ganador; abrir UTMs y medir la primera cohorte T1 antes de iterar.
+- **Activacion T1 ejecutada el 26 de julio, 11:53 Europe/Madrid:** post X page-live fijado con PNG y URL canonica de Steam; la misma URL quedo en Website del perfil. Por preferencia del usuario no usa UTM: medir por ventana temporal/Steamworks y no atribuir conversiones por post.
+
 ## Decisiones no negociables
 
 | Tema | Decision operativa |
@@ -21,6 +23,7 @@
 | Multiplayer/co-op | No se promociona, etiqueta ni promete antes del GO documentado, implementacion terminada y verificacion jugable. "Como minimo co-op 2" es una intencion condicionada, no una feature actual. |
 | Disclosure publico sobre IA | La unica redaccion autorizada es: `The game does not contain AI-generated content. AI-generated content is used just for Steam cover.` No se parafrasea ni amplia mientras Steam no se actualice oficialmente. |
 | Formato por plataforma | Desde 23-07-2026, X y Reddit usan solo MP4 de alta calidad o capturas PNG/JPG; nunca GIF. Steam puede usar GIF, MP4 o capturas segun convenga. |
+| Overlay explicativo de gameplay | Cuando el usuario pida texto explicativo sobre gameplay en un clip, usar el lower-third aprobado: franja inferior azul oscuro a ancho completo, borde cian, titulo blanco y subtitulo cian centrados. Mantenerlo breve, usar terminos in-game verificados y retirarlo antes del payoff. Cuando enumere tiers, colorear cada nombre con su color in-game correspondiente. |
 | Etica | Cero spam, engagement falso, cuentas coordinadas o posts disfrazados de preguntas. Cada publicacion debe aportar prueba real o una conversacion honesta. |
 
 ## Camino rapido: que hacer el lunes 20-07

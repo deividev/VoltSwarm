@@ -94,6 +94,11 @@ export class Player {
     if (VISUAL.playerMarker.enabled) {
       this.markerGroup = new THREE.Group();
       this.markerGroup.position.y = VISUAL.playerMarker.y;
+      // Drawn last and without depth testing when groundMarkersOnTop is set, so
+      // a crate standing on the floor cannot chop the marker into grey blocks.
+      // The whole group shares the order, keeping glow, ring and ticks stacked
+      // in the sequence they are added rather than by camera distance.
+      if (VISUAL.groundMarkersOnTop) this.markerGroup.renderOrder = 5;
       scene.add(this.markerGroup);
 
       const glowGeometry = new THREE.CircleGeometry(VISUAL.playerMarker.glowRadius, 32);
@@ -105,6 +110,7 @@ export class Player {
           transparent: true,
           opacity: VISUAL.playerMarker.glowOpacity,
           depthWrite: false,
+          depthTest: !VISUAL.groundMarkersOnTop,
           blending: THREE.AdditiveBlending,
         }),
       );
@@ -124,6 +130,7 @@ export class Player {
           transparent: true,
           opacity: VISUAL.playerMarker.ringOpacity,
           depthWrite: false,
+          depthTest: !VISUAL.groundMarkersOnTop,
           blending: THREE.AdditiveBlending,
         }),
       );
@@ -140,6 +147,7 @@ export class Player {
         transparent: true,
         opacity: VISUAL.playerMarker.tickOpacity,
         depthWrite: false,
+        depthTest: !VISUAL.groundMarkersOnTop,
         blending: THREE.AdditiveBlending,
       });
       for (let i = 0; i < 4; i++) {
