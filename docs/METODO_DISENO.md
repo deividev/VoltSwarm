@@ -8,7 +8,7 @@ Regla vigente desde el 2026-07-02 para TODO sistema nuevo (armas, mejoras, enemi
 
 1. **Estudiar cómo lo plantea Megabonk.** Fuente real (wiki, el juego), no memoria. Qué capas tiene el sistema, cómo se conectan, qué restricciones impone.
 2. **Extraer el principio, no la lista.** La pregunta es "¿por qué funciona?", no "¿qué contiene?". Ejemplo: de sus tomos no extraemos "Agility Tome +15%", extraemos "las pasivas globales multiplican a las armas de forma distinta según el arma → de ahí salen las builds".
-3. **Generar ideas propias ancladas a NUESTROS sistemas.** Cada elemento nuevo debe interactuar con algo que ya existe (enjambre denso, cofres con beam, kiting, rampa lineal, Heat/Momentum). Si una idea no cambia cómo te movés o qué decidís, es relleno y se descarta.
+3. **Generar ideas propias ancladas a NUESTROS sistemas.** Cada elemento nuevo debe interactuar con algo que ya existe (enjambre denso, cofres con beam, kiting, rampa lineal, Combo Charge/Momentum). Si una idea no cambia cómo te movés o qué decidís, es relleno y se descarta.
 4. **Tematizar en "juguete industrial".** Robots, herramientas de desguace, metal pintado (ver `DIRECCION_ARTE.md`). Si la idea no se puede contar con esa fantasía, se rediseña o se descarta.
 
 ## Principios base ya extraídos de Megabonk

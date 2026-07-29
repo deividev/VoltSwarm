@@ -3,6 +3,7 @@ import { LIFETIME, resetProfile, saveProfile } from './profile';
 import {
   ACTIVE_CONTRACTS,
   describeReward,
+  devCompleteAllContracts,
   progressOf,
   resolveReward,
   rewardCategory,
@@ -343,6 +344,7 @@ export class Hud {
           <div id="unlocks-columns"></div>
           <div id="unlocks-actions">
             <button id="unlock-all-button">Unlock everything</button>
+            <button id="complete-contracts-button">Complete all contracts</button>
             <button id="unlocks-reset-button">Reset progress</button>
             <button id="unlocks-back-button">Back</button>
           </div>
@@ -589,6 +591,13 @@ export class Hud {
         PROFILE.coreSockets = PROFILE.maxCoreSockets;
         // One write for the whole sweep instead of one per unlocked item.
         saveProfile();
+        this.renderUnlocks();
+      });
+      // Settles every contract through the real payout path, so the Contracts
+      // screen shows each row with the item it granted. "Unlock everything"
+      // above bypasses contracts entirely and leaves that screen empty.
+      mustGet('complete-contracts-button').addEventListener('click', () => {
+        devCompleteAllContracts();
         this.renderUnlocks();
       });
       mustGet('unlocks-reset-button').addEventListener('click', () => {

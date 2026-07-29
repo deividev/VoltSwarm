@@ -299,6 +299,31 @@ export function backfillGrantedRewards(): void {
   saveProfile();
 }
 
+/** DEV ONLY — settles every active contract regardless of progress.
+ *
+ *  Goes through the same grant() path as a real payout, so rewards land in
+ *  PROFILE and grantedRewards is filled in: the Contracts screen then shows
+ *  each row with the item it actually gave rather than a bare "Unlocked".
+ *  A contract whose queue has run dry is declined here exactly as it would be
+ *  in play, so this cannot invent content that does not exist.
+ *
+ *  Gated by DEV_TOOLS.unlockPanel at the call site; `npm run package` refuses
+ *  to build while that flag is on. */
+export function devCompleteAllContracts(): EarnedContract[] {
+  const earned: EarnedContract[] = [];
+  for (const contract of ACTIVE_CONTRACTS) {
+    if (LIFETIME.completedContracts.includes(contract.id)) continue;
+    const granted = grant(contract.reward);
+    if (granted === null) continue;
+    LIFETIME.completedContracts.push(contract.id);
+    LIFETIME.grantedRewards[contract.id] = granted;
+    earned.push({ contract, granted, label: describeReward(granted) });
+  }
+  refreshUnlockedMods();
+  saveProfile();
+  return earned;
+}
+
 /** Evaluates every active contract and pays out the newly completed ones.
  *  Call once per finished run, after the ledger has been updated. */
 export function settleContracts(): EarnedContract[] {

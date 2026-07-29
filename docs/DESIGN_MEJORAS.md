@@ -58,9 +58,14 @@ Núcleo genérico inevitable del género + stats propios que solo tienen sentido
 | --- | --- | --- | --- |
 | Magnetism | Radio en el que los cofres se deslizan hacia vos | Interactúa con el sistema de cofres, no con drops que no tenemos | 🟢 |
 | Salvage | Probabilidad de que un kill suelte un micro-cofre (mini recompensa instantánea) | Convierte matar en generar objetivos de movimiento | 🟡 |
-| Heat | Matar en ráfaga acumula calor; con calor alto, +daño. Recibir un golpe lo resetea | Premia meterse en el enjambre — tensión contra el kiting pasivo | 🟡 |
+| Combo Charge | Matar en ráfaga acumula carga; con carga alta, +daño. Recibir un golpe la resetea | Premia meterse en el enjambre — tensión contra el kiting pasivo | 🟡 |
 | Momentum | +daño proporcional a segundos moviéndote sin parar; pararse lo pierde | El juego ES moverse; el stat lo convierte en build | 🟢 |
 | Scrap Armor | Cada X kills genera 1 placa que absorbe 1 golpe (máx. N placas visibles orbitando) | Defensa que se GANA matando, y se ve en pantalla | 🟡 |
+
+> **Nota de nomenclatura (2026-07-26): `Combo Charge` se llamaba `Heat`. NO volver a usar "Heat" para este stat.**
+> **Scrapwake** — el co-op de extracción del Scrapverse — usa `Heat` como su mecánica ESPINA, con el significado **opuesto**: allá el calor es PELIGRO (extraer hace ruido, el ruido despierta al enjambre), no una recompensa por racha de kills.
+> Los dos juegos van a compartir motor y módulos de código, así que dos `heat` con sentidos contrarios producirían bugs silenciosos y una colisión de API el día que se extraiga el paquete compartido. Se renombró el de Voltswarm porque acá es un stat menor **sin implementar** (cero coincidencias de "heat" en `src/` al 2026-07-26) y allá es la identidad del juego.
+> Ver `Scrap_Extraction_Coop/SCRAPWAKE_PRD.md` §4.1.
 
 ---
 
@@ -78,7 +83,7 @@ La base Megabonk: pasivas que suben la ficha. Nuestra vuelta: la mitad del pool 
 | Hull Plates | +25 Integrity | ✅ |
 | Magnet Coil | +Magnetism | 🟢 |
 | Salvage Scanner | +Salvage | 🟡 |
-| Heat Sink | El Heat tarda el doble en decaer | 🟡 |
+| Flywheel | La Combo Charge tarda el doble en decaer | 🟡 |
 
 ### Con tradeoff (identidad nuestra)
 

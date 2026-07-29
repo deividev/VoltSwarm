@@ -7,9 +7,12 @@ export const ARENA_HALF_SIZE = 90;
  *  refuses to build while any of these is true (tools/check-release-flags.mjs),
  *  so leaving one on during a playtest cannot silently ship. */
 export const DEV_TOOLS: { unlockPanel: boolean; auditionKeys: boolean } = {
-  /** Main-menu "Unlocks" panel: unlocks every weapon/core/mod and opens all
-   *  sockets. The Contracts system deletes this panel outright once it lands. */
-  unlockPanel: false,
+  /** Main-menu "Unlocks" panel. Holds three actions: unlock every
+   *  weapon/core/mod and open all sockets directly; settle every contract
+   *  through the real payout path (which is what the Contracts screen reads);
+   *  and reset progress. Kept as a testing surface now that Contracts have
+   *  replaced it as the player-facing progression. */
+  unlockPanel: true,
   /** F2-F9 hotkeys that cycle and preview SFX variants in-game while authoring
    *  audio. Turn back on for the full-catalog audio pass. */
   auditionKeys: false,

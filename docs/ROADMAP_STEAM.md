@@ -1,20 +1,20 @@
 # Voltswarm — Roadmap a Steam
 
-Fecha: 2026-07-26. Versión de desarrollo actual: **v0.6.5**.
+Fecha: 2026-07-29. Versión de desarrollo actual: **v0.6.5**.
 
 **⚠️ ORDEN REORDENADO POR DECISIÓN DEL USUARIO (2026-07-25): el gate de viabilidad multijugador se DIFIERE a post-lanzamiento.** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno del 4 de noviembre, para una feature que este mismo roadmap documenta como no diferenciadora, no prometida públicamente y que puede terminar en NO-GO — mientras el Mapa 2, el gameplay de Volt Warden, los 3 personajes y los contratos quedaban comprimidos en ~3 semanas. Del gate se rescató solo la mitad barata: cobertura de smoke tests (`npm run test:smoke`). El determinismo de tick fijo sigue diferido.
 
-**Orden vigente:** higiene de release + smoke ✅ → perfil persistente + Contratos ✅ → arco de run completo (Mapa 2, Volt Warden, 3 personajes) → balance y retención → catálogo completo de audio → Steamworks/cierre. El gate multijugador se reevalúa **después** del lanzamiento.
+**Orden vigente:** higiene de release + smoke ✅ → perfil persistente + Contratos ✅ → audio v1 ✅ → **Mapa 2 (visual + lógica) + Volt Warden** → **3 personajes diferenciados** → playtests humanos, balance y retención → Steamworks/cierre. El gate multijugador se reevalúa **después** del lanzamiento.
 
 Orden anterior (superseded): foundation de audio → viabilidad multijugador → contenido/balance/retención → catálogo de audio → Steamworks. **Nombre: Voltswarm — CERRADO (confirmado 2026-07-05).** Precio objetivo histórico: **$4.99** con descuento de lanzamiento 10-15%; revisión de mercado previa al lanzamiento pendiente.
 
-**Objetivo público confirmado (2026-07-14): la página Coming Soon debe estar validada por Valve y publicada como máximo el 31 de julio de 2026.** La primera versión saldrá sin tráiler: usará screenshots reales y loops animados en `About This Game`. El tráiler principal se producirá cuando estén terminados el Mapa 2, Volt Warden y los personajes adicionales, para que represente el juego completo.
+**Página Coming Soon pública:** verificada el 2026-07-29 en `https://store.steampowered.com/app/4979220/Voltswarm/`. La primera versión de la página salió sin tráiler: usa screenshots reales y loops animados en `About This Game`. El tráiler principal se producirá cuando estén terminados el Mapa 2, Volt Warden y los personajes adicionales, para que represente el juego completo.
 
 **Estrategia de lanzamiento confirmada (2026-07-14): lanzamiento completo directo, sin demo pública previa y sin participar en Steam Next Fest.** La página Coming Soon acumula wishlists mientras se termina la versión completa; no se desvía producción hacia una build separada de demo.
 
-**Fecha objetivo interna (stretch agresivo, 2026-07-17): miércoles 4 de noviembre de 2026.** No es una estimación segura ni una promesa pública/confirmada. Revalidar tras Audio Foundation y el GO/NO-GO multijugador; si fallan gates medidos, re-baselinar en vez de ocultar el riesgo. Scope freeze para aspirar a esta fecha: sin host migration, dedicated servers ni hybrid local+online; exactamente 3 personajes de lanzamiento, ~30 contratos y sin expansión de contenido no planificada. Checkpoints internos de planificación (no features existentes): Audio Foundation+generator Jul 26; readiness determinista Aug 16; local 2P split+Remote Play Aug 30; peer-host online Steam Sep 20; Map 2/boss/personajes/contratos Oct 11; audio completo+Steamworks Oct 25; RC/QA Oct 26–Nov 4. Coming Soon depende de la aprobación real de Steam. Detalle en `docs/MARKETING_PLAN_LAUNCH_2026.md`.
+**Fecha objetivo interna (stretch agresivo, 2026-07-17): miércoles 4 de noviembre de 2026.** No es una estimación segura ni una promesa pública/confirmada. Revalidar después de cerrar Mapa 2 + Volt Warden y los 3 personajes; si fallan gates medidos, re-baselinar en vez de ocultar el riesgo. Scope freeze para aspirar a esta fecha: exactamente 3 personajes de lanzamiento, ~30 contratos y sin expansión de contenido no planificada. Multiplayer, determinismo de red, host migration, dedicated servers e hybrid local+online quedan fuera del camino crítico y se reevalúan post-lanzamiento. Detalle operativo en `docs/MARKETING_PLAN_LAUNCH_2026.md`.
 
-**Estado operativo confirmado (2026-07-17): handoff enviado → página creada por el publisher → página bajo revisión de Steam/Valve. La página todavía NO está aprobada, publicada ni visible como Coming Soon. La “v1 cerrada” es el paquete/handoff de la página, no el juego completo. Todos los rigs temporales de captura están desactivados. Fase 3 cerrada; siguiente trabajo productivo: foundation de audio → gate de viabilidad multijugador → Fase 5 → catálogo de audio → Fase 6. En paralelo: responder feedback de Steam y, tras aprobación, publicar Coming Soon.**
+**Estado operativo confirmado (2026-07-29): página pública como Coming Soon, paquete/handoff comercial cerrado, audio v1 cerrado y visibilidad del boss/portal corregida. La “v1 cerrada” del audio y del paquete de página NO significa que el juego completo esté cerrado. Todos los rigs temporales de captura están desactivados. Siguiente bloque productivo: Mapa 2 (visual + lógica) y gameplay de Volt Warden; después, 3 personajes diferenciados. Los playtests humanos y la calibración de balance se harán más adelante, cuando ese contenido exista en una build comparable.**
 
 ## Hecho (pase de endurecimiento, 2026-07-04)
 
@@ -111,46 +111,37 @@ Lo que falta para que las capturas/GIFs vendan la página de Steam:
 - ✅ **Settings in-game — SUPERADO por Settings v3 (2026-07-13, PRD §"Settings v3")**: pantalla completa con sidebar General/Controls, auto-apply (sin botón Apply), remapeo de controles teclado+gamepad, IPC de fullscreen/resolución aplicándose solo al cambiar (fix del parpadeo). Los sliders de volumen existen, persisten y gobiernan la Audio Foundation
 - ✅ **Menú principal completo**: Play / Unlocks / Settings / Exit; Settings compartido con pausa; versión visible abajo a la derecha como `vMAJOR.MINOR.PATCH`. `vite.config.ts` lee `package.json` e inyecta `__APP_VERSION__`, por lo que no existe una segunda versión hardcodeada que pueda quedar desincronizada. **Futuro, no implementado:** si el gate da GO, el destino de menú pasa a `Play Solo` y `Play Multiplayer`; no cambia el claim público actual.
 
-## Fase 4a — Foundation de audio (AHORA; no es el catálogo completo)
+## Fase 4a — Audio v1 (CERRADO)
 
-**Decisión aprobada 2026-07-17:** implementar ahora solo la arquitectura de audio segura y observable; la producción e integración del catálogo P1/P2/P3 permanece después de contenido/balance. Inicialmente, `AudioDirector` observa eventos semánticos tipados emitidos por el `Game` actual; ese contrato de eventos debe permanecer estable cuando la futura investigación extraiga `RunSimulation` (que hoy NO existe). La foundation añade buses Master/Music/SFX ligados a settings, seguridad no-op para navegador/asset ausente, `resume()` tras gesto del usuario y presupuesto explícito de fuentes/voces para no degradar el enjambre de 400+ enemigos. Ver contrato y catálogo en `docs/DISENO_AUDIO.md`.
+**Estado confirmado por el usuario 2026-07-29:** la primera versión de audio está cerrada. Incluye la arquitectura segura y observable, buses Master/Music/SFX, integración de la primera tanda de eventos y música, y presupuesto explícito de fuentes/voces para no degradar el enjambre de 400+ enemigos. El contenido futuro de Mapa 2, Volt Warden y personajes podrá exigir nuevos eventos o una pasada posterior, pero no reabre audio v1 ni desplaza el siguiente bloque productivo. Ver contrato y catálogo en `docs/DISENO_AUDIO.md`.
 
-**Gate de aceptación:** eventos semánticos tipados desde el `Game` actual, renderer/HUD independientes del audio, ningún fallo de audio bloquea una run, y los sliders persisten y gobiernan los tres buses. Antes de aceptar la foundation deben existir `AUDIO.voiceCaps` (o equivalente) en `src/config.ts` y un benchmark registrado de 400+ enemigos que apunte a 60 FPS, mida drops de voz y fugas de fuentes. La autoría suma un generador SFX procedural **offline y determinista** (assets pre-renderizados, nunca síntesis runtime) y música Suno con evidencia comercial de plan activo; contrato completo en `docs/AUDIO_AUTHORING_PIPELINE.md`. No se declara “audio completo” ni se genera el catálogo en este paso.
+**Gate aceptado:** eventos semánticos tipados desde el `Game` actual, renderer/HUD independientes del audio, ningún fallo de audio bloquea una run, sliders persistentes para los tres buses, límites de voces y benchmark de enjambre. La autoría usa un generador SFX procedural **offline y determinista** y música Suno con provenance en `docs/AUDIO_AUTHORING_PIPELINE.md`.
 
-## Preparación y viabilidad multijugador (SIGUIENTE; NO es promesa pública)
+## Preparación y viabilidad multijugador (POST-LANZAMIENTO; NO es promesa pública)
 
 Aislar primero las costuras de `RunSimulation`/sesión: tick fijo, RNG de gameplay con semilla, `PlayerId` + snapshots de comandos, IDs estables de entidad, snapshot/digest serializable y renderer/HUD/audio como observadores. El resultado obligatorio es un **GO/NO-GO** documentado, no una feature online prometida. Especificación y criterios: `docs/MULTIPLAYER_FEASIBILITY.md`.
 
 Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 jugadores local split-screen**, con cámaras/viewports independientes y sin tether compartido; después Steam Remote Play Together transmite la vista dividida del host. La arquitectura soporta 1–4 `PlayerId`, pero no promete 4 jugadores local. El co-op online peer-host (hasta 4; una cámara full-screen por cliente) es una decisión posterior explícita y usará snapshots host-authoritative. Hybrid local+online y dedicated servers quedan fuera de alcance.
 
-## Fase 5 — Balance + contenido de rejugabilidad
+## Fase 5 — Arco completo, personajes y balance
+
+**Prioridad interna vigente:** primero Mapa 2 (visual + lógica) y Volt Warden; después 3 personajes diferenciados; finalmente playtests humanos, balance y retención sobre una build comparable.
 
 - ✅ **Tanda de playtest 2 — tiers de armas, oclusión y feedback (2026-07-17):** mejoras de arma con potencia escalada por tier y persistida; targeting al enemigo visible más cercano; proyectiles/beam/AoE/procs bloqueados por obstáculos; números de daño mayores; feedback `+XP/+GOLD` junto al jugador; oleadas conservan el anillo de spawn incluso junto al borde. El tratamiento visual definitivo del perímetro exterior queda pendiente de elección artística con el usuario.
 - ✅ **Recalibración inicial de economía y rareza (2026-07-17):** el drop normal mantiene 25% de frecuencia pero entrega 2 unidades para no aumentar pickups; los pesos sin Luck pasan a 62/27/9/1.8/0.2, haciendo que morado/dorado sea un jackpot inicial y que Lucky Gear tenga una función real. Validar capacidad de compra y calidad de drafts en el siguiente playtest antes de tocar precios o `luckShift`.
 - ✅ **Calidad de recompensas (2026-07-17):** el draft y Chaos Module filtran stats dependientes que no afectan la build actual; la regla compartida de valor marginal retira Crit Chance y Lifesteal al alcanzar sus caps efectivos, sin capar Crit Damage; Barrier Cell se migro a Mod azul de cofre/tienda con curva 1-6 cargas y 7-10 recarga, filtrada al cap de 10; no entra en Core/level-up/Chaos, reutiliza `icon-stat-shield-v2.png` y Coolant Burst sigue disparando al romper carga; los cofres pagados no sortean Repair Kit a vida completa y la primera copia de Orb Siphon activa sobre el mismo cofre que la entrega. El colapso de identidad al llenar 1 arma + 2 cores queda como límite conocido del modelo de sockets v1, a resolver con ramas de mejora o expansión de sockets, no rompiendo el compromiso sin swap.
 - ✅ **Perfil persistente + Contratos de Desguace (2026-07-25, v0.5.6):** el motor de retención está implementado y sustituye al panel dev de Unlocks. `PROFILE` (ex `ACCOUNT`) y el ledger de carrera `LIFETIME` se guardan en `userData/profile.json`; ~26 contratos entre firma y escaleras cubren 6 armas, 10 cores, 5 mods y 3 sockets, con colas ordenadas para que añadir contenido sea un `push` y no un contrato nuevo. Spec completa en `PRD.md`. **Los umbrales son placeholders** anclados a UNA run registrada: se calibran con `npm run stats` cuando existan decenas de runs humanas del balance vigente.
 - ✅ **Historial local de runs (2026-07-25):** movido de `localStorage` a `userData/run-history.json` legible por herramientas, con migración al arrancar. Registra además arma inicial, dificultad, tipos de boss derrotados, daño recibido, oro, cofres por tier y compras — todos irrecuperables a posteriori. Es la base del leaderboard de Fase 6; `submittedTo` reserva el bookkeeping de envío.
-- Playtests con datos del desglose por arma (55 combinaciones de build)
+- Playtests con datos del desglose por arma (55 combinaciones de build) — **diferidos hasta que Mapa 2, Volt Warden y los personajes estén integrados en una build comparable**. No bloquear el inicio de Mapa 2 esperando una muestra humana que se recogerá más adelante.
 - Selector de dificultad alimentando `difficultyScalar` + persistencia de mejor run — los registros ya se estampan con `difficulty: 'standard'` para que las runs de esta época sigan siendo rankeables cuando el selector exista
 - **Visión cerrada de la run completa:** Mapa 1 durante 10 minutos → transición conservando la build → Mapa 2 durante otros 10 minutos → enfrentamiento final contra **Volt Warden**.
-- **⚠️ DECISIÓN ABIERTA, a resolver ANTES de construir el Mapa 2 (planteada por el usuario 2026-07-26): ¿la transición al Mapa 2 exige matar al boss del Mapa 1?** La visión de arriba es puramente TEMPORAL (10 minutos), no pide boss. Añadir ese requisito choca con lo que miden las primeras runs humanas:
-  - **0 bosses invocados en 6 runs**, incluidas las 2 que llegaron completas a 10:00. El portal aparece a 45-65 unidades del centro y hay que caminar hasta él y pulsar interactuar; con datos en la mano, nadie lo hace.
-  - **Solo 2 de 6 runs (33%) llegan al final.** Las otras mueren en 76s, 94s, 154s y 291s — la mitad por debajo de los 3 minutos.
-  - Combinando ambas: un gate de boss dejaría a la mayoría de jugadores **sin ver nunca la mitad del juego**.
-  - Ese mismo hueco ya bloquea la progresión hoy: `Boss Hunter` otorga el ÚNICO socket de arma, así que el perfil de prueba está en 4/4 sockets de core y **1/2 de arma**, con 16 cores y 15 mods desbloqueados pero una sola arma equipable.
-
-  **El fondo del problema:** el portal está diseñado como OBJETIVO SECUNDARIO (opcional, hay que ir a buscarlo) y se estaría usando como CAMINO CRÍTICO. O el boss pasa a ser camino crítico de verdad (aparece solo al cerrar los 10:00, sin depender de que lo encuentres), o el gate no es el boss. Las opciones a evaluar entonces, con datos frescos del Mapa 1 ya balanceado:
-  1. Boss automático al cumplirse los 10:00 — elimina el problema de descubrimiento; el portal opcional queda para invocaciones extra y recompensa.
-  2. Gate por supervivencia (llegar a 10:00), con el boss opcional y premiado.
-  3. Mantener el portal opcional pero telegrafiarlo mucho más fuerte y acercarlo.
-
-  Cualquiera de las tres exige **antes** revisar oleadas y daño del Mapa 1: con un 33% de supervivencia actual, el gate lo pone la dificultad, no el boss.
+- **✅ Visibilidad del boss/portal corregida (confirmado por el usuario 2026-07-29).** Las primeras 6 runs humanas, con 0 bosses invocados, describen el build anterior al arreglo y quedan como evidencia histórica, no como bloqueo vigente ni como motivo para retrasar Mapa 2. La decisión de diseño que todavía debe cerrarse es únicamente el **gate de transición**: boss obligatorio, supervivencia temporal u otra regla explícita. Debe resolverse como contrato del arco, sin reabrir la visibilidad ya corregida.
 
 ### Bloque Mapa 2 + Volt Warden — decisiones a cerrar ANTES de implementar
 
 Lista levantada 2026-07-26 a petición del usuario. Ninguna es "escribir código": todas cambian qué código hay que escribir, y varias son irreversibles una vez haya jugadores.
 
-**1. El gate de transición.** Ver la decisión abierta de arriba. Es la primera porque condiciona a las demás.
+**1. El gate de transición.** Definir si cruzar exige derrotar al boss, sobrevivir hasta el corte temporal u otra regla explícita. La visibilidad del portal ya está corregida; no confundir UX de descubrimiento con la regla de progresión entre mapas.
 
 **2. Continuidad de la dificultad — HAY UN TECHO YA ALCANZADO.** `difficultyScalar` es `min(elapsedS / 480, 1)`: la rampa **topa a los 8 minutos**, así que los últimos 2 del Mapa 1 ya son planos. Si el Mapa 2 sigue con el mismo reloj, **arranca al máximo y no tiene recorrido**: sus 10 minutos jugarían exactamente igual que el minuto 8. Opciones:
    - Extender la rampa al arco completo (480 → ~1080) y recalibrar el Mapa 1 entero. Coherente, pero rebalancea lo ya validado.
@@ -169,10 +160,10 @@ Lista levantada 2026-07-26 a petición del usuario. Ninguna es "escribir código
 
 **8. Elenco del Mapa 2.** ¿Enemigos nuevos, los 6 actuales reescalados, o una mezcla? La dirección de arte ya fija el arco (chatarrería → fundición → ciudad neón), así que el Mapa 2 es la fundición y eso condiciona siluetas y paleta. Todo enemigo nuevo se valida con el enjambre a 400+.
 
-**Qué instrumentar ANTES de empezar el bloque:** el campo de mapa en el registro de muerte (punto 5) y unas cuantas runs humanas del Mapa 1 ya balanceado, para no diseñar la dificultad del Mapa 2 sobre un Mapa 1 que todavía mata al 67%.
+**Qué instrumentar ANTES de la primera run del Mapa 2:** el campo de mapa en el registro de muerte (punto 5). Los playtests humanos se harán más adelante sobre una build comparable con el nuevo arco; no son prerequisito para empezar el trabajo visual y lógico del mapa.
 - Semilla de layout aleatoria por run, escalera extendida de bosses/elites, meta-progresión ligera y contenido adicional desbloqueable.
 - **Volt Warden — modelo REVISAR antes de usar:** existe un voxelizado de prueba en `src/models/registry.ts` clave `final-boss`, pero sus vistas lateral y trasera no alcanzan calidad de marketing. Rediseñar/terminar el modelo 360° al implementar su gameplay de boss final del Mapa 2.
-- **Diferenciación jugable de personajes** (workstream propio, tras balancear la base): cada personaje debe definir loadout/arma inicial, perfil de stats, regla pasiva o signature y un tradeoff significativo; no basta una silueta. El contenido exacto sigue en diseño en `DESIGN_MEJORAS.md`.
+- **Diferenciación jugable de personajes** (workstream propio inmediatamente después de Mapa 2 + Volt Warden y antes de los playtests humanos): cada personaje debe definir loadout/arma inicial, perfil de stats, regla pasiva o signature y un tradeoff significativo; no basta una silueta. El contenido exacto sigue en diseño en `DESIGN_MEJORAS.md`.
 - **CANDIDATO DE DISEÑO — Dash (origen: comentario en X al post del 2026-07-22).** Idea del usuario: que todos los personajes tengan un dash para dar más movimiento al combate. **Veredicto de diseño (a favor, con condiciones):** encaja en ESTE juego — el jugador solo controla el movimiento (auto-apuntado innegociable), así que un dash **enriquece la única capa de skill** sin romper esa regla; la presentación 3D "juguete" lo hace verse/sentirse genial (burst de estela voxel = propulsor de robot, on-theme); es feature moderna esperada. **RIESGO PRINCIPAL:** puede **trivializar la tensión central del swarm** (que NO puedas escapar fácil) — sobre todo con i-frames + cooldown corto, que aplanan el "quedar rodeado". **Recomendaciones para cuando se prototipe:** (1) **arrancar SIN i-frames** — dash de puro reposicionamiento, seguís vulnerable; agregar i-frames solo si el feel lo pide (conecta con la duda ya pendiente "i-frames en dodge/block ¿intencional?" más abajo). (2) **NO idéntico para todos** — que sea base pero **tuneado por personaje** (distancia/cooldown, o cambiarlo por más HP/escudo en algún personaje); un dash fotocopiado gasta una palanca de diferenciación. **Timing:** decisión de feel núcleo, prototipar en la pasada de movimiento/personajes de Fase 5, NO mid-audio. Es sistémico: toca cooldown, distancia, i-frames, interacción con knockback/slows, bindings teclado+gamepad, VFX y SFX, y obliga a re-balancear densidad/velocidad de enemigos.
 - **Retención (gap-analysis vs Megabonk completo, 2026-07-04):**
   - ✅ **Contratos de Desguace** — implementados 2026-07-25, ver arriba y en `PRD.md`. Pendiente solo la calibración de umbrales con datos reales.
@@ -181,10 +172,11 @@ Lista levantada 2026-07-26 a petición del usuario. Ninguna es "escribir código
   - **Reroll / Skip / Banish** en el level-up (ya diseñado en DESIGN_MEJORAS.md; N usos por run).
 - INFO pendientes de los juicios: subida multinivel de XP por orbe, `BOSS_TYPE_INDEXES` posicional → campo `isBoss`, wrap del `gen % 1000`, alocación en `pickEnemyType`, `ELITES.scaleMultiplier` separado visual/daño, i-frames en dodge/block (¿intencional?)
 
-## Fase 4b — Catálogo e integración completa de audio (después de Fase 5)
+## Fase 4b — Extensión de audio para contenido nuevo (DESPUÉS de Mapa 2 y personajes)
 
-- Re-auditar `docs/DISENO_AUDIO.md` contra el juego ya cerrado y producir/integrar P1 → mezcla/playtest → P2 → P3.
-- La música principal solo se adelanta si el tráiler final la necesita; la foundation ya habilita esa integración sin rehacer el sistema.
+- **Audio v1 está cerrado.** Esta fase ya no es una deuda del build actual.
+- Cuando Mapa 2, Volt Warden y los personajes estén cerrados, re-auditar solo los eventos nuevos y hacer la pasada de cohesión final contra el contenido real.
+- La música o mezcla adicional se adelanta únicamente si el tráiler final la necesita.
 
 ## Fase 6 — Steamworks técnico + cierre
 
@@ -230,14 +222,14 @@ Nota: el voxelizer y el toon van a la base como OPCIONALES — el próximo juego
 - Completed: **Weapon branches for all weapons (2026-07-17):** all 11 weapons now use three original specialisations, each incrementing nominal level and aggregate snapshot power while only its selected runtime behavior gains the rarity-weighted increase, and its card shows any simultaneous Lv3/Lv5 quantity milestone. A draft permits at most one branch per owning weapon; full sockets reserve an eligible branch and installed core before the final legal card, using a run-only Gold fallback rather than duplicating a branch when uniqueness exhausts a supported three-card draft.
 
 
-### Audio Foundation — implemented 2026-07-17
+### Audio v1 — cerrado 2026-07-29
 
-Runtime foundation is implemented: renderer-side lazy `AudioDirector`, settings buses, semantic observer events, config-owned limits and diagnostics. The deterministic offline generator/validation pack is implemented under `tools/audio/`; generated WAV/OGG remain local/regenerable by the deliberate asset-ignore policy. The packaged 400+ audio benchmark passed with the evidence below. Pending: final P1/P2/P3 catalog and music production/licensing workflow. Headless/browser autoplay can validate scheduling/caps but not audible playback.
+Runtime foundation and the first playable audio version are closed: renderer-side lazy `AudioDirector`, settings buses, semantic observer events, config-owned limits and diagnostics, integrated first-pass SFX/music, and deterministic offline generation/validation under `tools/audio/`. Generated WAV/OGG remain local/regenerable by the deliberate asset-ignore policy. The packaged 400+ audio benchmark passed with the evidence below. Future content can add events after Mapa 2 and characters are stable; that extension is not the current priority.
 
 ### Packaged audio swarm evidence (2026-07-17)
 
 Successful local packaged Electron run via `npm run benchmark:audio`: deterministic `audio-swarm-416` (seed 4979220; digest `4979220:240-112-48:0.25:4`), 404 peak / 411 minimum / 411 end active enemies, including normal-HP sacrificial enemies. At 800x600 after 3 s warmup + 10 s rAF sample on Windows 10 / AMD Ryzen 7 3700X / NVIDIA GeForce RTX 2060 (D3D11): 120.10 mean FPS, 119 minimum complete 1 s bucket FPS and 8.5 ms frame-time p99. Actual paths: 9 kills, 7 XP pickups, 14 Gold pickups; audio 47 attempts / 27 accepted, 15 peak voices, 20 cooldown drops, 0 steals/load failures/leaks and 0 active audio voices after cleanup. Evidence: `tmp/perf-audio-output/report.json`. This validates this machine and scenario only, not Steam minimum hardware.
 
-### Audio artistic pre-production gate
+### Audio artistic status
 
-Runtime Audio Foundation and its benchmark are technically passed. Artistic audio is not started: the current generated pack is TECH FIXTURE / REJECTED FINAL. Next is user approval of `SOUND_DIRECTION.md` and `SOUND_EVENT_CATALOG.md`, then only six prototypes; final catalog and Suno music remain pending.
+Runtime Audio Foundation, its benchmark and audio v1 are closed. Historical notes describing the pack as a rejected technical fixture are superseded by the user-confirmed first version integrated and accepted by 2026-07-29. Further authoring belongs to new content or final cohesion, not to the next work block.
