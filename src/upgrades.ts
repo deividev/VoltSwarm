@@ -1,4 +1,4 @@
-import { PROFILE, DRAFT_FALLBACK, CORE_BALANCE, CORE_TIER_MAGNITUDES, MAX_WEAPON_LEVEL, RECORDING, TIERS, WEAPON_INFO, WEAPON_UPGRADE_TIER_SCALE, describeWeaponBranch, isBranchWeapon, weaponBranchEntries, xpForLevel, type BranchWeaponId, type WeaponBranchId, type WeaponBranchLevels, type WeaponId } from './config';
+import { PROFILE, DRAFT_FALLBACK, CORE_BALANCE, CORE_TIER_MAGNITUDES, MAX_WEAPON_LEVEL, RECORDING, TIERS, WEAPON_INFO, WEAPON_UPGRADE_TIER_SCALE, describeWeaponBranch, isBranchWeapon, isWeaponAvailable, weaponBranchEntries, xpForLevel, type BranchWeaponId, type WeaponBranchId, type WeaponBranchLevels, type WeaponId } from './config';
 import type { PlayerStats } from './stats';
 import type { Player } from './player';
 
@@ -517,7 +517,7 @@ export function rollUpgradeChoices(
       for (const [branchId] of weaponBranchEntries(weaponId)) {
         candidates.push(makeWeaponBranchCard(weaponId, branchId, level, rollRarity(stats.luck)));
       }
-    } else if (!atWeaponCap && PROFILE.unlockedWeapons.includes(weaponId)) {
+    } else if (!atWeaponCap && isWeaponAvailable(weaponId) && PROFILE.unlockedWeapons.includes(weaponId)) {
       unlockCards.push(makeWeaponUnlockCard(weaponId));
     }
   }

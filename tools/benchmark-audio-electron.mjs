@@ -28,7 +28,12 @@ async function waitForCdp() {
 mkdirSync(OUTPUT, { recursive: true });
 run('npm.cmd', ['run', 'package:dir']);
 if (!existsSync(EXE)) throw new Error(`Missing packaged executable: ${EXE}`);
-const processHandle = spawn(EXE, [`--remote-debugging-port=${PORT}`, '--audio-benchmark'], { cwd: dirname(EXE), stdio: 'pipe', windowsHide: true });
+// ELECTRON_RUN_AS_NODE (inherited from some tool environments) boots the
+// packaged binary as plain Node, which rejects the Chromium flags below with
+// "bad option" and exits 9 — reads like the app refusing its own arguments.
+const benchmarkEnv = { ...process.env };
+delete benchmarkEnv.ELECTRON_RUN_AS_NODE;
+const processHandle = spawn(EXE, [`--remote-debugging-port=${PORT}`, '--audio-benchmark'], { cwd: dirname(EXE), stdio: 'pipe', windowsHide: true, env: benchmarkEnv });
 let browser;
 try {
   await waitForCdp();

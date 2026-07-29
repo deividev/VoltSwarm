@@ -1,4 +1,4 @@
-import { PROFILE, DEV_TOOLS, WEAPON_INFO, describeWeaponBranches, type WeaponId } from './config';
+import { PROFILE, DEV_TOOLS, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, type WeaponId } from './config';
 import { LIFETIME, resetProfile, saveProfile } from './profile';
 import {
   ACTIVE_CONTRACTS,
@@ -583,7 +583,7 @@ export class Hud {
         mustGet('menu-overlay').classList.remove('hidden');
       });
       mustGet('unlock-all-button').addEventListener('click', () => {
-        for (const id of Object.keys(WEAPON_INFO) as WeaponId[]) this.unlock('weapon', id);
+        for (const id of availableWeaponIds()) this.unlock('weapon', id);
         for (const id of Object.keys(CORE_TITLES)) this.unlock('core', id);
         for (const id of MOD_IDS) this.unlock('mod', id);
         // Also open every socket slot (dev testing; contracts drive these later).
@@ -727,7 +727,7 @@ export class Hud {
   }
 
   private renderUnlocks(): void {
-    const weapons = (Object.keys(WEAPON_INFO) as WeaponId[]).map((id) => ({
+    const weapons = availableWeaponIds().map((id) => ({
       kind: 'weapon' as const,
       id,
       name: WEAPON_INFO[id].title,

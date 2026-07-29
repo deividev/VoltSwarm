@@ -132,6 +132,7 @@ try {
   // binary as plain Node so `app` never exists.
   const electronEnv = { ...process.env, VITE_DEV_SERVER_URL: `http://localhost:${PORT}/` };
   delete electronEnv.ELECTRON_RUN_AS_NODE;
+  delete electronEnv.ELECTRON_RUN_AS_NODE;
   // Without these, Chromium throttles requestAnimationFrame in a window that is
   // not in the foreground, so the run never leaves the loading screen and every
   // weapon reports a false failure.

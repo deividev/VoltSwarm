@@ -928,6 +928,27 @@ export const WEAPON_INFO: Record<WeaponId, { title: string; description: string 
   },
 };
 
+/** Weapons that are benched: their code, icon, VFX and upgrade branches all
+ *  stay intact, but they can never enter play through ANY door — profile
+ *  unlocks, the level-up draft, or the dev unlock panel. Re-enabling one is
+ *  deleting its entry here (a contract reward queue may also need it back).
+ *
+ *  Oil Sprayer, benched 2026-07-26: it deals no damage at all, so it reads as
+ *  a dead pick in a level-up draft. Kept whole in case it returns redesigned.
+ *  Removing it from the contract queue was not enough — a profile that had
+ *  already unlocked it kept it forever, and "Unlock everything" handed it back. */
+export const DISABLED_WEAPONS = new Set<WeaponId>(['oil']);
+
+/** The single question every weapon pool must ask before offering an id. */
+export function isWeaponAvailable(id: WeaponId): boolean {
+  return !DISABLED_WEAPONS.has(id);
+}
+
+/** Every weapon that can currently reach a player, in registry order. */
+export function availableWeaponIds(): WeaponId[] {
+  return (Object.keys(WEAPON_INFO) as WeaponId[]).filter(isWeaponAvailable);
+}
+
 export const MAX_WEAPON_LEVEL = 20;
 
 /** One Core magnitude per rarity: [gray, green, blue, purple, gold]. */

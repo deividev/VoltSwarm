@@ -1,4 +1,4 @@
-import { PROFILE, WEAPON_INFO, type WeaponId } from './config';
+import { PROFILE, WEAPON_INFO, isWeaponAvailable, type WeaponId } from './config';
 import { CORE_TITLES } from './upgrades';
 import { MOD_IDS, refreshUnlockedMods, type ModId } from './mods';
 import { clearRunHistory, loadRunHistory, type RunRecordV1 } from './run-history';
@@ -104,7 +104,9 @@ const DEFAULTS = {
   unlockedMods: [...PROFILE.unlockedMods] as string[],
 };
 
-const VALID_WEAPONS = new Set(Object.keys(WEAPON_INFO));
+// Benched weapons are not valid unlocks, so a profile saved while one was
+// still live drops it on the next load instead of carrying it forever.
+const VALID_WEAPONS = new Set(Object.keys(WEAPON_INFO).filter((id) => isWeaponAvailable(id as WeaponId)));
 const VALID_CORES = new Set(Object.keys(CORE_TITLES));
 const VALID_MODS = new Set<string>(MOD_IDS);
 
