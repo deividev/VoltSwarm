@@ -10,6 +10,7 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 | Contrato / desbloqueo / progresión entre runs | `docs/PRD.md` §"Perfil persistente y Contratos" → `src/contracts.ts` | Añadir contenido = `push` a una cola, NUNCA escribir un contrato · lo otorgado se guarda como IDS, jamás como índice · lo otorgado nunca se revoca · umbrales solo en `config.ts CONTRACTS` |
 | Datos de runs / calibrar números | `npm run stats` (percentiles, nunca promedios) | Solo cuenta una run TERMINADA · jugar desde Electron, no navegador · datos de bot ≠ datos humanos |
 | Arma / mejora / stat nueva | `docs/METODO_DISENO.md` (proceso) → `docs/DESIGN_MEJORAS.md` (¿ya está diseñada? estado ✅/🟢/🟡/🔴) | Sin apuntado manual · anti-clon de Megabonk |
+| Personaje jugable nuevo, dash, o "se siente quieto" | `docs/DISENO_FRENESI.md` §4 (decisiones cerradas) → `docs/DESIGN_MEJORAS.md` §Personajes | Identidad = REGLA que dobla un sistema existente, NUNCA movilidad ni stats sueltos · ningún personaje sobrevive por moverse bien · dash universal e idéntico y va DESPUÉS de que la densidad importe · personaje = contrato FIRMA, jamás peldaño de escalera |
 | Enemigo / mapa / prop nuevo | `docs/DIRECCION_ARTE.md` (silueta, paleta, arco de mapas) | Silueta única por tipo · InstancedMesh por tipo |
 | Modelo 3D de personaje/prop (nuevo o existente) | `docs/PROMPTS_IMAGENES.md` §6-7 (prompt maestro) → `docs/DIRECCION_ARTE.md` (pipeline 2D→3D) | **3 vistas SIEMPRE** (frontal/lateral/trasera, regla 2026-07-06) contiguas y planas → entrada en `src/models/registry.ts` · validar enjambre 400+ |
 | Suelo/ambiente de mapa | `docs/PROMPTS_IMAGENES.md` §7b (pipeline distinto: textura cenital, no se voxeliza) | Vista top-down estricta, sin props/personajes en la imagen · mosaico vía `RepeatWrapping` · `litMaterial()` para no desentonar con el resto |
@@ -59,6 +60,7 @@ Regla general: si el pedido no encaja claro en una fila, `docs/PRD.md` primero (
 | `docs/PROMPTS_IMAGENES.md` | Prompts concretos de generación de imágenes IA, todos con la regla voxel reforzada. |
 | `docs/REFERENCIAS_VISUALES.md` | Plan técnico del pase visual (bloom, sombras, toon, partículas) con referencias externas. |
 | `docs/ROADMAP_STEAM.md` | Plan ordenado y con razones hacia el lanzamiento en Steam (fases 0-6 + post-lanzamiento). |
+| `docs/DISENO_FRENESI.md` | Estudio MEDIDO de por qué el juego se siente y se ve quieto (curva de densidad, jugador inalcanzable, meseta final) + ideas por ejes. §4 = decisiones cerradas de dash y personajes, con el hallazgo clave: el i-frame global capa el DPS del enjambre a 20, así que más densidad se VE más loca sin ser más peligrosa. |
 | `docs/DISENO_AUDIO.md` | Foundation `AudioDirector`/buses/presupuesto que se implementa ahora, más catálogo de ~95 SFX/música que se completa después de contenido/balance. |
 | `src/contracts.ts` | Sistema de contratos: tipos de objetivo, contratos firma, escaleras y colas de premios. Los umbrales viven en `config.ts CONTRACTS`, no aquí. |
 | `src/profile.ts` | `PROFILE` (desbloqueos/sockets) + `LIFETIME` (ledger de carrera) y su persistencia. Toda progresión entre runs pasa por acá. |

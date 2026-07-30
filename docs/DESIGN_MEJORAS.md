@@ -250,6 +250,47 @@ Una silueta no define un personaje jugable. Cada personaje futuro debe tener las
 
 Los nombres, armas, cifras y pasivas concretas todavía **no están diseñados ni comprometidos**. Los bocetos anteriores se mantienen como dirección temática, no como especificación de implementación. Diseñar cada personaje después de validar el balance base y registrar su propuesta aquí antes de programarlo.
 
+### Decisiones cerradas 2026-07-30 (detalle y medición en `DISENO_FRENESI.md` §4)
+
+- **La identidad vive en REGLAS que doblan sistemas ya existentes**, no en la movilidad ni en un dash con parámetros distintos por personaje. Un dash con otros números es una hoja de stats, no un personaje. Enganchar a lo que ya está probado: sockets de arma/core, los 5 tiers, oro, chatarrero, cofres, pool de mods, contratos. Bocetos de dirección: apilador de armas (+1 socket de arma, −2 de core) · sobrecargado (mods un tier por encima, +50% daño de contacto) · bola de nieve (imán de XP global, ~30% más rápido de nivel, 60 HP).
+- **R1 — Ningún personaje sobrevive por moverse bien.** La supervivencia sale de HP, armor, evasion, lifesteal o control; nunca de velocidad o esquiva. Cuando entre el dash universal, un personaje cuyo plan ya era esquivar saca mucho más provecho que el resto y obliga a recalibrar los tres.
+- **El dash será universal e idéntico**, y llega DESPUÉS de la densidad y de que la profundidad cueste (medido: 4.2x más enemigos encima = el mismo daño, por el i-frame global). Que todos se muevan igual es lo que hace legibles las diferencias reales.
+- **Se arranca con UN personaje**; el resto por contratos. Siempre **contrato firma, nunca peldaño de escalera** — un personaje no es contenido fungible. Segundo personaje gateado por **volumen** (`LIFETIME.runsFinished`/`totalKills`/`totalPlayS`, ya existen), tercero por **maestría**: con 0 bosses invocados en 6 runs y 33% de finalización, un gate de maestría en el segundo lo haría invisible para la mayoría.
+- **El personaje inicial es el legible y perdonador, no el interesante.** Carga con las primeras ~10 runs de todo el mundo. Los bocetos raros son mala primera experiencia; el equilibrado va primero.
+- Persistencia: `unlockedCharacters` en `PROFILE`, misma costura que las armas — IDs nunca índices, lo otorgado nunca se revoca, `PROFILE` se muta en su sitio.
+
+### Dirección aprobada para la exploración futura
+
+- Cada personaje podrá arrancar con **un stat mejorado y un contra-stat significativo**.
+- Su perfil debe **sesgar, no forzar**, la sinergia con uno o más estilos de arma.
+- Una pasiva pequeña debe completar su identidad más allá de los números base.
+- Las combinaciones pueden ser definitorias y fuertes, pero deben mantenerse acotadas: no pueden invalidar las demás armas.
+- **No fijar cifras ni diseños concretos todavía**: esperar Mapa 2, Volt Warden y datos percentiles comparables de runs humanas.
+
+La exploración parte de un perfil compuesto por **sesgo de stat, contra-stat real, afinidad de estilo de arma y pasiva pequeña**. El objetivo es que la combinación personaje-build resulte fuerte y definitoria, pero nunca obligatoria ni desproporcionada: debe orientar una decisión temprana sin convertir el resto del arsenal en una elección errónea.
+
+Evitar una identidad basada únicamente en daño global. Ese stat escala cada impacto de las armas, por lo que su ventaja se propaga a todo el arsenal y puede acabar dominando incluso cuando la intención era favorecer un estilo concreto. Los sesgos de comportamiento —área, movilidad, rango, cadencia o resistencia— permiten expresar una preferencia más acotada y legible.
+
+#### Checklist de diseño
+
+- [ ] Stat positivo que exprese una forma concreta de jugar.
+- [ ] Contra-stat que genere un coste perceptible durante la run.
+- [ ] Estilo de arma compatible, sin restringir el resto de opciones.
+- [ ] Pasiva pequeña que complete la identidad sin sustituir al build.
+- [ ] Build alternativo viable para que la afinidad no se convierta en obligación.
+
+#### Arquetipos ilustrativos — no finales
+
+Estos ejemplos describen relaciones de diseño, no personajes, pasivas, nombres ni valores aprobados:
+
+| Arquetipo | Sesgo y tradeoff | Afinidad de estilo | Papel de la pasiva futura |
+|---|---|---|---|
+| Control de zona | Más área a cambio de menor movilidad. | Ataques de zona como Pulse o Press. | Reforzar la colocación y el control de espacio, no añadir daño universal. |
+| Hostigamiento móvil | Más movilidad y rango a cambio de menor resistencia. | Proyectiles de alcance y rebote como Bolt o Ricochet. | Favorecer el reposicionamiento y la selección de objetivos, sin bloquear un build cercano viable. |
+| Presión sostenida | Más cadencia y resistencia a cambio de menor área o movilidad. | Un estilo de fuego rápido o continuo, pensado para mantener presión. | Apoyar la continuidad de combate sin convertir cada impacto del juego en una mejora global. |
+
+La elección definitiva de contra-stats, afinidades y pasivas se validará con el contenido completo de Mapa 2, Volt Warden y percentiles de runs humanas comparables. Hasta entonces, estos arquetipos son hipótesis de exploración, no contratos de implementación.
+
 Fuentes estructurales: [Megabonk en Steam](https://store.steampowered.com/app/3405340/Megabonk/) · [Vampire Survivors en Steam](https://store.steampowered.com/app/1794680/Vampire_Survivors/).
 
 ## Weapon branches v1 - implemented 2026-07-17

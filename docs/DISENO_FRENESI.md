@@ -120,3 +120,60 @@ Orden sugerido, un playtest por cambio: **A1 → A2 → C1 → B1**.
 **Y una acción que cuesta cero:** el material que se publica debería capturarse a partir del **minuto 6**, no del arranque. El pico de 147 enemigos en pantalla ya existe hoy, medido, sin tocar una línea de código. Los GIFs actuales están enseñando la parte más floja del juego.
 
 Eso arregla la percepción esta semana. No arregla la partida del que muere a los 90 segundos — para eso está el Eje A.
+
+---
+
+## 4. Dash y personajes — decisiones cerradas 2026-07-30
+
+### 4.1 El hallazgo que ordena todo lo demás
+
+Medido en el build empaquetado, jugador parado, con las armas desarmadas para que los kills no adelgacen la masa:
+
+| Densidad | Enemigos tocando al jugador | DPS recibido |
+| --- | --- | --- |
+| ~0:40 | 5.8 | **20.0** |
+| ~8:00 | 24.5 | **18.6** |
+
+**4.2x más enemigos encima, el mismo daño.** El i-frame global de `PLAYER.invulnAfterHitS = 0.4` capa el DPS del enjambre a `contactDamage / invulnAfterHitS = 8 / 0.4 = 20`, y se cumple exacto — el propio comentario de `config.ts` ya lo anticipaba, pero ahora está medido.
+
+Consecuencia directa sobre el Eje A: **añadir densidad hará que el juego se vea mucho más loco sin hacerlo un gramo más peligroso.** La palanca para que la profundidad cueste es `contactDamage` (el propio `config.ts` la señala como siguiente candidata) o un i-frame que se ablande con la densidad. Sin eso, la masa es decoración.
+
+### 4.2 El dash se aplaza, y no es una excusa
+
+Un dash resuelve *"estoy atrapado y el daño escala con lo atrapado que estoy"*. Hoy el juego no plantea esa pregunta: el jugador es un 38% más rápido que lo más rápido del elenco (11 vs 8) **y** el daño está capado a 20 DPS entre en la masa o se quede en el borde. Un dash hoy es un botón para ir un poco más rápido en una dirección en la que ya podías caminar.
+
+Orden acordado: **Eje A (densidad) → `contactDamage`/i-frame (que la densidad importe) → B1 (que algo te alcance) → dash.** Prototiparlo antes del segundo paso da una lectura falsa: se siente bien porque moverse rápido es satisfactorio, no porque el juego lo necesite — y sobre esa lectura falsa se diseñarían los tres personajes.
+
+**Cuando llegue: universal e idéntico para todos.** Que todos se muevan igual es lo que hace legibles las diferencias reales; si además cambia la movilidad, el jugador no sabe si perdió por el personaje o porque se mueve peor. Y la movilidad domina la supervivencia en este género: el que dashea mejor no es distinto, es *mejor*.
+
+**Forma tentativa: 2 cargas con recarga individual lenta.** Casi siempre hay una disponible (sin aire muerto — la lección de Volt Pulse 2.4→1.4s), pero gastar las dos seguidas deja desnudo. La decisión no nace de que el recurso sea escaso, nace de que la amenaza sea legible: si el enjambre no telegrafía que te está cerrando el paso, ningún diseño de cooldown lo arregla.
+
+### 4.3 La identidad de los personajes vive en REGLAS, no en la movilidad
+
+Decisión del usuario: un dash con parámetros distintos por personaje es una hoja de stats, no un personaje. La identidad se engancha a los sistemas que ya existen (2 tipos de socket, 5 tiers, oro, chatarrero, cofres, pool de 17 mods, 20+ stats, contratos). Bocetos acordados:
+
+| Boceto | Regla | Qué cambia en la run |
+| --- | --- | --- |
+| Apilador | +1 socket de arma, −2 de core | Muchas armas, stats de papel: cambia qué draftás, qué comprás, qué contratos persigues |
+| Sobrecargado | Mods salen un tier por encima, +50% daño de contacto | Loot de lujo, cuerpo de cristal: cambia la relación con cofres y chatarrero |
+| Bola de nieve | Orbes de XP se atraen desde todo el mapa, ~30% más rápido de nivel, 60 HP de inicio | Sube rápido pero frágil: la decisión de meterse en la masa es otra |
+
+Cada una es un enganche de una línea a un sistema ya probado, y no necesita VFX ni SFX propio.
+
+### 4.4 Las dos restricciones que se fijan AHORA aunque el dash llegue después
+
+**R1 — Ningún personaje sobrevive por moverse bien.** La supervivencia sale de HP, armor, evasion, lifesteal o control; nunca de velocidad o esquiva. Motivo: el día que entre el dash universal, un personaje cuyo plan de supervivencia ya era esquivar saca mucho más provecho que el resto, pasa de equilibrado a roto, y obliga a recalibrar los tres. Con supervivencia por stats, el dash suma lo mismo a todos.
+
+**R2 — El contador de "acorralado" se empieza a registrar ANTES de tocar la densidad.** Segundos con N+ enemigos a menos de X unidades y HP bajo umbral, en el registro de run. Motivo: la decisión de si el dash hace falta se toma comparando antes/después de los cambios de frenesí, y ese dato **no se puede rellenar hacia atrás** — misma trampa que el campo de mapa para el Mapa 2. Si se añade después, hay "después" y ningún "antes".
+
+### 4.5 Desbloqueo de personajes por contratos
+
+Se arranca con **un solo personaje**; los demás se desbloquean por contratos, igual que armas, cores, mods y sockets.
+
+**Un personaje es contrato FIRMA, nunca peldaño de escalera.** Los peldaños son para contenido fungible — un arma vale aproximadamente lo que otra, y los de repuesto absorben contenido futuro. Un personaje es una forma entera de jugar: si es peldaño, la cola puede entregarlo en un punto arbitrario y contenido futuro puede correr qué peldaño da qué.
+
+**El gate del segundo personaje es VOLUMEN, el del tercero MAESTRÍA.** Los datos actuales lo exigen: 0 bosses invocados en 6 runs, 4 de 6 muertes antes de 5:00, 33% de finalización. Un personaje detrás de "matá un boss" o "sobreviví 10:00" no lo ve la mayoría — y está al revés, porque encierra al personaje que podría ayudar a alguien que la pasa mal detrás de *no* pasarla mal. `LIFETIME` ya tiene `runsFinished`, `totalKills` y `totalPlayS`: gate por volumen sin plomería nueva. El tercero ya puede pedir el boss, porque a esa altura hay dos personajes y motivo real para querer ser bueno.
+
+**El personaje inicial es el legible y perdonador, no el interesante.** Carga con las primeras ~10 runs de todo el mundo: es el juego que decide si alguien pide reembolso. Los bocetos raros de §4.3 son mala primera experiencia; el equilibrado va primero y los raros son la recompensa.
+
+Persistencia: `unlockedCharacters` en `PROFILE` siguiendo la misma costura que las armas — IDs nunca índices, lo otorgado nunca se revoca, `PROFILE` se muta en su sitio.
