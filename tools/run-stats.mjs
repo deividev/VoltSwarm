@@ -82,6 +82,55 @@ if (legacy > 0) {
   console.log(`\n  (${legacy} of ${history.length} runs predate the per-run counters and are excluded from those rows)`);
 }
 
+// Pressure: does the player ever actually get trapped? Enclosure is angular
+// coverage, not a headcount, because the global i-frame caps swarm DPS — 4.2x
+// more bodies on the player deals the same damage (measured 2026-07-30), so
+// density says nothing about whether escape was possible.
+//
+// This block exists to answer the dash question with a before/after across the
+// density changes, which is why it also breaks down per build version. A single
+// pooled median would blend the builds and answer nothing.
+const withPressure = history.filter((r) => typeof r.enclosedS === 'number');
+if (withPressure.length > 0) {
+  console.log(`\nPressure — the dash question (${withPressure.length} runs carry it)`);
+  console.log('                        min     p25     p50     p75     p90     max');
+  distribution('contact (s)', withField('contactS'), 1);
+  distribution('enclosed (s)', withField('enclosedS'), 1);
+  distribution('enclosed low HP (s)', withField('enclosedLowHpS'), 1);
+  distribution('peak sectors /12', withField('peakEnclosedSectors'));
+  distribution(
+    'enclosed % of run',
+    withPressure.filter((r) => r.durationS > 0).map((r) => (r.enclosedS / r.durationS) * 100),
+    1,
+  );
+
+  const never = withPressure.filter((r) => r.enclosedS === 0).length;
+  console.log(`\n  ${never} of ${withPressure.length} runs NEVER enclosed the player once.`);
+  console.log('  If that stays near 100% after the density work, a dash has nothing to escape from.');
+
+  const buildRows = {};
+  for (const r of withPressure) {
+    const key = r.buildVersion ?? 'unknown';
+    (buildRows[key] ??= []).push(r);
+  }
+  if (Object.keys(buildRows).length > 1) {
+    console.log('\n  Per build (median — this is the before/after):');
+    console.log('    build        runs   enclosed(s)   low HP(s)   peak/12   contact(s)');
+    for (const [build, runs] of Object.entries(buildRows).sort()) {
+      const med = (key) => pct(runs.map((r) => r[key]).filter((v) => typeof v === 'number'), 50);
+      console.log(
+        `    ${build.padEnd(12)} ${String(runs.length).padStart(4)}` +
+        `   ${fmt(med('enclosedS'), 1)}   ${fmt(med('enclosedLowHpS'), 1)}` +
+        `  ${fmt(med('peakEnclosedSectors'))}  ${fmt(med('contactS'), 1)}`,
+      );
+    }
+  }
+} else {
+  console.log('\nPressure: no run on record carries the enclosure counters yet.');
+  console.log('  They start recording in v0.7.0. Runs played before that CANNOT be backfilled —');
+  console.log('  record the baseline BEFORE changing enemy density, or there is nothing to compare.');
+}
+
 const chests = {};
 for (const r of history) {
   for (const [tier, n] of Object.entries(r.chestsByTier ?? {})) chests[tier] = (chests[tier] ?? 0) + n;

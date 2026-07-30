@@ -39,6 +39,18 @@ export interface RunSnapshot {
   bossTypesDefeated?: string[];
   chestsByTier?: Record<string, number>;
   shopPurchases?: number;
+  /** Pressure instrumentation (see config.PRESSURE_METRICS). Recorded from
+   *  v0.7.0, BEFORE the density changes, so the frenzy work has a before/after
+   *  to compare against — a run already played can never be re-measured.
+   *  Absent means "recorded before this existed", which is not zero. */
+  contactS?: number;
+  /** Seconds with no free escape direction (enough angular sectors blocked). */
+  enclosedS?: number;
+  /** Seconds enclosed AND below the low-HP fraction — the crisis state. */
+  enclosedLowHpS?: number;
+  /** Most sectors ever blocked at once. Tells us HOW CLOSE the run got even
+   *  when it never crossed the enclosure threshold. */
+  peakEnclosedSectors?: number;
   level: number;
   kills: number;
   bossesDefeated: number;

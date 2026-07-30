@@ -17,6 +17,7 @@ import {
   MODS,
   PICKUPS,
   PLAYER,
+  PRESSURE_METRICS,
   RECORDING,
   RUN_DURATION_S,
   VISUAL,
@@ -205,6 +206,14 @@ export class Game {
   private runGoldEarned = 0;
   private runChestsByTier: Record<string, number> = {};
   private runShopPurchases = 0;
+  /** Pressure instrumentation — see config.PRESSURE_METRICS for why enclosure
+   *  is measured by angular coverage rather than by a nearby-enemy count. */
+  private runContactS = 0;
+  private runEnclosedS = 0;
+  private runEnclosedLowHpS = 0;
+  private runPeakEnclosedSectors = 0;
+  /** Reused across frames so the per-frame pass allocates nothing. */
+  private readonly sectorOccupied = new Uint8Array(PRESSURE_METRICS.sectors);
   /** Remaining seconds on temporary crate buffs. */
   private frenzyS = 0;
   private hasteS = 0;
@@ -404,6 +413,10 @@ export class Game {
     this.runGoldEarned = 0;
     this.runChestsByTier = {};
     this.runShopPurchases = 0;
+    this.runContactS = 0;
+    this.runEnclosedS = 0;
+    this.runEnclosedLowHpS = 0;
+    this.runPeakEnclosedSectors = 0;
     this.stats = defaultStats();
     this.weaponLevels = emptyWeaponLevels();
     this.weaponPower = emptyWeaponPower();
@@ -526,6 +539,45 @@ export class Game {
     if (this.benchmarkOriginalRandom) Math.random = this.benchmarkOriginalRandom;
     this.benchmarkOriginalRandom = null;
     this.benchmarkRandom = null;
+  }
+
+  /** Accumulates the pressure counters written onto the run record.
+   *
+   *  Enclosure is angular coverage, not a headcount: a wall of 30 enemies on
+   *  one side leaves an obvious way out, while 10 spread evenly around leaves
+   *  none. Squared distance gates the pass so the trig only runs for the
+   *  handful of enemies actually close enough to block a route. */
+  private tickPressureMetrics(dt: number, px: number, pz: number): void {
+    const { radius, sectors, enclosedSectors, lowHpFraction } = PRESSURE_METRICS;
+    const radiusSq = radius * radius;
+    this.sectorOccupied.fill(0);
+    let occupied = 0;
+    let touching = false;
+    const playerRadius = PLAYER.radius;
+
+    for (const enemy of this.enemies.pool) {
+      if (!enemy.active) continue;
+      const dx = enemy.x - px;
+      const dz = enemy.z - pz;
+      const distSq = dx * dx + dz * dz;
+      if (distSq > radiusSq) continue;
+      const reach = playerRadius + enemy.radius;
+      if (distSq <= reach * reach) touching = true;
+      // atan2 → [-PI, PI]; shift to [0, 1) before bucketing.
+      const turn = (Math.atan2(dz, dx) / (Math.PI * 2) + 1) % 1;
+      const sector = Math.min(sectors - 1, (turn * sectors) | 0);
+      if (this.sectorOccupied[sector] === 0) {
+        this.sectorOccupied[sector] = 1;
+        occupied++;
+      }
+    }
+
+    if (touching) this.runContactS += dt;
+    if (occupied > this.runPeakEnclosedSectors) this.runPeakEnclosedSectors = occupied;
+    if (occupied >= enclosedSectors) {
+      this.runEnclosedS += dt;
+      if (this.player.hp <= this.player.maxHp * lowHpFraction) this.runEnclosedLowHpS += dt;
+    }
   }
 
   private tickAudioBenchmark(dt: number): void {
@@ -785,6 +837,7 @@ export class Game {
       collisionObstacles,
       this.enemyShots,
     );
+    this.tickPressureMetrics(dt, px, pz);
     this.tickStompers(px, pz);
     this.tickMagnetron(dt, px, pz);
     this.tickModAuras(dt);
@@ -1881,6 +1934,12 @@ export class Game {
       bossTypesDefeated: [...this.boss.defeatedTypes],
       chestsByTier: this.runChestsByTier,
       shopPurchases: this.runShopPurchases,
+      // Rounded: these are seconds of exposure, and sub-millisecond precision
+      // would only make the JSON noisy.
+      contactS: Math.round(this.runContactS * 10) / 10,
+      enclosedS: Math.round(this.runEnclosedS * 10) / 10,
+      enclosedLowHpS: Math.round(this.runEnclosedLowHpS * 10) / 10,
+      peakEnclosedSectors: this.runPeakEnclosedSectors,
       durationS: this.elapsedS,
       level: this.progression.level,
       kills: this.progression.kills,

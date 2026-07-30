@@ -215,6 +215,30 @@ export const PLAYER = {
   walkRockAmplitude: 0.06,
 };
 
+/** Instrumentation for the frenzy work: is the player ever actually trapped?
+ *
+ *  MEASURED 2026-07-30: the global i-frame caps swarm DPS at
+ *  contactDamage / invulnAfterHitS = 20, so 4.2x more bodies on the player
+ *  deals the SAME damage. Density therefore cannot be read as pressure, and
+ *  "lots of enemies nearby" says nothing about whether escape was possible.
+ *
+ *  So the metric is angular coverage, not a headcount: split the circle around
+ *  the player into `sectors` and count how many hold an enemy within
+ *  `radius`. Enclosure means no free direction — exactly the state a dash
+ *  would exist to answer. Recorded BEFORE the density changes on purpose: the
+ *  dash decision needs a before/after, and this cannot be backfilled into runs
+ *  that were already played. */
+export const PRESSURE_METRICS = {
+  /** World units. An enemy beyond this is not blocking an escape route yet. */
+  radius: 7,
+  /** Angular buckets around the player. 12 → one per 30°. */
+  sectors: 12,
+  /** Occupied sectors that count as enclosed (no way out). */
+  enclosedSectors: 10,
+  /** HP fraction under which being enclosed is a crisis, not an inconvenience. */
+  lowHpFraction: 0.35,
+};
+
 /** Follow-camera offset from the player. (0, 24, 19) ≈ 52° pitch — tilted
  *  from the original (0, 27, 15) ≈ 61° so enemy faces read on screen while
  *  the swarm stays legible. */
