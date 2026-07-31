@@ -6,7 +6,26 @@ export const ARENA_HALF_SIZE = 90;
 /** Developer instruments that must NEVER reach a paying player. `npm run package`
  *  refuses to build while any of these is true (tools/check-release-flags.mjs),
  *  so leaving one on during a playtest cannot silently ship. */
-export const DEV_TOOLS: { unlockPanel: boolean; auditionKeys: boolean } = {
+/** DEV ONLY — the boss lab.
+ *
+ *  Exists because the feedback loop was the real blocker on boss balance, not
+ *  the design: every test cost eight minutes of play to reach a boss, and the
+ *  player often died before the fight could be judged at all. That is one
+ *  noisy data point per ten minutes against seven interacting variables.
+ *
+ *  It does NOT isolate the boss. The whole point of the fight is killing it
+ *  WHILE the wave is on you, so the lab jumps the run clock — which is what
+ *  drives density, enemy types and the HP ramp — and loads a REAL recorded
+ *  build rather than a synthetic one. It reproduces minute 8; it just skips
+ *  the eight minutes of walking there. */
+export const BOSS_LAB = {
+  /** Minute of run time to jump to. Drives everything the spawner derives. */
+  atMinute: 8,
+  /** Which recorded run to load the build from, newest first (0 = latest). */
+  buildFromRunIndex: 0,
+};
+
+export const DEV_TOOLS: { unlockPanel: boolean; auditionKeys: boolean; bossLab: boolean } = {
   /** Main-menu "Unlocks" panel. Holds three actions: unlock every
    *  weapon/core/mod and open all sockets directly; settle every contract
    *  through the real payout path (which is what the Contracts screen reads);
@@ -16,6 +35,9 @@ export const DEV_TOOLS: { unlockPanel: boolean; auditionKeys: boolean } = {
   /** F2-F9 hotkeys that cycle and preview SFX variants in-game while authoring
    *  audio. Turn back on for the full-catalog audio pass. */
   auditionKeys: false,
+  /** Boss lab: press B mid-run to jump to BOSS_LAB.atMinute with a recorded
+   *  build loaded and a boss summoned on top of you. See BOSS_LAB. */
+  bossLab: true,
 };
 
 /** Renderer-side audio tuning. All voice, cooldown and fade values are config-owned. */

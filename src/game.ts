@@ -8,6 +8,8 @@ import {
   PROFILE,
   AUDIO,
   BOSS,
+  BOSS_LAB,
+  BOSS_TYPE_INDEXES,
   CHEST,
   DEV_TOOLS,
   ELITES,
@@ -31,7 +33,7 @@ import { EnemySystem, type DeathInfo } from './enemies';
 import { EnemyProjectiles } from './enemy-projectiles';
 import { WeaponManager, type CombatCtx } from './weapons';
 import { defaultStats, applyArmor, dodgeChance, rollHit, type PlayerStats } from './stats';
-import { Progression, emptyWeaponBranches, emptyWeaponLevels, emptyWeaponPower, rollUpgradeChoices, weaponIdFromUpgradeCard, type CoreLevels, type Rarity, type UpgradeCard, type WeaponBranchLevels, type WeaponLevels, type WeaponPower } from './upgrades';
+import { Progression, emptyWeaponBranches, replayCoresOntoStats, emptyWeaponLevels, emptyWeaponPower, rollUpgradeChoices, weaponIdFromUpgradeCard, type CoreLevels, type Rarity, type UpgradeCard, type WeaponBranchLevels, type WeaponLevels, type WeaponPower } from './upgrades';
 import { PickupSystem } from './pickups';
 import { XpOrbSystem } from './xp-orbs';
 import { GoldSystem } from './gold';
@@ -103,7 +105,7 @@ import {
   saveSettings,
   type GameSettings,
 } from './settings';
-import { saveRunRecord, type RunMapRef, type RunOutcome } from './run-history';
+import { loadRunHistory, saveRunRecord, type RunMapRef, type RunOutcome, type RunRecordV1 } from './run-history';
 import { recordRunInLifetime, saveProfile } from './profile';
 import { settleContracts } from './contracts';
 
@@ -341,6 +343,7 @@ export class Game {
     this.audio = new AudioDirector(this.settings);
     void this.audio.preloadEnabled();
     if (DEV_TOOLS.auditionKeys) this.installAuditionKeys();
+    if (DEV_TOOLS.bossLab) this.installBossLab();
     this.hud.syncSettings(this.settings);
     applyWindowSettings(this.settings);
     this.input.setBindings(this.settings.bindings);
@@ -469,6 +472,84 @@ export class Game {
   }
 
   /** TEMP style-search audition: cycle the pinned candidate for an event and preview it. */
+  /** DEV ONLY — the boss lab (see config.BOSS_LAB).
+   *
+   *  B  jumps to BOSS_LAB.atMinute with a real recorded build loaded and a
+   *     boss summoned on you.
+   *  N  cycles which boss the next summon produces, so the same fight can be
+   *     re-tested instead of re-rolled.
+   */
+  private installBossLab(): void {
+    let bossPick = 0;
+    window.addEventListener('keydown', (event) => {
+      if (this.state !== 'playing') return;
+      if (event.code === 'KeyN') {
+        bossPick = (bossPick + 1) % BOSS_TYPE_INDEXES.length;
+        const index = BOSS_TYPE_INDEXES[bossPick] ?? BOSS_TYPE_INDEXES[0]!;
+        this.boss.devSetBossType(index);
+        this.hud.toast(`Boss lab: next = ${ENEMY_TYPES[index]?.name ?? '?'}`);
+        return;
+      }
+      if (event.code !== 'KeyB') return;
+      this.enterBossLab();
+    });
+  }
+
+  private enterBossLab(): void {
+    const history = loadRunHistory()
+      .slice()
+      .sort((a: RunRecordV1, b: RunRecordV1) => Date.parse(b.endedAt) - Date.parse(a.endedAt));
+    const record = history[BOSS_LAB.buildFromRunIndex];
+    if (!record) {
+      this.hud.toast('Boss lab: no recorded run to load a build from');
+      return;
+    }
+
+    // Load the recorded build. Stats are REPLAYED from core picks rather than
+    // restored, because the record stores how many times each core was taken
+    // and never which rarity rolled — see replayCoresOntoStats.
+    this.stats = defaultStats();
+    this.weaponLevels = { ...emptyWeaponLevels(), ...record.weaponLevels };
+    this.weaponBranches = record.weaponBranches
+      ? structuredClone(record.weaponBranches)
+      : emptyWeaponBranches();
+    this.modCounts = { ...record.modCounts };
+    this.coreLevels = { ...record.coreLevels };
+    replayCoresOntoStats(this.stats, this.player, this.coreLevels);
+    this.progression.level = record.level;
+    // HP cores act on the player object directly (the `_p` arg the stat cards
+    // take), so replayCoresOntoStats above already applied them — just top up.
+    this.player.hp = this.player.maxHp;
+
+    // Jumping the CLOCK is what reproduces the real fight: density, enemy
+    // types and the HP ramp are all derived from it. The lab never empties the
+    // arena — the whole difficulty is killing a boss while the wave is on you.
+    this.elapsedS = BOSS_LAB.atMinute * 60;
+    this.hud.updateBuild(
+      this.stats,
+      this.weaponLevels,
+      this.modCounts,
+      this.coreLevels,
+      this.weaponBranches,
+    );
+    // Fill the arena to its minute-8 population BEFORE the boss lands. A boss
+    // dropped onto an empty field tests nothing — the whole difficulty is
+    // fighting it while the wave is already on you.
+    const filled = this.enemies.devFillToCap(
+      this.elapsedS,
+      difficultyScalar(this.elapsedS, this.stats.cursedDifficulty),
+      this.player.position.x,
+      this.player.position.z,
+      this.refreshCollisionObstacles(),
+    );
+    this.boss.devForceSummon(this.player.position.x, this.player.position.z);
+    const weapons = Object.entries(record.weaponLevels)
+      .filter(([, level]) => (level as number) > 0)
+      .map(([id, level]) => `${id}:${level}`)
+      .join(' ');
+    this.hud.toast(`Boss lab: min ${BOSS_LAB.atMinute}, lv ${record.level}, ${filled} enemies [${weapons}]`);
+  }
+
   private installAuditionKeys(): void {
     const map: Partial<Record<string, AudioEventId>> = {
       F2: 'ui-confirm', F3: 'levelup-intro', F4: 'levelup-open',

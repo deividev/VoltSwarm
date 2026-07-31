@@ -593,6 +593,27 @@ export function rollUpgradeChoices(
   return picks;
 }
 
+/** DEV ONLY — replays a recorded run's core picks onto a fresh stat sheet.
+ *
+ *  Approximate by construction, and the reason matters: the run record stores
+ *  how many TIMES each core was taken, never which rarity was rolled, so the
+ *  exact magnitudes are unrecoverable. Every pick is replayed at the blue
+ *  (middle) tier. Good enough to reproduce the shape of a build for a boss
+ *  fight; never use it to reason about exact numbers. */
+export function replayCoresOntoStats(
+  stats: PlayerStats,
+  player: Player,
+  coreLevels: CoreLevels,
+): void {
+  const MIDDLE_TIER = 2;
+  for (const [coreId, level] of Object.entries(coreLevels)) {
+    const def = STAT_CARDS.find((card) => card.id === coreId);
+    if (!def || !level) continue;
+    const magnitude = def.magnitudes[MIDDLE_TIER] ?? def.magnitudes[0];
+    for (let i = 0; i < level; i++) def.apply(stats, player, magnitude);
+  }
+}
+
 export class Progression {
   level = 1;
   xp = 0;

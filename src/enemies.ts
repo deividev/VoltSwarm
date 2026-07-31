@@ -946,6 +946,33 @@ export class EnemySystem {
     return shoved;
   }
 
+  /** DEV ONLY (boss lab) — runs the real spawner until the field reaches the
+   *  population it would have at this point in a played run.
+   *
+   *  Without it the lab summons a boss onto a nearly empty arena and the first
+   *  twenty seconds are unrepresentatively easy — which is exactly the flaw
+   *  that makes an isolated boss test worthless. Uses the actual spawner so
+   *  the mix of types, the HP ramp and the cap all come out right. */
+  devFillToCap(
+    elapsedS: number,
+    difficulty: number,
+    playerX: number,
+    playerZ: number,
+    obstacles: Obstacle[],
+  ): number {
+    let guard = 0;
+    let previous = -1;
+    // Each pass advances the spawn timer past one interval, so the loop makes
+    // real waves rather than teleporting bodies in. Stops when the cap is hit
+    // (population stops growing) or the guard trips.
+    while (guard++ < 400 && this.activeCount !== previous) {
+      previous = this.activeCount;
+      this.spawnTimer = 0;
+      this.updateSpawner(0, elapsedS, difficulty, playerX, playerZ, obstacles);
+    }
+    return this.activeCount;
+  }
+
   /** True while any boss type is alive in the pool. */
   bossAlive(): boolean {
     for (const e of this.pool) {

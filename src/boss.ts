@@ -156,6 +156,26 @@ export class BossSystem {
     return true;
   }
 
+  /** DEV ONLY (boss lab) — summons right where the player is standing, with no
+   *  walk to the portal. Keeps the normal summon telegraph so the fight starts
+   *  exactly as it would in a real run. */
+  devForceSummon(px: number, pz: number): void {
+    if (this.state !== 'idle') return;
+    this.totem.position.set(px + 6, 0, pz);
+    this.totemObstacle.x = px + 6;
+    this.totemObstacle.z = pz;
+    this.state = 'summoning';
+    this.summonJustBegan = true;
+    this.summonTimer = BOSS.summonDelayS;
+    this.summonElapsed = 0;
+  }
+
+  /** DEV ONLY (boss lab) — forces which boss the next summon produces, so a
+   *  fight can be re-tested against the SAME boss instead of a coin flip. */
+  devSetBossType(typeIndex: number): void {
+    this.bossTypeIndex = typeIndex;
+  }
+
   /** True while the player stands in the summon zone of the idle totem. */
   playerInSummonZone = false;
 
