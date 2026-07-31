@@ -928,6 +928,7 @@ export class Game {
       this.enemies,
       this.enemyShots,
       collisionObstacles,
+      this.progression.level,
     );
     if (this.boss.summonJustBegan) {
       // Portal charge: the tension layer that fills the 2.5s telegraph, cut

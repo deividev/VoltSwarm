@@ -759,7 +759,9 @@ export class EnemySystem {
     // While a boss is up the ambient waves step back so the fight is a PHASE,
     // not the same soup with one bigger body in it. The boss's own minions
     // carry the pressure instead.
-    const bossDampen = this.bossAlive() ? BOSS.spawnDampenWhileAlive : 1;
+    const bossDampen = this.bossAlive()
+      ? THREE.MathUtils.lerp(BOSS.spawnDampenEarly, BOSS.spawnDampenLate, t)
+      : 1;
     const interval = THREE.MathUtils.lerp(ENEMIES.waveIntervalStartS, ENEMIES.waveIntervalEndS, t);
     const maxActive = Math.round(
       THREE.MathUtils.lerp(ENEMIES.maxActiveStart, ENEMIES.maxActiveEnd, t) *
@@ -920,6 +922,30 @@ export class EnemySystem {
    *  A charger mid-lunge is deliberately EXCLUDED — it is moving fast and
    *  committed, and leaving it in makes the swarm flinch away from a body that
    *  will not be there by the time they reach it. */
+  /** Shoves every non-boss body out of a radius. Bosses use this to clear the
+   *  ground they fight on — the Crusher on each lunge, the Tesla on each burst
+   *  — which is what makes standing near one survivable long enough to
+   *  actually attack it. */
+  shoveAwayFrom(x: number, z: number, radius: number, force: number): number {
+    const radiusSq = radius * radius;
+    let shoved = 0;
+    for (let i = 0; i < this.pool.length; i++) {
+      const e = this.pool[i];
+      if (!e?.active || BOSS_TYPE_INDEXES.includes(e.typeIndex)) continue;
+      const dx = e.x - x;
+      const dz = e.z - z;
+      const distSq = dx * dx + dz * dz;
+      if (distSq > radiusSq || distSq < 0.0001) continue;
+      const dist = Math.sqrt(distSq);
+      // Falls off with distance so the edge of the sweep is a nudge, not a
+      // wall of bodies launched at identical speed.
+      const falloff = 1 - dist / radius;
+      this.applyKnockback(i, dx / dist, dz / dist, force * falloff);
+      shoved++;
+    }
+    return shoved;
+  }
+
   /** True while any boss type is alive in the pool. */
   bossAlive(): boolean {
     for (const e of this.pool) {

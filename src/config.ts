@@ -1658,9 +1658,41 @@ export const BOSS = {
   /** The run continues after a boss kill: a new totem rises after this delay
    *  and each successive boss gets tougher. Chests dropped per boss kill. */
   respawnDelayS: 25,
+  /** Boss HP scales with the player's LEVEL at summon time.
+   *
+   *  Measured 2026-07-30 against 11 real runs: total damage dealt per run
+   *  spans p25 = 2,241 to p90 = 95,543 — a 40x spread. A fixed boss HP cannot
+   *  serve that. At 2,600 flat the boss had MORE hp than a below-median run
+   *  deals in its entire ten minutes, while a strong build erased it in
+   *  seconds. There was no correct number to pick, which is why balancing it
+   *  by feel kept failing.
+   *
+   *  So the listed `hp` is now the value at `hpLevelReference`, scaled by the
+   *  player's level and clamped. Summon at 12 and you fight a level-12 boss.
+   *  The clamps matter as much as the slope: the floor stops an early summon
+   *  from being free, and the ceiling stops a level-40 run from turning the
+   *  fight into a sponge. */
+  hpLevelReference: 24,
+  hpLevelMin: 0.35,
+  hpLevelMax: 1.6,
   respawnHpGrowth: 1.6,
   chestsOnKill: 3,
-  contactDamage: 25,
+  /** 25 → 12 (2026-07-30). This is a regression fix, not a nerf.
+   *
+   *  The global i-frame means contact damage is really damage PER 0.4s window,
+   *  so 25 was 62.5 DPS — three times deadlier than being buried in the entire
+   *  swarm (capped at 20 DPS no matter how many bodies touch you). Standing
+   *  next to a boss killed a full-health player in 1.6 seconds, against the
+   *  ~30 seconds of committed damage needed to kill one. No amount of thinning
+   *  or shoving the swarm could close a 19x gap, because the swarm was never
+   *  what was killing the player.
+   *
+   *  It reads as an oversight rather than intent: PLAYER.invulnAfterHitS went
+   *  0.85 → 0.4 in the 2026-07-05 playtest, which silently DOUBLED boss
+   *  contact DPS, and this number was never revisited. 12 restores roughly the
+   *  original 29 DPS. Touching a boss is still by far the worst thing on the
+   *  field — it just stops being instant death. */
+  contactDamage: 12,
   /** World units the swarm is pushed out of around a live boss.
    *
    *  The boss fight was unwinnable for a structural reason: weapons pick the
@@ -1686,7 +1718,31 @@ export const BOSS = {
    *  heaven, and the Crusher's own minions are meant to be the phase's
    *  pressure — that is what makes it read as a fight rather than a duel in an
    *  empty field. */
-  spawnDampenWhileAlive: 0.45,
+  /** Ambient wave output while a boss is alive, lerped by difficulty.
+   *
+   *  A flat fraction was wrong: 45% removes ~40 bodies at minute 2 and ~170 at
+   *  minute 9. Same percentage, completely different pressure — and minute 9
+   *  is exactly when the player finally has the damage to try a boss. The
+   *  dampening now bites HARDER the later the fight happens, so the window to
+   *  stand still and commit stays roughly constant across the run.
+   *
+   *  Never zero: a boss fight should still be a bullet heaven, and the
+   *  Crusher's own minions are meant to carry the phase's pressure. */
+  spawnDampenEarly: 0.7,
+  spawnDampenLate: 0.3,
+  /** Radius the Crusher's lunge shoves bodies out of, and how hard.
+   *
+   *  It SHOVES rather than kills on purpose. Killing would need a death
+   *  pipeline here (XP, gold, VFX, and an obvious summon-and-farm exploit);
+   *  shoving reuses applyKnockback, reads better — bodies flung off the
+   *  boss's path — and does the actual job, which is opening the lane the
+   *  player has to stand in. */
+  chargeShoveRadius: 4.5,
+  chargeShoveForce: 26,
+  /** The Tesla shoves on every burst instead, so both bosses speak the same
+   *  language: the biggest thing on the field pushes everything else aside. */
+  burstShoveRadius: 6,
+  burstShoveForce: 18,
   crusher: {
     speed: 3,
     chargeTelegraphS: 0.9,

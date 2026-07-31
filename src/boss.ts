@@ -174,6 +174,9 @@ export class BossSystem {
     enemies: EnemySystem,
     projectiles: EnemyProjectiles,
     obstacles: Obstacle[],
+    /** Player level at this moment — read when the boss materializes so its HP
+     *  matches the build that summoned it (see BOSS.hpLevelReference). */
+    playerLevel = BOSS.hpLevelReference,
   ): string | null {
     this.playerInSummonZone = false;
     this.summonJustBegan = false;
@@ -239,11 +242,17 @@ export class BossSystem {
       this.totem.visible = false;
       this.lastSummonAt.x = sx;
       this.lastSummonAt.z = sz;
+      // Level scaling is folded into the HP multiplier the pool already takes,
+      // so nothing downstream needs to know about it.
+      const levelScale = Math.min(
+        BOSS.hpLevelMax,
+        Math.max(BOSS.hpLevelMin, playerLevel / BOSS.hpLevelReference),
+      );
       this.bossIndex = enemies.spawnAt(
         this.bossTypeIndex,
         sx,
         sz,
-        this.hpMult,
+        this.hpMult * levelScale,
         false,
         spawnObstacles,
       );
@@ -272,7 +281,7 @@ export class BossSystem {
     if (this.bossTypeIndex === BOSS_TYPE_INDEXES[0]) {
       this.updateCrusher(dt, boss, enemies, obstacles);
     } else {
-      this.updateTesla(dt, boss, px, pz, projectiles);
+      this.updateTesla(dt, boss, px, pz, projectiles, enemies);
     }
     return null;
   }
@@ -285,6 +294,19 @@ export class BossSystem {
     enemies: EnemySystem,
     obstacles: Obstacle[],
   ): void {
+    // Mid-lunge it plows a lane: bodies in its path get flung aside every
+    // frame of the charge. This is what makes a late-run boss fight possible
+    // at all — the player has to stand still to commit damage, and before this
+    // the swarm simply refilled the space the boss was crossing.
+    if (this.chargePhase === 'charging') {
+      enemies.shoveAwayFrom(
+        boss.x,
+        boss.z,
+        BOSS.chargeShoveRadius,
+        BOSS.chargeShoveForce,
+      );
+    }
+
     this.chargeTimer -= dt;
     if (this.chargeTimer <= 0) {
       switch (this.chargePhase) {
@@ -340,10 +362,15 @@ export class BossSystem {
     px: number,
     pz: number,
     projectiles: EnemyProjectiles,
+    enemies: EnemySystem,
   ): void {
     this.burstTimer -= dt;
     if (this.burstTimer > 0) return;
     this.burstTimer = BOSS.tesla.burstCooldownS;
+    // Same contract as the Crusher's lunge: the biggest thing on the field
+    // shoves everything else aside. The Tesla holds its ground instead of
+    // charging, so its discharge is what clears the ground around it.
+    enemies.shoveAwayFrom(boss.x, boss.z, BOSS.burstShoveRadius, BOSS.burstShoveForce);
     // Aim one shot of the ring straight at the player so it always threatens.
     const offset = Math.atan2(px - boss.x, pz - boss.z);
     for (let i = 0; i < BOSS.tesla.burstProjectiles; i++) {
