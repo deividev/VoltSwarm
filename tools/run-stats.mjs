@@ -82,6 +82,29 @@ if (legacy > 0) {
   console.log(`\n  (${legacy} of ${history.length} runs predate the per-run counters and are excluded from those rows)`);
 }
 
+// Cursed: the player VOLUNTARILY raising difficulty. A leaderboard that ignores
+// this ranks a +60% run against a +0% run as the same game, so it is reported
+// next to kills rather than buried.
+const withCursed = history.filter((r) => typeof r.cursedTimeAvg === 'number');
+if (withCursed.length > 0) {
+  console.log(`\nCursed — self-inflicted difficulty (${withCursed.length} runs carry it)`);
+  console.log('                        min     p25     p50     p75     p90     max');
+  distribution('cursed at end', withField('cursedFinal').map((v) => v * 100), 1);
+  distribution('cursed time-avg', withField('cursedTimeAvg').map((v) => v * 100), 1);
+
+  const cursedRuns = withCursed.filter((r) => (r.cursedTimeAvg ?? 0) > 0.01);
+  console.log(`\n  ${cursedRuns.length} of ${withCursed.length} runs took any Cursed at all.`);
+  if (cursedRuns.length > 0 && cursedRuns.length < withCursed.length) {
+    const clean = withCursed.filter((r) => (r.cursedTimeAvg ?? 0) <= 0.01);
+    const medKills = (rows) => pct(rows.map((r) => r.kills), 50);
+    console.log('  Median kills, cursed vs not — a leaderboard has to separate these:');
+    console.log(`    cursed      ${fmt(medKills(cursedRuns))}   (median time-avg ${(pct(cursedRuns.map((r) => r.cursedTimeAvg), 50) * 100).toFixed(0)}%)`);
+    console.log(`    no cursed   ${fmt(medKills(clean))}`);
+  }
+} else {
+  console.log('\nCursed: no run on record carries the cursed counters yet (added v0.8.0).');
+}
+
 // Pressure: does the player ever actually get trapped? Enclosure is angular
 // coverage, not a headcount, because the global i-frame caps swarm DPS — 4.2x
 // more bodies on the player deals the same damage (measured 2026-07-30), so

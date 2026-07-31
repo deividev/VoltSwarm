@@ -51,6 +51,15 @@ export interface RunSnapshot {
   /** Most sectors ever blocked at once. Tells us HOW CLOSE the run got even
    *  when it never crossed the enclosure threshold. */
   peakEnclosedSectors?: number;
+  /** Cursed Core stacked by the end of the run. This is the player VOLUNTARILY
+   *  raising difficulty, so a leaderboard that ignores it ranks a +60% run
+   *  against a +0% run as if they were the same game. Recorded from v0.8.0;
+   *  like every other counter here it cannot be backfilled. */
+  cursedFinal?: number;
+  /** Time-weighted mean cursed over the run. The final value alone overstates
+   *  a run where the card was picked at minute 8 — most of that run was played
+   *  at +0%. This is the number a leaderboard should segment by. */
+  cursedTimeAvg?: number;
   level: number;
   kills: number;
   bossesDefeated: number;
@@ -173,6 +182,18 @@ export function saveRunRecord(snapshot: RunSnapshot): RunRecordV1 {
     ...(snapshot.bossTypesDefeated ? { bossTypesDefeated: [...snapshot.bossTypesDefeated] } : {}),
     ...(snapshot.chestsByTier ? { chestsByTier: { ...snapshot.chestsByTier } } : {}),
     ...(snapshot.shopPurchases !== undefined ? { shopPurchases: Math.max(0, Math.floor(snapshot.shopPurchases)) } : {}),
+    // NOTE: this builder is an explicit whitelist, not a spread. A new optional
+    // field on RunSnapshot is silently dropped unless it is copied here, and
+    // typecheck cannot catch it because optional means "may be absent". Every
+    // counter below was lost that way once.
+    ...(snapshot.contactS !== undefined ? { contactS: round3(snapshot.contactS) } : {}),
+    ...(snapshot.enclosedS !== undefined ? { enclosedS: round3(snapshot.enclosedS) } : {}),
+    ...(snapshot.enclosedLowHpS !== undefined ? { enclosedLowHpS: round3(snapshot.enclosedLowHpS) } : {}),
+    ...(snapshot.peakEnclosedSectors !== undefined
+      ? { peakEnclosedSectors: Math.max(0, Math.floor(snapshot.peakEnclosedSectors)) }
+      : {}),
+    ...(snapshot.cursedFinal !== undefined ? { cursedFinal: round3(snapshot.cursedFinal) } : {}),
+    ...(snapshot.cursedTimeAvg !== undefined ? { cursedTimeAvg: round3(snapshot.cursedTimeAvg) } : {}),
     durationS: Math.max(0, Math.round(snapshot.durationS * 1000) / 1000),
     level: Math.max(1, Math.floor(snapshot.level)),
     kills: Math.max(0, Math.floor(snapshot.kills)),
