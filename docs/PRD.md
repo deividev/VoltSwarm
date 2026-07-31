@@ -302,3 +302,38 @@ Nunca puede mostrar dos mods iguales en celdas contiguas. Había dos causas: la 
 ### Balance
 
 **Volt Pulse: cooldown 2.4 → 1.4s, daño sin tocar.** Su daño no era el problema: a 10 por pulso cada 2.4s necesita ~4 enemigos en el radio solo para igualar a Bolt Cannon, y esa densidad no existe en los primeros minutos — un arma de media run en manos de quien empieza. Subir el daño habría inflado el late, donde ya es fuerte. El coste real era el aire muerto: a diferencia de Orbital Blades, donde el jugador controla el contacto moviéndose, Pulse no ofrece nada que hacer entre disparo y disparo.
+
+## Boss final del Mapa 2 — modelo CERRADO 2026-07-31 (v0.8.1)
+
+Decisión del usuario: el boss final del Mapa 2 es el **Hazard Marshal**, clave `final-boss` en `src/models/registry.ts`. Sustituye al pod Volt Warden que ocupaba ese hueco. **Solo está cerrado el MODELO**: sigue sin estar enganchado a ningún tipo de enemigo y no tiene ninguna mecánica de pelea diseñada.
+
+### Por qué cambió el candidato
+
+El pod Volt Warden se reconstruyó primero, y ahí apareció el hallazgo que importa: su masa grumosa **no venía de que le faltaran las vistas lateral y trasera**, como decía el repo. Auditada, `ref-volt-warden-front.png` es **215 piezas desconectadas con 101 agujeros interiores** — el 45% de su superficie vive fuera de la silueta principal, y esos fragmentos se extruyen cada uno por su cuenta. Es concept art, no una hoja de conversión. La v2 de esa misma referencia son 2 piezas.
+
+Reconstruido (`tools/make-final-boss-sheets.mjs`: frontal derivada de la referencia y reparada a 1 pieza, laterales y trasera autoradas, 32.376 → 10.208 triángulos) y puesto al lado del Hazard Marshal, perdió la comparación. Sus hojas y su generador se conservan: ese diseño queda libre para un enemigo futuro.
+
+### El modelo
+
+Hojas derivadas de renders de referencia por `tools/make-hazard-marshal-sheets.mjs` (ruta nueva, ver `PROMPTS_IMAGENES.md` §6). 61 columnas de ancho, ~el doble que el resto del elenco.
+
+**Esa resolución solo se justifica a tamaño de boss, y está medido:** el mismo modelo ocupa **50×58 px como jugador y 244×293 px como boss** — unas 24 veces el área. A tamaño de jugador el rasterizador tira todo el panelado; a tamaño de boss sobrevive entero. `voxelSize` 0.0204 deja el modelo en ~1,9u, que es la base que usan los demás bosses ANTES de que la escala 4.6× de su tipo multiplique.
+
+### Color: cuerpo del elenco, cabeza de marca
+
+El cuerpo conserva la paleta `FOREMAN_*`; **solo el casco** (banda 0 → 0,245 desde arriba, que termina justo donde empiezan las hombreras) viste la paleta del logo: ámbar `#fdb601`, carbón `#152532`, negro `#0a1219`, cian `#01e6fe` — todos medidos de `logo-mascot-v3.png`, no elegidos a ojo.
+
+**Teñir el modelo ENTERO de marca se construyó y se descartó.** El logo tiene tres colores y ningún tono medio, así que llevar el cuerpo a ámbar deja ~82% cálido y bajo luz Lambert los dos ámbares se funden: sale una estatua de oro sin definición de paneles. Profundizar el segundo escalón tampoco lo salva. El casco es la pieza que de verdad cita a la mascota (cúpula, visor, rejilla) y basta con él.
+
+### Capacidades nuevas del voxelizador
+
+Dos, ambas opt-in, ninguna cambia el comportamiento de los modelos existentes:
+
+- **`recolorRegions`** (`registry.ts`): igual que `recolorMap` pero acotado a una banda de altura, con `from`/`to` como fracciones **desde arriba** (la convención de `segments`) mientras la Y de la malla va de abajo arriba. Es lo que permite que un modelo lleve dos esquemas de color a la vez.
+- **`sidePaint`** (`icon-voxelizer.ts`): usa los COLORES de la hoja lateral, no solo su profundidad, para pintar las caras exteriores izquierda/derecha. Sin esto la lateral se consumía solo para `rowHalfDepth` y los flancos vestían el color del borde de la silueta frontal estirado hacia atrás. El flanco es exactamente el X mínimo/máximo de cada `(y, z)`, así que pinta dato real **sin poder alterar la silueta** — esa es la diferencia con `voxelizeMultiView`, que también pinta color lateral pero talla el hull como producto cruzado y **fusiona los miembros que cuelgan sueltos**. Probado en este modelo: fusionó los guanteletes al torso, descartado.
+
+### Pendiente
+
+- **Gameplay: cero.** Ni fases, ni telegrafías, ni patrones, ni si el arena cambia.
+- **Aviso de lenguaje visual:** el boss es ámbar+carbón y los Voltling del enjambre también. A tamaño de boss más el doble anillo rojo se distingue, pero conviene revisarlo al definir el elenco del Mapa 2 (la fundición mueve paletas igualmente).
+- **Ángulos 90°/270°** siguen siendo los más flojos. Importa menos de lo que parece: el boss gira siempre hacia el jugador y la cámara va detrás del jugador, así que in-game el ángulo dominante es el frontal.
