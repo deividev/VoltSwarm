@@ -23,6 +23,8 @@
 | Multiplayer/co-op | No se promociona, etiqueta ni promete antes del GO documentado, implementacion terminada y verificacion jugable. "Como minimo co-op 2" es una intencion condicionada, no una feature actual. |
 | Disclosure publico sobre IA | La unica redaccion autorizada es: `The game does not contain AI-generated content. AI-generated content is used just for Steam cover.` No se parafrasea ni amplia mientras Steam no se actualice oficialmente. |
 | Formato por plataforma | Desde 23-07-2026, X y Reddit usan solo MP4 de alta calidad o capturas PNG/JPG; nunca GIF. Steam puede usar GIF, MP4 o capturas segun convenga. |
+| Canal de video propio | Herramienta semanal multijuego disponible en `C:\Users\david\Desktop\Agent Games Web\Marketing tools\youtube-shorts` (v0.2.0). Cada domingo a las 11:00 Europe/Madrid prepara el manifiesto de Shorts de la semana siguiente; nunca publica dentro de la automatizacion. Voltswarm aporta MP4 reutilizables y se programa solo tras aprobar expresamente el manifiesto. OAuth, canal y auditoria de YouTube siguen siendo gates externos. No abrir ni prometer TikTok/Reels como sustituto sin una decision posterior. |
+| Outreach cualificado | Mantenerlo en el hito de septiembre con el primer minitrailer y material de desarrollo mas avanzado. No adelantar mensajes a prensa/creadores por la pagina Steam sola. |
 | Overlay explicativo de gameplay | Cuando el usuario pida texto explicativo sobre gameplay en un clip, usar el lower-third aprobado: franja inferior azul oscuro a ancho completo, borde cian, titulo blanco y subtitulo cian centrados. Mantenerlo breve, usar terminos in-game verificados y retirarlo antes del payoff. Cuando enumere tiers, colorear cada nombre con su color in-game correspondiente. |
 | Cover de Steam Events | Sistema aprobado: base canonica `art/steam/events/s1/event-cover-s1-capsule-800x450.png` + banda inferior compacta de estado para futuros Events/Announcements. Mantener exactamente el capsule y agregar solo: banda azul marino semitransparente, regla superior cian y texto blanco centrado. El copy depende del hito (`UPDATED vX.Y.Z`, `NEW CONTENT`, `PATCH vX.Y.Z`). Nunca alterar logo, personajes ni composicion del capsule. El ejemplo visual literal `UPDTED v1.0.0` vive en `art/steam/events/templates/event-cover-overlay-example-updted-v1.0.0.png`; es referencia de estilo, no master de produccion. |
 | Etica | Cero spam, engagement falso, cuentas coordinadas o posts disfrazados de preguntas. Cada publicacion debe aportar prueba real o una conversacion honesta. |
@@ -221,6 +223,17 @@ Cada semana conserva 3 slots X: **Proof** (clip), **System** (explicacion), **Co
 | 19-25 oct | Build/shop/boss durante Next Fest, sin decir ni insinuar participacion. | No capitalizar Next Fest con spam; participar solo donde aporte. | Estrategia sigue sin demo. |
 | 26 oct-1 nov | Si RC/fecha en verde: "one week", feature proof, mejor GIF. Si no, seguir evergreen sin countdown. | Post pre-launch maximo en un subreddit y solo con permiso. | Activar launch pack solo con gate. |
 | 2-4 nov | Countdown y "out now" unicamente con release confirmada. | Un post de lanzamiento maximo, en una sola comunidad que lo permita. | Conversion final; si no hay release, re-baseline publico claro. |
+
+### Domingo 6 de septiembre — preflight de outreach editorial japonés (interno)
+
+**Objetivo:** dejar una campaña editorial lista para aprobación; no ejecutar contacto externo ni comunicar una fecha de lanzamiento en este hito.
+
+- [ ] Producir un tráiler breve de alta atención y un corte social de **6–15 s**; ambos deben mostrar gameplay real y cumplir el formato MP4 de alta calidad.
+- [ ] Revalidar la página pública de Steam y el enlace UTM antes de compartirlo. Usar la taxonomía vigente, por ejemplo `utm_source=x&utm_medium=organic_social&utm_campaign=coming_soon_2026&utm_content=20260906_jp_editorial_trailer_a`; crear una variante ASCII distinta por cuenta/canal.
+- [ ] Investigar el encaje editorial, cobertura reciente y canal profesional actual de **@dotpixel3d**, **@denfaminicogame**, **@famitsu** y cuentas editoriales/de videojuegos japonesas similares.
+- [ ] Preparar un pitch localizado y una ficha de prensa en japonés con hechos verificables: premisa, plataformas, URL de Steam, assets y CTA de wishlist. No inventar métricas, features ni disponibilidad.
+- [ ] **Contacto externo:** enviar solo tras verificar cuenta, canal y política de contacto, confirmar el encaje de la pieza y recibir aprobación explícita del responsable/publisher. Esta lista es preflight, no autorización implícita.
+- [ ] **Fecha de lanzamiento:** incluirla o establecerla públicamente solo si todas las casillas del [gate de fecha](#gate-de-fecha-de-lanzamiento) están confirmadas; en caso contrario, mantener el claim como `Coming to Steam` sin día concreto.
 
 ---
 
