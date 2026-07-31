@@ -233,8 +233,17 @@ export const PRESSURE_METRICS = {
   radius: 7,
   /** Angular buckets around the player. 12 → one per 30°. */
   sectors: 12,
-  /** Occupied sectors that count as enclosed (no way out). */
-  enclosedSectors: 10,
+  /** Occupied sectors that count as enclosed (no way out).
+   *
+   *  10 → 9 (2026-07-30). 10 was a guess made before any data existed. The
+   *  first three v0.8.0 runs peaked at 9 repeatedly and never once tripped the
+   *  counter, while the player reported feeling trapped — and 9 of 12 blocked
+   *  leaves a single 30° lane, which is subjectively cornered, especially when
+   *  that lane points somewhere you do not want to go. Trusting the guess over
+   *  the report would have been backwards.
+   *
+   *  Runs recorded before this change are NOT comparable on `enclosedS`. */
+  enclosedSectors: 9,
   /** HP fraction under which being enclosed is a crisis, not an inconvenience. */
   lowHpFraction: 0.35,
 };
@@ -318,6 +327,30 @@ export const VISUAL = {
   /** Screen shake (in world units at the camera): a small kick when the
    *  player takes real damage, a bigger one when a boss dies. Sparingly —
    *  it seasons, it must never nauseate. */
+  /** C1 (2026-07-30): hitstop. Freezes the simulation for a couple of frames
+   *  when a batch of enemies dies at once, so a big kill lands as an impact
+   *  instead of a quiet number change. Rendering keeps going during the freeze
+   *  — screen shake decays on raw time — so it reads as punch, not a stall.
+   *
+   *  `cooldownS` is the important one: an AoE build clearing 30 bodies a second
+   *  would otherwise trigger this every frame and turn the whole game into a
+   *  stutter. The freeze has to stay rare enough to mean something. */
+  hitstop: {
+    enabled: true,
+    /** Deaths inside `windowS` required to trigger. Deliberately a short
+     *  WINDOW rather than a single frame: early weapons kill one enemy at a
+     *  time, so a same-frame test would almost never fire and C1 would be dead
+     *  code for most of a run. A burst spread over ~2 frames reads identically
+     *  to the player. */
+    killsThreshold: 3,
+    /** Rolling window the burst has to land inside. */
+    windowS: 0.12,
+    /** Freeze length. 60ms ≈ 4 frames at 60fps — long enough to feel, short
+     *  enough not to read as a hitch. */
+    durationS: 0.06,
+    /** Minimum gap between freezes. */
+    cooldownS: 0.45,
+  },
   screenShake: {
     enabled: true,
     hitAmp: 0.22,
@@ -506,7 +539,7 @@ export const VISUAL = {
   },
 };
 
-export type EnemyBehavior = 'chase' | 'roller' | 'gunner' | 'flyer';
+export type EnemyBehavior = 'chase' | 'roller' | 'gunner' | 'flyer' | 'charger';
 
 export interface EnemyTypeDef {
   name: string;
@@ -521,6 +554,17 @@ export interface EnemyTypeDef {
   unlockAtS: number;
   /** Relative spawn weight once unlocked. */
   weight: number;
+  /** Coins dropped when this type pays out, scaling with the arrival ladder so
+   *  a late heavy is worth more than a minute-one grunt. Absent falls back to
+   *  GOLD.dropAmount. The drop CHANCE stays global — varying both would make
+   *  income impossible to reason about. */
+  gold?: number;
+  /** Heavy bodies other enemies path AROUND rather than pile into. Separation
+   *  alone cannot do this: it pushes along the centre-to-centre axis, so a
+   *  head-on arrival is shoved backward, never sideways. Costs one entry in
+   *  the per-frame avoidance scan per live instance — keep it to the few types
+   *  slow enough to actually dam a wave. */
+  blocksOthers?: boolean;
   /** Instance budget for this type's InstancedMesh. */
   capacity: number;
 }
@@ -538,45 +582,82 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
     color: 0xffb400,
     unlockAtS: 0,
     weight: 10,
+    gold: 2,
     capacity: 288,
   },
   {
     name: 'Sparkrunner',
     behavior: 'chase',
-    hp: 26,
-    speed: 8,
+    /** 2.3x a same-moment Voltling — fourth rung of the arrival ladder. */
+    hp: 35,
+    /** B1 (2026-07-30): 8 → 9.5. The point is to create the verb "dodge" —
+     *  before this the player outran everything and standing still was the only
+     *  way to be hit.
+     *
+     *  First tried 11, matching PLAYER.moveSpeed exactly, and the user's
+     *  playtest killed it: at parity the escape margin is 0 u/s, so this stops
+     *  being a fast enemy and becomes an inescapable one. 9.5 leaves 1.5 u/s —
+     *  you get away, slowly, and it costs you position. That gap IS the design.
+     *
+     *  Note the bot sweep completely missed this: it circle-strafes and never
+     *  attempts to flee, so it measured deaths (which barely moved) and was
+     *  blind to "I cannot escape". Do not tune this number from bot data. */
+    speed: 9.5,
     scale: 1.1,
     radius: 0.6,
-    xp: 3,
+    xp: 4,
     color: 0x2ee6de,
-    unlockAtS: 120,
-    weight: 4,
+    /** Fourth arrival. At speed 9.5 this is the pressure enemy, so it lands
+     *  once the player can already dodge (Roller) and reposition (Drone). */
+    unlockAtS: 225,
+    /** Was rarer than two types that arrive BEFORE it — an inversion. */
+    weight: 3,
+    gold: 3,
     capacity: 112,
   },
   {
     name: 'Rustbrute',
-    behavior: 'chase',
-    hp: 96,
+    /** 2026-07-30: 'chase' → 'charger'. See RUSTBRUTE for the reasoning. */
+    behavior: 'charger',
+    /** 96 → 68 (4.5x a same-moment Voltling) — sixth and last rung.
+     *
+     *  Lowering the base does NOT make it weaker: the global hpRampPerMinute
+     *  multiplies every enemy by run time, so moving this type from 4:00 to
+     *  7:00 already hands it a bigger multiplier. 96 at 4:00 arrived with 242
+     *  effective HP; 68 at 7:00 arrives with 249. Same wall, correct rung.
+     *  Keeping 96 would have double-counted the delay and made it a 2x step in
+     *  a ladder that climbs ~1.4x per arrival. */
+    hp: 68,
     speed: 2.6,
     scale: 1.8,
     radius: 1.15,
-    xp: 6,
+    xp: 7,
     color: 0xff4433,
-    unlockAtS: 240,
+    /** LAST arrival (2026-07-30, user's order). The tank closes the cast, so
+     *  the run's final new problem is the heaviest one. */
+    unlockAtS: 420,
     weight: 2,
+    gold: 6,
+    /** The only type slow and wide enough to dam a wave today. */
+    blocksOthers: true,
     capacity: 56,
   },
   {
     name: 'Roller',
     behavior: 'roller',
-    hp: 34,
+    /** 1.8x a same-moment Voltling — third rung of the arrival ladder. */
+    hp: 27,
     speed: 7.5,
     scale: 1.1,
     radius: 0.7,
-    xp: 4,
+    xp: 3,
     color: 0xb069ff,
-    unlockAtS: 240,
-    weight: 2,
+    /** Third arrival. It commits to a heading and overshoots, so in small
+     *  numbers it teaches sidestepping without punishing — the right lesson
+     *  before the Sparkrunner shows up and actually chases. */
+    unlockAtS: 150,
+    weight: 3,
+    gold: 3,
     capacity: 40,
   },
   // Gunners and drones carry the late-game pressure: projectiles ignore
@@ -584,27 +665,54 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   {
     name: 'Gunner',
     behavior: 'gunner',
-    hp: 40,
+    /** 3.2x a same-moment Voltling — fifth rung. Durability is the right axis
+     *  for a ranged type: it keeps its distance, so a fragile one just dies to
+     *  splash before its projectiles ever matter. */
+    hp: 48,
     speed: 4,
     scale: 1.2,
     radius: 0.65,
     xp: 5,
     color: 0x7dd94a,
-    unlockAtS: 300,
-    weight: 4,
+    /** Fifth arrival. Ranged pressure lands once the player is already busy
+     *  managing a chaser. */
+    unlockAtS: 315,
+    /** 4 → 2 (2026-07-30 weight pass). At 4 it was the SECOND most common
+     *  enemy in the final mix — arriving fifth and being the second toughest.
+     *  Later and heavier has to mean rarer, or the late swarm stops being a
+     *  swarm. Watch this one in play: gunner projectiles ignore knockback, so
+     *  this type is the counter to CC builds and must stay present enough to
+     *  do that job. */
+    weight: 2,
+    gold: 4,
     capacity: 48,
   },
   {
     name: 'Drone',
     behavior: 'flyer',
-    hp: 20,
-    speed: 6.5,
+    /** 1.4x a same-moment Voltling — second rung. Barely tougher than the
+     *  baseline on purpose: it arrives early and its lesson is POSITIONAL, not
+     *  a damage check. */
+    hp: 21,
+    /** 6.5 → 5.5 (2026-07-30 playtest). A flyer is harder to READ than a
+     *  ground unit — it sits off the combat plane, so the player loses the
+     *  depth cue that tells them where it will be. Slower gives that read back
+     *  without removing the type's job. */
+    speed: 5.5,
     scale: 1.0,
     radius: 0.6,
-    xp: 4,
+    xp: 2,
     color: 0xff9de2,
-    unlockAtS: 360,
+    /** SECOND arrival (2026-07-30, user's order). A flyer ignores separation
+     *  and props, so it comes over the crowd from a direction nothing else
+     *  can — the earliest lesson that hugging scenery does not save you, and
+     *  it teaches that before anything can actually catch the player. */
+    unlockAtS: 75,
+    /** 4 → 3 (2026-07-30 playtest: too many drones arriving at once to read).
+     *  Ties the Roller rather than sitting above it — the ladder only needs to
+     *  be non-increasing, not strictly falling. */
     weight: 3,
+    gold: 2,
     capacity: 56,
   },
   // Bosses: weight 0 keeps them out of the wave spawner; the totem summons
@@ -649,11 +757,21 @@ export const ENEMIES = {
   /** Seconds between spawn waves at difficulty 0 and 1. */
   waveIntervalStartS: 2.8,
   waveIntervalEndS: 0.65,
-  /** Enemies per wave at difficulty 0 and 1. */
-  waveSizeStart: 3,
+  /** Enemies per wave at difficulty 0 and 1.
+   *  A1 (2026-07-30): 3 → 4. The measured cause of "the game feels static" is
+   *  the first two minutes, not the last two. Tried 6 first — too much stacked
+   *  on top of the front-loaded curve, which multiplies the same window. */
+  waveSizeStart: 4,
   waveSizeEnd: 16,
-  /** HP multiplier gained per minute of run time (linear ramp). */
-  hpRampPerMinute: 0.38,
+  /** HP multiplier gained per minute of run time (linear ramp).
+   *
+   *  0.38 → 0.30 (2026-07-30 playtest: "mucho más difícil que antes incluso
+   *  con todo desbloqueado"). Difficulty rose from four directions at once
+   *  today — density floor, wave size, a front-loaded curve and a reordered HP
+   *  ladder that raised the Sparkrunner 35% and the Gunner 20%. This is the
+   *  ONE global lever that eases the whole run proportionally without undoing
+   *  any of the relative ordering, which the same playtest said was right. */
+  hpRampPerMinute: 0.3,
   /** Spatial-grid cell size for the separation pass. */
   separationCellSize: 2.6,
   obstacleAvoidance: {
@@ -664,9 +782,46 @@ export const ENEMIES = {
     resolvePasses: 2,
   },
   /** Concurrent-enemy cap at difficulty 0 and 1: waves pause while the field
-   *  is saturated, so early builds are never drowned by sheer population. */
-  maxActiveStart: 28,
+   *  is saturated, so early builds are never drowned by sheer population.
+   *  A1 (2026-07-30): 28 → 45 → 38. The i-frame caps damage RATE at 20 DPS,
+   *  but density raises the DUTY CYCLE — more bodies means being in contact
+   *  more of the time — so density does add danger, just not the way the cap
+   *  suggests. 70 was called too hard, 45 close but still heavy at the very
+   *  start. 38 eases only the opening: this is the floor of a lerp to 380, so
+   *  lowering it fades out as the run ramps and leaves the CURVE — which the
+   *  playtest said was right — untouched. */
+  maxActiveStart: 38,
   maxActiveEnd: 380,
+};
+
+/** Rustbrute: the heavy. Speed 2.6 made it a moving dam — faster enemies
+ *  piled into it because `pushApart` splits overlap 50/50 along the
+ *  centre-to-centre axis, so anything arriving head-on is pushed BACKWARD
+ *  rather than around. Two fixes, together:
+ *
+ *  1. `blocksOthers` on the type makes it a dynamic obstacle, so the existing
+ *     avoidance pass steers others AROUND it instead of into it.
+ *  2. A telegraphed lunge, so being slow is its identity rather than its only
+ *     trait — it arrives late but it arrives hard.
+ *
+ *  Balance: charge speed lands just UNDER PLAYER.moveSpeed, and the lunge is
+ *  committed to a straight line. So it nearly catches a player running in a
+ *  line, and always misses one who sidesteps. The rooted recovery afterwards
+ *  is the reward for reading the telegraph. */
+export const RUSTBRUTE = {
+  /** Distance at which it commits. */
+  chargeRange: 9,
+  /** Wind-up. Short on purpose (user: "retraso mínimo") — long enough to read
+   *  as a telegraph, short enough that ignoring it still hurts. Paired with a
+   *  colour tint so the tell is visual, not just a pause. */
+  telegraphS: 0.45,
+  /** 2.6 × 4.2 ≈ 10.9, a hair under the player's 11. */
+  chargeSpeedMultiplier: 4.2,
+  chargeDurationS: 0.55,
+  /** Rooted after the lunge — this is the counterplay window. */
+  recoverS: 0.7,
+  /** Minimum gap between lunges. */
+  cooldownS: 2.5,
 };
 
 export const ROLLER = {
@@ -689,22 +844,63 @@ export const GUNNER = {
 };
 
 export const FLYER = {
-  hoverHeight: 2.6,
+  /** 2.6 → 1.1 (2026-07-30 playtest: beams visibly missed drones that were
+   *  taking damage, worst with the Welder).
+   *
+   *  Combat is deliberately 2D — every weapon tests `visibleFrom(px, pz, e.x,
+   *  e.z)` and every impact is `spawnBurst(x, z)`, with no Y anywhere in
+   *  weapons.ts. That is the right call for an auto-aiming bullet heaven: the
+   *  player never aims at height, so hit detection must not care about it.
+   *  A drone at 2.6 floated ~2.2 above the plane where combat actually
+   *  happens, so the beam was honestly drawn where the hit honestly landed
+   *  and the DRONE was the thing out of place. 1.1 still reads as hovering
+   *  while keeping the body inside the combat plane.
+   *
+   *  The alternative — threading a Y through targeting, VFX, the burst pool
+   *  and damage numbers for all 11 weapons — buys visual precision nobody
+   *  aims with, and risks every weapon's VFX. Not worth it. */
+  hoverHeight: 1.1,
   bobAmplitude: 0.4,
 };
 
 export const ELITES = {
   /** Elite chance ramps with the unified difficulty scalar. */
   chanceAtMaxDifficulty: 0.05,
-  minRunTimeS: 240,
+  /** Floor so an elite is POSSIBLE as soon as the gate opens. Chance is
+   *  `chanceAtMaxDifficulty * difficulty`, and difficulty near the gate is
+   *  small, so without a floor the first elite was effectively unreachable
+   *  until minutes later — an event the player never learns exists. */
+  chanceFloor: 0.01,
+  /** 240 → 90 → 135 (2026-07-30 playtest). Elites were impossible for the
+   *  first 4 minutes of a 10-minute run, which fights the whole point of
+   *  front-loading density: the most memorable event was banned from the
+   *  window we are trying to make interesting. 90s landed them before the
+   *  player had a build; 2:15 still opens the event far earlier than 4:00.
+   *  Paired with the HP ramp below — the gate existed because a flat 6x HP
+   *  elite at minute 1 is unkillable, not because elites are wrong early. */
+  minRunTimeS: 135,
   /** Kept modest on purpose: elites must never approach boss silhouette size. */
   scaleMultiplier: 1.35,
+  /** Elite HP ramps with run time instead of being a flat 6x. At the 90s gate
+   *  the player has a level-1..3 weapon, and 6x there is not a fight, it is a
+   *  wall that follows you for the rest of the run. Lerps hpMultiplierEarly →
+   *  hpMultiplier between minRunTimeS and hpFullAtS. */
+  hpMultiplierEarly: 2.5,
   hpMultiplier: 6,
+  hpFullAtS: 300,
   xpMultiplier: 6,
+  /** Elite payout scales with the difficulty scalar, but only the part ABOVE
+   *  1 — and time alone tops out at exactly 1, so this is nonzero only when
+   *  the player has stacked Cursed Core. Self-inflicted difficulty pays; the
+   *  clock does not. Applied to elite XP and to the elite gold bonus. */
+  rewardScalesWithDifficulty: true,
   /** Magenta tint applied through instanceColor. */
   tint: 0xdd55ff,
-  /** Behaviors that can roll elite. */
-  behaviors: ['chase', 'roller'] as EnemyBehavior[],
+  /** Behaviors that can roll elite. 'charger' added 2026-07-30: the Rustbrute
+   *  moved from 'chase' to 'charger' that day and silently dropped out of the
+   *  elite pool as a side effect. This restores it — an elite charger is a
+   *  bigger, telegraphed lunge, which is a fine elite. */
+  behaviors: ['chase', 'roller', 'charger'] as EnemyBehavior[],
   /** Uniform elite marker: a segmented magenta ring rotating under every
    *  elite — the ONE signal that reads identically on every enemy type.
    *  Pattern language: elite = rotating segmented magenta, boss = solid
@@ -972,6 +1168,42 @@ export function isWeaponAvailable(id: WeaponId): boolean {
 export function availableWeaponIds(): WeaponId[] {
   return (Object.keys(WEAPON_INFO) as WeaponId[]).filter(isWeaponAvailable);
 }
+
+/** Which weapons HUNT rather than clear.
+ *
+ *  Splitting the arsenal by role is the fix for bosses being unkillable, and
+ *  it is deliberately a build decision rather than a global patch: a loadout
+ *  either packs an answer to big targets or it does not. Biasing EVERY weapon
+ *  toward the boss would be worse than the bug — the swarm chewing on the
+ *  player would become free damage while the whole arsenal stared past it.
+ *
+ *  The hunters are the single-target weapons that already carry an explicit
+ *  `range` (bolt 26, welder 14, dismantler 12) — they were designed to pick
+ *  one thing and commit. Clearers (pulse, blades, tire, press, acid, turbine,
+ *  ricochet) keep pure nearest-first, so the swarm still gets answered.
+ *
+ *  The value is how much closer a boss "reads" to a hunter: 3 means a boss at
+ *  18 units beats trash at 10. It never extends a weapon's actual reach.
+ *
+ *  Applied at exactly three call sites in weapons.ts — Bolt's volley loop,
+ *  the Welder's beam lock and the Dismantler's strike. Grep BOSS_TARGET_BIAS
+ *  to find them; a registry Set here would just be a second place to forget to
+ *  update. */
+export const BOSS_TARGET_BIAS = 3;
+
+/** The bias EVERY other weapon gets.
+ *
+ *  Hunters-only was wrong as shipped, and a playtest found it immediately: the
+ *  run had Turbine and Ricochet, so the fix did nothing and the boss stayed
+ *  untouchable. That matters more than it sounds, because killing a boss is a
+ *  MANDATORY progression gate — the only weapon socket sits behind it. A
+ *  required gate must never depend on drafting one of three specific weapons.
+ *
+ *  So the floor is mild: any build can chip a boss down, a hunter build does
+ *  it properly. The difference stays a real build decision without ever being
+ *  a lockout. Kept well under the hunter value on purpose — at parity the
+ *  whole arsenal would stare past the swarm chewing on the player. */
+export const BOSS_TARGET_BIAS_BASE = 1.5;
 
 export const MAX_WEAPON_LEVEL = 20;
 
@@ -1429,6 +1661,32 @@ export const BOSS = {
   respawnHpGrowth: 1.6,
   chestsOnKill: 3,
   contactDamage: 25,
+  /** World units the swarm is pushed out of around a live boss.
+   *
+   *  The boss fight was unwinnable for a structural reason: weapons pick the
+   *  nearest enemy, and trash packed against a boss is always nearer than the
+   *  boss. Clearing a ring gives the player somewhere to stand where the boss
+   *  IS the closest thing — so it fixes the fight from the geometry side while
+   *  HUNTER_WEAPONS fixes it from the targeting side.
+   *
+   *  Reuses the dynamic-obstacle pass built for the Rustbrute, just with a
+   *  radius far larger than the body. Keep it modest: too wide and the arena
+   *  reads as an artificial bubble instead of a boss shoving its way clear. */
+  clearRadius: 7,
+  /** Ambient wave output while a boss is alive, as a fraction of normal.
+   *
+   *  The user proposed this first and I under-weighted it, arguing it treated
+   *  the symptom rather than the targeting root cause. Targeting is fixed now,
+   *  and the playtest showed the remaining blocker is exactly what they said:
+   *  a wall of trash between the player and the boss. The clear ring even made
+   *  that worse — repelling bodies out to radius 7 builds a shell right where
+   *  the player has to walk in.
+   *
+   *  0.45 dampens rather than stops. A boss fight should still be a bullet
+   *  heaven, and the Crusher's own minions are meant to be the phase's
+   *  pressure — that is what makes it read as a fight rather than a duel in an
+   *  empty field. */
+  spawnDampenWhileAlive: 0.45,
   crusher: {
     speed: 3,
     chargeTelegraphS: 0.9,
@@ -1440,7 +1698,19 @@ export const BOSS = {
   },
   tesla: {
     speed: 2.4,
-    preferredDist: 10,
+    /** 10 → 7 (2026-07-30 playtest: "sigue estando demasiado lejos").
+     *
+     *  This value was DEAD until today — `moveGunner` read GUNNER.preferredDist
+     *  for every gunner including the boss, so the Tesla held the grunt's 12
+     *  units. Now it is wired, and 7 puts it inside the reach of the short
+     *  weapons (dismantler 12, welder 14) instead of only the long ones. A
+     *  ranged boss still keeps its distance — it just stops standing where
+     *  half the arsenal cannot answer. */
+    preferredDist: 7,
+    /** Only backs off when the player is truly on top of it. Its speed is 2.4
+     *  against the player's 11, so retreat was never an escape anyway — this
+     *  just stops it shuffling backwards while being shot. */
+    retreatDist: 4,
     burstCooldownS: 4,
     burstProjectiles: 12,
     projectileSpeed: 10,
@@ -1459,8 +1729,18 @@ export function xpForLevel(level: number): number {
  * Unified difficulty scalar in [0, 1+], the single knob driving spawns, HP and
  * elites: time ramp x (1 + cursed bonus from chests/cards).
  */
+/** A2 (2026-07-30): front-loaded curve. The linear ramp spent its resolution on
+ *  the minutes nobody complains about — at 60s it sat at 0.13, so minute 1 was
+ *  effectively difficulty zero. `pow(t, 0.65)` roughly doubles the first minute
+ *  while leaving minute 8 untouched, since pow(1) is still 1.
+ *
+ *  Softened 0.65 → 0.78 after the user's playtest called the opening too hard.
+ *  0.65 nearly TRIPLED the first 30 seconds and stacked on top of the raised
+ *  A1 floor — two multipliers squeezing the same window. */
+export const DIFFICULTY_CURVE_EXPONENT = 0.78;
+
 export function difficultyScalar(elapsedS: number, cursedBonus: number): number {
-  const timeRamp = Math.min(elapsedS / 480, 1);
+  const timeRamp = Math.pow(Math.min(elapsedS / 480, 1), DIFFICULTY_CURVE_EXPONENT);
   return Math.min(timeRamp * (1 + cursedBonus) + cursedBonus * 0.15, 1.6);
 }
 

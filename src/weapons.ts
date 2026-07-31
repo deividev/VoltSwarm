@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { AUDIO, VISUAL, WEAPONS, levelScale, quantityBonus, weaponBranchMultiplier, type BranchWeaponId, type WeaponBranchId, type WeaponId } from './config';
+import { AUDIO, BOSS_TARGET_BIAS, BOSS_TARGET_BIAS_BASE, BOSS_TYPE_INDEXES, VISUAL, WEAPONS, levelScale, quantityBonus, weaponBranchMultiplier, type BranchWeaponId, type WeaponBranchId, type WeaponId } from './config';
 import { litMaterial } from './toon';
 import type { EnemySystem } from './enemies';
 import type { PlayerStats } from './stats';
@@ -69,21 +69,42 @@ function visibleFrom(
   return hasLineOfSight(startX, startZ, endX, endZ, ctx.obstacles);
 }
 
+/** Picks a target within `range`.
+ *
+ *  `bossBias` > 1 makes bosses compete as if they were closer, WITHOUT
+ *  extending the weapon's reach: the range gate always tests true distance and
+ *  the bias only decides who wins among candidates already in range.
+ *
+ *  Why it exists: this used to be pure nearest-enemy, and a boss is big and
+ *  slow, so with any swarm present it is essentially never the closest thing.
+ *  Measured 2026-07-30 — 0 bosses defeated across 11 recorded runs, while Tire
+ *  Fire (the one weapon that ignores targeting entirely and just rolls through
+ *  everything) accounted for 63% of all career damage. The arsenal could not
+ *  shoot the boss, so only the weapon that does not aim ever hurt one. */
 function findNearestVisible(
   ctx: CombatCtx,
   x: number,
   z: number,
   range: number,
   excluded: Set<number> | null = null,
+  /** Defaults to the floor every weapon gets — see BOSS_TARGET_BIAS_BASE.
+   *  Hunters pass BOSS_TARGET_BIAS explicitly. */
+  bossBias = BOSS_TARGET_BIAS_BASE,
 ): number {
   let best = -1;
-  let bestSq = range * range;
+  let bestScore = Infinity;
+  const rangeSq = range * range;
   for (let i = 0; i < ctx.enemies.pool.length; i++) {
     const enemy = ctx.enemies.pool[i];
     if (!enemy || !enemy.active || excluded?.has(enemyKey(i, enemy.gen))) continue;
     const distanceSq = (enemy.x - x) ** 2 + (enemy.z - z) ** 2;
-    if (distanceSq >= bestSq || !visibleFrom(ctx, x, z, enemy.x, enemy.z)) continue;
-    bestSq = distanceSq;
+    if (distanceSq >= rangeSq) continue; // Real reach — never widened by bias.
+    const score =
+      bossBias > 1 && BOSS_TYPE_INDEXES.includes(enemy.typeIndex)
+        ? distanceSq / bossBias
+        : distanceSq;
+    if (score >= bestScore || !visibleFrom(ctx, x, z, enemy.x, enemy.z)) continue;
+    bestScore = score;
     best = i;
   }
   return best;
@@ -363,7 +384,13 @@ export class BoltWeapon {
       for (let i = 0; i < ctx.enemies.pool.length; i++) {
         const e = ctx.enemies.pool[i];
         if (!e || !e.active || taken.has(i)) continue;
-        const dSq = (e.x - px) * (e.x - px) + (e.z - pz) * (e.z - pz);
+        const trueSq = (e.x - px) * (e.x - px) + (e.z - pz) * (e.z - pz);
+        if (trueSq >= range * range) continue; // Real reach — bias never widens it.
+        // Hunter: same boss weighting as the shared helper. Bolt keeps its own
+        // loop because a volley must pick N DISTINCT targets.
+        const dSq = BOSS_TYPE_INDEXES.includes(e.typeIndex)
+          ? trueSq / BOSS_TARGET_BIAS
+          : trueSq;
         if (dSq < bestSq && visibleFrom(ctx, px, pz, e.x, e.z)) {
           bestSq = dSq;
           best = i;
@@ -632,7 +659,9 @@ export class WelderWeapon {
       valid = dSq <= range * range && visibleFrom(ctx, px, pz, current.x, current.z);
     }
     if (!valid) {
-      this.target = findNearestVisible(ctx, px, pz, range);
+      // Hunter: the beam ramps damage while locked on one target, so a boss is
+      // exactly what it was built for.
+      this.target = findNearestVisible(ctx, px, pz, range, null, BOSS_TARGET_BIAS);
       this.targetGen = ctx.enemies.pool[this.target]?.gen ?? -1;
       this.lockTime = 0;
     }
@@ -1572,7 +1601,9 @@ export class DismantlerWeapon {
     if (this.cooldown <= 0) {
       const range = WEAPONS.dismantler.range * ctx.stats.attackRange *
         branchMultiplier(ctx, 'dismantler', 'range');
-      const target = findNearestVisible(ctx, px, pz, range);
+      // Hunter: one heavy committed strike per cooldown belongs on the big
+      // target, not on whichever grunt happened to drift closest.
+      const target = findNearestVisible(ctx, px, pz, range, null, BOSS_TARGET_BIAS);
       const e = ctx.enemies.pool[target];
       if (target !== -1 && e) {
         this.cooldown = WEAPONS.dismantler.cooldownS / ctx.stats.attackSpeed;

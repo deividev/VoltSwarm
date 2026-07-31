@@ -177,3 +177,32 @@ Se arranca con **un solo personaje**; los demás se desbloquean por contratos, i
 **El personaje inicial es el legible y perdonador, no el interesante.** Carga con las primeras ~10 runs de todo el mundo: es el juego que decide si alguien pide reembolso. Los bocetos raros de §4.3 son mala primera experiencia; el equilibrado va primero y los raros son la recompensa.
 
 Persistencia: `unlockedCharacters` en `PROFILE` siguiendo la misma costura que las armas — IDs nunca índices, lo otorgado nunca se revoca, `PROFILE` se muta en su sitio.
+
+---
+
+## 5. Pendientes anotados durante los playtests
+
+### 5.1 El Rustbrute hace de dique (usuario, 2026-07-30)
+
+**Síntoma en partida:** con una oleada grande y varios Rustbrute ya spawneados, los enemigos rápidos de detrás se quedan frenados. El Rustbrute va a 2.6 (el más lento del elenco) y tapona el avance de todo lo que viene detrás.
+
+**Causa localizada:** `pushApart()` en `src/enemies.ts` reparte el solapamiento **50/50** — `push = (minDist - dist) * 0.5`, ambos cuerpos se desplazan lo mismo. No existe concepto de masa ni de prioridad. Y como el empuje va por el eje centro-a-centro, un enemigo que llega de frente contra un Rustbrute es empujado **hacia atrás**, no hacia un lado. En oleada densa, una fila de Rustbrutes es una presa móvil.
+
+**Por qué "darles masa" NO basta:** que el Rustbrute no ceda su mitad solo hace que el ligero absorba todo el desplazamiento, y sigue siendo hacia atrás. No genera rodeo.
+
+**La palanca que sí encaja, y ya existe:** `ENEMIES.obstacleAvoidance` (`lookAhead`, `clearance`, `steerStrength`) ya hace que los enemigos **esquiven props**. Tratar al Rustbrute como obstáculo dinámico en esa pasada haría que los rápidos lo **rodeen** en vez de apilarse contra él — reutiliza código ya probado en vez de inventar una regla nueva. Ojo al coste: hoy los obstáculos son estáticos y pocos.
+
+**La parte de ataque (idea del usuario):** si además deja de depender del contacto — golpe de área o embestida telegrafiada — su lentitud pasa a ser temática ("tanque: llega tarde pero pega fuerte") en vez de un defecto. Hoy es `behavior: 'chase'` con daño de contacto puro, así que ser lento solo le resta.
+
+**✅ IMPLEMENTADO 2026-07-30, pendiente de playtest humano.** Las dos mitades:
+
+- `blocksOthers: true` en el tipo → el Rustbrute entra cada frame en el set de evasión (`rebuildDynamicObstacles`), así que el resto del enjambre lo **rodea**. Un charger a mitad de embestida se excluye a propósito: va rápido y comprometido, y dejarlo dentro hace que el enjambre esquive un cuerpo que ya no estará ahí. Y `sourceEnemy` existe solo para que un pesado no se esquive a sí mismo.
+- `behavior: 'charger'` → se acerca lento, se planta, **destella** (tinte índice 6, naranja caliente, parpadeante) y embiste en línea recta comprometida, quedando clavado al recuperar.
+
+Balance medido: `2.6 × 4.2 = 10.9`, justo **por debajo** de los 11 del jugador; la embestida recorre 6.0 unidades exactas y **no re-apunta** (verificado: 1 solo heading durante todo el lunge). Correr en línea recta apenas te salva; cualquier paso lateral durante los 0.45s de aviso la hace fallar. La recuperación clavada es el premio por leer el aviso.
+
+Efecto colateral corregido: mover el tipo de `chase` a `charger` lo sacó en silencio del pool de élites (`ELITES.behaviors`), así que se añadió `'charger'` a esa lista.
+
+### 5.2 Fragilidad conocida del harness de smoke
+
+`tools/smoke-run.mjs` falla de forma **intermitente** en el `page.reload()` entre armas (`waitForNavigation` agota el tiempo). Reproducido 2 veces seguidas y luego pase limpio 5/5 con el mismo código, así que es una carrera de navegación del harness, no una regresión del juego. Si falla, volver a lanzarlo. Pendiente de endurecer.

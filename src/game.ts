@@ -208,6 +208,19 @@ export class Game {
   private runShopPurchases = 0;
   /** Pressure instrumentation — see config.PRESSURE_METRICS for why enclosure
    *  is measured by angular coverage rather than by a nearby-enemy count. */
+  /** Hitstop (VISUAL.hitstop): remaining freeze, and the cooldown that keeps a
+   *  wide AoE build from triggering it every frame. */
+  private hitstopS = 0;
+  private hitstopCooldownS = 0;
+  /** Rolling kill-burst window feeding the hitstop trigger. */
+  private killWindowS = 0;
+  private killWindowCount = 0;
+  /** Integral of cursedDifficulty over run time — divided by duration at the
+   *  end it gives the time-weighted mean, which is what a leaderboard needs. */
+  /** This frame's difficulty scalar, kept so death handlers can scale elite
+   *  payout without recomputing it. */
+  private currentDifficulty = 1;
+  private runCursedIntegral = 0;
   private runContactS = 0;
   private runEnclosedS = 0;
   private runEnclosedLowHpS = 0;
@@ -413,6 +426,7 @@ export class Game {
     this.runGoldEarned = 0;
     this.runChestsByTier = {};
     this.runShopPurchases = 0;
+    this.runCursedIntegral = 0;
     this.runContactS = 0;
     this.runEnclosedS = 0;
     this.runEnclosedLowHpS = 0;
@@ -645,7 +659,13 @@ export class Game {
       this.state === 'chest' || this.state === 'shop' || this.state === 'ended',
     );
     if (this.state === 'loading') this.tickLoading();
-    else if (this.state === 'playing') this.update(dt);
+    else if (this.state === 'playing') {
+      // Hitstop: the world is frozen, but the frame still renders and the
+      // camera still shakes (it decays on rawDt), which is what turns the
+      // freeze into impact rather than a dropped frame.
+      if (this.hitstopS > 0) this.hitstopS -= rawDt;
+      else this.update(dt);
+    }
     updateCamera(this.camera, this.player.position);
     if (VISUAL.screenShake.enabled && this.shakeAmp > 0.005) {
       this.camera.position.x += (Math.random() - 0.5) * 2 * this.shakeAmp;
@@ -793,7 +813,13 @@ export class Game {
   }
 
   private update(dt: number): void {
+    if (this.hitstopCooldownS > 0) this.hitstopCooldownS -= dt;
+    if (this.killWindowS > 0) this.killWindowS -= dt;
     this.elapsedS += dt;
+    // Integrated per frame, not sampled at the end: the card can be picked at
+    // any minute, and a run that ran +60% for its last 30 seconds is not the
+    // same run as one that ran +60% throughout.
+    this.runCursedIntegral += this.stats.cursedDifficulty * dt;
     this.tickAudioBenchmark(dt);
     const remaining = RUN_DURATION_S - this.elapsedS;
     if (remaining <= 0) {
@@ -827,6 +853,7 @@ export class Game {
     // world-positioned sounds (acid pool loop, acid drum, dismantler claw).
     this.audio.setListener(px, pz);
     const difficulty = difficultyScalar(this.elapsedS, this.stats.cursedDifficulty);
+    this.currentDifficulty = difficulty;
 
     this.enemies.update(
       dt,
@@ -1389,6 +1416,21 @@ export class Game {
 
   private onEnemyDeath(death: DeathInfo): void {
     if (this.benchmarkActive) this.benchmarkKills++;
+    // Hitstop trigger: a burst of deaths inside a short window. Fired here
+    // rather than at the end of update() so the freeze starts on the exact
+    // frame the kill lands.
+    if (this.killWindowS <= 0) this.killWindowCount = 0;
+    this.killWindowS = VISUAL.hitstop.windowS;
+    this.killWindowCount++;
+    if (
+      VISUAL.hitstop.enabled &&
+      this.hitstopCooldownS <= 0 &&
+      this.killWindowCount >= VISUAL.hitstop.killsThreshold
+    ) {
+      this.hitstopS = VISUAL.hitstop.durationS;
+      this.hitstopCooldownS = VISUAL.hitstop.cooldownS;
+      this.killWindowCount = 0;
+    }
     this.progression.addKill();
     this.audio.emit({ id: 'enemy-death' });
     const isBoss = this.boss.isBossType(death.typeIndex);
@@ -1399,8 +1441,20 @@ export class Game {
     const oz = Math.sin(dropA) * GOLD.dropSeparation;
     let goldValue = 0;
     if (isBoss) goldValue = GOLD.bossBonus;
-    else if (death.elite) goldValue = GOLD.eliteBonus;
-    else if (Math.random() < GOLD.dropChance) goldValue = GOLD.dropAmount;
+    // Same rule as elite XP: only difficulty ABOVE 1 pays, and the clock alone
+    // tops out at exactly 1, so this bonus tracks stacked Cursed Core.
+    else if (death.elite) {
+      goldValue = Math.round(
+        GOLD.eliteBonus *
+          (ELITES.rewardScalesWithDifficulty ? Math.max(1, this.currentDifficulty) : 1),
+      );
+    }
+    // Per-type payout: a 7:00 heavy is worth more than a minute-one grunt.
+    // The CHANCE stays global on purpose — varying rate and amount together
+    // makes income impossible to reason about when tuning the shop.
+    else if (Math.random() < GOLD.dropChance) {
+      goldValue = ENEMY_TYPES[death.typeIndex]?.gold ?? GOLD.dropAmount;
+    }
     if (goldValue > 0) this.goldSys.spawn(death.x + ox, death.z + oz, goldValue);
     // Detonator Rig: every N kills, the next one blows up.
     const rigCopies = this.modCounts['detonator-rig'] ?? 0;
@@ -1940,6 +1994,11 @@ export class Game {
       enclosedS: Math.round(this.runEnclosedS * 10) / 10,
       enclosedLowHpS: Math.round(this.runEnclosedLowHpS * 10) / 10,
       peakEnclosedSectors: this.runPeakEnclosedSectors,
+      cursedFinal: Math.round(this.stats.cursedDifficulty * 1000) / 1000,
+      cursedTimeAvg:
+        this.elapsedS > 0
+          ? Math.round((this.runCursedIntegral / this.elapsedS) * 1000) / 1000
+          : 0,
       durationS: this.elapsedS,
       level: this.progression.level,
       kills: this.progression.kills,

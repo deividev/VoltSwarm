@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { BOSS, BOSS_TYPE_INDEXES, ENEMY_TYPES } from './config';
+import { CHARGE } from './enemies';
 import type { EnemySystem } from './enemies';
 import type { EnemyProjectiles } from './enemy-projectiles';
 import { litMaterial } from './toon';
@@ -279,7 +280,8 @@ export class BossSystem {
   /** Crusher King: telegraphed charges plus periodic scrapling reinforcements. */
   private updateCrusher(
     dt: number,
-    boss: { x: number; z: number; speed: number },
+    /** `chargeState` drives the shared wind-up flare (see CHARGE). */
+    boss: { x: number; z: number; speed: number; chargeState: number },
     enemies: EnemySystem,
     obstacles: Obstacle[],
   ): void {
@@ -290,16 +292,26 @@ export class BossSystem {
           this.chargePhase = 'telegraph';
           this.chargeTimer = BOSS.crusher.chargeTelegraphS;
           boss.speed = 0.5; // Winds up: nearly stops before launching.
+          // The wind-up used to be INVISIBLE — it only slowed the boss, which
+          // reads as nothing on a body that was already slow. It then launched
+          // at 22 against a player who moves 11, landing up to three 25-damage
+          // hits through the 0.4s i-frame: ~75 HP with no tell. Borrowing the
+          // charger's white-hot flare makes it the same readable contract as
+          // the Rustbrute (playtest 2026-07-30: "me ha atropellado sin ver
+          // dónde está").
+          boss.chargeState = CHARGE.telegraph;
           break;
         case 'telegraph':
           this.chargePhase = 'charging';
           this.chargeTimer = BOSS.crusher.chargeDurationS;
           boss.speed = BOSS.crusher.chargeSpeed;
+          boss.chargeState = CHARGE.lunging;
           break;
         case 'charging':
           this.chargePhase = 'cooldown';
           this.chargeTimer = BOSS.crusher.chargeCooldownS;
           boss.speed = this.baseSpeed;
+          boss.chargeState = CHARGE.approach;
           break;
       }
     }

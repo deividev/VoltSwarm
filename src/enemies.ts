@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   ARENA_HALF_SIZE,
+  BOSS,
   BOSS_TYPE_INDEXES,
   ELITES,
   ENEMIES,
@@ -9,6 +10,7 @@ import {
   FLYER,
   GUNNER,
   ROLLER,
+  RUSTBRUTE,
   STATUS,
   VISUAL,
   type EnemyTypeDef,
@@ -53,6 +55,9 @@ export interface Enemy {
   slowFactor: number;
   /** Current state-tint index (see TINTS) — edge-detected each frame. */
   tintState: number;
+  /** Charger state machine (see CHARGE below). `phase` is its timer and
+   *  `heading` holds the committed lunge direction. Unused by other types. */
+  chargeState: number;
   /** Flavor of the current full stop: true = frost (Coolant), false = zap. */
   iceStun: boolean;
   dotTimer: number;
@@ -97,13 +102,43 @@ const ACID_TINT = new THREE.Color(0.45, 2.0, 0.55);
 // happening" signal (user feedback).
 const OIL_TINT = new THREE.Color(0.4, 0.42, 0.55);
 
-const TINTS = [BASE_TINT, STUN_TINT, FROST_TINT, ACID_TINT, ELITE_TINT, OIL_TINT];
+// Charger wind-up (index 6): a white-hot flare so the lunge is READ, not just
+// felt — a telegraph the player cannot see is only a delay, which is exactly
+// what we are avoiding. Shown STEADILY (it takes the restTint path, like the
+// elite purple), not blinking: the wind-up is 0.45s and the user dislikes
+// strobe.
+//
+// Raised 2026-07-30 after playtest ("que se vea perfectamente"). Brightness
+// alone was not the fix: these tints MULTIPLY the body colour, and the
+// Rustbrute is already red (0xff4433), so scaling red just made a red robot a
+// slightly brighter red robot. The green channel is what does the work — it
+// pushes the hue to yellow-white, which no enemy body wears, so the wind-up
+// cannot be mistaken for the enemy's own colour.
+const CHARGE_TINT = new THREE.Color(4.6, 3.4, 1.4);
+
+const TINTS = [BASE_TINT, STUN_TINT, FROST_TINT, ACID_TINT, ELITE_TINT, OIL_TINT, CHARGE_TINT];
+
+/** Charger phases. `phase` counts the current one down. Exported so the boss
+ *  system can borrow the telegraph state and inherit the same wind-up flare —
+ *  one visual language for "something is about to lunge at you". */
+export const CHARGE = { approach: 0, telegraph: 1, lunging: 2, recover: 3 } as const;
 
 const ELITE_AURA_CAPACITY = 64;
+
+/** An obstacle that IS a live enemy. `sourceEnemy` exists purely so a heavy
+ *  body can skip its own entry when steering. Declared here rather than in
+ *  world.ts to keep Obstacle free of an enemies.ts import cycle. */
+interface EnemyObstacle extends Obstacle {
+  sourceEnemy?: Enemy;
+}
 
 export class EnemySystem {
   readonly pool: Enemy[] = [];
   activeCount = 0;
+
+  /** Reused across frames so the dynamic-obstacle pass allocates nothing. */
+  private readonly dynamicObstacles: EnemyObstacle[] = [];
+  private readonly combinedObstacles: EnemyObstacle[] = [];
 
   private readonly meshes: THREE.InstancedMesh[] = [];
   private readonly eliteAura: THREE.InstancedMesh;
@@ -244,6 +279,7 @@ export class EnemySystem {
           slowTimer: 0,
           slowFactor: 1,
           tintState: 0,
+          chargeState: 0,
           iceStun: false,
           dotTimer: 0,
           dotDps: 0,
@@ -301,6 +337,9 @@ export class EnemySystem {
     projectiles: EnemyProjectiles,
   ): void {
     this.updateSpawner(dt, elapsedS, difficulty, playerX, playerZ, obstacles);
+    // Heavy bodies join the avoidance set for this frame, so the rest of the
+    // swarm steers AROUND them instead of damming up behind them.
+    const steerObstacles = this.rebuildDynamicObstacles(obstacles);
 
     for (const e of this.pool) {
       if (!e.active) continue;
@@ -333,7 +372,9 @@ export class EnemySystem {
           : slowed
             ? 5
             : 0;
-      const restTint = e.elite ? 4 : 0;
+      // The wind-up outranks the elite tint: an incoming lunge is the more
+      // urgent thing to read, and it only lasts RUSTBRUTE.telegraphS.
+      const restTint = e.chargeState === CHARGE.telegraph ? 6 : e.elite ? 4 : 0;
       const blinkOn = Math.floor(elapsedS * 10) % 2 === 0;
       // Energy states (stun/frost/acid) blink to avoid same-hue camouflage and
       // to glow; the Oil slow shows STEADILY (a coating, not an energy pulse).
@@ -348,16 +389,19 @@ export class EnemySystem {
 
       switch (type.behavior) {
         case 'chase':
-          this.moveChase(e, dt, playerX, playerZ, obstacles);
+          this.moveChase(e, dt, playerX, playerZ, steerObstacles);
           break;
         case 'roller':
-          this.moveRoller(e, dt, playerX, playerZ, obstacles);
+          this.moveRoller(e, dt, playerX, playerZ, steerObstacles);
+          break;
+        case 'charger':
+          this.moveCharger(e, dt, playerX, playerZ, steerObstacles);
           break;
         case 'gunner':
-          this.moveGunner(e, dt, playerX, playerZ, projectiles, obstacles);
+          this.moveGunner(e, dt, playerX, playerZ, projectiles, steerObstacles);
           break;
         case 'flyer':
-          this.moveChase(e, dt, playerX, playerZ, obstacles);
+          this.moveChase(e, dt, playerX, playerZ, steerObstacles);
           break;
       }
       e.speed = baseSpeed;
@@ -417,6 +461,63 @@ export class EnemySystem {
 
   /** Rollers steer slowly toward the player, so they charge past — the
    *  counterplay is sidestepping, not outrunning. */
+  /** Charger: walks in slowly, plants itself, flares, then lunges in a
+   *  COMMITTED straight line and is rooted while it recovers.
+   *
+   *  Committed is the whole balance: the lunge is a hair slower than the
+   *  player, so running in a line barely saves you, but any sidestep during
+   *  the wind-up makes it whiff — it cannot re-aim mid-lunge. The recovery is
+   *  the payoff for having read the tell. */
+  private moveCharger(
+    e: Enemy,
+    dt: number,
+    px: number,
+    pz: number,
+    obstacles: Obstacle[],
+  ): void {
+    e.phase -= dt;
+
+    if (e.chargeState === CHARGE.lunging) {
+      const speed = e.speed * RUSTBRUTE.chargeSpeedMultiplier;
+      e.x += Math.sin(e.heading) * speed * dt;
+      e.z += Math.cos(e.heading) * speed * dt;
+      if (e.phase <= 0) {
+        e.chargeState = CHARGE.recover;
+        e.phase = RUSTBRUTE.recoverS;
+      }
+      return;
+    }
+
+    if (e.chargeState === CHARGE.telegraph) {
+      // Rooted and flaring. Direction was locked when the wind-up started, so
+      // stepping aside now beats it.
+      if (e.phase <= 0) {
+        e.chargeState = CHARGE.lunging;
+        e.phase = RUSTBRUTE.chargeDurationS;
+      }
+      return;
+    }
+
+    if (e.chargeState === CHARGE.recover) {
+      if (e.phase <= 0) {
+        e.chargeState = CHARGE.approach;
+        e.phase = RUSTBRUTE.cooldownS;
+      }
+      return; // Rooted: the counterplay window.
+    }
+
+    // Approach. `phase` is the cooldown here, so it cannot chain lunges.
+    const dx = px - e.x;
+    const dz = pz - e.z;
+    if (e.phase <= 0 && dx * dx + dz * dz <= RUSTBRUTE.chargeRange * RUSTBRUTE.chargeRange) {
+      e.chargeState = CHARGE.telegraph;
+      e.phase = RUSTBRUTE.telegraphS;
+      e.heading = Math.atan2(dx, dz);
+      return;
+    }
+    this.moveChase(e, dt, px, pz, obstacles);
+  }
+
   private moveRoller(
     e: Enemy,
     dt: number,
@@ -461,11 +562,19 @@ export class EnemySystem {
     dz /= dist;
     e.heading = Math.atan2(dx, dz);
 
-    if (dist > GUNNER.preferredDist) {
+    // A boss gunner uses ITS OWN standoff. BOSS.tesla.preferredDist existed
+    // but was never read — the Tesla Titan was silently holding the grunt's
+    // 12 units, outside half the arsenal's reach, which is why it read as
+    // "never comes close enough to fight" (playtest 2026-07-30).
+    const isBoss = BOSS_TYPE_INDEXES.includes(e.typeIndex);
+    const preferredDist = isBoss ? BOSS.tesla.preferredDist : GUNNER.preferredDist;
+    const retreatDist = isBoss ? BOSS.tesla.retreatDist : GUNNER.retreatDist;
+
+    if (dist > preferredDist) {
       const movement = this.steerAroundObstacles(e, dx, dz, obstacles);
       e.x += movement.x * e.speed * dt;
       e.z += movement.z * e.speed * dt;
-    } else if (dist < GUNNER.retreatDist) {
+    } else if (dist < retreatDist) {
       const movement = this.steerAroundObstacles(e, -dx, -dz, obstacles);
       e.x += movement.x * e.speed * 0.8 * dt;
       e.z += movement.z * e.speed * 0.8 * dt;
@@ -647,15 +756,21 @@ export class EnemySystem {
     if (this.spawnTimer > 0) return;
 
     const t = Math.min(difficulty, 1);
+    // While a boss is up the ambient waves step back so the fight is a PHASE,
+    // not the same soup with one bigger body in it. The boss's own minions
+    // carry the pressure instead.
+    const bossDampen = this.bossAlive() ? BOSS.spawnDampenWhileAlive : 1;
     const interval = THREE.MathUtils.lerp(ENEMIES.waveIntervalStartS, ENEMIES.waveIntervalEndS, t);
     const maxActive = Math.round(
       THREE.MathUtils.lerp(ENEMIES.maxActiveStart, ENEMIES.maxActiveEnd, t) *
-        Math.max(1, difficulty),
+        Math.max(1, difficulty) *
+        bossDampen,
     );
     const waveSize = Math.min(
       Math.round(
         THREE.MathUtils.lerp(ENEMIES.waveSizeStart, ENEMIES.waveSizeEnd, t) *
-          Math.max(1, difficulty),
+          Math.max(1, difficulty) *
+          bossDampen,
       ),
       Math.max(0, maxActive - this.activeCount),
     );
@@ -667,8 +782,8 @@ export class EnemySystem {
       const elite =
         elapsedS >= ELITES.minRunTimeS &&
         ELITES.behaviors.includes(type.behavior) &&
-        Math.random() < ELITES.chanceAtMaxDifficulty * difficulty;
-      this.spawn(type, hpMultiplier, playerX, playerZ, elite, obstacles);
+        Math.random() < Math.max(ELITES.chanceFloor, ELITES.chanceAtMaxDifficulty * difficulty);
+      this.spawn(type, hpMultiplier, playerX, playerZ, elite, obstacles, elapsedS, difficulty);
     }
   }
 
@@ -679,6 +794,8 @@ export class EnemySystem {
     playerZ: number,
     elite: boolean,
     obstacles: Obstacle[],
+    elapsedS = 0,
+    difficulty = 1,
   ): void {
     const scaleMultiplier = elite ? ELITES.scaleMultiplier : 1;
     const radius = type.radius * scaleMultiplier;
@@ -698,6 +815,8 @@ export class EnemySystem {
       hpMultiplier,
       elite,
       obstacles,
+      elapsedS,
+      difficulty,
     );
   }
 
@@ -710,6 +829,9 @@ export class EnemySystem {
     hpMultiplier = 1,
     elite = false,
     obstacles: Obstacle[] = [],
+    /** Only used to ramp elite HP and payout — plain spawns ignore both. */
+    elapsedS = 0,
+    difficulty = 1,
   ): number {
     const type = ENEMY_TYPES[typeIndex];
     if (!type) return -1;
@@ -728,12 +850,26 @@ export class EnemySystem {
     e.x = spot.x;
     e.z = spot.z;
     e.elite = elite;
-    e.maxHp = Math.round(type.hp * hpMultiplier * (elite ? ELITES.hpMultiplier : 1));
+    // Elite HP ramps with run time: a flat 6x at the 90s gate is a wall, not a
+    // fight. Reaches the full multiplier by ELITES.hpFullAtS.
+    const eliteRamp = THREE.MathUtils.clamp(
+      (elapsedS - ELITES.minRunTimeS) / Math.max(1, ELITES.hpFullAtS - ELITES.minRunTimeS),
+      0,
+      1,
+    );
+    const eliteHpMultiplier = elite
+      ? THREE.MathUtils.lerp(ELITES.hpMultiplierEarly, ELITES.hpMultiplier, eliteRamp)
+      : 1;
+    // Payout scales only with difficulty ABOVE 1, which time alone never
+    // exceeds — so this rewards stacked Cursed Core, not simply surviving.
+    const rewardMultiplier =
+      elite && ELITES.rewardScalesWithDifficulty ? Math.max(1, difficulty) : 1;
+    e.maxHp = Math.round(type.hp * hpMultiplier * eliteHpMultiplier);
     e.hp = e.maxHp;
     e.speed = type.speed;
     e.scale = type.scale * scaleMultiplier;
     e.radius = radius;
-    e.xp = type.xp * (elite ? ELITES.xpMultiplier : 1);
+    e.xp = type.xp * (elite ? ELITES.xpMultiplier : 1) * rewardMultiplier;
     e.heading = Math.random() * Math.PI * 2;
     e.phase = type.behavior === 'gunner' ? Math.random() * GUNNER.shootCooldownS : 0;
     e.bladeHitTimer = 0;
@@ -777,11 +913,50 @@ export class EnemySystem {
 
   /** Preserve each behavior's desired direction while adding a stable tangent
    *  before it reaches a blocking obstacle. */
+  /** Rebuilds the per-frame avoidance set: the static map props plus every
+   *  live `blocksOthers` body. Both arrays are reused so this allocates
+   *  nothing per frame. Returns the combined list.
+   *
+   *  A charger mid-lunge is deliberately EXCLUDED — it is moving fast and
+   *  committed, and leaving it in makes the swarm flinch away from a body that
+   *  will not be there by the time they reach it. */
+  /** True while any boss type is alive in the pool. */
+  bossAlive(): boolean {
+    for (const e of this.pool) {
+      if (e.active && BOSS_TYPE_INDEXES.includes(e.typeIndex)) return true;
+    }
+    return false;
+  }
+
+  private rebuildDynamicObstacles(staticObstacles: Obstacle[]): EnemyObstacle[] {
+    this.combinedObstacles.length = 0;
+    for (const o of staticObstacles) this.combinedObstacles.push(o);
+
+    let slot = 0;
+    for (const e of this.pool) {
+      if (!e.active) continue;
+      const isBoss = BOSS_TYPE_INDEXES.includes(e.typeIndex);
+      if (!isBoss && !ENEMY_TYPES[e.typeIndex]?.blocksOthers) continue;
+      if (e.chargeState === CHARGE.lunging) continue;
+      const entry = (this.dynamicObstacles[slot] ??= { x: 0, z: 0, radius: 0 });
+      entry.x = e.x;
+      entry.z = e.z;
+      // A boss repels the swarm well beyond its body, opening a ring the
+      // player can stand in and shoot from. Without it the trash packs against
+      // the boss, and even a hunter weapon has something closer to lock onto.
+      entry.radius = isBoss ? BOSS.clearRadius : e.radius;
+      entry.sourceEnemy = e;
+      this.combinedObstacles.push(entry);
+      slot++;
+    }
+    return this.combinedObstacles;
+  }
+
   private steerAroundObstacles(
     e: Enemy,
     desiredX: number,
     desiredZ: number,
-    obstacles: Obstacle[],
+    obstacles: EnemyObstacle[],
   ): { x: number; z: number } {
     const isFlyer = ENEMY_TYPES[e.typeIndex]?.behavior === 'flyer';
     const cfg = ENEMIES.obstacleAvoidance;
@@ -793,6 +968,9 @@ export class EnemySystem {
     let steerZ = desiredZ;
 
     for (const obstacle of obstacles) {
+      // A heavy must not steer around ITSELF — it sits at its own centre, so
+      // without this it would permanently swerve away from its own position.
+      if (obstacle.sourceEnemy === e) continue;
       if (isFlyer && !obstacle.blocksFlyers) continue;
       const relX = obstacle.x - e.x;
       const relZ = obstacle.z - e.z;
