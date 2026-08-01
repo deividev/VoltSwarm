@@ -1,6 +1,8 @@
 import * as THREE from 'three';
 import { buildGridGeometry, countGridVoxels } from './voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './registry';
+import { buildRig, poseRig } from './rig';
+import type { Rig, RigClip } from './rig';
 
 /**
  * Standalone voxel model viewer (model-preview.html?model=<registry-key>).
@@ -47,18 +49,34 @@ scene.add(ground);
 
 const grid = await buildModelGrid(modelName);
 const material = new THREE.MeshLambertMaterial({ vertexColors: true });
-const geometry = buildGridGeometry(grid, def.voxelSize);
 
-// Hero model, front (+Z visor) angled toward the camera.
-const hero = new THREE.Mesh(geometry, material);
+// ?anim=<clip> builds the PART RIG (src/models/rig.ts) instead of the single
+// merged mesh, so limb animation can be reviewed before any of it is wired
+// into the game. Time is driven externally via window.__setAnimTime so a GIF
+// capture can step exact frames rather than race a real-time loop.
+const animParam = params.get('anim');
+const clip: RigClip | null =
+  animParam === 'idle' || animParam === 'walk' || animParam === 'hit' ? animParam : null;
+
+const hero = new THREE.Group();
+let rig: Rig | null = null;
+if (clip) {
+  rig = buildRig(grid, def.voxelSize, material);
+  hero.add(rig.root);
+} else {
+  hero.add(new THREE.Mesh(buildGridGeometry(grid, def.voxelSize), material));
+}
 hero.scale.setScalar(def.previewScale ?? framing.heroScale);
 hero.rotation.y = -0.3 + (orbitDeg * Math.PI) / 180;
 scene.add(hero);
 
 if (framing.showRing) {
+  // Swarm readability ring — always the single merged mesh, never the rig:
+  // the rig exists for the one-on-screen boss, not for crowd review.
+  const ringGeometry = buildGridGeometry(grid, def.voxelSize);
   for (let i = 0; i < 7; i++) {
     const angle = (i / 7) * Math.PI * 2;
-    const bot = new THREE.Mesh(geometry, material);
+    const bot = new THREE.Mesh(ringGeometry, material);
     bot.position.set(Math.cos(angle) * 4.2, 0, Math.sin(angle) * 4.2);
     bot.rotation.y = -angle + Math.PI / 2;
     scene.add(bot);
@@ -76,17 +94,35 @@ camera.aspect = 960 / 720;
 camera.updateProjectionMatrix();
 renderer.render(scene, camera);
 
-const triangles = geometry.getAttribute('position').count / 3;
+let triangles = 0;
+hero.traverse((o) => {
+  if (o instanceof THREE.Mesh) triangles += o.geometry.getAttribute('position').count / 3;
+});
 const label = document.getElementById('info');
 if (label) {
   label.textContent =
     `${modelName} (${def.kind}) — ${countGridVoxels(grid)} voxels, ` +
-    `${triangles} triangles per instance`;
+    `${triangles} triangles per instance` +
+    (rig
+      ? ` — rig: ` +
+        rig.report
+          .map((r) => `${r.name} ${r.voxels}v rows ${r.rows[0]}-${r.rows[1]}`)
+          .join(' | ')
+      : '');
 }
 
 declare global {
   interface Window {
     __previewReady?: boolean;
+    /** Poses the rig at `t` seconds and re-renders. Returns false when the
+     *  page was loaded without ?anim, so a capture fails loudly. */
+    __setAnimTime?: (t: number) => boolean;
   }
 }
+window.__setAnimTime = (t: number): boolean => {
+  if (!rig || !clip) return false;
+  poseRig(rig, t, clip);
+  renderer.render(scene, camera);
+  return true;
+};
 window.__previewReady = true;

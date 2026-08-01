@@ -88,6 +88,23 @@ export interface IconVoxelizeOptions {
    * the back view becomes real reference detail (2026-07-09).
    */
   backPaintRef?: string;
+  /**
+   * Uses the side sheet's COLOURS, not just its depth, to paint the model's
+   * outermost left/right faces (2026-07-31).
+   *
+   * Without this the side sheet is consumed for `rowHalfDepth` alone and its
+   * pixels are thrown away, so every flank wears whatever colour happens to
+   * sit at the FRONT sheet's silhouette edge, smeared backwards through the
+   * whole depth. On a character with trim along its outline that reads as
+   * long stripes, and it is the single weakest angle of this path.
+   *
+   * The side sheet literally IS the picture of the flank, and the flank is
+   * exactly the min/max filled X of each (y, z) — so this paints real data
+   * and cannot change the silhouette. That is the difference from switching
+   * to `voxelizeMultiView`, which also paints real side colour but carves the
+   * hull as a cross product and FUSES limbs that hang clear of the body.
+   */
+  sidePaint?: boolean;
 }
 
 /** A reference image quantized to the palette, with its content bbox. */
@@ -223,12 +240,13 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
   // Rows align by height fraction; the depth scale follows from cubic voxels
   // (side sheet width px → voxels at the same px-per-voxel as its height).
   let rowHalfDepth: number[] | null = null;
+  let sideMap: FrontMap | null = null;
   if (options.sideProfileRef) {
     const side = await classifyImage(options.sideProfileRef, options.background, options.palette);
     const sideBboxW = side.maxX - side.minX + 1;
     const sideBboxH = side.maxY - side.minY + 1;
     const sideGridW = Math.max(2, Math.round((sideBboxW / sideBboxH) * gridH));
-    const sideMap = downsampleMap(side, sideGridW, gridH);
+    sideMap = downsampleMap(side, sideGridW, gridH);
     rowHalfDepth = sideMap.map((row) => {
       let filled = 0;
       for (const cell of row) if (cell != null) filled++;
@@ -362,6 +380,57 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
         else if (isBackShell && backPaint != null) gridRow[gx] = backPaint;
         else if (isBackShell && options.mirrorBack === true) gridRow[gx] = color;
         else gridRow[gx] = sideColor;
+      }
+    }
+  }
+
+  // Flank paint (see `sidePaint`): repaint the outermost left/right voxel of
+  // every (y, z) with the colour the SIDE sheet shows there. Runs after the
+  // extrusion so it overwrites the smeared silhouette-edge colour, and only
+  // ever touches cells that are already filled — the silhouette is untouched.
+  if (options.sidePaint && sideMap) {
+    for (let vy = 0; vy < gridH; vy++) {
+      const slice = grid[vy];
+      const sideRow = sideMap[gridH - 1 - vy]; // grid y is up; image y is down
+      if (!slice || !sideRow) continue;
+
+      // The side sheet's own filled span for this row maps onto the model's
+      // real depth span, so both ends line up regardless of per-row depth.
+      let sLo = -1;
+      let sHi = -1;
+      for (let s = 0; s < sideRow.length; s++) {
+        if (sideRow[s] == null) continue;
+        if (sLo === -1) sLo = s;
+        sHi = s;
+      }
+      if (sLo === -1) continue;
+      let zLo = -1;
+      let zHi = -1;
+      for (let z = 0; z < slice.length; z++) {
+        if (slice[z]?.some((c) => c != null)) {
+          if (zLo === -1) zLo = z;
+          zHi = z;
+        }
+      }
+      if (zLo === -1) continue;
+
+      for (let z = zLo; z <= zHi; z++) {
+        const row = slice[z];
+        if (!row) continue;
+        let xLo = -1;
+        let xHi = -1;
+        for (let x = 0; x < row.length; x++) {
+          if (row[x] == null) continue;
+          if (xLo === -1) xLo = x;
+          xHi = x;
+        }
+        if (xLo === -1) continue;
+        const t = zHi === zLo ? 0 : (z - zLo) / (zHi - zLo);
+        const s = Math.min(sHi, Math.max(sLo, Math.round(sLo + t * (sHi - sLo))));
+        const paint = sideRow[s];
+        if (paint == null) continue;
+        row[xLo] = paint;
+        row[xHi] = paint;
       }
     }
   }

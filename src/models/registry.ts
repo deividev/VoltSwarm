@@ -60,6 +60,9 @@ export interface VoxelModelDef {
   sideProfileRef?: string;
   /** FLAT back sheet: paints the back shell with real reference detail. */
   backPaintRef?: string;
+  /** Paints the outer left/right faces from the side sheet's own colours
+   *  instead of smearing the front silhouette edge. See icon-voxelizer. */
+  sidePaint?: boolean;
   /** Colors that protrude from the armor (muzzle rings, raised plates). */
   raisedColors?: number[];
   /** Overrides the per-kind hero scale in the preview viewer. */
@@ -77,6 +80,17 @@ export interface VoxelModelDef {
    * classification identical to the base model and only changes render color.
    */
   recolorMap?: Record<number, number>;
+  /**
+   * Same post-classification swap as `recolorMap`, but limited to a HEIGHT
+   * BAND — `from`/`to` are fractions from the TOP of the model, matching the
+   * convention `segments` already uses. This is how a model wears two colour
+   * schemes at once (2026-07-31: the final boss keeps the cast's cream body
+   * but takes the logo's amber head, so it reads as the brand mascot without
+   * the whole model collapsing into one gold mass).
+   *
+   * Applied AFTER `recolorMap`, so a global swap can be overridden locally.
+   */
+  recolorRegions?: { from: number; to: number; map: Record<number, number> }[];
 }
 
 export const YELLOW = 0xffb400;
@@ -188,6 +202,26 @@ export const FOREMAN_CREAM = 0xe7dfcb;
 export const FOREMAN_YELLOW = 0xf0b429;
 export const FOREMAN_DARK = 0x2b2e35;
 export const FOREMAN_CYAN = 0x46d9ec;
+
+// Brand palette — MEASURED off logo-mascot-v3.png / logo-letras-v3.png
+// (tmp/warden-ref/logo-palette.mjs), per the standing sample-the-PNG rule.
+// The logo is only THREE colours and has no cream at all: amber #fdb601 at
+// 60% of the mascot, a cool blue-black #152532 at 25%, electric cyan #01e6fe
+// at 15%. The wordmark runs even hotter at 82% amber.
+export const LOGO_AMBER = 0xfdb601;
+export const LOGO_DARK = 0x152532;
+export const LOGO_CYAN = 0x01e6fe;
+// The logo's own amber ramp is far too flat to serve as panel trim: measured
+// p90/p55/p25 are #fdb601 / #fab202 / #ee9d00, which at boss size read as one
+// tone. This deep step is therefore DELIBERATE, not measured — same hue,
+// ~70% value — following the 3-step same-hue ramp convention already used by
+// the container teal, scaffold steel and barrel mustard families above.
+export const LOGO_AMBER_DEEP = 0x7d5600;
+// Deepest seam value. The logo's own dark (#152532) becomes the ACCENT trim,
+// so the seams beneath it need to go further still or they merge into it.
+// Same cool blue-black hue, roughly half the value — measured from the
+// wordmark's own darkest step (#09222b) and pushed one notch below it.
+export const LOGO_BLACK = 0x0a1219;
 
 /** Background swatches shared by every reference sheet. */
 const BACKGROUND = [0x10141d, 0x151a22, 0x000000];
@@ -473,21 +507,82 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   // from the ORIGINAL Volt Warden reference (pre-v2) at the user's request,
   // kept as a distinct entry — deliberately NOT wired into any enemy type
   // yet, so it has zero effect on the current game.
+  // MAP 2 FINAL BOSS — fixed 2026-07-31 (user decision). This slot used to
+  // hold the Volt Warden hovering pod; it now holds the Hazard Marshal, which
+  // won a side-by-side at real boss scale. Those pod sheets and their
+  // generator (tools/make-final-boss-sheets.mjs, output ref-final-boss-*-v2)
+  // are kept: the design is free for a future enemy, alongside the reserved
+  // ref-volt-warden-front-v2.
+  //
+  // Still NOT wired into any enemy type. Nothing summons it until the boss
+  // gameplay exists — ROADMAP_STEAM.md flags that neither candidate has a
+  // single phase, telegraph or pattern designed yet.
   'final-boss': {
     kind: 'boss',
-    ref: 'assets/2d/ref-volt-warden-front.png',
-    targetWidth: 41,
-    voxelSize: 0.05,
-    bodyColor: YELLOW,
-    palette: [YELLOW, DARK, CYAN],
-    frontOnly: [CYAN],
+    // Sheets DERIVED from lit reference renders by
+    // tools/make-hazard-marshal-sheets.mjs (see that file for the flood-fill
+    // keying and HSV-rule classifier the renders need). 61 columns is roughly
+    // double the rest of the cast, and MEASURED in-game that only pays off at
+    // boss scale: the same model occupies 50x58 px as a player and 244x293 px
+    // as a boss — about 24x the screen area, which is where the panel detail
+    // finally survives rasterisation.
+    ref: 'assets/2d/ref-hazard-marshal-front-v1.png',
+    // Measured-profile pipeline, NOT voxelizeMultiView: the gauntlets hang
+    // clear of the torso and hull carving would phantom-fill those gaps.
+    sideProfileRef: 'assets/2d/ref-hazard-marshal-side-v1.png',
+    backPaintRef: 'assets/2d/ref-hazard-marshal-back-v1.png',
+    // The 90/270 views were this model's weakest angle: the side sheet was
+    // consumed for depth only and the flanks wore the front silhouette's edge
+    // colour smeared backwards. voxelizeMultiView paints real side colour but
+    // was tried and REJECTED here — it fused the gauntlets to the torso, and
+    // those gaps are load-bearing for the silhouette. sidePaint gets the same
+    // real colour without touching the shape.
+    sidePaint: true,
+    targetWidth: 61,
+    // 93 rows at 0.0204 stands ~1.9u, which is the base the other bosses use
+    // BEFORE their type's 4.6x instance scale multiplies on top — so it lands
+    // at the established boss size rather than towering arbitrarily.
+    voxelSize: 0.0204,
+    bodyColor: FOREMAN_CREAM,
+    palette: [FOREMAN_CREAM, FOREMAN_YELLOW, FOREMAN_DARK, FOREMAN_CYAN],
+    frontOnly: [],
+    armorColors: [FOREMAN_CREAM, FOREMAN_YELLOW],
     segments: [
-      { from: 0, to: 0.42, depthFactor: 0.42 },
-      { from: 0.42, to: 0.8, depthFactor: 0.32 },
-      { from: 0.8, to: 1, depthFactor: 0.26 },
+      { from: 0, to: 0.24 }, // helmet + respirator
+      { from: 0.24, to: 0.65 }, // pauldrons, chest, arms, belt
+      { from: 0.65, to: 1 }, // thighs down
     ],
-    raisedTopFraction: 0.12,
-    previewScale: 1.5,
+    raisedTopFraction: 0,
+    // BRAND RECOLOUR — HEAD ONLY (user decision 2026-07-31, revised).
+    // Recolouring the WHOLE model into the logo palette was built and
+    // rejected: the body lost the cream/yellow value contrast that made it
+    // read, and it rendered as a featureless gold statue. So the body keeps
+    // the cast's own palette and only the HELMET wears the brand — which is
+    // the part that actually quotes the logo mascot (dome, visor, grille).
+    //
+    // 0 to 0.245 is the helmet + respirator band, matching the first segment
+    // boundary below so the recolour ends exactly where the pauldrons begin.
+    // Region recolour is post-classification like recolorMap, for the reason
+    // documented on that field — swapping the palette instead collapses the
+    // model, because the classifier compares against the reference image's
+    // own unchanged pixels.
+    recolorRegions: [
+      {
+        from: 0,
+        to: 0.245,
+        map: {
+          [FOREMAN_CREAM]: LOGO_AMBER,
+          [FOREMAN_YELLOW]: LOGO_DARK,
+          [FOREMAN_DARK]: LOGO_BLACK,
+          [FOREMAN_CYAN]: LOGO_CYAN,
+        },
+      },
+    ],
+    // Framing only, no effect on game scale. Kept at 2.0 rather than pushed
+    // to fill the frame: the viewer draws its info line across the top ~30 px,
+    // and a taller model runs its head under that text (and under the
+    // turnaround sheet's crop).
+    previewScale: 2.0,
   },
   // Map 1 tactical prop (approved refs 2026-07-06, see PROMPTS_IMAGENES §7):
   // static chokepoint obstacle, not tied to any enemy/boss type name — world.ts
@@ -783,11 +878,13 @@ export async function buildModelGrid(key: string): Promise<VoxelGrid> {
         sphericalDepth: def.sphericalDepth,
         verticalRoundness: def.verticalRoundness,
         sideProfileRef: def.sideProfileRef,
+        sidePaint: def.sidePaint,
         backPaintRef: def.backPaintRef,
         raisedColors: def.raisedColors,
         bodyColor: def.bodyColor,
       });
   if (def.recolorMap) recolorGrid(grid, def.recolorMap);
+  for (const region of def.recolorRegions ?? []) recolorGridRegion(grid, region);
   return grid;
 }
 
@@ -799,6 +896,31 @@ function recolorGrid(grid: VoxelGrid, recolorMap: Record<number, number>): void 
       for (let x = 0; x < row.length; x++) {
         const color = row[x];
         if (color != null && color in recolorMap) row[x] = recolorMap[color] ?? color;
+      }
+    }
+  }
+}
+
+/**
+ * Applies a recolor to a height band only. `from`/`to` are fractions measured
+ * from the TOP (the `segments` convention), while the grid's own Y runs from
+ * the BOTTOM up — hence the flip. Bounds are clamped so a band of 0..0.25
+ * always covers the real top quarter regardless of rounding.
+ */
+function recolorGridRegion(
+  grid: VoxelGrid,
+  region: { from: number; to: number; map: Record<number, number> },
+): void {
+  const height = grid.length;
+  const yFrom = Math.max(0, Math.floor(height * (1 - region.to)));
+  const yTo = Math.min(height - 1, Math.ceil(height * (1 - region.from)) - 1);
+  for (let y = yFrom; y <= yTo; y++) {
+    const slice = grid[y];
+    if (!slice) continue;
+    for (const row of slice) {
+      for (let x = 0; x < row.length; x++) {
+        const color = row[x];
+        if (color != null && color in region.map) row[x] = region.map[color] ?? color;
       }
     }
   }

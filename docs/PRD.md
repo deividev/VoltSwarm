@@ -337,3 +337,21 @@ Dos, ambas opt-in, ninguna cambia el comportamiento de los modelos existentes:
 - **Gameplay: cero.** Ni fases, ni telegrafías, ni patrones, ni si el arena cambia.
 - **Aviso de lenguaje visual:** el boss es ámbar+carbón y los Voltling del enjambre también. A tamaño de boss más el doble anillo rojo se distingue, pero conviene revisarlo al definir el elenco del Mapa 2 (la fundición mueve paletas igualmente).
 - **Ángulos 90°/270°** siguen siendo los más flojos. Importa menos de lo que parece: el boss gira siempre hacia el jugador y la cámara va detrás del jugador, así que in-game el ángulo dominante es el frontal.
+
+### Animaciones — rig de piezas (2026-07-31)
+
+El boss tiene **rig de piezas con jerarquía de pivotes** (`src/models/rig.ts`): cabeza, torso, dos brazos, dos muslos y dos espinillas, cortados del MISMO `VoxelGrid` que la malla única. Tres clips: `idle` (0.31 Hz), `walk` (0.62 Hz) y `hit` (disparo único).
+
+Es la única entidad que puede permitírselo: el resto del elenco se dibuja con `InstancedMesh` y una matriz por instancia, que no tiene miembros. De un boss solo hay uno en pantalla.
+
+**Sistema completo, reutilizable para futuros enemigos/personajes/bosses, en `docs/ANIMACION_RIG.md`** — incluye cómo partir un modelo, el convenio de signos, por qué un seno hace que una marcha parezca sintética, y la verificación obligatoria del reparto de piezas.
+
+**Nada está enganchado al juego todavía**: el rig se revisa desde `model-preview.html?model=final-boss&anim=<clip>`.
+
+### Feedback de golpe — tinte, no animación (decisión 2026-07-31)
+
+**Cuando golpeen al boss NO se reproduce animación de retroceso.** Es un bullet-heaven y recibe muchos impactos por segundo: el clip se reiniciaría antes de terminar (convulsión permanente) y competiría con la locomoción por los mismos huesos. Un tinte se solapa consigo mismo sin romperse.
+
+`enemies.ts` ya implementa el destello (`hitFlash = 0.08` + `FLASH_TINT` por `setColorAt`), hoy en **blanco** `(2.5, 2.5, 2.5)`. Falta añadirle rojo, con dos cuidados: el tinte es multiplicativo (un rojo puro sobre crema da rosa lavado) y el rojo ya significa *boss* en el lenguaje visual del juego. Detalle y valores propuestos en `ANIMACION_RIG.md` §8.
+
+El clip `hit` no se descarta: se recoloca a eventos **raros** — cambio de fase, rotura de armadura, stagger.
