@@ -31,6 +31,7 @@ import {
 } from './settings';
 import type { PlayerInput } from './input';
 import { RUN_OUTCOME_TITLES, type RunMapRef, type RunOutcome } from './run-history';
+import type { FeedbackDifficulty, FeedbackReason, StructuredFeedback } from './telemetry';
 
 // All UI is plain DOM layered over the canvas. Fast to build, trivially
 // styleable, and it never touches the render loop.
@@ -287,6 +288,9 @@ export class Hud {
   private readonly musicVolume: HTMLInputElement;
   private readonly sfxVolume: HTMLInputElement;
   private settingsReturnOverlay: 'menu' | 'pause' = 'menu';
+  private feedbackFun: StructuredFeedback['fun'] | null = null;
+  private feedbackDifficulty: FeedbackDifficulty | null = null;
+  private readonly feedbackReasons = new Set<FeedbackReason>();
 
   constructor(
     root: HTMLElement,
@@ -296,6 +300,7 @@ export class Hud {
     private readonly onQuitToMenu: () => void,
     private readonly onSettingsChanged: (settings: GameSettings) => void,
     private readonly onUiConfirm: () => void,
+    private readonly onFeedbackSubmit: (feedback: StructuredFeedback) => Promise<boolean>,
   ) {
     root.insertAdjacentHTML(
       'beforeend',
@@ -403,6 +408,42 @@ export class Hud {
             <div id="end-damage-list"></div>
           </section>
         </div>
+        <section id="end-feedback">
+          <h2 class="panel-header">Playtest Feedback</h2>
+          <p>No account details or free text. Nothing is sent until you submit.</p>
+          <div class="feedback-question">
+            <span>How much fun was this run?</span>
+            <div id="feedback-fun" class="feedback-options" aria-label="Fun rating">
+              <button type="button" data-value="1">1</button>
+              <button type="button" data-value="2">2</button>
+              <button type="button" data-value="3">3</button>
+              <button type="button" data-value="4">4</button>
+              <button type="button" data-value="5">5</button>
+            </div>
+          </div>
+          <div class="feedback-question">
+            <span>How did the difficulty feel?</span>
+            <div id="feedback-difficulty" class="feedback-options">
+              <button type="button" data-value="too_easy">Too easy</button>
+              <button type="button" data-value="about_right">About right</button>
+              <button type="button" data-value="too_hard">Too hard</button>
+            </div>
+          </div>
+          <div class="feedback-question">
+            <span>What most shaped your rating? <em>Optional</em></span>
+            <div id="feedback-reasons" class="feedback-options feedback-tags">
+              <button type="button" data-value="combat_feel">Combat feel</button>
+              <button type="button" data-value="build_choices">Build choices</button>
+              <button type="button" data-value="enemy_pressure">Enemy pressure</button>
+              <button type="button" data-value="bosses">Bosses</button>
+              <button type="button" data-value="economy">Economy</button>
+              <button type="button" data-value="clarity">Clarity</button>
+              <button type="button" data-value="performance">Performance</button>
+            </div>
+          </div>
+          <button id="feedback-submit" type="button" disabled>Submit Feedback</button>
+          <p id="feedback-status" role="status"></p>
+        </section>
         <button id="restart-button">Main Menu</button>
       </div>
       <div id="pause-overlay" class="overlay hidden">
@@ -571,6 +612,49 @@ export class Hud {
       // Resets the run world AND the game state back to 'menu' (so the 3D stops
       // rendering behind the menu view); onQuitToMenu re-shows the main menu.
       this.onQuitToMenu();
+    });
+    for (const button of mustGet('feedback-fun').querySelectorAll<HTMLButtonElement>('button')) {
+      button.addEventListener('click', () => {
+        this.feedbackFun = Number(button.dataset['value']) as StructuredFeedback['fun'];
+        selectSingleFeedbackButton('feedback-fun', button);
+        this.updateFeedbackSubmitState();
+      });
+    }
+    for (const button of mustGet('feedback-difficulty').querySelectorAll<HTMLButtonElement>('button')) {
+      button.addEventListener('click', () => {
+        this.feedbackDifficulty = button.dataset['value'] as FeedbackDifficulty;
+        selectSingleFeedbackButton('feedback-difficulty', button);
+        this.updateFeedbackSubmitState();
+      });
+    }
+    for (const button of mustGet('feedback-reasons').querySelectorAll<HTMLButtonElement>('button')) {
+      button.addEventListener('click', () => {
+        const reason = button.dataset['value'] as FeedbackReason;
+        if (this.feedbackReasons.has(reason)) this.feedbackReasons.delete(reason);
+        else this.feedbackReasons.add(reason);
+        button.classList.toggle('selected', this.feedbackReasons.has(reason));
+        button.setAttribute('aria-pressed', `${this.feedbackReasons.has(reason)}`);
+      });
+    }
+    mustGet('feedback-submit').addEventListener('click', async () => {
+      if (!this.feedbackFun || !this.feedbackDifficulty) return;
+      const submit = mustGet('feedback-submit') as HTMLButtonElement;
+      submit.disabled = true;
+      mustGet('feedback-status').textContent = 'Submitting feedback...';
+      const accepted = await this.onFeedbackSubmit({
+        fun: this.feedbackFun,
+        difficulty: this.feedbackDifficulty,
+        reasons: [...this.feedbackReasons],
+      });
+      if (!accepted) {
+        submit.disabled = false;
+        mustGet('feedback-status').textContent = 'Could not save feedback. Please try again.';
+        return;
+      }
+      for (const button of mustGet('end-feedback').querySelectorAll<HTMLButtonElement>('button')) {
+        button.disabled = true;
+      }
+      mustGet('feedback-status').textContent = 'Thank you. Feedback submitted.';
     });
     mustGet('menu-settings-button').addEventListener('click', () => {
       this.openSettings('menu');
@@ -2064,6 +2148,7 @@ export class Hud {
     modCounts: ModCounts,
     earnedContracts: EarnedContract[] = [],
   ): void {
+    this.resetFeedback();
     this.endTitle.textContent = RUN_OUTCOME_TITLES[outcome];
     this.renderEarnedContracts(earnedContracts);
     const m = Math.floor(survivedS / 60);
@@ -2163,6 +2248,32 @@ export class Hud {
       }),
     );
     this.endOverlay.classList.remove('hidden');
+  }
+
+  private resetFeedback(): void {
+    this.feedbackFun = null;
+    this.feedbackDifficulty = null;
+    this.feedbackReasons.clear();
+    for (const button of mustGet('end-feedback').querySelectorAll<HTMLButtonElement>('button')) {
+      button.disabled = false;
+      button.classList.remove('selected');
+      button.setAttribute('aria-pressed', 'false');
+    }
+    (mustGet('feedback-submit') as HTMLButtonElement).disabled = true;
+    mustGet('feedback-status').textContent = '';
+  }
+
+  private updateFeedbackSubmitState(): void {
+    (mustGet('feedback-submit') as HTMLButtonElement).disabled =
+      this.feedbackFun === null || this.feedbackDifficulty === null;
+  }
+}
+
+function selectSingleFeedbackButton(containerId: string, selected: HTMLButtonElement): void {
+  for (const button of mustGet(containerId).querySelectorAll<HTMLButtonElement>('button')) {
+    const active = button === selected;
+    button.classList.toggle('selected', active);
+    button.setAttribute('aria-pressed', `${active}`);
   }
 }
 

@@ -24,6 +24,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
   quit: (): void => {
     ipcRenderer.send('app:quit');
   },
+  telemetry: {
+    isEnabled: (): boolean => ipcRenderer.sendSync('telemetry:is-enabled') as boolean,
+    emit: (event: unknown): void => {
+      ipcRenderer.send('telemetry:event', event);
+    },
+    submitFeedback: (event: unknown): Promise<boolean> =>
+      ipcRenderer.invoke('telemetry:feedback', event) as Promise<boolean>,
+  },
   steam: {
     isAvailable: (): boolean => ipcRenderer.sendSync('steam:available') as boolean,
     unlockAchievement: (name: string): void => {

@@ -17,6 +17,9 @@ export interface RunMapRef {
 }
 
 export interface RunSnapshot {
+  /** Created when the run world is built and reused by local history and
+   *  packaged-playtest telemetry. */
+  id: string;
   outcome: RunOutcome;
   map: RunMapRef;
   /** Weapon the run was drafted with. Optional so records written before this
@@ -169,7 +172,7 @@ function writeHistory(history: RunRecordV1[]): void {
 export function saveRunRecord(snapshot: RunSnapshot): RunRecordV1 {
   const record: RunRecordV1 = {
     schemaVersion: 1,
-    id: createRunId(),
+    id: snapshot.id,
     endedAt: new Date().toISOString(),
     buildVersion: __APP_VERSION__,
     outcome: snapshot.outcome,
@@ -222,7 +225,7 @@ function round3(value: number): number {
   return Math.max(0, Math.round(value * 1000) / 1000);
 }
 
-function createRunId(): string {
+export function createRunId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 

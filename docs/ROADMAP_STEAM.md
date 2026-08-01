@@ -1,6 +1,6 @@
 # Voltswarm — Roadmap a Steam
 
-Fecha: 2026-07-29. Versión de desarrollo actual: **v0.6.5**.
+Fecha: 2026-08-01. Versión de desarrollo actual: **v0.10.0-beta.1**.
 
 **⚠️ ORDEN REORDENADO POR DECISIÓN DEL USUARIO (2026-07-25): el gate de viabilidad multijugador se DIFIERE a post-lanzamiento.** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno del 4 de noviembre, para una feature que este mismo roadmap documenta como no diferenciadora, no prometida públicamente y que puede terminar en NO-GO — mientras el Mapa 2, el gameplay de Volt Warden, los 3 personajes y los contratos quedaban comprimidos en ~3 semanas. Del gate se rescató solo la mitad barata: cobertura de smoke tests (`npm run test:smoke`). El determinismo de tick fijo sigue diferido.
 
@@ -110,6 +110,7 @@ Lo que falta para que las capturas/GIFs vendan la página de Steam:
 - ✅ **Build completa + desglose de daño por arma en pantalla final — COMPLETADO 2026-07-17.** La pantalla conserva Weapons/Cores/Mods con el mismo lenguaje visual del RIG. Instrumento de balance sobre el embudo `dealDamage`: daño real sin overkill, atribución de DoT, porcentaje del total y barras comparativas ordenadas.
 - ✅ **Settings in-game — SUPERADO por Settings v3 (2026-07-13, PRD §"Settings v3")**: pantalla completa con sidebar General/Controls, auto-apply (sin botón Apply), remapeo de controles teclado+gamepad, IPC de fullscreen/resolución aplicándose solo al cambiar (fix del parpadeo). Los sliders de volumen existen, persisten y gobiernan la Audio Foundation
 - ✅ **Menú principal completo**: Play / Unlocks / Settings / Exit; Settings compartido con pausa; versión visible abajo a la derecha como `vMAJOR.MINOR.PATCH`. `vite.config.ts` lee `package.json` e inyecta `__APP_VERSION__`, por lo que no existe una segunda versión hardcodeada que pueda quedar desincronizada. **Futuro, no implementado:** si el gate da GO, el destino de menú pasa a `Play Solo` y `Play Multiplayer`; no cambia el claim público actual.
+- ✅ **Cliente de telemetría para Playtest empaquetado (2026-08-01, v0.10.0-beta.1):** uploader exclusivo de Electron main, identidad aleatoria no personal, cola atómica/acotada con IDs estables, ACK idempotente, timeout, recuperación determinista de `413`, backoff, recuperación de corrupción y tests focales. Instrumenta ciclo de sesión/run, abandono al volver al menú, decisiones reales, rendimiento agregado y feedback estructurado explícito en la pantalla final. El historial local continúa siendo terminal-only. **Gate externo activado:** producción ya acepta exactamente `0.10.0-beta.1` y conserva el alcance sintético de setup. Falta empaquetar y validar una run E2E real en D1/Sheets antes de distribuir.
 
 ## Fase 4a — Audio v1 (CERRADO)
 

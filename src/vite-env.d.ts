@@ -13,6 +13,19 @@ interface Window {
     saveRunHistory(data: string): void;
     setWindowMode(mode: string, width: number, height: number): void;
     quit(): void;
+    telemetry: {
+      isEnabled(): boolean;
+      emit(event: {
+        type: 'run_started' | 'run_ended' | 'choice' | 'performance' | 'feedback';
+        runId: string;
+        payload: Record<string, unknown>;
+      }): void;
+      submitFeedback(event: {
+        type: 'feedback';
+        runId: string;
+        payload: Record<string, unknown>;
+      }): Promise<boolean>;
+    };
     steam: {
       isAvailable(): boolean;
       unlockAchievement(name: string): void;

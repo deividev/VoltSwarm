@@ -250,6 +250,22 @@ Los registros pasan a `userData/run-history.json` (antes solo `localStorage`, de
 
 Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (reservado), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
 
+### Telemetría privada de Playtest — Implementada 2026-08-01 (v0.10.0-beta.1)
+
+La build empaquetada de Electron envía telemetría estructurada al servicio externo de Playtest. El renderer **nunca sube datos directamente**: solo publica eventos tipados mediante una API `contextBridge` de disparo y olvido; Electron main valida, identifica, encola y sube. En navegador, Vite y Electron sin empaquetar la fachada es un no-op.
+
+Contrato de datos:
+
+- Un `installationId` UUID aleatorio vive en `userData/telemetry-installation.json`, separado de perfil, settings e historial. No se recopilan Steam ID, email, nombre, hardware ni huellas del dispositivo.
+- Cada proceso crea un `sessionId`; cada run crea un único `runId` reutilizado tanto por telemetría como por `RunRecordV1`. El historial local sigue guardando **solo runs terminadas**; abandonar desde pausa produce `run_ended: abandoned` remoto sin contaminar contratos, percentiles ni carrera.
+- Eventos permitidos: inicio/fin de sesión, inicio/fin de run, decisiones, rendimiento agregado, feedback y resumen de fallos de subida. Las decisiones registran únicamente hechos observados: cartas ofrecidas y selección/descarte, invocación de boss, compra/recompensa de cofre y compra de tienda.
+- Rendimiento se agrega mientras el estado es `playing`: ventanas periódicas de 30 s y un resumen final. Nunca se emite un evento por frame.
+- La cola `userData/telemetry-queue.json` usa escritura atómica, IDs de evento estables entre reintentos, lotes de máximo 100 eventos/128 KiB, deadline de red de 10 s, backoff exponencial con jitter y tope de 2.000 eventos. Solo se eliminan IDs del lote confirmados como `accepted` o `duplicate`. Un `413` reduce el lote a la mitad sin regenerar IDs; si un evento individual sigue recibiendo `413`, se aparta en una cuarentena local acotada de 100 entradas para que no bloquee la cola, pero **no se marca como ACK**. Los fallos se coalescen y se reportan una vez tras recuperarse; un fallo del propio `upload_error` no genera recursión.
+
+La pantalla final incluye feedback explícito y seudónimo sin texto libre: diversión 1–5, dificultad (`too_easy` / `about_right` / `too_hard`) y etiquetas fijas opcionales. Nada se envía hasta pulsar **Submit Feedback**. El endpoint y `X-Client-Token` son identificadores públicos del cliente; secretos HMAC, Cloudflare, D1, Google y cuentas de servicio permanecen fuera del juego.
+
+Verificación focal: `npm run test:telemetry` cubre persistencia/reintentos, límites de lote, timeout, reducción y cuarentena por `413`, ACK parcial, validación de envelopes v1, backoff, recuperación de corrupción, cap de cola, estabilidad de IDs y ausencia de `upload_error` recursivo.
+
 ### Contratos (`src/contracts.ts`)
 
 Arquitectura que separa RITMO de CONTENIDO, para que añadir contenido nunca obligue a escribir un contrato:

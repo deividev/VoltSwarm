@@ -105,9 +105,10 @@ import {
   saveSettings,
   type GameSettings,
 } from './settings';
-import { loadRunHistory, saveRunRecord, type RunMapRef, type RunOutcome, type RunRecordV1 } from './run-history';
+import { createRunId, loadRunHistory, saveRunRecord, type RunMapRef, type RunOutcome, type RunRecordV1 } from './run-history';
 import { recordRunInLifetime, saveProfile } from './profile';
 import { settleContracts } from './contracts';
+import { telemetry } from './telemetry';
 
 type GameState =
   | 'menu'
@@ -198,6 +199,10 @@ export class Game {
    *  runs (rAF fires before paint, so the first loading frame is just shown). */
   private loadingDelay = 0;
   private elapsedS = 0;
+  /** Shared identity for packaged telemetry and the terminal-only local record. */
+  private currentRunId: string | null = null;
+  /** The exact cards visible in the active draft, retained until pick/discard. */
+  private currentUpgradeOffer: string[] = [];
   /** The weapon this run was drafted with. Recorded on the run record because
    *  contracts ask questions like "finish runs with N different starting
    *  weapons", which weaponLevels alone cannot answer once others are picked up. */
@@ -339,6 +344,10 @@ export class Game {
       () => this.quitToMenu(),
       (settings) => this.updateSettings(settings),
       () => this.playUiConfirm(),
+      async (feedback) => {
+        if (!this.currentRunId) return false;
+        return telemetry.feedback(this.currentRunId, feedback);
+      },
     );
     this.audio = new AudioDirector(this.settings);
     void this.audio.preloadEnabled();
@@ -418,12 +427,21 @@ export class Game {
       this.audio.stopLoop('menu-music-loop'); // menu theme hands over to the run bed
       this.audio.emit({ id: 'run-start' });
       this.audio.emit({ id: 'foundation-music', key: 'foundation-run-loop', loop: true, priority: 2, volume: AUDIO.music.runLoopVolume });
+      if (this.currentRunId && this.startingWeapon) {
+        telemetry.startRun(this.currentRunId, {
+          mapId: SCRAPYARD_MAP.id,
+          mapNumber: SCRAPYARD_MAP.number,
+          difficulty: DIFFICULTY_ID,
+          startingWeaponId: this.startingWeapon,
+        });
+      }
       this.clock.getDelta(); // Discard the time spent building + warming up.
     }
   }
 
   private buildRun(startingWeapon: WeaponId): void {
     this.resetRunWorld();
+    this.currentRunId = createRunId();
     this.startingWeapon = startingWeapon;
     this.runDamageTaken = 0;
     this.runGoldEarned = 0;
@@ -688,6 +706,15 @@ export class Game {
   }
 
   private applyUpgrade(card: UpgradeCard): void {
+    telemetry.choice('level_up', {
+      action: 'selected',
+      selectedId: card.id,
+      rarity: card.rarity,
+      offeredIds: [...this.currentUpgradeOffer],
+      level: this.progression.level,
+      discardsRemaining: this.discardsLeft,
+    });
+    this.currentUpgradeOffer = [];
     card.apply(
       this.stats,
       this.player,
@@ -741,6 +768,7 @@ export class Game {
     );
     if (this.state === 'loading') this.tickLoading();
     else if (this.state === 'playing') {
+      telemetry.samplePerformance(rawDt, this.enemies.activeCount);
       // Hitstop: the world is frozen, but the frame still renders and the
       // camera still shakes (it decays on rawDt), which is what turns the
       // freeze into impact rather than a dropped frame.
@@ -807,6 +835,27 @@ export class Game {
   }
 
   private quitToMenu(): void {
+    const abandonedStates: readonly GameState[] = [
+      'playing',
+      'paused',
+      'levelup-intro',
+      'levelup',
+      'chest',
+      'shop',
+    ];
+    if (this.currentRunId && abandonedStates.includes(this.state)) {
+      telemetry.abandonRun(this.currentRunId, {
+        reason: 'quit_to_menu',
+        map: SCRAPYARD_MAP,
+        durationS: Math.round(this.elapsedS * 1_000) / 1_000,
+        level: this.progression.level,
+        kills: this.progression.kills,
+        bossesDefeated: this.boss.bossesDefeated,
+        startingWeaponId: this.startingWeapon,
+      });
+    }
+    this.currentRunId = null;
+    this.currentUpgradeOffer = [];
     this.resetRunWorld();
     this.state = 'menu';
     this.hud.showPause(false);
@@ -1033,6 +1082,11 @@ export class Game {
       this.audio.emit({ id: 'boss-portal', key: 'boss-portal', priority: 2 });
     }
     if (summoned) {
+      telemetry.choice('boss_summon', {
+        bossId: summoned,
+        elapsedS: Math.round(this.elapsedS * 1_000) / 1_000,
+        playerLevel: this.progression.level,
+      });
       this.audio.stopLoop('boss-portal');
       this.hud.banner(`${summoned.toUpperCase()} AWAKENS`);
       this.audio.emit({ id: 'boss-awaken', priority: 3 });
@@ -1142,8 +1196,10 @@ export class Game {
   private openLevelUpDraft(): void {
     this.state = 'levelup';
     this.audio.emit({ id: 'levelup-open', priority: 2 });
+    const choices = rollUpgradeChoices(this.stats, this.weaponLevels, this.coreLevels, this.modCounts);
+    this.currentUpgradeOffer = choices.map((choice) => choice.id);
     this.hud.showLevelUp(
-      rollUpgradeChoices(this.stats, this.weaponLevels, this.coreLevels, this.modCounts),
+      choices,
       this.discardsLeft,
       () => this.discardUpgrade(),
     );
@@ -1162,6 +1218,13 @@ export class Game {
   /** Skip a draft without picking (max PROFILE.levelupDiscards per run) —
    *  the level is still consumed, only the choice is passed up. */
   private discardUpgrade(): void {
+    telemetry.choice('level_up', {
+      action: 'discarded',
+      offeredIds: [...this.currentUpgradeOffer],
+      level: this.progression.level,
+      discardsRemainingBefore: this.discardsLeft,
+    });
+    this.currentUpgradeOffer = [];
     this.discardsLeft--;
     this.hud.toast(
       this.discardsLeft > 0
@@ -1248,6 +1311,13 @@ export class Game {
             (id !== 'repair' || this.player.hp < this.player.maxHp) &&
             !isModAtCopyCap(id, this.modCounts[id] ?? 0),
         );
+    telemetry.choice('chest_purchase', {
+      tier,
+      price,
+      rewardId: mod,
+      rewardCopiesBefore: this.modCounts[mod] ?? 0,
+      elapsedS: Math.round(this.elapsedS * 1_000) / 1_000,
+    });
 
     // Orb Siphon: the chest vacuums the map's XP before the reel spins. A first
     // copy won by this chest counts immediately, so its defining effect cannot
@@ -2016,6 +2086,13 @@ export class Game {
       (index) => {
         const entry = entries[index];
         if (!entry || this.gold < entry.price) return;
+        telemetry.choice('shop_purchase', {
+          modId: entry.id,
+          price: entry.price,
+          goldBefore: this.gold,
+          stockIds: entries.map((candidate) => candidate.id),
+          elapsedS: Math.round(this.elapsedS * 1_000) / 1_000,
+        });
         this.gold -= entry.price;
         this.runShopPurchases += 1;
         this.audio.emit({ id: 'shop-purchase', priority: 2 });
@@ -2073,7 +2150,10 @@ export class Game {
     this.hud.updateTotemIndicator(false, 0, 0, 0);
     this.hud.updateMerchantIndicator(false, 0, 0, 0, 0);
     this.hud.showInteractPrompt(null, this.interactLabel());
+    const runId = this.currentRunId ?? createRunId();
+    this.currentRunId = runId;
     const record = saveRunRecord({
+      id: runId,
       outcome,
       map: SCRAPYARD_MAP,
       ...(this.startingWeapon ? { startingWeapon: this.startingWeapon } : {}),
@@ -2108,6 +2188,7 @@ export class Game {
       coreLevels: this.coreLevels,
       modCounts: this.modCounts,
     });
+    telemetry.endRun(record);
     // Ledger first, then contracts read it. Single evaluation point per run:
     // a contract published later completes retroactively for a player who
     // already met it, and rewards land in exactly one place.

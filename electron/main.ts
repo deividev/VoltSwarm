@@ -1,8 +1,11 @@
 import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
+import { TelemetryClient } from './telemetry/client';
 
 let mainWindow: BrowserWindow | null = null;
+let telemetryClient: TelemetryClient | null = null;
+let telemetryShutdownRecorded = false;
 const APP_TITLE = 'Voltswarm';
 const benchmarkMode = app.isPackaged && process.argv.includes('--audio-benchmark');
 
@@ -122,6 +125,7 @@ function createWindow(): void {
   // A paid app must never die silently: offer a relaunch on renderer crash.
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
     if (details.reason === 'clean-exit') return;
+    recordTelemetryShutdown('renderer_crash');
     const choice = dialog.showMessageBoxSync({
       type: 'error',
       title: APP_TITLE,
@@ -150,6 +154,51 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(() => {
+  if (app.isPackaged && !benchmarkMode) {
+    const consent = dialog.showMessageBoxSync({
+      type: 'info',
+      title: 'Playtest Telemetry',
+      message: 'Help us balance the Voltswarm playtest?',
+      detail: 'Voltswarm sends pseudonymous gameplay, session, and performance data for playtest balance. Feedback selections are optional. We do not send your Steam ID, email address, or free text. Continue enables telemetry. Exit sends nothing and closes the game.',
+      buttons: ['Continue', 'Exit'],
+      defaultId: 0,
+      cancelId: 1,
+      noLink: true,
+    });
+    if (consent !== 0) {
+      app.quit();
+      return;
+    }
+    try {
+      telemetryClient = new TelemetryClient(app.getPath('userData'), app.getVersion());
+      telemetryClient.start();
+    } catch (error) {
+      dialog.showErrorBox('Playtest Telemetry Could Not Start', `No data was sent. Please restart and try again.\n\n${(error as Error).message}`);
+      app.quit();
+      return;
+    }
+  }
+
+  ipcMain.on('telemetry:is-enabled', (event) => {
+    event.returnValue = telemetryClient !== null;
+  });
+
+  ipcMain.on('telemetry:event', (_event, data: unknown) => {
+    try {
+      telemetryClient?.captureRendererEvent(data);
+    } catch (error) {
+      console.warn('Telemetry event could not be queued:', (error as Error).message);
+    }
+  });
+  ipcMain.handle('telemetry:feedback', (_event, data: unknown) => {
+    try {
+      return telemetryClient?.captureRendererEvent(data) ?? false;
+    } catch (error) {
+      console.warn('Telemetry feedback could not be queued:', (error as Error).message);
+      return false;
+    }
+  });
+
   ipcMain.on('settings:load', (event) => {
     try {
       event.returnValue = fs.readFileSync(settingsFile(), 'utf8');
@@ -231,3 +280,15 @@ void app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
+
+app.on('before-quit', () => recordTelemetryShutdown('application_closed'));
+
+function recordTelemetryShutdown(reason: string): void {
+  if (telemetryShutdownRecorded) return;
+  telemetryShutdownRecorded = true;
+  try {
+    telemetryClient?.stop(reason);
+  } catch (error) {
+    console.warn('Telemetry shutdown could not be recorded:', (error as Error).message);
+  }
+}
