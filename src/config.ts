@@ -23,6 +23,23 @@ export const BOSS_LAB = {
   atMinute: 8,
   /** Which recorded run to load the build from, newest first (0 = latest). */
   buildFromRunIndex: 0,
+  /** Fraction of the spawn CAP to pre-fill.
+   *
+   *  The cap is not the steady state. In a played run the player is killing
+   *  continuously, so the live population sits well below `maxActive` — pinning
+   *  it at 100% produces a density that never actually occurs, which is what
+   *  made the first version of the lab unplayable (playtest 2026-08-01: "me
+   *  rodean demasiados y no puedo ni moverme"). */
+  fillFraction: 0.55,
+  /** Pre-filled bodies are scattered between these distances from the player.
+   *
+   *  The spawner places everything in ENEMIES.spawnRingMin..Max, so filling
+   *  through it dropped the whole population into one ring that then marched
+   *  inward together as a closing shell. That is a formation the game never
+   *  produces on its own. Real minute-8 enemies are at every stage of their
+   *  approach at once, so the lab scatters them across the full range. */
+  scatterMin: 6,
+  scatterMax: 42,
 };
 
 export const DEV_TOOLS: { unlockPanel: boolean; auditionKeys: boolean; bossLab: boolean } = {

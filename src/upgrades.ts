@@ -595,22 +595,44 @@ export function rollUpgradeChoices(
 
 /** DEV ONLY — replays a recorded run's core picks onto a fresh stat sheet.
  *
- *  Approximate by construction, and the reason matters: the run record stores
- *  how many TIMES each core was taken, never which rarity was rolled, so the
- *  exact magnitudes are unrecoverable. Every pick is replayed at the blue
- *  (middle) tier. Good enough to reproduce the shape of a build for a boss
- *  fight; never use it to reason about exact numbers. */
+ *  Approximate by construction: the run record stores how many TIMES each core
+ *  was taken, never which rarity rolled, so exact magnitudes are unrecoverable.
+ *
+ *  Each pick is replayed at the PROBABILITY-WEIGHTED magnitude, derived from
+ *  TIERS.weights, rather than at a fixed tier. The first version used blue —
+ *  the middle of the five — which turned out to be a serious overestimate:
+ *  blue rolls only 9% of the time while gray rolls 62%, so the real expected
+ *  index is about 0.5. On the damage core that is 0.18 replayed against a true
+ *  expectation of 0.12, inflating every pick by nearly half.
+ *
+ *  That mattered in practice (2026-08-01): a boss died easily in the lab and
+ *  read as "boss HP too low", when the build under test was simply much
+ *  stronger than the one actually recorded. Deriving from the weights keeps
+ *  this honest if the tier table is ever retuned.
+ *
+ *  Assumes 0 Luck, since the record does not preserve the luck the rolls
+ *  actually saw. A high-Luck run is therefore still under-represented. */
 export function replayCoresOntoStats(
   stats: PlayerStats,
   player: Player,
   coreLevels: CoreLevels,
 ): void {
-  const MIDDLE_TIER = 2;
+  // MUST match the magnitudes array order — [gray, green, blue, purple, gold].
+  // TIER_ORDER is the REVERSE of this (it runs gold-first for the roll), and
+  // reusing it here silently pairs gold's 0.2% weight with gray's magnitude,
+  // which inflates the replay instead of correcting it. Typecheck cannot catch
+  // that: both are just number arrays.
+  const MAGNITUDE_TIER_ORDER: Rarity[] = ['gray', 'green', 'blue', 'purple', 'gold'];
+  const probabilities = MAGNITUDE_TIER_ORDER.map((tier) => TIERS.weights[tier]);
+  const total = probabilities.reduce((sum, weight) => sum + weight, 0);
   for (const [coreId, level] of Object.entries(coreLevels)) {
     const def = STAT_CARDS.find((card) => card.id === coreId);
     if (!def || !level) continue;
-    const magnitude = def.magnitudes[MIDDLE_TIER] ?? def.magnitudes[0];
-    for (let i = 0; i < level; i++) def.apply(stats, player, magnitude);
+    const expected = def.magnitudes.reduce(
+      (sum, magnitude, tier) => sum + magnitude * ((probabilities[tier] ?? 0) / total),
+      0,
+    );
+    for (let i = 0; i < level; i++) def.apply(stats, player, expected);
   }
 }
 

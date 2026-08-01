@@ -3,6 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import {
   ARENA_HALF_SIZE,
   BOSS,
+  BOSS_LAB,
   BOSS_TYPE_INDEXES,
   ELITES,
   ENEMIES,
@@ -960,15 +961,45 @@ export class EnemySystem {
     playerZ: number,
     obstacles: Obstacle[],
   ): number {
+    const cap = Math.round(
+      THREE.MathUtils.lerp(ENEMIES.maxActiveStart, ENEMIES.maxActiveEnd, Math.min(difficulty, 1)) *
+        BOSS_LAB.fillFraction,
+    );
     let guard = 0;
     let previous = -1;
-    // Each pass advances the spawn timer past one interval, so the loop makes
-    // real waves rather than teleporting bodies in. Stops when the cap is hit
-    // (population stops growing) or the guard trips.
-    while (guard++ < 400 && this.activeCount !== previous) {
+    // The spawner picks the type mix, unlock times and HP ramp correctly, so
+    // it stays in charge of WHAT spawns. Stops early at the target population
+    // rather than the hard cap.
+    while (guard++ < 400 && this.activeCount !== previous && this.activeCount < cap) {
       previous = this.activeCount;
       this.spawnTimer = 0;
       this.updateSpawner(0, elapsedS, difficulty, playerX, playerZ, obstacles);
+    }
+
+    // Then fix WHERE they are. The spawner drops everything into the 32-44
+    // spawn ring, which would march inward as one closing shell — a formation
+    // the game never produces in play. Scattering across the full approach
+    // range reproduces a swarm caught mid-advance instead.
+    const { scatterMin, scatterMax } = BOSS_LAB;
+    for (const e of this.pool) {
+      if (!e.active || BOSS_TYPE_INDEXES.includes(e.typeIndex)) continue;
+      const angle = Math.random() * Math.PI * 2;
+      // sqrt keeps the distribution even by AREA; a flat radius would crowd
+      // everything near the player, which is the bug this is fixing.
+      const dist = Math.sqrt(
+        scatterMin * scatterMin +
+          Math.random() * (scatterMax * scatterMax - scatterMin * scatterMin),
+      );
+      const spot = findClearSpot(
+        playerX + Math.cos(angle) * dist,
+        playerZ + Math.sin(angle) * dist,
+        obstacles,
+        e.radius,
+      );
+      if (spot) {
+        e.x = spot.x;
+        e.z = spot.z;
+      }
     }
     return this.activeCount;
   }
