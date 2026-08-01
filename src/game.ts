@@ -348,6 +348,7 @@ export class Game {
         if (!this.currentRunId) return false;
         return telemetry.feedback(this.currentRunId, feedback);
       },
+      telemetry.isAvailable(),
     );
     this.audio = new AudioDirector(this.settings);
     void this.audio.preloadEnabled();

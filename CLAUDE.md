@@ -34,7 +34,7 @@ Regla general: si el pedido no encaja claro en una fila, `docs/PRD.md` primero (
 3. **Código, comentarios y copy de UI en inglés.** El español es el idioma de esta conversación, no del repo.
 4. **Sin apuntado manual del jugador.** Toda arma se auto-apunta (caso real: Hydraulic Press se rediseñó por violar esto).
 5. **Nunca clonar contenido de Megabonk 1:1.** Se extrae la base estructural, se genera contenido propio — proceso completo en `METODO_DISENO.md`.
-6. **Subir `version` en `package.json` ANTES de cada commit** (semver) y escribirla en el asunto. Se estampa en cada registro de run como `buildVersion`; sin eso, los datos de calibración mienten sobre con qué build se jugó.
+6. **Subir `version` en `package.json` ANTES de cada commit** y escribirla en el asunto. Esta regla es INVARIANTE para cualquier agente o herramienta: los metadatos usan SemVer válido (`0.10.2-beta`) y ese valor crudo se estampa como `buildVersion`; la UI/copy humana usa número primero y etiqueta después (`0.10.2 Beta`). `Alpha`, `Beta`, `Preview` y `Playtest` SIEMPRE van después del número, nunca `Beta 0.10.2`.
 7. **Ningún instrumento de desarrollo llega a producción.** Van gateados por `DEV_TOOLS` en `config.ts`, y `npm run package` aborta si alguno queda encendido. Un jugador que paga no puede tener un botón de "desbloquear todo" en el menú.
 8. **`PROFILE` se muta EN SU SITIO, nunca se reemplaza.** Todo el gating tiene una referencia viva a ese objeto; reemplazarlo los desconecta a todos en silencio.
 
@@ -104,7 +104,7 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 
 ## Estado operativo actual (2026-07-26) — versión de desarrollo **v0.6.5**
 
-**REGLA DE VERSIONADO (usuario 2026-07-25): antes de CADA commit se sube `version` en `package.json` según semver y se escribe esa versión en el asunto del commit.** No es decorativo: `__APP_VERSION__` se inyecta desde ahí, se muestra en el menú y se estampa en cada registro de run como `buildVersion` — que es exactamente lo que distingue con qué tabla de balance se jugó. Un commit que cambia comportamiento sin subir versión hace que esos registros mientan.
+**REGLA DE VERSIONADO UNIVERSAL (usuario 2026-07-25, formato visible fijado 2026-08-01): aplica a Claude, GPT/Codex y cualquier otro agente o herramienta que modifique el repositorio. Antes de CADA commit se sube `version` en `package.json` según SemVer y se escribe esa versión en el asunto del commit.** `__APP_VERSION__` conserva el valor SemVer crudo y se estampa como `buildVersion`; el menú deriva `__APP_DISPLAY_VERSION__` con el número primero y la etiqueta después (por ejemplo, `0.10.2 Beta`). Un commit que cambia comportamiento sin subir versión hace que los registros mientan.
 
 - **Estado externo confirmado por el usuario:** handoff enviado al publisher → página creada por el publisher → **página actualmente en revisión de Steam/Valve**.
 - **Límite de lo confirmado:** la página todavía NO está aprobada, publicada ni visible como Coming Soon. No afirmar resultado, fecha de aprobación, App ID ni publicación hasta confirmación externa.

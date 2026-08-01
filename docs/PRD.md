@@ -123,7 +123,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 
 ### Menú inicial (Implementado 2026-07-12)
 
-- **Vista fuera del juego**: al abrir la app, el menú es una vista DOM opaca con fondo key-art; el 3D NO se renderiza detrás (`game.ts` salta el render en estado `menu`). Botones: Play / Unlocks / Settings / Exit. Play → draft de arma inicial → carga → run. La esquina inferior derecha muestra `vMAJOR.MINOR.PATCH`; `vite.config.ts` lee `package.json` durante el build e inyecta `__APP_VERSION__`, evitando duplicar la versión manualmente.
+- **Vista fuera del juego**: al abrir la app, el menú es una vista DOM opaca con fondo key-art; el 3D NO se renderiza detrás (`game.ts` salta el render en estado `menu`). Botones: Play / Unlocks / Settings / Exit. Play → draft de arma inicial → carga → run. La esquina inferior derecha muestra `MAJOR.MINOR.PATCH Label` (por ejemplo, `0.10.2 Beta`); `vite.config.ts` deriva esa presentación desde el SemVer crudo de `package.json`, evitando duplicar o reordenar la versión manualmente.
 - **Pantalla de carga con warmup** (estado `loading`): al elegir arma, se muestra una pantalla de carga que monta el mundo y renderiza unos frames ocultos antes de revelar el juego, para que no se vea el bajón de rendimiento del arranque. Es el hook donde entra una animación de carga más elaborada.
 - **Panel de desbloqueos (dev/temporal) — SUPERSEDED 2026-07-25**: 3 columnas Armas / Orbes / Mods; desbloquear un ítem lo empujaba a `ACCOUNT` (hoy `PROFILE`) en vivo para playtestear con todo abierto. **Lo reemplazaron los Contratos**; el panel sobrevive solo como herramienta de desarrollo detrás de `DEV_TOOLS.unlockPanel` y ya no llega a builds de release. Su persistencia era solo de sesión; la real vive ahora en `src/profile.ts`.
 - Criterio de aceptación: el menú no arrastra FPS (3D apagado), el warmup elimina el hitch visible al dar Play, y el panel refleja el estado real de los pools (armas/cores leen `PROFILE` vivo; mods vía `refreshUnlockedMods()`).
@@ -230,6 +230,8 @@ Successful local packaged Electron run via `npm run benchmark:audio`: determinis
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
+La release candidate de Wave 1 (`0.10.2-beta`) aplica un reset de progresión **una sola vez** para la epoch explícita `wave-1-rc-2026-08`, solo en la build empaquetada allowlisted. Antes de cargar el juego elimina `profile.json`, `run-history.json` y los fallbacks legacy de progreso en `localStorage`; después arranca desde el baseline canónico de 5 armas, 10 cores, 12 mods y sockets iniciales. Un marcador transaccional `userData/playtest-reset.json` pasa por `pending` antes de borrar y por `complete` solo tras limpiar ambos almacenes, así un cierre a mitad reintenta sin mezclar estados. El prompt combina `Reset Progress & Enable Telemetry` solo cuando el reset está pendiente; con la epoch ya completa o una build no elegible muestra consentimiento exclusivo de telemetría. Salir cierra sin iniciar nuevas mutaciones ni envíos; settings, identidad/cola de telemetría y consentimiento quedan intactos. Wave 2 requiere cambiar la epoch y su build allowlist, no añadir otro borrado ad hoc.
+
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 
 ### Perfil (`src/profile.ts`)
@@ -250,7 +252,7 @@ Los registros pasan a `userData/run-history.json` (antes solo `localStorage`, de
 
 Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (reservado), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
 
-### Telemetría privada de Playtest — Implementada 2026-08-01 (v0.10.0-beta.1)
+### Telemetría privada de Playtest — Implementada 2026-08-01 (`0.10.2-beta`)
 
 La build empaquetada de Electron envía telemetría estructurada al servicio externo de Playtest. El renderer **nunca sube datos directamente**: solo publica eventos tipados mediante una API `contextBridge` de disparo y olvido; Electron main valida, identifica, encola y sube. En navegador, Vite y Electron sin empaquetar la fachada es un no-op.
 

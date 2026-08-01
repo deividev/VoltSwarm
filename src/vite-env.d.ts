@@ -2,6 +2,8 @@
 
 /** Injected at build time by vite.config.ts from package.json's version field. */
 declare const __APP_VERSION__: string;
+/** Human-facing version: number first, release label second. */
+declare const __APP_DISPLAY_VERSION__: string;
 
 interface Window {
   electronAPI?: {
@@ -11,6 +13,7 @@ interface Window {
     saveProfile(data: string): void;
     loadRunHistory(): string | null;
     saveRunHistory(data: string): void;
+    applyPendingPlaytestReset(): boolean;
     setWindowMode(mode: string, width: number, height: number): void;
     quit(): void;
     telemetry: {

@@ -2,10 +2,12 @@ import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { TelemetryClient } from './telemetry/client';
+import { completePlaytestReset, isPlaytestResetRequired, preparePlaytestReset } from './playtest-reset';
 
 let mainWindow: BrowserWindow | null = null;
 let telemetryClient: TelemetryClient | null = null;
 let telemetryShutdownRecorded = false;
+let pendingPlaytestResetEpoch: string | null = null;
 const APP_TITLE = 'Voltswarm';
 const benchmarkMode = app.isPackaged && process.argv.includes('--audio-benchmark');
 
@@ -155,17 +157,40 @@ function createWindow(): void {
 
 void app.whenReady().then(() => {
   if (app.isPackaged && !benchmarkMode) {
+    let resetRequired: boolean;
+    try {
+      resetRequired = isPlaytestResetRequired(app.getPath('userData'), true, app.getVersion());
+    } catch (error) {
+      dialog.showErrorBox('Playtest Setup Could Not Start', `Reset state could not be read safely. Please restart and try again.\n\n${(error as Error).message}`);
+      app.quit();
+      return;
+    }
     const consent = dialog.showMessageBoxSync({
       type: 'info',
-      title: 'Playtest Telemetry',
-      message: 'Help us balance the Voltswarm playtest?',
-      detail: 'Voltswarm sends pseudonymous gameplay, session, and performance data for playtest balance. Feedback selections are optional. We do not send your Steam ID, email address, or free text. Continue enables telemetry. Exit sends nothing and closes the game.',
-      buttons: ['Continue', 'Exit'],
+      title: resetRequired ? 'Wave 1 Playtest: Reset & Telemetry' : 'Playtest Telemetry',
+      message: resetRequired ? 'Reset prior progress and start the Wave 1 playtest?' : 'Help us balance the Voltswarm playtest?',
+      detail: resetRequired
+        ? 'Starting Wave 1 resets this installation\'s existing Voltswarm progression and run history, and enables pseudonymous gameplay, session, and performance telemetry. Feedback selections are optional. We do not send your Steam ID, email address, or free text. Exit sends no data and closes without making further changes.'
+        : 'Voltswarm sends pseudonymous gameplay, session, and performance data for playtest balance. Feedback selections are optional. We do not send your Steam ID, email address, or free text. Exit sends no data and closes the game.',
+      buttons: resetRequired
+        ? ['Reset Progress & Enable Telemetry', 'Exit Without Further Changes or Data']
+        : ['Enable Telemetry', 'Exit Without Sending Data'],
       defaultId: 0,
       cancelId: 1,
       noLink: true,
     });
     if (consent !== 0) {
+      app.quit();
+      return;
+    }
+    try {
+      pendingPlaytestResetEpoch = preparePlaytestReset(
+        app.getPath('userData'),
+        app.isPackaged && !benchmarkMode,
+        app.getVersion(),
+      );
+    } catch (error) {
+      dialog.showErrorBox('Playtest Setup Could Not Start', `Progress could not be reset safely. Please restart and try again.\n\n${(error as Error).message}`);
       app.quit();
       return;
     }
@@ -178,6 +203,19 @@ void app.whenReady().then(() => {
       return;
     }
   }
+
+  ipcMain.on('playtest-reset:pending', (event) => {
+    event.returnValue = pendingPlaytestResetEpoch;
+  });
+  ipcMain.on('playtest-reset:complete', (event, epoch: string) => {
+    try {
+      event.returnValue = completePlaytestReset(app.getPath('userData'), epoch);
+      if (event.returnValue) pendingPlaytestResetEpoch = null;
+    } catch (error) {
+      console.warn('Playtest reset could not be completed:', (error as Error).message);
+      event.returnValue = false;
+    }
+  });
 
   ipcMain.on('telemetry:is-enabled', (event) => {
     event.returnValue = telemetryClient !== null;

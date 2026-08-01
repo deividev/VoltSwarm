@@ -301,6 +301,7 @@ export class Hud {
     private readonly onSettingsChanged: (settings: GameSettings) => void,
     private readonly onUiConfirm: () => void,
     private readonly onFeedbackSubmit: (feedback: StructuredFeedback) => Promise<boolean>,
+    feedbackAvailable: boolean,
   ) {
     root.insertAdjacentHTML(
       'beforeend',
@@ -340,7 +341,7 @@ export class Hud {
           <button id="menu-settings-button">Settings</button>
           <button id="exit-button">Exit</button>
         </div>
-        <div id="version-tag">v${__APP_VERSION__}</div>
+        <div id="version-tag">${__APP_DISPLAY_VERSION__}</div>
       </div>
       <div id="contracts-overlay" class="overlay menu-view hidden">
         <div id="contracts-panel" class="overlay-panel">
@@ -408,7 +409,7 @@ export class Hud {
             <div id="end-damage-list"></div>
           </section>
         </div>
-        <section id="end-feedback">
+        <section id="end-feedback"${feedbackAvailable ? '' : ' hidden'}>
           <h2 class="panel-header">Playtest Feedback</h2>
           <p>No account details or free text. Nothing is sent until you submit.</p>
           <div class="feedback-question">

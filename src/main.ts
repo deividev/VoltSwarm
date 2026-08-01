@@ -7,6 +7,10 @@ import { Game } from './game';
 const container = document.getElementById('app');
 if (!container) throw new Error('Missing #app container');
 
+if (window.electronAPI && !window.electronAPI.applyPendingPlaytestReset()) {
+  throw new Error('Playtest progression reset could not be committed');
+}
+
 // Before the Game exists: every pool and socket reads PROFILE, so stored
 // progress has to be in place first.
 migrateRunHistory();

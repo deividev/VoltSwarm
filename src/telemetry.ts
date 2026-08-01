@@ -93,6 +93,10 @@ class TelemetryFacade {
   private periodicPerformance = new PerformanceAccumulator();
   private totalPerformance = new PerformanceAccumulator();
 
+  isAvailable(): boolean {
+    return this.enabled;
+  }
+
   startRun(
     runId: string,
     payload: {
