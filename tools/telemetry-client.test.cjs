@@ -19,6 +19,25 @@ const scope = {
   schemaVersion: 1,
   installationId: 'installation-00000001',
 };
+const TEST_CONFIG = {
+  enabled: true,
+  admittedBuildVersions: ['0.10.0-beta.1'],
+  gameId: scope.gameId,
+  waveId: scope.waveId,
+  schemaVersion: scope.schemaVersion,
+  consentVersion: 1,
+  disclosure: {
+    title: 'Test', message: 'Test?', detail: 'Test disclosure.', acceptLabel: 'Accept', declineLabel: 'Decline',
+  },
+  resetEpoch: null,
+  endpoint: 'https://telemetry.test',
+  clientToken: 'test-token',
+  maxBatchSize: 100,
+  maxBodyBytes: 128 * 1024,
+  maxQueueEvents: 2_000,
+  maxQuarantinedEvents: 100,
+  requestTimeoutMs: 10_000,
+};
 
 function withTempDirectory(run) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'voltswarm-telemetry-'));
@@ -52,6 +71,9 @@ function enqueue(queue, payload = {}, overrides = {}) {
   return queue.enqueue({
     type: 'choice',
     payload,
+    gameId: scope.gameId,
+    waveId: scope.waveId,
+    schemaVersion: scope.schemaVersion,
     buildVersion: '0.10.0-beta.1',
     sessionId: 'session-1',
     runId: 'run-1',
@@ -99,7 +121,9 @@ function acceptedBatchResponse(init, select = (events) => events) {
 
 function testClient(directory, fetchImpl, options = {}) {
   let nextId = 0;
-  return new TelemetryClient(directory, '0.10.0-beta.1', {
+  return new TelemetryClient(directory, {
+    packaged: true, benchmark: false, buildVersion: '0.10.0-beta.1',
+  }, TEST_CONFIG, true, {
     fetch: fetchImpl,
     createId: () => `test-id-${++nextId}`,
     now: () => FIXED_DATE,
@@ -107,6 +131,19 @@ function testClient(directory, fetchImpl, options = {}) {
     ...options,
   });
 }
+
+test('disabled or unconsented clients create no identity or queue side effects', () => {
+  withTempDirectory((directory) => {
+    const runtime = { packaged: true, benchmark: false, buildVersion: '0.10.0-beta.1' };
+    assert.throws(() => new TelemetryClient(
+      directory, runtime, { ...TEST_CONFIG, enabled: false }, true,
+    ), /telemetry_not_authorized/);
+    assert.throws(() => new TelemetryClient(
+      directory, runtime, TEST_CONFIG, false,
+    ), /telemetry_not_authorized/);
+    assert.deepEqual(fs.readdirSync(directory), []);
+  });
+});
 
 test('event IDs remain stable across retries and process reloads', () => {
   withTempDirectory((directory) => {
@@ -136,6 +173,49 @@ test('batching respects count, byte, and original-session boundaries', () => {
     const countBound = queue.selectBatch(scope, 1, 512 * 1024);
     assert.equal(countBound.events.length, 1);
     assert.equal(countBound.sessionId, 'session-1');
+  });
+});
+
+test('queued event scope is immutable and cross-wave events batch separately', () => {
+  withTempDirectory((directory) => {
+    const queue = queueAt(directory);
+    const wave1 = enqueue(queue, { selectedId: 'bolt' });
+    const wave2 = enqueue(queue, { selectedId: 'pulse' }, { waveId: 'wave-2' });
+    const currentScope = { ...scope, waveId: 'wave-2' };
+
+    const first = queue.selectBatch(currentScope, 100, 128 * 1024);
+    assert.equal(first.waveId, 'wave-1');
+    assert.deepEqual(first.events.map((event) => event.eventId), [wave1.eventId]);
+    queue.acknowledge([{ eventId: wave1.eventId, status: 'accepted' }]);
+    const second = queue.selectBatch(currentScope, 100, 128 * 1024);
+    assert.equal(second.waveId, 'wave-2');
+    assert.deepEqual(second.events.map((event) => event.eventId), [wave2.eventId]);
+  });
+});
+
+test('legacy unscoped queue events migrate deterministically into quarantine', () => {
+  withTempDirectory((directory) => {
+    const file = path.join(directory, 'queue.json');
+    fs.writeFileSync(file, JSON.stringify({
+      schemaVersion: 1,
+      events: [{
+        eventId: 'legacy-1', type: 'choice', clientTimestamp: FIXED_DATE.toISOString(),
+        payload: { selectedId: 'bolt' }, buildVersion: '0.10.3-beta', sessionId: 'old-session',
+      }],
+      quarantinedEvents: [],
+      uploadFailure: {
+        count: 1, firstAt: FIXED_DATE.toISOString(), lastAt: FIXED_DATE.toISOString(),
+        lastReason: 'offline', reportable: true, droppedEvents: 0,
+      },
+    }));
+    const state = queueAt(directory).snapshot();
+    assert.equal(state.schemaVersion, 2);
+    assert.equal(state.events.length, 0);
+    assert.equal(state.quarantinedEvents.length, 1);
+    assert.equal(state.quarantinedEvents[0].reason, 'legacy_unscoped_event');
+    assert.equal(state.quarantinedEvents[0].event.eventId, 'legacy-1');
+    assert.equal(state.uploadFailure.quarantinedEvents, 0);
+    assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).schemaVersion, 2);
   });
 });
 

@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { TELEMETRY_CONFIG } from './config';
+import { isPlaytestEligible } from './config';
+import type { PlaytestRuntime, PlaytestTelemetryConfig } from './config';
 import { loadOrCreateInstallationId } from './identity';
 import { exponentialBackoffMs, TelemetryQueue } from './queue';
 import type { TelemetryEventType, UploadResult } from './types';
@@ -17,6 +18,7 @@ export interface TelemetryClientOptions {
 }
 
 export class TelemetryClient {
+  private readonly buildVersion: string;
   private readonly sessionId: string;
   private readonly installationId: string;
   private readonly queue: TelemetryQueue;
@@ -29,26 +31,33 @@ export class TelemetryClient {
   private uploading = false;
   private stopped = false;
   private backoffAttempt = 0;
-  private batchSizeLimit: number = TELEMETRY_CONFIG.maxBatchSize;
+  private batchSizeLimit: number;
 
   constructor(
     userDataPath: string,
-    private readonly buildVersion: string,
+    runtime: PlaytestRuntime,
+    private readonly config: PlaytestTelemetryConfig,
+    consentGranted: boolean,
     options: TelemetryClientOptions = {},
   ) {
+    if (!isPlaytestEligible(config, runtime) || !consentGranted) {
+      throw new Error('telemetry_not_authorized');
+    }
+    this.buildVersion = runtime.buildVersion;
     const createId = options.createId ?? randomUUID;
     this.sessionId = createId();
     this.fetchImpl = options.fetch ?? fetch;
     this.now = options.now ?? (() => new Date());
-    this.requestTimeoutMs = options.requestTimeoutMs ?? TELEMETRY_CONFIG.requestTimeoutMs;
+    this.requestTimeoutMs = options.requestTimeoutMs ?? config.requestTimeoutMs;
     this.automaticScheduling = options.automaticScheduling ?? true;
+    this.batchSizeLimit = config.maxBatchSize;
     this.installationId = loadOrCreateInstallationId(
       path.join(userDataPath, 'telemetry-installation.json'),
       createId,
     );
     this.queue = new TelemetryQueue(
       path.join(userDataPath, 'telemetry-queue.json'),
-      TELEMETRY_CONFIG.maxQueueEvents,
+      config.maxQueueEvents,
       createId,
       this.now,
     );
@@ -101,6 +110,9 @@ export class TelemetryClient {
     this.queue.enqueue({
       type,
       payload,
+      gameId: this.config.gameId,
+      waveId: this.config.waveId,
+      schemaVersion: this.config.schemaVersion,
       buildVersion: this.buildVersion,
       sessionId: this.sessionId,
       ...(runId ? { runId } : {}),
@@ -119,13 +131,13 @@ export class TelemetryClient {
     if (this.uploading || this.stopped) return;
     const batch = this.queue.selectBatch(
       {
-        gameId: TELEMETRY_CONFIG.gameId,
-        waveId: TELEMETRY_CONFIG.waveId,
-        schemaVersion: TELEMETRY_CONFIG.schemaVersion,
+        gameId: this.config.gameId,
+        waveId: this.config.waveId,
+        schemaVersion: this.config.schemaVersion,
         installationId: this.installationId,
       },
       this.batchSizeLimit,
-      TELEMETRY_CONFIG.maxBodyBytes,
+      this.config.maxBodyBytes,
     );
     if (!batch) return;
     this.uploading = true;
@@ -142,13 +154,13 @@ export class TelemetryClient {
           if (event && this.queue.quarantine(
             event.eventId,
             'http_413_singleton',
-            TELEMETRY_CONFIG.maxQuarantinedEvents,
+            this.config.maxQuarantinedEvents,
           )) {
             this.queue.recordQuarantine('http_413_singleton', hasReportableEvent);
           } else {
             throw new Error('http_413_quarantine_failed');
           }
-          this.batchSizeLimit = TELEMETRY_CONFIG.maxBatchSize;
+          this.batchSizeLimit = this.config.maxBatchSize;
         }
         nextDelay = this.queue.length > 0 ? 0 : null;
         return;
@@ -164,7 +176,7 @@ export class TelemetryClient {
       const removed = this.queue.acknowledge(results);
       if (removed !== batch.events.length) throw new Error('partial_ack');
       this.backoffAttempt = 0;
-      this.batchSizeLimit = TELEMETRY_CONFIG.maxBatchSize;
+      this.batchSizeLimit = this.config.maxBatchSize;
       const recovered = this.queue.consumeUploadFailureAfterRecovery();
       if (recovered) {
         this.enqueue('upload_error', {
@@ -198,11 +210,11 @@ export class TelemetryClient {
       controller.abort();
     }, this.requestTimeoutMs);
     try {
-      const response = await this.fetchImpl(`${TELEMETRY_CONFIG.endpoint}/v1/events`, {
+      const response = await this.fetchImpl(`${this.config.endpoint}/v1/events`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'x-client-token': TELEMETRY_CONFIG.clientToken,
+          'x-client-token': this.config.clientToken,
         },
         body: JSON.stringify(batch),
         signal: controller.signal,

@@ -1,13 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-
-/** Changing `epoch` is the only switch needed for a future playtest reset.
- * Exact build allowlisting prevents a later production build from inheriting it. */
-export const PLAYTEST_RESET_CONFIG = {
-  enabled: true,
-  epoch: 'wave-1-rc-2026-08',
-  buildVersions: ['0.10.2-beta', '0.10.3-beta'],
-} as const;
+import { isPlaytestEligible, TELEMETRY_CONFIG } from './telemetry/config';
+import type { PlaytestRuntime, PlaytestTelemetryConfig } from './telemetry/config';
 
 interface ResetMarker {
   epoch: string;
@@ -17,45 +11,39 @@ interface ResetMarker {
 
 export function isPlaytestResetRequired(
   userDataPath: string,
-  packaged: boolean,
-  buildVersion: string,
-  config: { enabled: boolean; epoch: string; buildVersions: readonly string[] } = PLAYTEST_RESET_CONFIG,
+  runtime: PlaytestRuntime,
+  config: PlaytestTelemetryConfig = TELEMETRY_CONFIG,
 ): boolean {
-  if (!packaged) return false;
+  if (!isPlaytestEligible(config, runtime) || config.resetEpoch === null) return false;
   const marker = readMarker(path.join(userDataPath, 'playtest-reset.json'));
   if (marker?.status === 'pending') return true;
-  return config.enabled && config.buildVersions.includes(buildVersion) &&
-    !(marker?.epoch === config.epoch && marker.status === 'complete');
+  return !(marker?.epoch === config.resetEpoch && marker.status === 'complete');
 }
 
 export function preparePlaytestReset(
   userDataPath: string,
-  packaged: boolean,
-  buildVersion: string,
-  config: { enabled: boolean; epoch: string; buildVersions: readonly string[] } = PLAYTEST_RESET_CONFIG,
+  runtime: PlaytestRuntime,
+  config: PlaytestTelemetryConfig = TELEMETRY_CONFIG,
 ): string | null {
-  if (!packaged) return null;
+  if (!isPlaytestEligible(config, runtime) || config.resetEpoch === null) return null;
   const markerPath = path.join(userDataPath, 'playtest-reset.json');
   const marker = readMarker(markerPath);
-  // A pending transaction belongs to the installation, not the current build.
-  // Resume it before allowlist checks so an upgrade cannot load partial state.
+  // Eligible future waves coalesce an interrupted older reset into their own
+  // epoch. Disabled/ineligible builds return above without even reading it.
   if (marker?.status === 'pending') {
-    const currentBuildStartsEpoch = config.enabled && config.buildVersions.includes(buildVersion);
-    const epoch = currentBuildStartsEpoch ? config.epoch : marker.epoch;
-    if (epoch !== marker.epoch) {
-      writeMarker(markerPath, { epoch, status: 'pending', buildVersion });
+    if (config.resetEpoch !== marker.epoch) {
+      writeMarker(markerPath, { epoch: config.resetEpoch, status: 'pending', buildVersion: runtime.buildVersion });
     }
     clearProgressFiles(userDataPath);
-    return epoch;
+    return config.resetEpoch;
   }
-  if (!config.enabled || !config.buildVersions.includes(buildVersion)) return null;
-  if (marker?.epoch === config.epoch && marker.status === 'complete') return null;
+  if (marker?.epoch === config.resetEpoch && marker.status === 'complete') return null;
 
   // Pending is durable before deletion. A crash leaves a retryable transaction,
   // never a marker that claims completion over partially-cleared progress.
-  writeMarker(markerPath, { epoch: config.epoch, status: 'pending', buildVersion });
+  writeMarker(markerPath, { epoch: config.resetEpoch, status: 'pending', buildVersion: runtime.buildVersion });
   clearProgressFiles(userDataPath);
-  return config.epoch;
+  return config.resetEpoch;
 }
 
 function clearProgressFiles(userDataPath: string): void {

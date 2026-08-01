@@ -23,9 +23,17 @@ export interface QueuedTelemetryEvent {
   clientTimestamp: string;
   runId?: string;
   payload: Record<string, unknown>;
+  gameId: string;
+  waveId: string;
+  schemaVersion: number;
   buildVersion: string;
   sessionId: string;
 }
+
+export type LegacyQueuedTelemetryEvent = Omit<
+  QueuedTelemetryEvent,
+  'gameId' | 'waveId' | 'schemaVersion'
+>;
 
 export interface UploadFailureState {
   count: number;
@@ -38,13 +46,13 @@ export interface UploadFailureState {
 }
 
 export interface QuarantinedTelemetryEvent {
-  event: QueuedTelemetryEvent;
+  event: QueuedTelemetryEvent | LegacyQueuedTelemetryEvent;
   reason: string;
   quarantinedAt: string;
 }
 
 export interface QueueState {
-  schemaVersion: 1;
+  schemaVersion: 2;
   events: QueuedTelemetryEvent[];
   quarantinedEvents?: QuarantinedTelemetryEvent[];
   uploadFailure?: UploadFailureState;
@@ -57,7 +65,8 @@ export interface TelemetryBatch {
   buildVersion: string;
   installationId: string;
   sessionId: string;
-  events: Array<Omit<QueuedTelemetryEvent, 'buildVersion' | 'sessionId'>>;
+  events: Array<Omit<QueuedTelemetryEvent,
+    'gameId' | 'waveId' | 'schemaVersion' | 'buildVersion' | 'sessionId'>>;
 }
 
 export interface UploadResult {

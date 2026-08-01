@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { TELEMETRY_EVENT_TYPES } from './types';
 import type {
   QueueState,
+  LegacyQueuedTelemetryEvent,
   QuarantinedTelemetryEvent,
   QueuedTelemetryEvent,
   TelemetryBatch,
@@ -11,7 +12,7 @@ import type {
   UploadResult,
 } from './types';
 
-const EMPTY_STATE = (): QueueState => ({ schemaVersion: 1, events: [], quarantinedEvents: [] });
+const EMPTY_STATE = (): QueueState => ({ schemaVersion: 2, events: [], quarantinedEvents: [] });
 const EVENT_TYPES = new Set<string>(TELEMETRY_EVENT_TYPES);
 
 export interface BatchScope {
@@ -24,6 +25,9 @@ export interface BatchScope {
 export interface EnqueueInput {
   type: TelemetryEventType;
   payload: Record<string, unknown>;
+  gameId: string;
+  waveId: string;
+  schemaVersion: number;
   buildVersion: string;
   sessionId: string;
   runId?: string;
@@ -76,6 +80,9 @@ export class TelemetryQueue {
       clientTimestamp: this.now().toISOString(),
       ...(input.runId ? { runId: input.runId } : {}),
       payload: input.payload,
+      gameId: input.gameId,
+      waveId: input.waveId,
+      schemaVersion: input.schemaVersion,
       buildVersion: input.buildVersion,
       sessionId: input.sessionId,
     };
@@ -94,7 +101,8 @@ export class TelemetryQueue {
     if (!first) return null;
     const selected: QueuedTelemetryEvent[] = [];
     for (const event of this.state.events) {
-      if (event.sessionId !== first.sessionId || event.buildVersion !== first.buildVersion) break;
+      if (!sameEventScope(event, first) ||
+          event.sessionId !== first.sessionId || event.buildVersion !== first.buildVersion) break;
       if (selected.length >= maxCount) break;
       const next = [...selected, event];
       const batch = buildBatch(scope, first, next);
@@ -198,6 +206,7 @@ export class TelemetryQueue {
     try {
       const raw = fs.readFileSync(this.filePath, 'utf8').replace(/^\uFEFF/, '');
       const parsed = JSON.parse(raw) as unknown;
+      if (isLegacyQueueState(parsed)) return this.migrateLegacyQueue(parsed);
       if (!isQueueState(parsed)) throw new Error('Invalid telemetry queue shape');
       parsed.quarantinedEvents ??= [];
       if (parsed.uploadFailure) parsed.uploadFailure.quarantinedEvents ??= 0;
@@ -207,6 +216,26 @@ export class TelemetryQueue {
       this.preserveCorruptFile();
       return EMPTY_STATE();
     }
+  }
+
+  private migrateLegacyQueue(legacy: LegacyQueueState): QueueState {
+    const migrated = EMPTY_STATE();
+    migrated.quarantinedEvents = [
+      ...(legacy.quarantinedEvents ?? []),
+      ...legacy.events.map((event) => ({
+        event,
+        reason: 'legacy_unscoped_event',
+        quarantinedAt: this.now().toISOString(),
+      })),
+    ];
+    if (legacy.uploadFailure) {
+      migrated.uploadFailure = {
+        ...legacy.uploadFailure,
+        quarantinedEvents: legacy.uploadFailure.quarantinedEvents ?? 0,
+      };
+    }
+    atomicWriteJson(this.filePath, migrated);
+    return migrated;
   }
 
   private preserveCorruptFile(): void {
@@ -230,7 +259,10 @@ function buildBatch(
   events: readonly QueuedTelemetryEvent[],
 ): TelemetryBatch {
   return {
-    ...scope,
+    gameId: first.gameId,
+    waveId: first.waveId,
+    schemaVersion: first.schemaVersion,
+    installationId: scope.installationId,
     buildVersion: first.buildVersion,
     sessionId: first.sessionId,
     events: events.map((event) => ({
@@ -243,11 +275,16 @@ function buildBatch(
   };
 }
 
+function sameEventScope(left: QueuedTelemetryEvent, right: QueuedTelemetryEvent): boolean {
+  return left.gameId === right.gameId && left.waveId === right.waveId &&
+    left.schemaVersion === right.schemaVersion;
+}
+
 function isQueueState(value: unknown): value is QueueState {
   if (!value || typeof value !== 'object') return false;
   const state = value as Partial<QueueState>;
   return (
-    state.schemaVersion === 1 &&
+    state.schemaVersion === 2 &&
     Array.isArray(state.events) &&
     state.events.every(isQueuedEvent) &&
     (state.quarantinedEvents === undefined ||
@@ -260,7 +297,7 @@ function isQuarantinedEvent(value: unknown): value is QuarantinedTelemetryEvent 
   if (!value || typeof value !== 'object') return false;
   const quarantined = value as Partial<QuarantinedTelemetryEvent>;
   return (
-    isQueuedEvent(quarantined.event) &&
+    (isQueuedEvent(quarantined.event) || isLegacyQueuedEvent(quarantined.event)) &&
     typeof quarantined.reason === 'string' &&
     typeof quarantined.quarantinedAt === 'string'
   );
@@ -274,12 +311,48 @@ function isQueuedEvent(value: unknown): value is QueuedTelemetryEvent {
     typeof event.type === 'string' &&
     EVENT_TYPES.has(event.type) &&
     typeof event.clientTimestamp === 'string' &&
+    typeof event.gameId === 'string' &&
+    typeof event.waveId === 'string' &&
+    Number.isInteger(event.schemaVersion) && (event.schemaVersion ?? 0) > 0 &&
     typeof event.buildVersion === 'string' &&
     typeof event.sessionId === 'string' &&
     !!event.payload &&
     typeof event.payload === 'object' &&
     !Array.isArray(event.payload)
   );
+}
+
+interface LegacyQueueState {
+  schemaVersion: 1;
+  events: LegacyQueuedTelemetryEvent[];
+  quarantinedEvents?: Array<{
+    event: LegacyQueuedTelemetryEvent;
+    reason: string;
+    quarantinedAt: string;
+  }>;
+  uploadFailure?: UploadFailureState;
+}
+
+function isLegacyQueueState(value: unknown): value is LegacyQueueState {
+  if (!value || typeof value !== 'object') return false;
+  const state = value as Partial<LegacyQueueState>;
+  return state.schemaVersion === 1 && Array.isArray(state.events) &&
+    state.events.every(isLegacyQueuedEvent) &&
+    (state.quarantinedEvents === undefined || (Array.isArray(state.quarantinedEvents) &&
+      state.quarantinedEvents.every((entry) => !!entry && typeof entry === 'object' &&
+        isLegacyQueuedEvent(entry.event) && typeof entry.reason === 'string' &&
+        typeof entry.quarantinedAt === 'string'))) &&
+    (state.uploadFailure === undefined || isUploadFailure(state.uploadFailure));
+}
+
+function isLegacyQueuedEvent(value: unknown): value is LegacyQueuedTelemetryEvent {
+  if (!value || typeof value !== 'object') return false;
+  const event = value as Partial<LegacyQueuedTelemetryEvent>;
+  return typeof event.eventId === 'string' && typeof event.type === 'string' &&
+    EVENT_TYPES.has(event.type) && typeof event.clientTimestamp === 'string' &&
+    typeof event.buildVersion === 'string' && typeof event.sessionId === 'string' &&
+    !!event.payload && typeof event.payload === 'object' && !Array.isArray(event.payload) &&
+    !('gameId' in event) && !('waveId' in event) && !('schemaVersion' in event);
 }
 
 function isUploadFailure(value: unknown): value is UploadFailureState {

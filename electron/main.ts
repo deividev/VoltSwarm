@@ -2,6 +2,8 @@ import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { TelemetryClient } from './telemetry/client';
+import { hasTelemetryConsent, persistTelemetryConsent } from './telemetry/consent';
+import { isPlaytestEligible, TELEMETRY_CONFIG } from './telemetry/config';
 import { completePlaytestReset, isPlaytestResetRequired, preparePlaytestReset } from './playtest-reset';
 
 let mainWindow: BrowserWindow | null = null;
@@ -156,46 +158,80 @@ function createWindow(): void {
 }
 
 void app.whenReady().then(() => {
-  if (app.isPackaged && !benchmarkMode) {
+  const runtime = {
+    packaged: app.isPackaged,
+    benchmark: benchmarkMode,
+    buildVersion: app.getVersion(),
+  };
+  if (isPlaytestEligible(TELEMETRY_CONFIG, runtime)) {
+    const userDataPath = app.getPath('userData');
+    let consented: boolean;
+    try {
+      consented = hasTelemetryConsent(userDataPath, TELEMETRY_CONFIG);
+    } catch (error) {
+      dialog.showErrorBox('Playtest Telemetry Could Not Start', `Consent state could not be read safely. No data was sent.\n\n${(error as Error).message}`);
+      app.quit();
+      return;
+    }
+    if (!consented) {
+      const disclosure = TELEMETRY_CONFIG.disclosure;
+      const consent = dialog.showMessageBoxSync({
+        type: 'info',
+        title: disclosure.title,
+        message: disclosure.message,
+        detail: disclosure.detail,
+        buttons: [disclosure.acceptLabel, disclosure.declineLabel],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+      });
+      if (consent !== 0) {
+        app.quit();
+        return;
+      }
+      try {
+        persistTelemetryConsent(userDataPath, TELEMETRY_CONFIG);
+        consented = true;
+      } catch (error) {
+        dialog.showErrorBox('Playtest Telemetry Could Not Start', `Consent could not be saved safely. No data was sent.\n\n${(error as Error).message}`);
+        app.quit();
+        return;
+      }
+    }
+
     let resetRequired: boolean;
     try {
-      resetRequired = isPlaytestResetRequired(app.getPath('userData'), true, app.getVersion());
+      resetRequired = isPlaytestResetRequired(userDataPath, runtime, TELEMETRY_CONFIG);
     } catch (error) {
       dialog.showErrorBox('Playtest Setup Could Not Start', `Reset state could not be read safely. Please restart and try again.\n\n${(error as Error).message}`);
       app.quit();
       return;
     }
-    const consent = dialog.showMessageBoxSync({
-      type: 'info',
-      title: resetRequired ? 'Wave 1 Playtest: Reset & Telemetry' : 'Playtest Telemetry',
-      message: resetRequired ? 'Reset prior progress and start the Wave 1 playtest?' : 'Help us balance the Voltswarm playtest?',
-      detail: resetRequired
-        ? 'Starting Wave 1 resets this installation\'s existing Voltswarm progression and run history, and enables pseudonymous gameplay, session, and performance telemetry. Feedback selections are optional. We do not send your Steam ID, email address, or free text. Exit sends no data and closes without making further changes.'
-        : 'Voltswarm sends pseudonymous gameplay, session, and performance data for playtest balance. Feedback selections are optional. We do not send your Steam ID, email address, or free text. Exit sends no data and closes the game.',
-      buttons: resetRequired
-        ? ['Reset Progress & Enable Telemetry', 'Exit Without Further Changes or Data']
-        : ['Enable Telemetry', 'Exit Without Sending Data'],
-      defaultId: 0,
-      cancelId: 1,
-      noLink: true,
-    });
-    if (consent !== 0) {
-      app.quit();
-      return;
+    if (resetRequired) {
+      const reset = dialog.showMessageBoxSync({
+        type: 'warning',
+        title: 'Playtest Progress Reset',
+        message: 'Start this playtest wave with clean progression?',
+        detail: 'This reset permanently removes this installation\'s existing Voltswarm progression and run history. Telemetry consent is separate and does not authorize this reset.',
+        buttons: ['Reset Progress & Continue', 'Exit Without Reset'],
+        defaultId: 1,
+        cancelId: 1,
+        noLink: true,
+      });
+      if (reset !== 0) {
+        app.quit();
+        return;
+      }
+      try {
+        pendingPlaytestResetEpoch = preparePlaytestReset(userDataPath, runtime, TELEMETRY_CONFIG);
+      } catch (error) {
+        dialog.showErrorBox('Playtest Setup Could Not Start', `Progress could not be reset safely. Please restart and try again.\n\n${(error as Error).message}`);
+        app.quit();
+        return;
+      }
     }
     try {
-      pendingPlaytestResetEpoch = preparePlaytestReset(
-        app.getPath('userData'),
-        app.isPackaged && !benchmarkMode,
-        app.getVersion(),
-      );
-    } catch (error) {
-      dialog.showErrorBox('Playtest Setup Could Not Start', `Progress could not be reset safely. Please restart and try again.\n\n${(error as Error).message}`);
-      app.quit();
-      return;
-    }
-    try {
-      telemetryClient = new TelemetryClient(app.getPath('userData'), app.getVersion());
+      telemetryClient = new TelemetryClient(userDataPath, runtime, TELEMETRY_CONFIG, consented);
       telemetryClient.start();
     } catch (error) {
       dialog.showErrorBox('Playtest Telemetry Could Not Start', `No data was sent. Please restart and try again.\n\n${(error as Error).message}`);
@@ -208,6 +244,10 @@ void app.whenReady().then(() => {
     event.returnValue = pendingPlaytestResetEpoch;
   });
   ipcMain.on('playtest-reset:complete', (event, epoch: string) => {
+    if (!pendingPlaytestResetEpoch || epoch !== pendingPlaytestResetEpoch) {
+      event.returnValue = false;
+      return;
+    }
     try {
       event.returnValue = completePlaytestReset(app.getPath('userData'), epoch);
       if (event.returnValue) pendingPlaytestResetEpoch = null;

@@ -3,14 +3,25 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { isPlaytestEligible, TELEMETRY_CONFIG } = require('../electron/dist/telemetry/config.js');
+const { hasTelemetryConsent, persistTelemetryConsent } = require('../electron/dist/telemetry/consent.js');
 const {
   completePlaytestReset,
   isPlaytestResetRequired,
   preparePlaytestReset,
 } = require('../electron/dist/playtest-reset.js');
 
-const PREVIOUS_BUILD = '0.10.2-beta';
-const BUILD = '0.10.3-beta';
+const BUILD = '0.10.4-beta';
+const ACTIVE_CONFIG = {
+  ...TELEMETRY_CONFIG,
+  enabled: true,
+  admittedBuildVersions: ['0.10.3-beta', BUILD],
+  waveId: 'test-wave',
+  resetEpoch: 'test-epoch',
+};
+const runtime = (overrides = {}) => ({
+  packaged: true, benchmark: false, buildVersion: BUILD, ...overrides,
+});
 
 function fixture(run) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'voltswarm-reset-'));
@@ -22,83 +33,97 @@ function writeProgress(directory) {
   fs.writeFileSync(path.join(directory, 'run-history.json'), '[{"old":true}]');
 }
 
-test('first packaged launch clears file progress and commits the epoch', () => fixture((directory) => {
+test('eligibility requires enabled packaged non-benchmark exact build admission', () => {
+  assert.equal(TELEMETRY_CONFIG.enabled, false);
+  assert.deepEqual(TELEMETRY_CONFIG.admittedBuildVersions, []);
+  assert.equal(TELEMETRY_CONFIG.resetEpoch, null);
+  assert.equal(isPlaytestEligible(TELEMETRY_CONFIG, runtime()), false);
+  assert.equal(isPlaytestEligible(ACTIVE_CONFIG, runtime()), true);
+  assert.equal(isPlaytestEligible(ACTIVE_CONFIG, runtime({ packaged: false })), false);
+  assert.equal(isPlaytestEligible(ACTIVE_CONFIG, runtime({ benchmark: true })), false);
+  assert.equal(isPlaytestEligible(ACTIVE_CONFIG, runtime({ buildVersion: `${BUILD}.extra` })), false);
+});
+
+test('disabled config performs no reset work even with a corrupt pending marker', () => fixture((directory) => {
   writeProgress(directory);
-  assert.equal(isPlaytestResetRequired(directory, true, BUILD), true);
-  const epoch = preparePlaytestReset(directory, true, BUILD);
-  assert.equal(epoch, 'wave-1-rc-2026-08');
-  assert.equal(fs.existsSync(path.join(directory, 'profile.json')), false);
-  assert.equal(fs.existsSync(path.join(directory, 'run-history.json')), false);
-  assert.equal(completePlaytestReset(directory, epoch), true);
-  assert.equal(isPlaytestResetRequired(directory, true, BUILD), false);
-  assert.equal(JSON.parse(fs.readFileSync(path.join(directory, 'playtest-reset.json'))).status, 'complete');
+  fs.writeFileSync(path.join(directory, 'playtest-reset.json'), '{corrupt');
+  assert.equal(isPlaytestResetRequired(directory, runtime(), TELEMETRY_CONFIG), false);
+  assert.equal(preparePlaytestReset(directory, runtime(), TELEMETRY_CONFIG), null);
+  assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
 }));
 
-test('second launch in the same epoch preserves new progress', () => fixture((directory) => {
-  const epoch = preparePlaytestReset(directory, true, BUILD);
+test('first admitted packaged launch clears progress and completes its epoch', () => fixture((directory) => {
+  writeProgress(directory);
+  assert.equal(isPlaytestResetRequired(directory, runtime(), ACTIVE_CONFIG), true);
+  const epoch = preparePlaytestReset(directory, runtime(), ACTIVE_CONFIG);
+  assert.equal(epoch, 'test-epoch');
+  assert.equal(fs.existsSync(path.join(directory, 'profile.json')), false);
+  assert.equal(completePlaytestReset(directory, epoch), true);
+  assert.equal(isPlaytestResetRequired(directory, runtime(), ACTIVE_CONFIG), false);
+}));
+
+test('completed same epoch preserves progress across admitted builds', () => fixture((directory) => {
+  const previous = runtime({ buildVersion: '0.10.3-beta' });
+  const epoch = preparePlaytestReset(directory, previous, ACTIVE_CONFIG);
   assert.equal(completePlaytestReset(directory, epoch), true);
   writeProgress(directory);
-  assert.equal(preparePlaytestReset(directory, true, BUILD), null);
+  assert.equal(preparePlaytestReset(directory, runtime(), ACTIVE_CONFIG), null);
   assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
   assert.equal(fs.existsSync(path.join(directory, 'run-history.json')), true);
 }));
 
-test('the new build preserves progress after the previous build completed the epoch', () => fixture((directory) => {
-  const epoch = preparePlaytestReset(directory, true, PREVIOUS_BUILD);
-  assert.equal(completePlaytestReset(directory, epoch), true);
+test('eligible new epoch coalesces an older pending reset', () => fixture((directory) => {
+  const oldConfig = { ...ACTIVE_CONFIG, resetEpoch: 'old-epoch' };
+  preparePlaytestReset(directory, runtime(), oldConfig);
   writeProgress(directory);
-  assert.equal(isPlaytestResetRequired(directory, true, BUILD), false);
-  assert.equal(preparePlaytestReset(directory, true, BUILD), null);
-  assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
-  assert.equal(fs.existsSync(path.join(directory, 'run-history.json')), true);
-}));
-
-test('unpackaged mode never resets progress', () => fixture((directory) => {
+  assert.equal(preparePlaytestReset(directory, runtime(), ACTIVE_CONFIG), 'test-epoch');
+  assert.equal(completePlaytestReset(directory, 'test-epoch'), true);
   writeProgress(directory);
-  assert.equal(isPlaytestResetRequired(directory, false, BUILD), false);
-  assert.equal(isPlaytestResetRequired(directory, true, '1.0.0'), false);
-  assert.equal(preparePlaytestReset(directory, false, BUILD), null);
-  assert.equal(preparePlaytestReset(directory, true, '1.0.0'), null);
-  assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
-  assert.equal(fs.existsSync(path.join(directory, 'playtest-reset.json')), false);
-}));
-
-test('a pending transaction safely retries after an interrupted launch', () => fixture((directory) => {
-  assert.ok(preparePlaytestReset(directory, true, BUILD));
-  writeProgress(directory);
-  assert.ok(preparePlaytestReset(directory, true, BUILD));
-  assert.equal(fs.existsSync(path.join(directory, 'profile.json')), false);
-  assert.equal(fs.existsSync(path.join(directory, 'run-history.json')), false);
-}));
-
-test('a newer packaged build resumes an existing pending epoch', () => fixture((directory) => {
-  const epoch = preparePlaytestReset(directory, true, PREVIOUS_BUILD);
-  writeProgress(directory);
-  assert.equal(preparePlaytestReset(directory, true, BUILD), epoch);
-  assert.equal(fs.existsSync(path.join(directory, 'profile.json')), false);
-  assert.equal(fs.existsSync(path.join(directory, 'run-history.json')), false);
-}));
-
-test('an allowlisted new epoch coalesces an older pending reset', () => fixture((directory) => {
-  preparePlaytestReset(directory, true, BUILD);
-  writeProgress(directory);
-  const wave2 = { enabled: true, epoch: 'wave-2', buildVersions: ['0.11.0-beta'] };
-  assert.equal(preparePlaytestReset(directory, true, '0.11.0-beta', wave2), 'wave-2');
-  assert.equal(completePlaytestReset(directory, 'wave-2'), true);
-  writeProgress(directory);
-  assert.equal(preparePlaytestReset(directory, true, '0.11.0-beta', wave2), null);
+  assert.equal(preparePlaytestReset(directory, runtime(), ACTIVE_CONFIG), null);
   assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
 }));
 
-test('a corrupt existing marker fails closed without deleting progress', () => fixture((directory) => {
+test('nullable reset leaves progress and even pending marker state untouched', () => fixture((directory) => {
+  const noReset = { ...ACTIVE_CONFIG, resetEpoch: null };
   writeProgress(directory);
-  fs.writeFileSync(path.join(directory, 'playtest-reset.json'), '{bad json');
-  assert.throws(() => preparePlaytestReset(directory, true, BUILD), /marker is corrupt/);
+  fs.writeFileSync(path.join(directory, 'playtest-reset.json'), '{corrupt');
+  assert.equal(isPlaytestResetRequired(directory, runtime(), noReset), false);
+  assert.equal(preparePlaytestReset(directory, runtime(), noReset), null);
   assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
-  assert.equal(fs.existsSync(path.join(directory, 'run-history.json')), true);
 }));
 
-test('an unreadable existing marker fails closed', () => fixture((directory) => {
-  fs.mkdirSync(path.join(directory, 'playtest-reset.json'));
-  assert.throws(() => preparePlaytestReset(directory, true, BUILD), /marker is unreadable/);
+test('eligible corrupt or unreadable reset markers fail closed', () => fixture((directory) => {
+  writeProgress(directory);
+  const marker = path.join(directory, 'playtest-reset.json');
+  fs.writeFileSync(marker, '{bad json');
+  assert.throws(() => preparePlaytestReset(directory, runtime(), ACTIVE_CONFIG), /marker is corrupt/);
+  fs.rmSync(marker);
+  fs.mkdirSync(marker);
+  assert.throws(() => preparePlaytestReset(directory, runtime(), ACTIVE_CONFIG), /marker is unreadable/);
+  assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
+}));
+
+test('consent proof prompts once and disclosure-version changes require consent again', () => fixture((directory) => {
+  assert.equal(hasTelemetryConsent(directory, ACTIVE_CONFIG), false);
+  assert.equal(fs.existsSync(path.join(directory, 'telemetry-consent.json')), false);
+  persistTelemetryConsent(directory, ACTIVE_CONFIG, new Date('2026-08-01T12:00:00.000Z'));
+  assert.equal(hasTelemetryConsent(directory, ACTIVE_CONFIG), true);
+  assert.equal(hasTelemetryConsent(directory, { ...ACTIVE_CONFIG, consentVersion: 2 }), false);
+  assert.equal(hasTelemetryConsent(directory, {
+    ...ACTIVE_CONFIG,
+    disclosure: { ...ACTIVE_CONFIG.disclosure, detail: `${ACTIVE_CONFIG.disclosure.detail} Changed.` },
+  }), false);
+}));
+
+test('corrupt consent proof fails closed', () => fixture((directory) => {
+  fs.writeFileSync(path.join(directory, 'telemetry-consent.json'), '{bad json');
+  assert.throws(() => hasTelemetryConsent(directory, ACTIVE_CONFIG), /consent proof is corrupt/);
+}));
+
+test('existing telemetry consent does not authorize a pending destructive reset', () => fixture((directory) => {
+  persistTelemetryConsent(directory, ACTIVE_CONFIG);
+  writeProgress(directory);
+  assert.equal(hasTelemetryConsent(directory, ACTIVE_CONFIG), true);
+  assert.equal(isPlaytestResetRequired(directory, runtime(), ACTIVE_CONFIG), true);
+  assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
 }));
