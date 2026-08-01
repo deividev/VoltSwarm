@@ -1,6 +1,6 @@
 # Voltswarm — Roadmap a Steam
 
-Fecha: 2026-08-01. Versión de máquina actual: **0.10.4-beta** (UI: **0.10.4 Beta**).
+Fecha: 2026-08-02. Versión de máquina actual: **0.10.5-beta** (UI: **0.10.5 Beta**).
 
 **⚠️ ORDEN REORDENADO POR DECISIÓN DEL USUARIO (2026-07-25): el gate de viabilidad multijugador se DIFIERE a post-lanzamiento.** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno del 4 de noviembre, para una feature que este mismo roadmap documenta como no diferenciadora, no prometida públicamente y que puede terminar en NO-GO — mientras el Mapa 2, el gameplay de Volt Warden, los 3 personajes y los contratos quedaban comprimidos en ~3 semanas. Del gate se rescató solo la mitad barata: cobertura de smoke tests (`npm run test:smoke`). El determinismo de tick fijo sigue diferido.
 
@@ -109,9 +109,9 @@ Lo que falta para que las capturas/GIFs vendan la página de Steam:
 - ✅ **Pausa** — Escape + pause-on-blur implementados y verificados.
 - ✅ **Build completa + desglose de daño por arma en pantalla final — COMPLETADO 2026-07-17.** La pantalla conserva Weapons/Cores/Mods con el mismo lenguaje visual del RIG. Instrumento de balance sobre el embudo `dealDamage`: daño real sin overkill, atribución de DoT, porcentaje del total y barras comparativas ordenadas.
 - ✅ **Settings in-game — SUPERADO por Settings v3 (2026-07-13, PRD §"Settings v3")**: pantalla completa con sidebar General/Controls, auto-apply (sin botón Apply), remapeo de controles teclado+gamepad, IPC de fullscreen/resolución aplicándose solo al cambiar (fix del parpadeo). Los sliders de volumen existen, persisten y gobiernan la Audio Foundation
-- ✅ **Menú principal completo**: Play / Unlocks / Settings / Exit; Settings compartido con pausa; versión visible abajo a la derecha como `MAJOR.MINOR.PATCH Label` (`0.10.4 Beta`). `vite.config.ts` deriva la presentación desde el SemVer crudo de `package.json`. **Futuro, no implementado:** si el gate da GO, el destino pasa a `Play Solo` / `Play Multiplayer`.
-- ✅ **Lifecycle multi-wave de telemetría (`0.10.4-beta`):** un master tipado gobierna habilitación, admisión exacta, wave/schema/disclosure, reset nullable y límites. Mapa 2 queda **disabled**, allowlist vacía y sin reset: cero prompts, identidad, cola o red. Consentimiento atómico versionado se pide una vez por disclosure; reset siempre exige confirmación separada. Cada evento persiste scope inmutable y los legacy sin scope se cuarentenan, nunca se relabelan. El binario congelado `0.10.3-beta` de Wave 1 conserva su funcionamiento externo independiente.
-- ✅ **Reset limpio reusable:** el motor transaccional queda conservado pero `resetEpoch: null` en Mapa 2 impide incluso procesar un `pending`; una futura wave debe habilitar master, build exacta y epoch explícita en el mismo cambio.
+- ✅ **Menú principal completo**: Play / Unlocks / Settings / Exit; Settings compartido con pausa; versión visible abajo a la derecha como `MAJOR.MINOR.PATCH Label` (`0.10.5 Beta`). `vite.config.ts` deriva la presentación desde el SemVer crudo de `package.json`. **Futuro, no implementado:** si el gate da GO, el destino pasa a `Play Solo` / `Play Multiplayer`.
+- ✅ **Steam Playtest Wave 1 activa (`0.10.5-beta`):** el master tipado admite exclusivamente esa build empaquetada (`gameId: voltswarm`, `waveId: wave-1`) y mantiene schema/disclosure, endpoint y límites. Consentimiento atómico ligado al copy se pide una vez; reset exige confirmación separada. Cada evento persiste scope inmutable y los legacy sin scope se cuarentenan, nunca se relabelan.
+- ✅ **Reset limpio Wave 1:** `resetEpoch: wave-1-rc-2026-08` conserva el progreso de testers que ya completaron esa epoch en `0.10.2-beta`/`0.10.3-beta`, pero resetea una vez las instalaciones nuevas de `0.10.5-beta`.
 
 ## Fase 4a — Audio v1 (CERRADO)
 

@@ -26,13 +26,12 @@ export interface PlaytestRuntime {
   buildVersion: string;
 }
 
-/** Map 2 development is deliberately inert. A future wave is activated only
- * by changing this single audited object and deploying its matching gate. */
+/** Steam Playtest Wave 1 is admitted only by this exact packaged build. */
 export const TELEMETRY_CONFIG: PlaytestTelemetryConfig = {
-  enabled: false,
-  admittedBuildVersions: [],
+  enabled: true,
+  admittedBuildVersions: ['0.10.5-beta'],
   gameId: 'voltswarm',
-  waveId: 'map-2',
+  waveId: 'wave-1',
   schemaVersion: 1,
   consentVersion: 1,
   disclosure: {
@@ -42,7 +41,7 @@ export const TELEMETRY_CONFIG: PlaytestTelemetryConfig = {
     acceptLabel: 'Enable Telemetry',
     declineLabel: 'Exit Without Sending Data',
   },
-  resetEpoch: null,
+  resetEpoch: 'wave-1-rc-2026-08',
   endpoint: 'https://playtest-telemetry.voltswarm-playtests.workers.dev',
   clientToken: 'B0gQ79eMVQr8owNtDuSEVmPb7kC7uj9C3fmrANv_hCk',
   maxBatchSize: 100,

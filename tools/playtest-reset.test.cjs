@@ -11,7 +11,7 @@ const {
   preparePlaytestReset,
 } = require('../electron/dist/playtest-reset.js');
 
-const BUILD = '0.10.4-beta';
+const BUILD = '0.10.5-beta';
 const ACTIVE_CONFIG = {
   ...TELEMETRY_CONFIG,
   enabled: true,
@@ -34,40 +34,43 @@ function writeProgress(directory) {
 }
 
 test('eligibility requires enabled packaged non-benchmark exact build admission', () => {
-  assert.equal(TELEMETRY_CONFIG.enabled, false);
-  assert.deepEqual(TELEMETRY_CONFIG.admittedBuildVersions, []);
-  assert.equal(TELEMETRY_CONFIG.resetEpoch, null);
-  assert.equal(isPlaytestEligible(TELEMETRY_CONFIG, runtime()), false);
-  assert.equal(isPlaytestEligible(ACTIVE_CONFIG, runtime()), true);
-  assert.equal(isPlaytestEligible(ACTIVE_CONFIG, runtime({ packaged: false })), false);
-  assert.equal(isPlaytestEligible(ACTIVE_CONFIG, runtime({ benchmark: true })), false);
-  assert.equal(isPlaytestEligible(ACTIVE_CONFIG, runtime({ buildVersion: `${BUILD}.extra` })), false);
+  assert.equal(TELEMETRY_CONFIG.enabled, true);
+  assert.deepEqual(TELEMETRY_CONFIG.admittedBuildVersions, [BUILD]);
+  assert.equal(TELEMETRY_CONFIG.gameId, 'voltswarm');
+  assert.equal(TELEMETRY_CONFIG.waveId, 'wave-1');
+  assert.equal(TELEMETRY_CONFIG.resetEpoch, 'wave-1-rc-2026-08');
+  assert.equal(isPlaytestEligible(TELEMETRY_CONFIG, runtime()), true);
+  assert.equal(isPlaytestEligible(TELEMETRY_CONFIG, runtime({ packaged: false })), false);
+  assert.equal(isPlaytestEligible(TELEMETRY_CONFIG, runtime({ benchmark: true })), false);
+  assert.equal(isPlaytestEligible(TELEMETRY_CONFIG, runtime({ buildVersion: `${BUILD}.extra` })), false);
 });
 
 test('disabled config performs no reset work even with a corrupt pending marker', () => fixture((directory) => {
   writeProgress(directory);
   fs.writeFileSync(path.join(directory, 'playtest-reset.json'), '{corrupt');
-  assert.equal(isPlaytestResetRequired(directory, runtime(), TELEMETRY_CONFIG), false);
-  assert.equal(preparePlaytestReset(directory, runtime(), TELEMETRY_CONFIG), null);
+  const disabledConfig = { ...TELEMETRY_CONFIG, enabled: false };
+  assert.equal(isPlaytestResetRequired(directory, runtime(), disabledConfig), false);
+  assert.equal(preparePlaytestReset(directory, runtime(), disabledConfig), null);
   assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
 }));
 
 test('first admitted packaged launch clears progress and completes its epoch', () => fixture((directory) => {
   writeProgress(directory);
-  assert.equal(isPlaytestResetRequired(directory, runtime(), ACTIVE_CONFIG), true);
-  const epoch = preparePlaytestReset(directory, runtime(), ACTIVE_CONFIG);
-  assert.equal(epoch, 'test-epoch');
+  assert.equal(isPlaytestResetRequired(directory, runtime(), TELEMETRY_CONFIG), true);
+  const epoch = preparePlaytestReset(directory, runtime(), TELEMETRY_CONFIG);
+  assert.equal(epoch, 'wave-1-rc-2026-08');
   assert.equal(fs.existsSync(path.join(directory, 'profile.json')), false);
   assert.equal(completePlaytestReset(directory, epoch), true);
-  assert.equal(isPlaytestResetRequired(directory, runtime(), ACTIVE_CONFIG), false);
+  assert.equal(isPlaytestResetRequired(directory, runtime(), TELEMETRY_CONFIG), false);
 }));
 
-test('completed same epoch preserves progress across admitted builds', () => fixture((directory) => {
+test('0.10.5 preserves progress after a historical build completed the Wave 1 epoch', () => fixture((directory) => {
   const previous = runtime({ buildVersion: '0.10.3-beta' });
-  const epoch = preparePlaytestReset(directory, previous, ACTIVE_CONFIG);
+  const historicalConfig = { ...TELEMETRY_CONFIG, admittedBuildVersions: ['0.10.3-beta'] };
+  const epoch = preparePlaytestReset(directory, previous, historicalConfig);
   assert.equal(completePlaytestReset(directory, epoch), true);
   writeProgress(directory);
-  assert.equal(preparePlaytestReset(directory, runtime(), ACTIVE_CONFIG), null);
+  assert.equal(preparePlaytestReset(directory, runtime(), TELEMETRY_CONFIG), null);
   assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
   assert.equal(fs.existsSync(path.join(directory, 'run-history.json')), true);
 }));

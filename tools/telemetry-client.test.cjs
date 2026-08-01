@@ -21,7 +21,7 @@ const scope = {
 };
 const TEST_CONFIG = {
   enabled: true,
-  admittedBuildVersions: ['0.10.0-beta.1'],
+  admittedBuildVersions: ['0.10.5-beta'],
   gameId: scope.gameId,
   waveId: scope.waveId,
   schemaVersion: scope.schemaVersion,
@@ -74,7 +74,7 @@ function enqueue(queue, payload = {}, overrides = {}) {
     gameId: scope.gameId,
     waveId: scope.waveId,
     schemaVersion: scope.schemaVersion,
-    buildVersion: '0.10.0-beta.1',
+    buildVersion: '0.10.5-beta',
     sessionId: 'session-1',
     runId: 'run-1',
     ...overrides,
@@ -122,7 +122,7 @@ function acceptedBatchResponse(init, select = (events) => events) {
 function testClient(directory, fetchImpl, options = {}) {
   let nextId = 0;
   return new TelemetryClient(directory, {
-    packaged: true, benchmark: false, buildVersion: '0.10.0-beta.1',
+    packaged: true, benchmark: false, buildVersion: '0.10.5-beta',
   }, TEST_CONFIG, true, {
     fetch: fetchImpl,
     createId: () => `test-id-${++nextId}`,
@@ -134,7 +134,7 @@ function testClient(directory, fetchImpl, options = {}) {
 
 test('disabled or unconsented clients create no identity or queue side effects', () => {
   withTempDirectory((directory) => {
-    const runtime = { packaged: true, benchmark: false, buildVersion: '0.10.0-beta.1' };
+    const runtime = { packaged: true, benchmark: false, buildVersion: '0.10.5-beta' };
     assert.throws(() => new TelemetryClient(
       directory, runtime, { ...TEST_CONFIG, enabled: false }, true,
     ), /telemetry_not_authorized/);
