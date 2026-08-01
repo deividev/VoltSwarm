@@ -1366,6 +1366,59 @@ img.ui-glyph {
   align-items: center;
   gap: 5px;
 }
+
+/* Timed buffs (Frenzy, Haste). Sits under the HP bar so the eye already
+   passes over it while checking health — the buff drop-off is the moment a
+   player gets caught out, so it must be somewhere they already look. */
+#buff-row {
+  position: absolute;
+  top: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  pointer-events: none;
+}
+.buff-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 7px 3px 4px;
+  background: rgba(10, 13, 18, 0.72);
+  border: 1px solid rgba(120, 200, 255, 0.35);
+  /* Same notched corner as the rest of the HUD plates. */
+  clip-path: polygon(0 4px, 4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%);
+}
+.buff-chip img.ui-glyph {
+  width: 18px;
+  height: 18px;
+}
+.buff-track {
+  width: 46px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.14);
+}
+.buff-fill {
+  height: 100%;
+  background: #2ee6de;
+  transition: width 0.1s linear;
+}
+/* The last second is the one that matters — it is when the speed drops out
+   from under you. */
+.buff-chip.expiring {
+  border-color: rgba(255, 150, 60, 0.9);
+  animation: buff-expiring 0.28s steps(2, end) infinite;
+}
+.buff-chip.expiring .buff-fill {
+  background: #ff963c;
+}
+@keyframes buff-expiring {
+  0% { opacity: 1; }
+  100% { opacity: 0.45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .buff-chip.expiring { animation: none; }
+}
 #gold-counter img.ui-glyph,
 #kills img.ui-glyph {
   width: 28px;

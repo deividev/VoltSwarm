@@ -48,13 +48,13 @@ export const DEV_TOOLS: { unlockPanel: boolean; auditionKeys: boolean; bossLab: 
    *  through the real payout path (which is what the Contracts screen reads);
    *  and reset progress. Kept as a testing surface now that Contracts have
    *  replaced it as the player-facing progression. */
-  unlockPanel: true,
+  unlockPanel: false,
   /** F2-F9 hotkeys that cycle and preview SFX variants in-game while authoring
    *  audio. Turn back on for the full-catalog audio pass. */
   auditionKeys: false,
   /** Boss lab: press B mid-run to jump to BOSS_LAB.atMinute with a recorded
    *  build loaded and a boss summoned on top of you. See BOSS_LAB. */
-  bossLab: true,
+  bossLab: false,
 };
 
 /** Renderer-side audio tuning. All voice, cooldown and fade values are config-owned. */
@@ -1023,8 +1023,22 @@ export const WEAPONS = {
   },
   welder: {
     range: 14,
-    /** Damage per tick at ramp 0. */
-    damage: 4,
+    /** Damage per tick at ramp 0.
+     *
+     *  4 → 3 (2026-08-01 playtest). On paper 4 was fine — 4 / 0.25s = 16 DPS,
+     *  identical to Bolt's 12 / 0.75s. The nominal numbers hide the real gap:
+     *  a beam NEVER MISSES and has zero downtime, while Bolt fires a
+     *  projectile that travels and is wasted whenever its target dies first.
+     *  So Bolt's 16 is a ceiling and the Welder's 16 was a floor. Add the 4x
+     *  ramp on a held target and it was the strongest thing in the arsenal
+     *  before any scaling.
+     *
+     *  Deliberately NOT touching rampCap: rewarding a held lock is the
+     *  weapon's identity and the reason it works on bosses. If it still reads
+     *  as too strong, the sharper lever is charging a short spin-up when the
+     *  target CHANGES — right now re-aggro is free, which quietly contradicts
+     *  a design built around commitment. */
+    damage: 3,
     tickS: 0.25,
     /** Damage multiplier gained per second locked on the same target. */
     rampPerSecond: 0.5,

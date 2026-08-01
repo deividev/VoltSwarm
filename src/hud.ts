@@ -96,6 +96,16 @@ export function coinHtml(amount: number | string): string {
 
 // Approved voxel icon art replacing the stat emoji placeholders, one stat
 // at a time as each is generated and validated (docs/PROMPTS_IMAGENES.md §4).
+/** Timed crate buffs that show a countdown chip in the HUD. */
+export type TimedBuffId = 'frenzy' | 'haste';
+
+/** Buff chips borrow the stat icon that matches what the buff DOES, so the
+ *  player reads 'damage' and 'move speed' from art they already know. */
+const BUFF_ICONS: Record<TimedBuffId, string> = {
+  frenzy: 'assets/2d/icon-stat-damage.png',
+  haste: 'assets/2d/icon-stat-move-speed.png',
+};
+
 const STAT_ICON_IMAGES: Partial<Record<keyof PlayerStats, string>> = {
   damage: 'assets/2d/icon-stat-damage.png',
   attackSpeed: 'assets/2d/icon-stat-attack-speed.png',
@@ -308,6 +318,7 @@ export class Hud {
         <div id="totem-indicator" class="hidden"><span class="arrow">▲</span><span class="label">TOTEM</span></div>
         <div id="merchant-indicator" class="hidden"><span class="arrow">▲</span><span class="label">SHOP</span></div>
         <div id="gold-counter" class="hidden"><img class="ui-glyph" src="${COIN_ICON}" alt="" /><span id="gold-amount">0</span></div>
+        <div id="buff-row"></div>
         <div id="hp-bar"><div id="hp-bar-fill"></div><span id="hp-text"></span></div>
       </div>
       <div id="fps-counter" class="hidden"></div>
@@ -1634,6 +1645,45 @@ export class Hud {
   private goldShown = 0;
   private goldTarget = 0;
   private goldTicker = 0;
+
+  /** Timed buffs, with the REMAINING time visible.
+   *
+   *  Frenzy and Haste used to be invisible timers — no HUD, no VFX, nothing.
+   *  Haste in particular actively hurt play: the player could not tell it was
+   *  on, and more importantly could not tell when it would drop, so movement
+   *  got misjudged at the exact moment the speed changed under them
+   *  (2026-08-01 report).
+   *
+   *  The bar is the point. Knowing a buff is active is nice; knowing it is
+   *  about to END is what the player actually needs to plan around. */
+  updateBuffs(buffs: readonly { id: TimedBuffId; remainingS: number; totalS: number }[]): void {
+    const row = mustGet('buff-row');
+    if (buffs.length === 0) {
+      if (row.childElementCount > 0) row.replaceChildren();
+      return;
+    }
+    for (const buff of buffs) {
+      let chip = row.querySelector<HTMLElement>(`[data-buff="${buff.id}"]`);
+      if (!chip) {
+        chip = document.createElement('div');
+        chip.className = 'buff-chip';
+        chip.dataset['buff'] = buff.id;
+        chip.innerHTML =
+          `<img class="ui-glyph" src="${BUFF_ICONS[buff.id]}" alt="" />` +
+          `<div class="buff-track"><div class="buff-fill"></div></div>`;
+        row.appendChild(chip);
+      }
+      const fill = chip.querySelector<HTMLElement>('.buff-fill');
+      if (fill) fill.style.width = `${Math.max(0, (buff.remainingS / buff.totalS) * 100)}%`;
+      // Last second flashes: the drop-off is the moment that catches people out.
+      chip.classList.toggle('expiring', buff.remainingS <= 1);
+    }
+    // Drop chips whose buff ended.
+    for (const chip of [...row.children]) {
+      const id = (chip as HTMLElement).dataset['buff'];
+      if (!buffs.some((buff) => buff.id === id)) chip.remove();
+    }
+  }
 
   updateGold(gold: number): void {
     const el = mustGet('gold-counter');

@@ -910,6 +910,22 @@ export class Game {
 
     if (this.frenzyS > 0) this.frenzyS -= dt;
     if (this.hasteS > 0) this.hasteS -= dt;
+    this.hud.updateBuffs([
+      ...(this.frenzyS > 0
+        ? [{
+            id: 'frenzy' as const,
+            remainingS: this.frenzyS,
+            totalS: PICKUPS.frenzyDurationS * this.stats.duration,
+          }]
+        : []),
+      ...(this.hasteS > 0
+        ? [{
+            id: 'haste' as const,
+            remainingS: this.hasteS,
+            totalS: PICKUPS.hasteDurationS * this.stats.duration,
+          }]
+        : []),
+    ]);
     if (this.lifestealCooldown > 0) this.lifestealCooldown -= dt;
     if (this.overloadS > 0) this.overloadS -= dt;
     if (this.phaseS > 0) this.phaseS -= dt;
