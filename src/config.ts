@@ -629,19 +629,23 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
     behavior: 'chase',
     /** 2.3x a same-moment Voltling — fourth rung of the arrival ladder. */
     hp: 35,
-    /** B1 (2026-07-30): 8 → 9.5. The point is to create the verb "dodge" —
-     *  before this the player outran everything and standing still was the only
-     *  way to be hit.
+    /** B1: 8 → 11 → 9.5 → 8.5 (the last step 2026-08-01, third time the user
+     *  reported it too fast — consistent human feedback beats my arithmetic).
      *
-     *  First tried 11, matching PLAYER.moveSpeed exactly, and the user's
-     *  playtest killed it: at parity the escape margin is 0 u/s, so this stops
-     *  being a fast enemy and becomes an inescapable one. 9.5 leaves 1.5 u/s —
-     *  you get away, slowly, and it costs you position. That gap IS the design.
+     *  The point is to create the verb "dodge": before this the player outran
+     *  everything and standing still was the only way to be hit.
+     *
+     *  11 matched PLAYER.moveSpeed exactly and the playtest killed it — at
+     *  parity the escape margin is 0 u/s, which is not a fast enemy but an
+     *  inescapable one. 9.5 left 1.5 u/s and still read as too sticky over
+     *  several sessions. 8.5 leaves 2.5 u/s: ~4s to open ten units of gap,
+     *  against 3.3s at the original 8 and 6.7s at 9.5. It still chases, it
+     *  just stops feeling glued.
      *
      *  Note the bot sweep completely missed this: it circle-strafes and never
      *  attempts to flee, so it measured deaths (which barely moved) and was
      *  blind to "I cannot escape". Do not tune this number from bot data. */
-    speed: 9.5,
+    speed: 8.5,
     scale: 1.1,
     radius: 0.6,
     xp: 4,
