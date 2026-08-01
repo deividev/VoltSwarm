@@ -62,7 +62,10 @@ export class TelemetryClient {
   captureRendererEvent(value: unknown): boolean {
     if (this.stopped) return false;
     const event = validateRendererTelemetryEvent(value);
-    if (!event) return false;
+    if (!event) {
+      console.warn(`Telemetry renderer event rejected by local validation (type=${rendererEventType(value)})`);
+      return false;
+    }
     this.enqueue(event.type, event.payload, event.runId);
     if (event.type === 'run_started') this.activeRunIds.add(event.runId);
     if (event.type === 'run_ended') this.activeRunIds.delete(event.runId);
@@ -234,4 +237,10 @@ function isUploadResult(value: unknown): value is UploadResult {
 function normalizeReason(error: unknown): string {
   const message = error instanceof Error ? error.message : 'unknown_error';
   return message.replace(/[^A-Za-z0-9._:-]/g, '_').slice(0, 128) || 'unknown_error';
+}
+
+function rendererEventType(value: unknown): string {
+  if (!value || typeof value !== 'object') return 'unknown';
+  const type = (value as { type?: unknown }).type;
+  return typeof type === 'string' && /^[A-Za-z_]+$/.test(type) ? type.slice(0, 32) : 'unknown';
 }

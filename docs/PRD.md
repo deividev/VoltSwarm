@@ -230,7 +230,7 @@ Successful local packaged Electron run via `npm run benchmark:audio`: determinis
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
-La release candidate de Wave 1 (`0.10.2-beta`) aplica un reset de progresión **una sola vez** para la epoch explícita `wave-1-rc-2026-08`, solo en la build empaquetada allowlisted. Antes de cargar el juego elimina `profile.json`, `run-history.json` y los fallbacks legacy de progreso en `localStorage`; después arranca desde el baseline canónico de 5 armas, 10 cores, 12 mods y sockets iniciales. Un marcador transaccional `userData/playtest-reset.json` pasa por `pending` antes de borrar y por `complete` solo tras limpiar ambos almacenes, así un cierre a mitad reintenta sin mezclar estados. El prompt combina `Reset Progress & Enable Telemetry` solo cuando el reset está pendiente; con la epoch ya completa o una build no elegible muestra consentimiento exclusivo de telemetría. Salir cierra sin iniciar nuevas mutaciones ni envíos; settings, identidad/cola de telemetría y consentimiento quedan intactos. Wave 2 requiere cambiar la epoch y su build allowlist, no añadir otro borrado ad hoc.
+Las builds Wave 1 `0.10.2-beta` y `0.10.3-beta` comparten la epoch explícita `wave-1-rc-2026-08` y aplican el reset de progresión **una sola vez**. Una instalación nueva de cualquiera de las dos builds elimina `profile.json`, `run-history.json` y los fallbacks legacy de progreso en `localStorage`; una instalación que ya completó esa epoch conserva su progreso al actualizar a `0.10.3-beta`. Después del reset arranca desde el baseline canónico de 5 armas, 10 cores, 12 mods y sockets iniciales. Un marcador transaccional `userData/playtest-reset.json` pasa por `pending` antes de borrar y por `complete` solo tras limpiar ambos almacenes, así un cierre a mitad reintenta sin mezclar estados. El prompt combina `Reset Progress & Enable Telemetry` solo cuando el reset está pendiente; con la epoch ya completa o una build no elegible muestra consentimiento exclusivo de telemetría. Salir cierra sin iniciar nuevas mutaciones ni envíos; settings, identidad/cola de telemetría y consentimiento quedan intactos. Wave 2 requiere cambiar la epoch y su build allowlist, no añadir otro borrado ad hoc.
 
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 
@@ -252,7 +252,7 @@ Los registros pasan a `userData/run-history.json` (antes solo `localStorage`, de
 
 Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (reservado), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
 
-### Telemetría privada de Playtest — Implementada 2026-08-01 (`0.10.2-beta`)
+### Telemetría privada de Playtest — Implementada 2026-08-01 (`0.10.3-beta`)
 
 La build empaquetada de Electron envía telemetría estructurada al servicio externo de Playtest. El renderer **nunca sube datos directamente**: solo publica eventos tipados mediante una API `contextBridge` de disparo y olvido; Electron main valida, identifica, encola y sube. En navegador, Vite y Electron sin empaquetar la fachada es un no-op.
 

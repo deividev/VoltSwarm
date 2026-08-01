@@ -4,6 +4,7 @@ const MAX_RENDERER_PAYLOAD_BYTES = 32 * 1024;
 const MAX_JSON_DEPTH = 12;
 const MAX_ARRAY_ITEMS = 256;
 const SAFE_ID = /^[A-Za-z0-9._:-]+$/;
+const DISPLAY_LABEL = /^[A-Za-z0-9][A-Za-z0-9 .,'&()\/:+-]*$/;
 const RUN_OUTCOMES = new Set(['defeat', 'sector-cleared', 'run-complete', 'abandoned']);
 const CHOICE_TYPES = new Set(['level_up', 'boss_summon', 'chest_purchase', 'shop_purchase']);
 const FEEDBACK_DIFFICULTIES = new Set(['too_easy', 'about_right', 'too_hard']);
@@ -94,7 +95,7 @@ function isRunEnded(payload: Record<string, unknown>): boolean {
     isRunMap(payload.map) &&
     isOptional(payload.reason, isSafeId) &&
     isOptional(payload.startingWeaponId, isSafeId) &&
-    isOptional(payload.bossTypesDefeated, (value) => isSafeIdArray(value, 32)) &&
+    isOptional(payload.bossTypesDefeated, (value) => isDisplayLabelArray(value, 32)) &&
     [payload.damageTaken, payload.goldEarned, payload.contactS, payload.enclosedS,
       payload.enclosedLowHpS, payload.cursedFinal, payload.cursedTimeAvg, payload.totalDamage]
       .every((value) => isOptional(value, isNonNegativeNumber)) &&
@@ -236,6 +237,11 @@ function isSafeId(value: unknown): value is string {
 
 function isSafeIdArray(value: unknown, maxItems: number): value is string[] {
   return Array.isArray(value) && value.length <= maxItems && value.every(isSafeId);
+}
+
+function isDisplayLabelArray(value: unknown, maxItems: number): value is string[] {
+  return Array.isArray(value) && value.length <= maxItems && value.every((entry) =>
+    typeof entry === 'string' && entry.length <= 128 && entry.trim() === entry && DISPLAY_LABEL.test(entry));
 }
 
 function isRunMap(value: unknown): boolean {

@@ -6,7 +6,7 @@ import * as path from 'node:path';
 export const PLAYTEST_RESET_CONFIG = {
   enabled: true,
   epoch: 'wave-1-rc-2026-08',
-  buildVersions: ['0.10.2-beta'],
+  buildVersions: ['0.10.2-beta', '0.10.3-beta'],
 } as const;
 
 interface ResetMarker {

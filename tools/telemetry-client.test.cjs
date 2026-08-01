@@ -257,6 +257,8 @@ test('renderer validation rejects unknown payload fields for every event family'
 
 test('run_ended validation rejects malformed and unbounded nested facts', () => {
   assert.ok(validateRendererTelemetryEvent(validRunEnded()));
+  assert.ok(validateRendererTelemetryEvent(validRunEnded({ bossTypesDefeated: ['Tesla Titan'] })));
+  assert.equal(validateRendererTelemetryEvent(validRunEnded({ bossTypesDefeated: ['Tesla\nTitan'] })), null);
   assert.equal(validateRendererTelemetryEvent(validRunEnded({ map: {
     id: 'scrapyard', number: 1, title: 'Scrapyard', email: 'hidden@example.com',
   } })), null);
@@ -266,6 +268,31 @@ test('run_ended validation rejects malformed and unbounded nested facts', () => 
     { bolt: { damage: 'not-a-number' } } })), null);
   assert.equal(validateRendererTelemetryEvent(validRunEnded({ weaponDamage:
     Object.fromEntries(Array.from({ length: 65 }, (_, index) => [`weapon-${index}`, index])) })), null);
+});
+
+test('a realistic completed run closes the active run without a shutdown abandonment', () => {
+  withTempDirectory((directory) => {
+    const client = testClient(directory, () => { throw new Error('upload not expected'); });
+    client.start();
+    assert.equal(client.captureRendererEvent(validRunStarted()), true);
+    assert.equal(client.captureRendererEvent(validRunEnded({
+      outcome: 'sector-cleared', durationS: 600, level: 32, kills: 1_491,
+      bossesDefeated: 1, bossTypesDefeated: ['Tesla Titan'], damageTaken: 101,
+      goldEarned: 868, chestsByTier: { common: 3, rare: 1 }, shopPurchases: 2,
+      contactS: 12.5, enclosedS: 4.25, enclosedLowHpS: 1.5, peakEnclosedSectors: 3,
+      cursedFinal: 0, cursedTimeAvg: 0, totalDamage: 102_070.364,
+      weaponLevels: { bolt: 8 }, weaponBranches: { bolt: { damage: 4 } },
+      weaponDamage: { bolt: 102_070.364 }, coreLevels: { armor: 5 },
+      modCounts: { repair: 2 },
+    })), true);
+    client.stop('application_closed');
+
+    const endings = readQueueState(directory).events.filter((event) =>
+      event.type === 'run_ended' && event.runId === 'run-1');
+    assert.equal(endings.length, 1);
+    assert.equal(endings[0].payload.outcome, 'sector-cleared');
+    assert.deepEqual(endings[0].payload.bossTypesDefeated, ['Tesla Titan']);
+  });
 });
 
 test('request timeout covers response-body reading and preserves events for retry', async () => {

@@ -9,7 +9,8 @@ const {
   preparePlaytestReset,
 } = require('../electron/dist/playtest-reset.js');
 
-const BUILD = '0.10.2-beta';
+const PREVIOUS_BUILD = '0.10.2-beta';
+const BUILD = '0.10.3-beta';
 
 function fixture(run) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'voltswarm-reset-'));
@@ -42,6 +43,16 @@ test('second launch in the same epoch preserves new progress', () => fixture((di
   assert.equal(fs.existsSync(path.join(directory, 'run-history.json')), true);
 }));
 
+test('the new build preserves progress after the previous build completed the epoch', () => fixture((directory) => {
+  const epoch = preparePlaytestReset(directory, true, PREVIOUS_BUILD);
+  assert.equal(completePlaytestReset(directory, epoch), true);
+  writeProgress(directory);
+  assert.equal(isPlaytestResetRequired(directory, true, BUILD), false);
+  assert.equal(preparePlaytestReset(directory, true, BUILD), null);
+  assert.equal(fs.existsSync(path.join(directory, 'profile.json')), true);
+  assert.equal(fs.existsSync(path.join(directory, 'run-history.json')), true);
+}));
+
 test('unpackaged mode never resets progress', () => fixture((directory) => {
   writeProgress(directory);
   assert.equal(isPlaytestResetRequired(directory, false, BUILD), false);
@@ -61,9 +72,9 @@ test('a pending transaction safely retries after an interrupted launch', () => f
 }));
 
 test('a newer packaged build resumes an existing pending epoch', () => fixture((directory) => {
-  const epoch = preparePlaytestReset(directory, true, BUILD);
+  const epoch = preparePlaytestReset(directory, true, PREVIOUS_BUILD);
   writeProgress(directory);
-  assert.equal(preparePlaytestReset(directory, true, '0.10.3-beta'), epoch);
+  assert.equal(preparePlaytestReset(directory, true, BUILD), epoch);
   assert.equal(fs.existsSync(path.join(directory, 'profile.json')), false);
   assert.equal(fs.existsSync(path.join(directory, 'run-history.json')), false);
 }));
