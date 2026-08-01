@@ -1370,33 +1370,37 @@ img.ui-glyph {
 /* Timed buffs (Frenzy, Haste). Sits under the HP bar so the eye already
    passes over it while checking health — the buff drop-off is the moment a
    player gets caught out, so it must be somewhere they already look. */
+/* Docked directly under the HP bar, which ends at 32px (top 14 + height 14 +
+   2px border top and bottom). 34px leaves a 2px seam so the two read as one
+   stacked unit rather than two floating widgets. Shares the HP bar's centre
+   axis for the same reason. */
 #buff-row {
   position: absolute;
-  top: 36px;
+  top: 34px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 8px;
+  gap: 10px;
   pointer-events: none;
 }
 .buff-chip {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 3px 7px 3px 4px;
-  background: rgba(10, 13, 18, 0.72);
-  border: 1px solid rgba(120, 200, 255, 0.35);
-  /* Same notched corner as the rest of the HUD plates. */
-  clip-path: polygon(0 4px, 4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%);
+  gap: 7px;
+  padding: 4px 10px 4px 6px;
+  background: rgba(10, 13, 18, 0.78);
+  border: 2px solid rgba(120, 200, 255, 0.4);
+  /* Same notched corner and 2px border weight as the HP bar above it. */
+  clip-path: polygon(0 5px, 5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%);
 }
 .buff-chip img.ui-glyph {
-  width: 18px;
-  height: 18px;
+  width: 26px;
+  height: 26px;
 }
 .buff-track {
-  width: 46px;
-  height: 5px;
-  background: rgba(255, 255, 255, 0.14);
+  width: 68px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.16);
 }
 .buff-fill {
   height: 100%;
@@ -2851,4 +2855,23 @@ body:has(.menu-view:not(.hidden)) #build-panel {
 
 @media (max-width: 640px) {
   #contracts-columns { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* --- Timed-buff row, final placement -------------------------------------
+   MUST live at the end of the file. #hp-bar is redefined three times above
+   (14px -> 34px -> 52px) and #timer twice, so anything positioned against the
+   values near the top of this stylesheet lands in the wrong place — which is
+   exactly how the first version of this row ended up drawn OVER the HP bar
+   instead of under it.
+
+   Measured in the live DOM: the HP bar occupies 52..80. The row sits at 84,
+   four pixels under it, sharing its centre axis so the two read as one
+   stacked unit. The timer moves down to clear the row rather than the row
+   being squeezed into the 10px that were free — a countdown you cannot read
+   is the whole problem this row exists to solve. */
+#buff-row {
+  top: 84px;
+}
+#timer {
+  top: 128px;
 }
