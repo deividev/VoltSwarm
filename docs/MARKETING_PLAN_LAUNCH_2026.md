@@ -1,6 +1,27 @@
 # Voltswarm - campana de wishlists en X, Reddit y Steam (20-07-2026 - lanzamiento)
 
 > **Resultado buscado:** empezar a construir audiencia el lunes **20-07-2026** y llegar a **1.000 wishlists o mas en el ultimo dia cerrado de Steam Wishlist Reporting anterior al lanzamiento** (`W_final`). Guardar su `as_of_date_pt`; registrar aparte `release_activated_at_utc`. No afirmar un total inmediato en vivo salvo contador live verificado por el publisher. El **04-11-2026** es un *stretch target interno*, no una fecha publica comprometida.
+
+## Flujo dominical operativo (activo desde 02-08-2026)
+
+El domingo a las 10:00 `Europe/Madrid` existe una sola ejecucion X + YouTube en
+`Marketing tools/marketing-dashboard`. Sus checkpoints persistentes son:
+
+1. sincronizacion con fallback y edad visible de cada fuente;
+2. cierre de cohortes disponibles +24/+72/+120/+168;
+3. comparacion contra objetivo y propuesta sin atribuir causalidad no probada;
+4. inventario anti-repeticion, brief de grabacion y derivados FFmpeg;
+5. manifiesto unico con borradores publicos en ingles;
+6. espera obligatoria de aprobacion humana;
+7. programacion y verificacion mediante adaptadores reanudables.
+
+Sin API o navegador autenticado, una pieza solo puede quedar `validated` con su
+runbook: nunca `scheduled`. YouTube privado/programado no es `published`; la
+evidencia confirmada en Studio no se degrada por una lectura API incompleta.
+Steam Events S1 y Reddit comparten la ejecucion como trabajo asistido, pero no se
+autopublican. Reddit exige rules check vigente con URL, `checkedAt`, hash y
+caducidad, ademas del disclosure exacto cuando corresponda. X y Reddit siguen
+admitiendo solo MP4 o PNG/JPG, nunca GIF.
 >
 > **Estado público verificado el 29-07-2026:** la página de Voltswarm está accesible públicamente en Steam como Coming Soon: `https://store.steampowered.com/app/4979220/Voltswarm/` (App ID `4979220`). Los totales de wishlists y cualquier dato privado de Steamworks siguen requiriendo confirmación del publisher; no se infieren desde la página pública.
 
@@ -23,7 +44,7 @@
 | Multiplayer/co-op | No se promociona, etiqueta ni promete antes del GO documentado, implementacion terminada y verificacion jugable. "Como minimo co-op 2" es una intencion condicionada, no una feature actual. |
 | Disclosure publico sobre IA | La unica redaccion autorizada es: `The game does not contain AI-generated content. AI-generated content is used just for Steam cover.` No se parafrasea ni amplia mientras Steam no se actualice oficialmente. |
 | Formato por plataforma | Desde 23-07-2026, X y Reddit usan solo MP4 de alta calidad o capturas PNG/JPG; nunca GIF. Steam puede usar GIF, MP4 o capturas segun convenga. |
-| Canal de video propio | Herramienta semanal multijuego disponible en `C:\Users\david\Desktop\Agent Games Web\Marketing tools\youtube-shorts` (v0.2.0). Cada domingo a las 11:00 Europe/Madrid prepara el manifiesto de Shorts de la semana siguiente; nunca publica dentro de la automatizacion. Voltswarm aporta MP4 reutilizables y se programa solo tras aprobar expresamente el manifiesto. OAuth, canal y auditoria de YouTube siguen siendo gates externos. No abrir ni prometer TikTok/Reels como sustituto sin una decision posterior. |
+| Canal de video propio | Herramienta semanal multijuego disponible en `C:\Users\david\Desktop\Agent Games Web\Marketing tools\youtube-shorts` (v0.2.0). Los Shorts forman parte del proceso semanal unico de cada domingo a las 10:00 Europe/Madrid: se revisan datos, se decide el contenido de la semana siguiente y se prepara el mismo manifiesto operativo que X. Nunca se publica ni programa sin aprobar expresamente el manifiesto. Voltswarm aporta MP4 reutilizables; OAuth, canal y auditoria de YouTube siguen siendo gates externos. No abrir ni prometer TikTok/Reels como sustituto sin una decision posterior. |
 | Outreach cualificado | Mantenerlo en el hito de septiembre con el primer minitrailer y material de desarrollo mas avanzado. No adelantar mensajes a prensa/creadores por la pagina Steam sola. |
 | Overlay explicativo de gameplay | Cuando el usuario pida texto explicativo sobre gameplay en un clip, usar el lower-third aprobado: franja inferior azul oscuro a ancho completo, borde cian, titulo blanco y subtitulo cian centrados. Mantenerlo breve, usar terminos in-game verificados y retirarlo antes del payoff. Cuando enumere tiers, colorear cada nombre con su color in-game correspondiente. |
 | Cover de Steam Events | Sistema aprobado: base canonica `art/steam/events/s1/event-cover-s1-capsule-800x450.png` + banda inferior compacta de estado para futuros Events/Announcements. Mantener exactamente el capsule y agregar solo: banda azul marino semitransparente, regla superior cian y texto blanco centrado. El copy depende del hito (`UPDATED vX.Y.Z`, `NEW CONTENT`, `PATCH vX.Y.Z`). Nunca alterar logo, personajes ni composicion del capsule. El ejemplo visual literal `UPDTED v1.0.0` vive en `art/steam/events/templates/event-cover-overlay-example-updted-v1.0.0.png`; es referencia de estilo, no master de produccion. |
