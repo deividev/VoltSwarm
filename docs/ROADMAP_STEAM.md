@@ -2,7 +2,7 @@
 
 **Destino canónico verificado del juego completo:** Steam App ID `4979220` — `https://store.steampowered.com/app/4979220/Voltswarm/`.
 
-Fecha: 2026-08-02. Versión de máquina de la demo del Mapa 1: **0.11.0-demo.1** (UI: **0.11.0 Demo 1**).
+Fecha: 2026-08-02. Versión de máquina de la demo del Mapa 1: **0.11.1-demo** (UI: **0.11.1 Demo**).
 
 ## Demo pública del Mapa 1 — decisión vigente (2026-08-02)
 

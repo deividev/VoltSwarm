@@ -1,12 +1,20 @@
 const FULL_GAME_STEAM_APP_ID = 4979220;
 const FULL_GAME_STEAM_URL = 'https://store.steampowered.com/app/4979220/Voltswarm/';
-const DEMO_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-demo\.(0|[1-9]\d*)$/;
+const DEMO_VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-demo$/;
+
+function windowsFileVersionForDemo(version) {
+  const match = DEMO_VERSION_PATTERN.exec(version ?? '');
+  return match ? `${match[1]}.${match[2]}.${match[3]}.0` : null;
+}
 
 function validateDemoBuildMetadata(pkg) {
   const metadata = pkg?.voltswarmBuild;
   const problems = [];
-  if (!DEMO_VERSION_PATTERN.test(pkg?.version ?? '')) {
-    problems.push('package version must be a SemVer demo prerelease (for example, 0.11.0-demo.1)');
+  const windowsFileVersion = windowsFileVersionForDemo(pkg?.version);
+  if (windowsFileVersion === null) {
+    problems.push('package version must be a SemVer demo prerelease (for example, 0.11.1-demo)');
+  } else if (pkg?.build?.buildVersion !== windowsFileVersion) {
+    problems.push(`electron-builder buildVersion must be ${windowsFileVersion} for package version ${pkg.version}`);
   }
   if (metadata?.flavor !== 'demo') problems.push('build flavor must be demo');
   if (!Array.isArray(metadata?.allowedMaps) ||
@@ -47,4 +55,5 @@ module.exports = {
   FULL_GAME_STEAM_URL,
   isCanonicalFullGameSteamTarget,
   validateDemoBuildMetadata,
+  windowsFileVersionForDemo,
 };

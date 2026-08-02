@@ -1,13 +1,13 @@
 # Voltswarm — PRD v2 (definitivo)
 
-## Steam Map 1 Demo — 0.11.0 Demo 1
+## Steam Map 1 Demo — 0.11.1 Demo
 
 La demo pública ofrece una run completa del Scrapyard (Mapa 1) y termina ahí. `package.json` es la fuente única del contrato de build: flavor `demo`, `allowedMaps: ['scrapyard']`, `userDataDirectory: 'Voltswarm Demo'`, y el juego completo en Steam App ID `4979220` / `https://store.steampowered.com/app/4979220/Voltswarm/`.
 
 Criterios de aceptación:
 
 - Identidad Electron y de artefactos explícita de demo; saves separados del juego completo y del playtest.
-- Etiqueta visible `0.11.0 Demo 1`; ningún Mapa 2 admitido.
+- Etiqueta visible `0.11.1 Demo`; ningún Mapa 2 admitido.
 - Telemetría, consentimiento, reset de playtest, identidad, cola, red y feedback sin efectos laterales en flavor `demo`; el código reutilizable permanece.
 - **Wishlist Full Game** en menú principal y pantalla final, operable con teclado/gamepad. Electron abre únicamente la URL HTTPS canónica, sin aceptar URL del renderer; el CTA se oculta o falla de forma segura si el destino no está disponible.
 - Los dos comandos de empaquetado ejecutan el guard de release, que valida flavor, versión, allowlist, telemetría, identidad, `userData`, Steam y flags dev existentes.
@@ -244,7 +244,7 @@ Successful local packaged Electron run via `npm run benchmark:audio`: determinis
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
-**Estado histórico superseded:** Steam Playtest Wave 1 (`0.10.5-beta`) admitía esa build y reutilizaba la epoch `wave-1-rc-2026-08`. La demo `0.11.0-demo.1` no continúa esa wave: no pide consentimiento, no resetea progreso y no crea identidad ni cola de telemetría.
+**Estado histórico superseded:** Steam Playtest Wave 1 (`0.10.5-beta`) admitía esa build y reutilizaba la epoch `wave-1-rc-2026-08`. La demo `0.11.1-demo` no continúa esa wave: no pide consentimiento, no resetea progreso y no crea identidad ni cola de telemetría.
 
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 

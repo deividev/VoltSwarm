@@ -7,7 +7,7 @@ test('human versions keep the number first and normalize known labels', () => {
   assert.equal(formatDisplayVersion('0.10.2-alpha.3'), '0.10.2 Alpha');
   assert.equal(formatDisplayVersion('0.10.2-preview'), '0.10.2 Preview');
   assert.equal(formatDisplayVersion('0.10.2-playtest'), '0.10.2 Playtest');
-  assert.equal(formatDisplayVersion('0.11.0-demo.1'), '0.11.0 Demo 1');
+  assert.equal(formatDisplayVersion('0.11.1-demo'), '0.11.1 Demo');
   assert.equal(formatDisplayVersion('0.10.2-rc.1'), '0.10.2 rc.1');
   assert.equal(formatDisplayVersion('0.10.2'), '0.10.2');
 });
