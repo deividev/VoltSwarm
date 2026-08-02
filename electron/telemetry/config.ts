@@ -24,12 +24,13 @@ export interface PlaytestRuntime {
   packaged: boolean;
   benchmark: boolean;
   buildVersion: string;
+  flavor: string;
 }
 
-/** Steam Playtest Wave 1 is admitted only by this exact packaged build. */
+/** Demo policy: keep the reusable telemetry stack compiled but admit no build. */
 export const TELEMETRY_CONFIG: PlaytestTelemetryConfig = {
-  enabled: true,
-  admittedBuildVersions: ['0.10.5-beta'],
+  enabled: false,
+  admittedBuildVersions: [],
   gameId: 'voltswarm',
   waveId: 'wave-1',
   schemaVersion: 1,
@@ -41,7 +42,7 @@ export const TELEMETRY_CONFIG: PlaytestTelemetryConfig = {
     acceptLabel: 'Enable Telemetry',
     declineLabel: 'Exit Without Sending Data',
   },
-  resetEpoch: 'wave-1-rc-2026-08',
+  resetEpoch: null,
   endpoint: 'https://playtest-telemetry.voltswarm-playtests.workers.dev',
   clientToken: 'B0gQ79eMVQr8owNtDuSEVmPb7kC7uj9C3fmrANv_hCk',
   maxBatchSize: 100,
@@ -55,6 +56,6 @@ export function isPlaytestEligible(
   config: PlaytestTelemetryConfig,
   runtime: PlaytestRuntime,
 ): boolean {
-  return config.enabled && runtime.packaged && !runtime.benchmark &&
+  return runtime.flavor === 'playtest' && config.enabled && runtime.packaged && !runtime.benchmark &&
     config.admittedBuildVersions.includes(runtime.buildVersion);
 }

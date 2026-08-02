@@ -5,6 +5,7 @@ node_modules/
 dist/
 electron/dist/
 release/
+release-demo-map1/
 
 # Logs
 *.log

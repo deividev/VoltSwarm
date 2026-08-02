@@ -1,6 +1,18 @@
 # Voltswarm — Roadmap a Steam
 
-Fecha: 2026-08-02. Versión de máquina actual: **0.10.5-beta** (UI: **0.10.5 Beta**).
+**Destino canónico verificado del juego completo:** Steam App ID `4979220` — `https://store.steampowered.com/app/4979220/Voltswarm/`.
+
+Fecha: 2026-08-02. Versión de máquina de la demo del Mapa 1: **0.11.0-demo.1** (UI: **0.11.0 Demo 1**).
+
+## Demo pública del Mapa 1 — decisión vigente (2026-08-02)
+
+La demo es una build aislada de conversión, no un playtest ni un recorte accidental del juego completo. Su contrato empaquetado vive en `package.json`: flavor `demo`, allowlist exclusiva `['scrapyard']`, identidad **Voltswarm Demo**, `userData` propio y CTA **Wishlist Full Game** hacia el destino canónico anterior. La telemetría privada de playtest queda compilada para reutilización futura, pero totalmente inerte: `enabled: false`, ninguna versión admitida y `resetEpoch: null`.
+
+La build solo contiene el Mapa 1 jugable. El CTA aparece en el menú principal y al terminar una run, admite teclado/gamepad y se oculta si Electron no puede validar el destino. Tanto `npm run package` como `npm run package:dir` ejecutan el guard de release.
+
+**Texto superseded:** la decisión del 2026-07-14 de “lanzamiento completo directo, sin demo pública” ya no gobierna el plan. Se conserva abajo únicamente como historial de la decisión anterior.
+
+**Propagación posterior de balance:** el balance se decide y valida primero en `main`; después se propaga explícitamente `main -> demo-map1` y `main -> map-2`. No se calibran números de gameplay directamente en las ramas derivadas y este corte de demo no cambia balance.
 
 **⚠️ ORDEN REORDENADO POR DECISIÓN DEL USUARIO (2026-07-25): el gate de viabilidad multijugador se DIFIERE a post-lanzamiento.** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno del 4 de noviembre, para una feature que este mismo roadmap documenta como no diferenciadora, no prometida públicamente y que puede terminar en NO-GO — mientras el Mapa 2, el gameplay de Volt Warden, los 3 personajes y los contratos quedaban comprimidos en ~3 semanas. Del gate se rescató solo la mitad barata: cobertura de smoke tests (`npm run test:smoke`). El determinismo de tick fijo sigue diferido.
 
@@ -10,7 +22,7 @@ Orden anterior (superseded): foundation de audio → viabilidad multijugador →
 
 **Página Coming Soon pública:** verificada el 2026-07-29 en `https://store.steampowered.com/app/4979220/Voltswarm/`. La primera versión de la página salió sin tráiler: usa screenshots reales y loops animados en `About This Game`. El tráiler principal se producirá cuando estén terminados el Mapa 2, Volt Warden y los personajes adicionales, para que represente el juego completo.
 
-**Estrategia de lanzamiento confirmada (2026-07-14): lanzamiento completo directo, sin demo pública previa y sin participar en Steam Next Fest.** La página Coming Soon acumula wishlists mientras se termina la versión completa; no se desvía producción hacia una build separada de demo.
+**Estrategia histórica superseded (2026-07-14): lanzamiento completo directo, sin demo pública previa y sin participar en Steam Next Fest.** Fue reemplazada por la decisión de demo pública del Mapa 1 del 2026-08-02; ya no debe usarse para bloquear trabajo de demo.
 
 **Fecha objetivo interna (stretch agresivo, 2026-07-17): miércoles 4 de noviembre de 2026.** No es una estimación segura ni una promesa pública/confirmada. Revalidar después de cerrar Mapa 2 + Volt Warden y los 3 personajes; si fallan gates medidos, re-baselinar en vez de ocultar el riesgo. Scope freeze para aspirar a esta fecha: exactamente 3 personajes de lanzamiento, ~30 contratos y sin expansión de contenido no planificada. Multiplayer, determinismo de red, host migration, dedicated servers e hybrid local+online quedan fuera del camino crítico y se reevalúan post-lanzamiento. Detalle operativo en `docs/MARKETING_PLAN_LAUNCH_2026.md`.
 
@@ -110,8 +122,8 @@ Lo que falta para que las capturas/GIFs vendan la página de Steam:
 - ✅ **Build completa + desglose de daño por arma en pantalla final — COMPLETADO 2026-07-17.** La pantalla conserva Weapons/Cores/Mods con el mismo lenguaje visual del RIG. Instrumento de balance sobre el embudo `dealDamage`: daño real sin overkill, atribución de DoT, porcentaje del total y barras comparativas ordenadas.
 - ✅ **Settings in-game — SUPERADO por Settings v3 (2026-07-13, PRD §"Settings v3")**: pantalla completa con sidebar General/Controls, auto-apply (sin botón Apply), remapeo de controles teclado+gamepad, IPC de fullscreen/resolución aplicándose solo al cambiar (fix del parpadeo). Los sliders de volumen existen, persisten y gobiernan la Audio Foundation
 - ✅ **Menú principal completo**: Play / Unlocks / Settings / Exit; Settings compartido con pausa; versión visible abajo a la derecha como `MAJOR.MINOR.PATCH Label` (`0.10.5 Beta`). `vite.config.ts` deriva la presentación desde el SemVer crudo de `package.json`. **Futuro, no implementado:** si el gate da GO, el destino pasa a `Play Solo` / `Play Multiplayer`.
-- ✅ **Steam Playtest Wave 1 activa (`0.10.5-beta`):** el master tipado admite exclusivamente esa build empaquetada (`gameId: voltswarm`, `waveId: wave-1`) y mantiene schema/disclosure, endpoint y límites. Consentimiento atómico ligado al copy se pide una vez; reset exige confirmación separada. Cada evento persiste scope inmutable y los legacy sin scope se cuarentenan, nunca se relabelan.
-- ✅ **Reset limpio Wave 1:** `resetEpoch: wave-1-rc-2026-08` conserva el progreso de testers que ya completaron esa epoch en `0.10.2-beta`/`0.10.3-beta`, pero resetea una vez las instalaciones nuevas de `0.10.5-beta`.
+- ✅ **Steam Playtest Wave 1 — histórico superseded (`0.10.5-beta`):** el master tipado admitía esa build (`gameId: voltswarm`, `waveId: wave-1`). La demo conserva el código reusable pero su flavor no es `playtest`, la telemetría está deshabilitada y no admite versiones.
+- ✅ **Reset Wave 1 — histórico superseded:** `resetEpoch: wave-1-rc-2026-08` pertenecía al playtest. La demo usa `resetEpoch: null` y `userData` aislado; no consulta ni altera el progreso del juego completo o del playtest.
 
 ## Fase 4a — Audio v1 (CERRADO)
 

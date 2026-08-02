@@ -49,5 +49,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     unlockAchievement: (name: string): void => {
       ipcRenderer.sendSync('steam:unlock', name);
     },
+    canOpenFullGameStore: (): boolean =>
+      ipcRenderer.sendSync('steam:full-game-store-available') as boolean,
+    openFullGameStore: (): Promise<boolean> =>
+      ipcRenderer.invoke('steam:open-full-game-store') as Promise<boolean>,
   },
 });

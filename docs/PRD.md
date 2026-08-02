@@ -1,5 +1,19 @@
 # Voltswarm — PRD v2 (definitivo)
 
+## Steam Map 1 Demo — 0.11.0 Demo 1
+
+La demo pública ofrece una run completa del Scrapyard (Mapa 1) y termina ahí. `package.json` es la fuente única del contrato de build: flavor `demo`, `allowedMaps: ['scrapyard']`, `userDataDirectory: 'Voltswarm Demo'`, y el juego completo en Steam App ID `4979220` / `https://store.steampowered.com/app/4979220/Voltswarm/`.
+
+Criterios de aceptación:
+
+- Identidad Electron y de artefactos explícita de demo; saves separados del juego completo y del playtest.
+- Etiqueta visible `0.11.0 Demo 1`; ningún Mapa 2 admitido.
+- Telemetría, consentimiento, reset de playtest, identidad, cola, red y feedback sin efectos laterales en flavor `demo`; el código reutilizable permanece.
+- **Wishlist Full Game** en menú principal y pantalla final, operable con teclado/gamepad. Electron abre únicamente la URL HTTPS canónica, sin aceptar URL del renderer; el CTA se oculta o falla de forma segura si el destino no está disponible.
+- Los dos comandos de empaquetado ejecutan el guard de release, que valida flavor, versión, allowlist, telemetría, identidad, `userData`, Steam y flags dev existentes.
+
+El balance no cambia en este corte. Los cambios futuros se validan primero en `main` y se propagan de forma explícita `main -> demo-map1` y `main -> map-2`; las ramas derivadas no son autoridades de balance.
+
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
 ## Estado de la arquitectura (actualizado 2026-07-26, v0.6.5)
@@ -230,7 +244,7 @@ Successful local packaged Electron run via `npm run benchmark:audio`: determinis
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
-La release activa de Steam Playtest Wave 1 es `0.10.5-beta`. Admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08` de las builds históricas `0.10.2-beta` y `0.10.3-beta`: quien ya completó la epoch conserva su progreso, mientras una instalación nueva recibe el reset limpio una sola vez. El consentimiento de telemetría nunca autoriza el borrado, que exige una confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional (`pending` antes de borrar, `complete` solo tras limpiar archivo y fallbacks legacy), y settings/consentimiento/identidad/cola quedan fuera del reset.
+**Estado histórico superseded:** Steam Playtest Wave 1 (`0.10.5-beta`) admitía esa build y reutilizaba la epoch `wave-1-rc-2026-08`. La demo `0.11.0-demo.1` no continúa esa wave: no pide consentimiento, no resetea progreso y no crea identidad ni cola de telemetría.
 
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 
@@ -252,9 +266,9 @@ Los registros pasan a `userData/run-history.json` (antes solo `localStorage`, de
 
 Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (reservado), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
 
-### Ciclo reutilizable de telemetría privada — Wave 1 activa (`0.10.5-beta`)
+### Ciclo reutilizable de telemetría privada — Wave 1 histórica, demo inerte
 
-Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. La elegibilidad es estrictamente `enabled && packaged && !benchmark && admittedBuildVersions.includes(buildVersion)`. Si falla, no hay prompt, reset, lectura/escritura de consentimiento, identidad, cola ni red, y la fachada renderer informa no disponible. En la release activa: `enabled: true`, allowlist exacta `['0.10.5-beta']`, `gameId: 'voltswarm'`, `waveId: 'wave-1'` y `resetEpoch: 'wave-1-rc-2026-08'`.
+Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. La elegibilidad exige además flavor `playtest`: `flavor === 'playtest' && enabled && packaged && !benchmark && admittedBuildVersions.includes(buildVersion)`. Si falla, no hay prompt, reset, lectura/escritura de consentimiento, identidad, cola, red ni feedback, y la fachada renderer informa no disponible. En la demo vigente: `enabled: false`, allowlist vacía y `resetEpoch: null`; los valores activos de Wave 1 quedan documentados solo como historial.
 
 Cuando una wave futura se habilite, Electron main exige una prueba atómica `userData/telemetry-consent.json` ligada al digest determinista de `consentVersion` y de todo el copy renderizado desde `TELEMETRY_CONFIG.disclosure`: ausencia pide consentimiento; corrupción bloquea; la misma disclosure sirve silenciosamente en launches/waves posteriores; cambiar versión o texto vuelve a preguntar automáticamente. El reset tiene un diálogo independiente incluso con consentimiento existente. El renderer **nunca sube datos directamente**: solo publica eventos tipados mediante `contextBridge`; Electron main valida, identifica, encola y sube después de elegibilidad y consentimiento.
 

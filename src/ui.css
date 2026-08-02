@@ -2502,6 +2502,19 @@ body:has(.menu-view:not(.hidden)) #build-panel {
   width: 260px;
 }
 
+.wishlist-button {
+  border-color: #f2b632 !important;
+  color: #f2b632 !important;
+  box-shadow: 0 0 18px rgba(242, 182, 50, 0.2);
+}
+
+#end-actions {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    Loading view — covers the world build + warmup renders (game.ts) so the
    reveal is smooth. Placeholder animation; a richer one can replace it later.

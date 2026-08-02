@@ -303,6 +303,8 @@ export class Hud {
     private readonly onFeedbackSubmit: (feedback: StructuredFeedback) => Promise<boolean>,
     feedbackAvailable: boolean,
   ) {
+    const wishlistAvailable = __BUILD_FLAVOR__ === 'demo' &&
+      (window.electronAPI?.steam.canOpenFullGameStore() ?? false);
     root.insertAdjacentHTML(
       'beforeend',
       `
@@ -339,6 +341,7 @@ export class Hud {
           <button id="contracts-button">Contracts</button>
           ${DEV_TOOLS.unlockPanel ? '<button id="unlocks-button">Unlocks</button>' : ''}
           <button id="menu-settings-button">Settings</button>
+          ${wishlistAvailable ? '<button id="wishlist-button" class="wishlist-button">Wishlist Full Game</button>' : ''}
           <button id="exit-button">Exit</button>
         </div>
         <div id="version-tag">${__APP_DISPLAY_VERSION__}</div>
@@ -445,7 +448,10 @@ export class Hud {
           <button id="feedback-submit" type="button" disabled>Submit Feedback</button>
           <p id="feedback-status" role="status"></p>
         </section>
-        <button id="restart-button">Main Menu</button>
+        <div id="end-actions">
+          ${wishlistAvailable ? '<button id="end-wishlist-button" class="wishlist-button">Wishlist Full Game</button>' : ''}
+          <button id="restart-button">Main Menu</button>
+        </div>
       </div>
       <div id="pause-overlay" class="overlay hidden">
         <h1>Paused</h1>
@@ -608,6 +614,13 @@ export class Hud {
       mustGet('menu-overlay').classList.add('hidden');
       this.showDraft();
     });
+    const openFullGameStore = async (): Promise<void> => {
+      const opened = await window.electronAPI?.steam.openFullGameStore();
+      if (opened === false) this.toast('Steam page unavailable');
+    };
+    for (const id of ['wishlist-button', 'end-wishlist-button']) {
+      document.getElementById(id)?.addEventListener('click', () => void openFullGameStore());
+    }
     mustGet('restart-button').addEventListener('click', () => {
       this.endOverlay.classList.add('hidden');
       // Resets the run world AND the game state back to 'menu' (so the 3D stops

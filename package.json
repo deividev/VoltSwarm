@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.10.5-beta",
+  "version": "0.11.0-demo.1",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -12,13 +12,13 @@
     "typecheck": "tsc --noEmit",
     "electron:build": "tsc -p tsconfig.electron.json && node tools/write-electron-cjs-package.cjs",
     "electron:start": "npm run build && npm run electron:build && electron .",
-    "prepackage": "node tools/check-release-flags.mjs",
-    "package": "npm run build && npm run electron:build && electron-builder",
-    "package:dir": "npm run build && npm run electron:build && electron-builder --dir",
+    "package": "npm run check:release-flags && npm run build && npm run electron:build && electron-builder",
+    "package:dir": "npm run check:release-flags && npm run build && npm run electron:build && electron-builder --dir",
     "check:release-flags": "node tools/check-release-flags.mjs",
     "test:smoke": "node tools/smoke-run.mjs",
     "test:telemetry": "npm run electron:build && node --test tools/telemetry-client.test.cjs",
     "test:version": "node --test tools/version-format.test.cjs",
+    "test:demo": "node --test tools/demo-build.test.cjs tools/version-format.test.cjs",
     "test:playtest-reset": "npm run electron:build && node --test tools/playtest-reset.test.cjs",
     "stats": "node tools/run-stats.mjs",
     "reset:profile": "node tools/reset-profile.mjs",
@@ -29,6 +29,15 @@
   },
   "author": "David Seco Diaz",
   "license": "MIT",
+  "voltswarmBuild": {
+    "flavor": "demo",
+    "allowedMaps": [
+      "scrapyard"
+    ],
+    "userDataDirectory": "Voltswarm Demo",
+    "fullGameSteamAppId": 4979220,
+    "fullGameSteamUrl": "https://store.steampowered.com/app/4979220/Voltswarm/"
+  },
   "dependencies": {
     "three": "^0.169.0"
   },
@@ -42,10 +51,10 @@
     "vite": "^5.4.10"
   },
   "build": {
-    "appId": "com.davidseco.voltswarm",
-    "productName": "Voltswarm",
+    "appId": "com.davidseco.voltswarm.demo",
+    "productName": "Voltswarm Demo",
     "directories": {
-      "output": "release"
+      "output": "release-demo-map1"
     },
     "files": [
       "dist/**/*",
@@ -60,12 +69,12 @@
       ]
     },
     "nsis": {
-      "artifactName": "${productName}-${version}-setup.${ext}",
+      "artifactName": "Voltswarm-Demo-${version}-setup.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true
     },
     "portable": {
-      "artifactName": "${productName}-${version}-portable.${ext}"
+      "artifactName": "Voltswarm-Demo-${version}-portable.${ext}"
     }
   }
 }

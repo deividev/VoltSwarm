@@ -4,6 +4,9 @@
 declare const __APP_VERSION__: string;
 /** Human-facing version: number first, release label second. */
 declare const __APP_DISPLAY_VERSION__: string;
+/** Package-embedded build contract injected by Vite. */
+declare const __BUILD_FLAVOR__: string;
+declare const __ALLOWED_MAPS__: readonly string[];
 
 interface Window {
   electronAPI?: {
@@ -32,6 +35,8 @@ interface Window {
     steam: {
       isAvailable(): boolean;
       unlockAchievement(name: string): void;
+      canOpenFullGameStore(): boolean;
+      openFullGameStore(): Promise<boolean>;
     };
   };
 }

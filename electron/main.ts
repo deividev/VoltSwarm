@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain } from 'electron';
+import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { TelemetryClient } from './telemetry/client';
@@ -6,12 +6,48 @@ import { hasTelemetryConsent, persistTelemetryConsent } from './telemetry/consen
 import { isPlaytestEligible, TELEMETRY_CONFIG } from './telemetry/config';
 import { completePlaytestReset, isPlaytestResetRequired, preparePlaytestReset } from './playtest-reset';
 
+interface PackageBuildMetadata {
+  flavor: string;
+  allowedMaps: string[];
+  userDataDirectory: string;
+  fullGameSteamAppId: number;
+  fullGameSteamUrl: string;
+}
+
+// electron-builder embeds this package.json. Identity, content scope,
+// persistence isolation, and the CTA target therefore share one authority.
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const packageJson = require('../../package.json') as {
+  voltswarmBuild: PackageBuildMetadata;
+  build: { appId: string; productName: string };
+};
+const BUILD_METADATA = packageJson.voltswarmBuild;
+const APP_TITLE = packageJson.build.productName;
+
+app.setName(APP_TITLE);
+app.setPath('userData', path.join(app.getPath('appData'), BUILD_METADATA.userDataDirectory));
+app.setAppUserModelId(packageJson.build.appId);
+
 let mainWindow: BrowserWindow | null = null;
 let telemetryClient: TelemetryClient | null = null;
 let telemetryShutdownRecorded = false;
 let pendingPlaytestResetEpoch: string | null = null;
-const APP_TITLE = 'Voltswarm';
 const benchmarkMode = app.isPackaged && process.argv.includes('--audio-benchmark');
+
+function fullGameStoreTarget(): string | null {
+  try {
+    const url = new URL(BUILD_METADATA.fullGameSteamUrl);
+    const expectedPath = `/app/${BUILD_METADATA.fullGameSteamAppId}/Voltswarm/`;
+    if (BUILD_METADATA.fullGameSteamAppId !== 4979220 ||
+        url.href !== 'https://store.steampowered.com/app/4979220/Voltswarm/' ||
+        url.protocol !== 'https:' || url.hostname !== 'store.steampowered.com' ||
+        url.port || url.username || url.password || url.search || url.hash ||
+        url.pathname !== expectedPath) return null;
+    return url.href;
+  } catch {
+    return null;
+  }
+}
 
 // Steam SDK client, or null when Steam is disabled. `steamworks.js` is optional:
 // it is required lazily so the app builds and runs without the dependency.
@@ -162,6 +198,7 @@ void app.whenReady().then(() => {
     packaged: app.isPackaged,
     benchmark: benchmarkMode,
     buildVersion: app.getVersion(),
+    flavor: BUILD_METADATA.flavor,
   };
   if (isPlaytestEligible(TELEMETRY_CONFIG, runtime)) {
     const userDataPath = app.getPath('userData');
@@ -344,6 +381,22 @@ void app.whenReady().then(() => {
       event.returnValue = true;
     } catch {
       event.returnValue = false;
+    }
+  });
+
+  ipcMain.on('steam:full-game-store-available', (event) => {
+    event.returnValue = fullGameStoreTarget() !== null;
+  });
+
+  ipcMain.handle('steam:open-full-game-store', async () => {
+    const target = fullGameStoreTarget();
+    if (!target) return false;
+    try {
+      await shell.openExternal(target, { activate: true });
+      return true;
+    } catch (error) {
+      console.warn('Full-game Steam page could not be opened:', (error as Error).message);
+      return false;
     }
   });
 

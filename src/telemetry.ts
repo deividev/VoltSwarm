@@ -88,7 +88,8 @@ class PerformanceAccumulator {
 }
 
 class TelemetryFacade {
-  private readonly enabled = window.electronAPI?.telemetry?.isEnabled() ?? false;
+  private readonly enabled = __BUILD_FLAVOR__ === 'playtest' &&
+    (window.electronAPI?.telemetry?.isEnabled() ?? false);
   private runId: string | null = null;
   private periodicPerformance = new PerformanceAccumulator();
   private totalPerformance = new PerformanceAccumulator();

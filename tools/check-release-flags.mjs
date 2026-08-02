@@ -1,16 +1,21 @@
-// Release guard. Runs automatically as npm's `prepackage` hook, so building the
-// installer while a developer instrument is still switched on fails loudly
-// instead of shipping a cheat menu or a capture rig to a paying player.
-//
-// `package:dir` is deliberately NOT guarded — that target exists for quick local
-// runs where dev tools are wanted.
+// Release guard. Both package targets call it explicitly so neither an
+// installer nor an unpacked demo can bypass identity/content safety checks.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { createRequire } from 'node:module';
+
+const require = createRequire(import.meta.url);
+const { validateDemoBuildMetadata } = require('./build-metadata.cjs');
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const configPath = path.join(root, 'src', 'config.ts');
 const source = readFileSync(configPath, 'utf8');
+const packagePath = path.join(root, 'package.json');
+const pkg = JSON.parse(readFileSync(packagePath, 'utf8'));
+const telemetrySource = readFileSync(path.join(root, 'electron', 'telemetry', 'config.ts'), 'utf8');
+const electronMainSource = readFileSync(path.join(root, 'electron', 'main.ts'), 'utf8');
+const rendererMainSource = readFileSync(path.join(root, 'src', 'main.ts'), 'utf8');
 
 /** Flags that must read `false` in a release build. `block` scopes the search to
  *  one exported table so a same-named key elsewhere cannot satisfy the check. */
@@ -34,6 +39,44 @@ function blockOf(name) {
 }
 
 const problems = [];
+problems.push(...validateDemoBuildMetadata(pkg));
+if (pkg.build?.appId !== 'com.davidseco.voltswarm.demo') {
+  problems.push('electron-builder appId must be com.davidseco.voltswarm.demo');
+}
+if (pkg.build?.productName !== 'Voltswarm Demo') {
+  problems.push('electron-builder productName must be Voltswarm Demo');
+}
+if (pkg.build?.directories?.output !== 'release-demo-map1') {
+  problems.push('demo packages must use the isolated release-demo-map1 output directory');
+}
+if (pkg.build?.nsis?.artifactName !== 'Voltswarm-Demo-${version}-setup.${ext}' ||
+    pkg.build?.portable?.artifactName !== 'Voltswarm-Demo-${version}-portable.${ext}') {
+  problems.push('demo installer and portable artifacts must use explicit Voltswarm-Demo names');
+}
+if (!/enabled:\s*false\b/.test(telemetrySource) ||
+    !/admittedBuildVersions:\s*\[\]/.test(telemetrySource) ||
+    !/resetEpoch:\s*null\b/.test(telemetrySource)) {
+  problems.push('demo telemetry must remain disabled with no admitted builds and no reset epoch');
+}
+if (!/runtime\.flavor\s*===\s*'playtest'/.test(telemetrySource)) {
+  problems.push('playtest eligibility must reject non-playtest build flavors');
+}
+if (!pkg.scripts?.package?.includes('check:release-flags') ||
+    !pkg.scripts?.['package:dir']?.includes('check:release-flags')) {
+  problems.push('both package and package:dir must run the release guard');
+}
+if (!electronMainSource.includes("app.setPath('userData'") ||
+    !electronMainSource.includes('BUILD_METADATA.userDataDirectory') ||
+    !electronMainSource.includes('app.setAppUserModelId(packageJson.build.appId)')) {
+  problems.push('Electron must apply the package-owned demo userData and app identity');
+}
+if (!electronMainSource.includes('shell.openExternal(target') ||
+    !electronMainSource.includes('fullGameStoreTarget()')) {
+  problems.push('wishlist CTA must validate and open only the package-owned Steam target');
+}
+if (!rendererMainSource.includes("__ALLOWED_MAPS__[0] !== 'scrapyard'")) {
+  problems.push('renderer must enforce the packaged Scrapyard-only map contract');
+}
 for (const { block, key, why } of GUARDED) {
   const body = blockOf(block);
   if (body === null) {
@@ -55,4 +98,4 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
-console.log('Release flag check passed: no developer instruments enabled.');
+console.log('Release flag check passed: demo identity, scope, telemetry, CTA, and developer flags are safe.');

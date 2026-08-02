@@ -122,7 +122,7 @@ function acceptedBatchResponse(init, select = (events) => events) {
 function testClient(directory, fetchImpl, options = {}) {
   let nextId = 0;
   return new TelemetryClient(directory, {
-    packaged: true, benchmark: false, buildVersion: '0.10.5-beta',
+    packaged: true, benchmark: false, buildVersion: '0.10.5-beta', flavor: 'playtest',
   }, TEST_CONFIG, true, {
     fetch: fetchImpl,
     createId: () => `test-id-${++nextId}`,
@@ -134,7 +134,7 @@ function testClient(directory, fetchImpl, options = {}) {
 
 test('disabled or unconsented clients create no identity or queue side effects', () => {
   withTempDirectory((directory) => {
-    const runtime = { packaged: true, benchmark: false, buildVersion: '0.10.5-beta' };
+    const runtime = { packaged: true, benchmark: false, buildVersion: '0.10.5-beta', flavor: 'playtest' };
     assert.throws(() => new TelemetryClient(
       directory, runtime, { ...TEST_CONFIG, enabled: false }, true,
     ), /telemetry_not_authorized/);

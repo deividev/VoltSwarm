@@ -1,5 +1,7 @@
 # Voltswarm - campana de wishlists en X, Reddit y Steam (20-07-2026 - lanzamiento)
 
+**Destino canónico verificado del juego completo:** Steam App ID `4979220` — `https://store.steampowered.com/app/4979220/Voltswarm/`. La demo pública del Mapa 1 usa este destino fijo para su CTA; nunca recibe una URL desde el renderer.
+
 > **Resultado buscado:** empezar a construir audiencia el lunes **20-07-2026** y llegar a **1.000 wishlists o mas en el ultimo dia cerrado de Steam Wishlist Reporting anterior al lanzamiento** (`W_final`). Guardar su `as_of_date_pt`; registrar aparte `release_activated_at_utc`. No afirmar un total inmediato en vivo salvo contador live verificado por el publisher. El **04-11-2026** es un *stretch target interno*, no una fecha publica comprometida.
 
 ## Flujo dominical operativo (activo desde 02-08-2026)
@@ -40,7 +42,7 @@ admitiendo solo MP4 o PNG/JPG, nunca GIF.
 | Activacion Steam | **T1 está activo.** La página pública y su URL canónica fueron verificadas. Se puede pedir wishlist y enlazar Steam; no se inventan métricas privadas ni se convierte `To be announced` en una fecha pública. |
 | Objetivo | `W_final >= 1.000`, definido como el ultimo dia cerrado de Wishlist Reporting anterior al release, con `as_of_date_pt`. `release_activated_at_utc` se registra aparte. Sin contador live verificado no existe claim de total inmediato. |
 | Fecha | 04-11-2026 sigue siendo objetivo interno agresivo. No se publica hasta superar el gate de fecha de este documento. |
-| Producto | Lanzamiento completo directo; **sin demo publica y sin Steam Next Fest** segun la estrategia actual. |
+| Producto | La estrategia anterior de lanzamiento directo sin demo ni Steam Next Fest queda **explicitamente sustituida y deja de ser autoritativa**. La estrategia vigente y autoritativa es una **demo publica de Mapa 1 para Steam Next Fest**, separada del juego completo. |
 | Multiplayer/co-op | No se promociona, etiqueta ni promete antes del GO documentado, implementacion terminada y verificacion jugable. "Como minimo co-op 2" es una intencion condicionada, no una feature actual. |
 | Disclosure publico sobre IA | La unica redaccion autorizada es: `The game does not contain AI-generated content. AI-generated content is used just for Steam cover.` No se parafrasea ni amplia mientras Steam no se actualice oficialmente. |
 | Formato por plataforma | Desde 23-07-2026, X y Reddit usan solo MP4 de alta calidad o capturas PNG/JPG; nunca GIF. Steam puede usar GIF, MP4 o capturas segun convenga. |

@@ -7,7 +7,15 @@ import { Game } from './game';
 const container = document.getElementById('app');
 if (!container) throw new Error('Missing #app container');
 
-if (window.electronAPI && !window.electronAPI.applyPendingPlaytestReset()) {
+const isPlaytestBuild = (): boolean => __BUILD_FLAVOR__ === 'playtest';
+
+if (__BUILD_FLAVOR__ !== 'demo' ||
+    __ALLOWED_MAPS__.length !== 1 || __ALLOWED_MAPS__[0] !== 'scrapyard') {
+  throw new Error('Invalid demo content contract: only the Scrapyard map may be admitted');
+}
+
+if (isPlaytestBuild() &&
+    window.electronAPI && !window.electronAPI.applyPendingPlaytestReset()) {
   throw new Error('Playtest progression reset could not be committed');
 }
 

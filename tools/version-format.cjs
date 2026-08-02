@@ -3,6 +3,7 @@ const HUMAN_LABELS = new Map([
   ['beta', 'Beta'],
   ['preview', 'Preview'],
   ['playtest', 'Playtest'],
+  ['demo', 'Demo'],
 ]);
 
 function formatDisplayVersion(machineVersion) {
@@ -10,7 +11,9 @@ function formatDisplayVersion(machineVersion) {
   if (!match) return machineVersion;
   const label = match[2]?.split('.')[0]?.toLowerCase();
   const humanLabel = label ? HUMAN_LABELS.get(label) : undefined;
-  return humanLabel ? `${match[1]} ${humanLabel}` : `${match[1]}${match[2] ? ` ${match[2]}` : ''}`;
+  if (!humanLabel) return `${match[1]}${match[2] ? ` ${match[2]}` : ''}`;
+  const suffix = label === 'demo' ? match[2]?.split('.').slice(1).join(' ') : undefined;
+  return `${match[1]} ${humanLabel}${suffix ? ` ${suffix}` : ''}`;
 }
 
 module.exports = { formatDisplayVersion };
