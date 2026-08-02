@@ -42,7 +42,12 @@ export const BOSS_LAB = {
   scatterMax: 42,
 };
 
-export const DEV_TOOLS: { unlockPanel: boolean; auditionKeys: boolean; bossLab: boolean } = {
+export const DEV_TOOLS: {
+  unlockPanel: boolean;
+  auditionKeys: boolean;
+  bossLab: boolean;
+  startingMapSelector: boolean;
+} = {
   /** Main-menu "Unlocks" panel. Holds three actions: unlock every
    *  weapon/core/mod and open all sockets directly; settle every contract
    *  through the real payout path (which is what the Contracts screen reads);
@@ -55,6 +60,9 @@ export const DEV_TOOLS: { unlockPanel: boolean; auditionKeys: boolean; bossLab: 
   /** Boss lab: press B mid-run to jump to BOSS_LAB.atMinute with a recorded
    *  build loaded and a boss summoned on top of you. See BOSS_LAB. */
   bossLab: false,
+  /** Starting-map selector shown with the weapon draft. Direct Map 2 starts
+   *  are partial-sector development runs, never fabricated full-arc clears. */
+  startingMapSelector: true,
 };
 
 /** Renderer-side audio tuning. All voice, cooldown and fade values are config-owned. */
@@ -146,10 +154,12 @@ export const MAPS = [
     number: 2,
     title: 'Swarm Foundry',
     durationS: 10 * 60,
-    /** The foundry begins at late-run pressure instead of replaying minute one. */
-    difficultyOffsetS: 8 * 60,
+    /** Provisional playtest baseline: the foundry starts at minute-zero pressure. */
+    difficultyOffsetS: 0,
   },
 ] as const;
+
+export type MapId = (typeof MAPS)[number]['id'];
 
 /** Compatibility alias for tools that intentionally simulate Map 1 only. */
 export const RUN_DURATION_S = MAPS[0].durationS;

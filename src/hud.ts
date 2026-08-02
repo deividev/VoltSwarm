@@ -1,4 +1,4 @@
-import { PROFILE, DEV_TOOLS, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, type WeaponId } from './config';
+import { PROFILE, DEV_TOOLS, MAPS, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, type MapId, type WeaponId } from './config';
 import { LIFETIME, resetProfile, saveProfile } from './profile';
 import {
   ACTIVE_CONTRACTS,
@@ -294,7 +294,7 @@ export class Hud {
 
   constructor(
     root: HTMLElement,
-    private readonly onStart: (weapon: WeaponId) => void,
+    private readonly onStart: (weapon: WeaponId, mapId: MapId) => void,
     private readonly onUpgradeChosen: (card: UpgradeCard) => void,
     private readonly onResume: () => void,
     private readonly onQuitToMenu: () => void,
@@ -370,6 +370,13 @@ export class Hud {
       <div id="start-overlay" class="overlay menu-view hidden">
         <h2>Choose your starting weapon</h2>
         <p class="stats-line">More weapons, cores and sockets unlock through contracts</p>
+        ${DEV_TOOLS.startingMapSelector ? `
+        <label class="settings-row" for="start-map-select">
+          <span>Development map</span>
+          <select id="start-map-select">
+            ${MAPS.map((map) => `<option value="${map.id}">Map ${map.number}: ${map.title}</option>`).join('')}
+          </select>
+        </label>` : ''}
         <div id="draft-cards"></div>
       </div>
       <!-- Loading screen: covers world build + warmup renders so the reveal is
@@ -1500,6 +1507,9 @@ export class Hud {
     }
 
     this.draftCards.innerHTML = '';
+    if (DEV_TOOLS.startingMapSelector) {
+      (mustGet('start-map-select') as HTMLSelectElement).value = MAPS[0].id;
+    }
     for (const weaponId of options) {
       const info = WEAPON_INFO[weaponId];
       const card = document.createElement('div');
@@ -1512,7 +1522,13 @@ export class Hud {
       card.append(title, desc);
       card.addEventListener('click', () => {
         this.startOverlay.classList.add('hidden');
-        this.onStart(weaponId);
+        const selectedId = DEV_TOOLS.startingMapSelector
+          ? (mustGet('start-map-select') as HTMLSelectElement).value
+          : MAPS[0].id;
+        const mapId = MAPS.some((map) => map.id === selectedId)
+          ? selectedId as MapId
+          : MAPS[0].id;
+        this.onStart(weaponId, mapId);
       });
       this.draftCards.appendChild(card);
     }

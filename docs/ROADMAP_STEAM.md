@@ -145,7 +145,7 @@ La lista levantada 2026-07-26 queda como registro de decisiones. La primera impl
 
 **1. Gate de transición — RESUELTO PARA EL MVP:** el corte es temporal. Al llegar a 10:00 en el Mapa 1 se cruza automáticamente; los bosses opcionales del tótem siguen siendo contenido/recompensa del sector, no la llave de salida. Provisional hasta validar el ritmo del arco.
 
-**2. Continuidad de la dificultad — RESUELTA PARA EL MVP:** cada mapa tiene reloj propio; Mapa 2 arranca con `difficultyOffsetS = 8:00`, por lo que entra en presión tardía sin recalibrar la apertura del Mapa 1. Falta balancear su recorrido real con datos humanos.
+**2. Continuidad de la dificultad — BASELINE PROVISIONAL PARA PLAYTEST:** cada mapa tiene reloj propio; Mapa 2 arranca con `difficultyOffsetS = 0`, equivalente al minuto 0 del Mapa 1. La presión posterior queda abierta y se calibrará con datos humanos.
 
 **3. Qué se conserva al cruzar — RESUELTO PARA EL MVP:** armas, cores, mods, niveles, potencia por ramas/tiers, oro, HP actual/máximo, XP/progresión, descartes y contadores de run. Se limpian solo actores y efectos locales; el jugador reaparece en el centro sin curación gratuita. Provisional hasta playtest.
 

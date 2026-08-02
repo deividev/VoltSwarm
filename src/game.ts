@@ -25,6 +25,7 @@ import {
   VISUAL,
   XP_ORBS,
   difficultyScalar,
+  type MapId,
   type WeaponId,
 } from './config';
 import { PlayerInput } from './input';
@@ -195,6 +196,7 @@ export class Game {
   /** Loading handoff: the picked weapon, whether the world is built yet, and
    *  the warmup countdown (see LOADING_WARMUP_FRAMES). */
   private pendingWeapon: WeaponId | null = null;
+  private pendingMapId: MapId = MAPS[0].id;
   private runReady = false;
   private warmupFrames = 0;
   /** Frames to wait so the loading screen PAINTS before the world-build hitch
@@ -349,7 +351,7 @@ export class Game {
     this.merchant = new MerchantSystem(this.scene);
     this.hud = new Hud(
       container,
-      (weapon) => this.enterLoading(weapon),
+      (weapon, mapId) => this.enterLoading(weapon, mapId),
       (card) => this.applyUpgrade(card),
       () => this.resumeRun(),
       () => this.quitToMenu(),
@@ -401,8 +403,9 @@ export class Game {
   /** Play → weapon pick lands here: raise the loading screen, then the world
    *  is built and warmed on the next frames (tickLoading) so the reveal is
    *  smooth. Keeps the heavy setup OFF the click frame. */
-  private enterLoading(startingWeapon: WeaponId): void {
+  private enterLoading(startingWeapon: WeaponId, mapId: MapId = MAPS[0].id): void {
     this.pendingWeapon = startingWeapon;
+    this.pendingMapId = mapId;
     this.runReady = false;
     this.loadingDelay = 1;
     this.state = 'loading';
@@ -426,7 +429,7 @@ export class Game {
       return;
     }
     if (!this.runReady) {
-      if (this.pendingWeapon) this.buildRun(this.pendingWeapon);
+      if (this.pendingWeapon) this.buildRun(this.pendingWeapon, this.pendingMapId);
       this.runReady = true;
       this.warmupFrames = LOADING_WARMUP_FRAMES;
       return;
@@ -451,12 +454,17 @@ export class Game {
     }
   }
 
-  private buildRun(startingWeapon: WeaponId): void {
+  private buildRun(startingWeapon: WeaponId, selectedMapId: MapId = MAPS[0].id): void {
     this.resetRunWorld();
     clearProps(this.scene, this.propMeshes);
     this.propMeshes = [];
     this.obstacles.length = 0;
-    this.obstacles.push(...this.worldMaps.setMap(MAPS[0].id));
+    const selectedMapIndex = MAPS.findIndex((map) => map.id === selectedMapId);
+    const startMapIndex = selectedMapIndex >= 0 ? selectedMapIndex : 0;
+    const startMap = MAPS[startMapIndex] ?? MAPS[0];
+    this.runFlow = createRunFlowState(startMapIndex);
+    this.elapsedS = 0;
+    this.obstacles.push(...this.worldMaps.setMap(startMap.id));
     this.currentRunId = createRunId();
     this.runFinalized = false;
     this.startingWeapon = startingWeapon;
@@ -476,12 +484,12 @@ export class Game {
     this.weaponLevels[startingWeapon] = 1;
     this.weaponDamage = emptyWeaponLevels();
     this.coreLevels = {};
-    // Totem first: container/barrel placement below reads its position so
-    // the layout never walls it off (user request 2026-07-06).
-    if (!this.boss.startRun()) throw new Error('Unable to place the boss totem inside the arena.');
-    this.regenerateProps();
-    this.runFlow = createRunFlowState();
-    this.elapsedS = 0;
+    if (startMapIndex === 0) {
+      // Map 1 owns the totem and scrapyard props. Totem first: prop placement
+      // reads its position so the randomized layout never walls it off.
+      if (!this.boss.startRun()) throw new Error('Unable to place the boss totem inside the arena.');
+      this.regenerateProps();
+    }
     this.frenzyS = 0;
     this.hasteS = 0;
     this.modCounts = {};
@@ -1796,8 +1804,8 @@ export class Game {
       }
       this.boss.onBossDefeated();
       if (this.boss.isFinalBossType(death.typeIndex)) {
-        completeFinale(this.runFlow, MAPS);
-        this.endRun('run-complete');
+        const fullArcCompleted = completeFinale(this.runFlow, MAPS);
+        this.endRun(fullArcCompleted ? 'run-complete' : 'sector-cleared');
       }
     }
   }

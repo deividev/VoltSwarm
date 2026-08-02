@@ -16,9 +16,9 @@ export type RunFlowAction =
   | { type: 'transition'; nextMapIndex: number }
   | { type: 'start-finale' };
 
-export function createRunFlowState(): RunFlowState {
+export function createRunFlowState(startMapIndex = 0): RunFlowState {
   return {
-    mapIndex: 0,
+    mapIndex: Number.isInteger(startMapIndex) && startMapIndex >= 0 ? startMapIndex : 0,
     mapElapsedS: 0,
     totalElapsedS: 0,
     sectorsCleared: 0,
@@ -56,10 +56,12 @@ export function advanceRunFlow(
   return { type: 'none' };
 }
 
-/** The finale kill, not the clock, closes the final sector. */
-export function completeFinale(state: RunFlowState, maps: readonly RunFlowMap[]): void {
+/** The finale kill, not the clock, closes the final sector. Returns whether
+ * every sector in the ordered arc was actually cleared during this run. */
+export function completeFinale(state: RunFlowState, maps: readonly RunFlowMap[]): boolean {
   if (state.mapIndex !== maps.length - 1 || !state.finaleStarted) {
     throw new Error('Cannot complete a finale that has not started on the final map.');
   }
-  state.sectorsCleared = maps.length;
+  state.sectorsCleared = Math.min(maps.length, state.sectorsCleared + 1);
+  return state.sectorsCleared === maps.length;
 }

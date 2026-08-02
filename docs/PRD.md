@@ -93,6 +93,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - Pase Steam 2026-07-15: el spawn de boss tiene beat de materialización reforzado con burst rojo, núcleo blanco, anillo de impacto y shake dedicado (`VISUAL.bossSummonVfx`) para que el título `AWAKENS` sea capturable.
 - **Primera versión jugable del arco (2026-08-02, PROVISIONAL):** Mapa 1 durante 10 minutos → transición automática conservando armas, cores, mods, niveles, potencia acumulada, oro, HP actual, descartes y contadores de run → Mapa 2 durante 10 minutos → Hazard Marshal → `RUN COMPLETE` únicamente al derrotarlo. Se limpian solo actores y efectos locales del mapa; el jugador reaparece en el centro seguro.
 - Arco estético vigente: fábrica abandonada/desguace → **megafábrica futurista activa**. La antigua ciudad neón/estación orbital no se borra: queda como capa de inspiración o escenario posterior, no como el Mapa 2 de esta primera versión jugable (detalle en `DIRECCION_ARTE.md`).
+- **Selector de mapa inicial (solo desarrollo, 2026-08-02):** `DEV_TOOLS.startingMapSelector` añade Map 1 / Map 2 al draft de arma para probar directamente la megafábrica. Al empezar en Map 2, sus relojes y `sectorsCleared` parten de cero, se aplica su offset de dificultad y no se crean ni el tótem ni los props del scrapyard. Ese final registra `sector-cleared`, `sectorsCleared: 1` y `mapsReached: 2`: es una prueba parcial veraz, no una run completa ni progreso inventado del Mapa 1. Con el flag apagado no se renderiza el selector y todo caller empieza en Map 1; el guard de release bloquea el empaquetado mientras siga encendido.
 - Barra de vida del boss en el HUD.
 
 ### 13. Enemigo volador (Drone)
@@ -329,7 +330,7 @@ Nunca puede mostrar dos mods iguales en celdas contiguas. Había dos causas: la 
 
 El Mapa 2 ya existe como primera arena procedural jugable: suelo metálico generado en runtime, centro de combate abierto, doce torres monumentales en el perímetro, anillo de conductos cian y ocho carriles térmicos radiales. La composición protege la lectura del enjambre en el centro y concentra la escala industrial en los bordes. **No hay todavía textura raster final, props voxel finales ni set final de enemigos propio del mapa**; esta versión prueba estructura, continuidad y silueta espacial, no cierra el arte.
 
-La dificultad usa reloj propio de mapa con una base de presión tardía (`difficultyOffsetS`), evitando repetir el minuto uno al cruzar. El Mapa 2 conserva la build y el estado persistente de la run, pero limpia enemigos, proyectiles, pickups, orbes, cofres, mercader, buffs temporales y otros actores locales.
+La dificultad usa reloj propio de mapa. **Baseline provisional para playtest:** el Mapa 2 arranca con `difficultyOffsetS = 0`, equivalente al minuto 0 del Mapa 1; la presión posterior queda pendiente de calibración con runs humanas. El Mapa 2 conserva la build y el estado persistente de la run, pero limpia enemigos, proyectiles, pickups, orbes, cofres, mercader, buffs temporales y otros actores locales.
 
 ### Hazard Marshal: integración provisional
 
