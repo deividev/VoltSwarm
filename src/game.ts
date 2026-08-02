@@ -15,13 +15,13 @@ import {
   ELITES,
   ENEMY_TYPES,
   GOLD,
+  MAPS,
   MERCHANT,
   MODS,
   PICKUPS,
   PLAYER,
   PRESSURE_METRICS,
   RECORDING,
-  RUN_DURATION_S,
   VISUAL,
   XP_ORBS,
   difficultyScalar,
@@ -95,6 +95,7 @@ import {
   findRandomClearSpot,
   hasLineOfSight,
   type Obstacle,
+  type WorldMapController,
 } from './world';
 import { CONTAINER_PROP } from './config';
 import {
@@ -109,6 +110,12 @@ import { createRunId, loadRunHistory, saveRunRecord, type RunMapRef, type RunOut
 import { recordRunInLifetime, saveProfile } from './profile';
 import { settleContracts } from './contracts';
 import { telemetry } from './telemetry';
+import {
+  advanceRunFlow,
+  completeFinale,
+  createRunFlowState,
+  type RunFlowState,
+} from './run-flow';
 
 type GameState =
   | 'menu'
@@ -127,12 +134,6 @@ type GameState =
 // visible frame (user request 2026-07-12). A future load animation extends this.
 const LOADING_WARMUP_FRAMES = 8;
 
-const SCRAPYARD_MAP: RunMapRef = {
-  id: 'scrapyard',
-  number: 1,
-  title: 'Scrapyard',
-};
-
 /** The single difficulty that exists today. Stamped on every run record so a
  *  future selector does not leave this era's runs unlabelled — leaderboards
  *  that mix difficulties rank nothing, and a finished run cannot be relabelled. */
@@ -144,6 +145,7 @@ export class Game {
   private readonly renderer: THREE.WebGLRenderer;
   private readonly composer: EffectComposer | null = null;
   private readonly scene: THREE.Scene;
+  private readonly worldMaps: WorldMapController;
   private readonly camera: THREE.PerspectiveCamera;
   private readonly clock = new THREE.Clock();
   private readonly obstacles: Obstacle[];
@@ -199,8 +201,11 @@ export class Game {
    *  runs (rAF fires before paint, so the first loading frame is just shown). */
   private loadingDelay = 0;
   private elapsedS = 0;
+  private runFlow: RunFlowState = createRunFlowState();
   /** Shared identity for packaged telemetry and the terminal-only local record. */
   private currentRunId: string | null = null;
+  /** Terminal side effects (history, telemetry, contracts and HUD) may run once per run. */
+  private runFinalized = false;
   /** The exact cards visible in the active draft, retained until pick/discard. */
   private currentUpgradeOffer: string[] = [];
   /** The weapon this run was drafted with. Recorded on the run record because
@@ -272,10 +277,16 @@ export class Game {
   private fpsFrames = 0;
   private fpsTime = 0;
 
+  private get currentMap(): RunMapRef {
+    const map = MAPS[this.runFlow.mapIndex] ?? MAPS[0];
+    return { id: map.id, number: map.number, title: map.title };
+  }
+
   constructor(container: HTMLElement) {
     this.renderer = createRenderer(container);
     const world = createScene();
     this.scene = world.scene;
+    this.worldMaps = world.maps;
     this.obstacles = world.obstacles;
     this.propMeshes = world.propMeshes;
     this.camera = createCamera();
@@ -430,8 +441,8 @@ export class Game {
       this.audio.emit({ id: 'foundation-music', key: 'foundation-run-loop', loop: true, priority: 2, volume: AUDIO.music.runLoopVolume });
       if (this.currentRunId && this.startingWeapon) {
         telemetry.startRun(this.currentRunId, {
-          mapId: SCRAPYARD_MAP.id,
-          mapNumber: SCRAPYARD_MAP.number,
+          mapId: this.currentMap.id,
+          mapNumber: this.currentMap.number,
           difficulty: DIFFICULTY_ID,
           startingWeaponId: this.startingWeapon,
         });
@@ -442,7 +453,12 @@ export class Game {
 
   private buildRun(startingWeapon: WeaponId): void {
     this.resetRunWorld();
+    clearProps(this.scene, this.propMeshes);
+    this.propMeshes = [];
+    this.obstacles.length = 0;
+    this.obstacles.push(...this.worldMaps.setMap(MAPS[0].id));
     this.currentRunId = createRunId();
+    this.runFinalized = false;
     this.startingWeapon = startingWeapon;
     this.runDamageTaken = 0;
     this.runGoldEarned = 0;
@@ -464,6 +480,7 @@ export class Game {
     // the layout never walls it off (user request 2026-07-06).
     if (!this.boss.startRun()) throw new Error('Unable to place the boss totem inside the arena.');
     this.regenerateProps();
+    this.runFlow = createRunFlowState();
     this.elapsedS = 0;
     this.frenzyS = 0;
     this.hasteS = 0;
@@ -544,6 +561,8 @@ export class Game {
     // types and the HP ramp are all derived from it. The lab never empties the
     // arena — the whole difficulty is killing a boss while the wave is on you.
     this.elapsedS = BOSS_LAB.atMinute * 60;
+    this.runFlow.totalElapsedS = this.elapsedS;
+    this.runFlow.mapElapsedS = this.elapsedS;
     this.hud.updateBuild(
       this.stats,
       this.weaponLevels,
@@ -847,8 +866,10 @@ export class Game {
     if (this.currentRunId && abandonedStates.includes(this.state)) {
       telemetry.abandonRun(this.currentRunId, {
         reason: 'quit_to_menu',
-        map: SCRAPYARD_MAP,
+        map: this.currentMap,
         durationS: Math.round(this.elapsedS * 1_000) / 1_000,
+        sectorsCleared: this.runFlow.sectorsCleared,
+        mapsReached: this.runFlow.mapIndex + 1,
         level: this.progression.level,
         kills: this.progression.kills,
         bossesDefeated: this.boss.bossesDefeated,
@@ -918,6 +939,75 @@ export class Game {
     this.hud.hideLevelUpIntro();
   }
 
+  /** Clears only map-local/transient actors. Build, XP progression, currency,
+   * discards and all run-wide counters deliberately survive the boundary. */
+  private resetForMapTransition(): void {
+    this.player.enterMap();
+    this.enemies.reset();
+    this.enemyShots.reset();
+    this.weapons.reset();
+    this.pickups.reset();
+    this.orbs.reset();
+    this.damageNumbers.reset();
+    this.boss.clearForMapTransition();
+    this.burst.reset();
+    this.goldSys.reset();
+    this.merchant.reset(this.elapsedS);
+    this.frenzyS = 0;
+    this.hasteS = 0;
+    this.overloadS = 0;
+    this.phaseS = 0;
+    this.hitstopS = 0;
+    this.killWindowS = 0;
+    this.hud.updateBuffs([]);
+    this.hud.showSummonPrompt(false, this.interactLabel());
+    this.hud.updateTotemIndicator(false, 0, 0, 0);
+    this.hud.updateMerchantIndicator(false, 0, 0, 0, 0);
+    this.hud.showInteractPrompt(null, this.interactLabel());
+  }
+
+  private transitionToMap(nextMapIndex: number): void {
+    const nextMap = MAPS[nextMapIndex];
+    if (!nextMap) throw new Error(`Missing map configuration at index ${nextMapIndex}.`);
+    this.resetForMapTransition();
+    clearProps(this.scene, this.propMeshes);
+    this.propMeshes = [];
+    this.obstacles.length = 0;
+    this.obstacles.push(...this.worldMaps.setMap(nextMap.id));
+    telemetry.choice('map_transition', {
+      mapId: nextMap.id,
+      mapNumber: nextMap.number,
+      totalElapsedS: Math.round(this.elapsedS * 1_000) / 1_000,
+      sectorsCleared: this.runFlow.sectorsCleared,
+    });
+    this.hud.banner(`MAP ${nextMap.number}: ${nextMap.title.toUpperCase()}`);
+    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+  }
+
+  private startFinale(): void {
+    const summoned = this.boss.startFinalBoss(
+      this.player.position.x,
+      this.player.position.z,
+      this.progression.level,
+      this.enemies,
+      this.refreshCollisionObstacles(),
+    );
+    if (!summoned) {
+      // Placement can fail in a crowded frame. Re-arm the structural trigger;
+      // the next frame retries after map-local actors have moved.
+      this.runFlow.finaleStarted = false;
+      return;
+    }
+    telemetry.choice('finale_started', {
+      bossId: summoned,
+      mapId: this.currentMap.id,
+      totalElapsedS: Math.round(this.elapsedS * 1_000) / 1_000,
+    });
+    this.hud.banner(`${summoned.toUpperCase()} AWAKENS`);
+    this.audio.emit({ id: 'boss-awaken', priority: 3 });
+    this.shakeAmp = Math.max(this.shakeAmp, VISUAL.bossSummonVfx.shakeAmp);
+  }
+
   /** Clears the previous container/barrel layout and rolls a fresh one,
    *  avoiding the boss totem (must be placed via boss.startRun() first) —
    *  user request 2026-07-06: different count/position every playthrough,
@@ -946,17 +1036,20 @@ export class Game {
   private update(dt: number): void {
     if (this.hitstopCooldownS > 0) this.hitstopCooldownS -= dt;
     if (this.killWindowS > 0) this.killWindowS -= dt;
-    this.elapsedS += dt;
+    const flowAction = advanceRunFlow(this.runFlow, dt, MAPS);
+    this.elapsedS = this.runFlow.totalElapsedS;
     // Integrated per frame, not sampled at the end: the card can be picked at
     // any minute, and a run that ran +60% for its last 30 seconds is not the
     // same run as one that ran +60% throughout.
     this.runCursedIntegral += this.stats.cursedDifficulty * dt;
     this.tickAudioBenchmark(dt);
-    const remaining = RUN_DURATION_S - this.elapsedS;
-    if (remaining <= 0) {
-      this.endRun('sector-cleared');
+    if (flowAction.type === 'transition') {
+      this.transitionToMap(flowAction.nextMapIndex);
       return;
     }
+    if (flowAction.type === 'start-finale') this.startFinale();
+    const activeMap = MAPS[this.runFlow.mapIndex] ?? MAPS[0];
+    const remaining = Math.max(0, activeMap.durationS - this.runFlow.mapElapsedS);
 
     if (this.frenzyS > 0) this.frenzyS -= dt;
     if (this.hasteS > 0) this.hasteS -= dt;
@@ -999,12 +1092,13 @@ export class Game {
     // The player is the audio listener — drives distance attenuation of
     // world-positioned sounds (acid pool loop, acid drum, dismantler claw).
     this.audio.setListener(px, pz);
-    const difficulty = difficultyScalar(this.elapsedS, this.stats.cursedDifficulty);
+    const combatElapsedS = activeMap.difficultyOffsetS + this.runFlow.mapElapsedS;
+    const difficulty = difficultyScalar(combatElapsedS, this.stats.cursedDifficulty);
     this.currentDifficulty = difficulty;
 
     this.enemies.update(
       dt,
-      this.elapsedS,
+      combatElapsedS,
       difficulty,
       px,
       pz,
@@ -1064,6 +1158,7 @@ export class Game {
       },
     };
     this.weapons.update(dt, px, pz, this.weaponLevels, ctx);
+    if (this.state !== 'playing') return;
     this.tickDots(dt);
     this.tickShield(dt);
 
@@ -1700,6 +1795,10 @@ export class Game {
         );
       }
       this.boss.onBossDefeated();
+      if (this.boss.isFinalBossType(death.typeIndex)) {
+        completeFinale(this.runFlow, MAPS);
+        this.endRun('run-complete');
+      }
     }
   }
 
@@ -2144,6 +2243,8 @@ export class Game {
   }
 
   private endRun(outcome: RunOutcome): void {
+    if (this.runFinalized) return;
+    this.runFinalized = true;
     this.state = 'ended';
     this.audio.emit({ id: outcome === 'defeat' ? 'run-defeat' : 'run-victory', priority: 5 });
     this.audio.stopLoop('foundation-run-loop');
@@ -2156,7 +2257,7 @@ export class Game {
     const record = saveRunRecord({
       id: runId,
       outcome,
-      map: SCRAPYARD_MAP,
+      map: this.currentMap,
       ...(this.startingWeapon ? { startingWeapon: this.startingWeapon } : {}),
       // No difficulty selector exists yet, so every run is the one and only
       // curve. Labelling it now means the day a selector lands, these records
@@ -2179,6 +2280,8 @@ export class Game {
           ? Math.round((this.runCursedIntegral / this.elapsedS) * 1000) / 1000
           : 0,
       durationS: this.elapsedS,
+      sectorsCleared: this.runFlow.sectorsCleared,
+      mapsReached: this.runFlow.mapIndex + 1,
       level: this.progression.level,
       kills: this.progression.kills,
       bossesDefeated: this.boss.bossesDefeated,
@@ -2198,7 +2301,7 @@ export class Game {
     const earnedContracts = settleContracts();
     this.hud.showEnd(
       outcome,
-      SCRAPYARD_MAP,
+      this.currentMap,
       this.progression.level,
       this.progression.kills,
       this.elapsedS,

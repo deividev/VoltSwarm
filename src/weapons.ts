@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
-import { AUDIO, BOSS_TARGET_BIAS, BOSS_TARGET_BIAS_BASE, BOSS_TYPE_INDEXES, VISUAL, WEAPONS, levelScale, quantityBonus, weaponBranchMultiplier, type BranchWeaponId, type WeaponBranchId, type WeaponId } from './config';
+import { AUDIO, BOSS_TARGET_BIAS, BOSS_TARGET_BIAS_BASE, VISUAL, WEAPONS, isBossTypeIndex, levelScale, quantityBonus, weaponBranchMultiplier, type BranchWeaponId, type WeaponBranchId, type WeaponId } from './config';
 import { litMaterial } from './toon';
 import type { EnemySystem } from './enemies';
 import type { PlayerStats } from './stats';
@@ -100,7 +100,7 @@ function findNearestVisible(
     const distanceSq = (enemy.x - x) ** 2 + (enemy.z - z) ** 2;
     if (distanceSq >= rangeSq) continue; // Real reach — never widened by bias.
     const score =
-      bossBias > 1 && BOSS_TYPE_INDEXES.includes(enemy.typeIndex)
+      bossBias > 1 && isBossTypeIndex(enemy.typeIndex)
         ? distanceSq / bossBias
         : distanceSq;
     if (score >= bestScore || !visibleFrom(ctx, x, z, enemy.x, enemy.z)) continue;
@@ -388,7 +388,7 @@ export class BoltWeapon {
         if (trueSq >= range * range) continue; // Real reach — bias never widens it.
         // Hunter: same boss weighting as the shared helper. Bolt keeps its own
         // loop because a volley must pick N DISTINCT targets.
-        const dSq = BOSS_TYPE_INDEXES.includes(e.typeIndex)
+        const dSq = isBossTypeIndex(e.typeIndex)
           ? trueSq / BOSS_TARGET_BIAS
           : trueSq;
         if (dSq < bestSq && visibleFrom(ctx, px, pz, e.x, e.z)) {

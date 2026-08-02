@@ -9,12 +9,19 @@ Decisión del 2026-07-03 (usuario): el juego es de estética FUTURISTA — todos
 | Mapa | Escenario | Lenguaje visual |
 | --- | --- | --- |
 | 1 | **Fábrica abandonada** (redefinido 2026-07-06, antes "scrapyard") | Industrial con TOQUE futurista: planchas metálicas oscuras, remaches, franjas de peligro amarillas/negras, líneas de conducto cian tenues (apagadas, sin energía activa — es una fábrica MUERTA, no una en marcha) |
-| 2 | *(pendiente, se diseña después de validar el Mapa 1)* | Candidato: fundición/fábrica ACTIVA — mismo lenguaje que el Mapa 1 pero con la maquinaria encendida (cintas en marcha, brillos de calor, conductos cian iluminados) |
-| 3 | Escenario del boss final (2026-07-06: pasa a ser el Mapa 2 de la v1, saltando el intermedio por ahora) | Ciudad neón / estación orbital: emisivos, holografía, futurismo puro |
+| 2 | **Megafábrica futurista activa** — primera versión jugable PROVISIONAL 2026-08-02 | Centro de combate abierto; escala monumental concentrada en el perímetro mediante torres, conductos cian encendidos y carriles térmicos. Fusiona la fundición activa con el salto futurista que antes se atribuía a la ciudad orbital. |
+| Post-v1 | Ciudad neón / estación orbital | Dirección conservada para un mapa posterior: emisivos, holografía y futurismo puro; ya no describe el Mapa 2 del arco base. |
 
 Regla: cada mapa nuevo se ve MÁS "futuro" que el anterior — empezás en la fábrica apagada del mundo y peleás hacia la fuente que fabrica a los robots. Las armas-herramienta (Press, Welder, Tire) viajan con el jugador y mantienen su identidad de desguace en cualquier mapa.
 
-**v1 usa 2 mapas** (decisión del usuario 2026-07-06): Mapa 1 (fábrica abandonada, éste) + Mapa 2 (boss final, futurista puro). El mapa intermedio de fundición activa queda diseñado en la tabla pero se construye después, basándose en lo que funcione del Mapa 1.
+**v1 usa 2 mapas:** Mapa 1 (fábrica abandonada/desguace) + Mapa 2 (megafábrica futurista activa y boss final). La primera versión jugable del Mapa 2 ya existe de forma procedural para probar composición y continuidad, pero **NO cierra el arte**: no hay textura raster final, props voxel finales ni pasada ambiental aprobada. Ciudad neón/estación orbital conserva su historia como dirección futura, no se borra ni se reetiqueta retroactivamente.
+
+### Mapa 2 — contrato visual de la primera versión jugable
+
+- **Centro abierto:** la lectura del jugador, proyectiles y enjambre manda; ninguna maquinaria monumental invade el núcleo de combate.
+- **Perímetro monumental:** torres altas y un anillo de conductos hacen visible que se pelea dentro de una megafábrica, no sobre otra variante del suelo del Mapa 1.
+- **Energía activa:** cian eléctrico para infraestructura y naranja térmico para carriles de calor; ambos son señales ambientales, por debajo de la saturación del elenco.
+- **Estado PROVISIONAL:** el suelo procedural generado en runtime es un bloqueador visual honesto, no un asset final ni una excepción permanente al pipeline de texturas cenitales.
 
 ## Por qué
 
@@ -74,4 +81,4 @@ Reglas de presupuesto y validación:
 Todo lo que se añada — efectos, partículas, sonido — habla el idioma "juguete industrial":
 
 - **VFX**: las partículas son CUBOS voxel del color de paleta de su dueño (muerte = voxel burst del color del bot; chispas = cubos ámbar/cian). Nada de billboards suaves, humo realista ni glow orgánico. Los emisivos (visores, beams, orbes) son la única fuente de "brillo" y se potencian con bloom — plan en `REFERENCIAS_VISUALES.md`.
-- **Audio**: sonidos MECÁNICOS de juguete/maquinaria — clanks metálicos cortos, servos, zumbidos eléctricos, chirps sintéticos. Cero gore (los enemigos son robots: mueren en "clank + burst", no en splat). La música sigue el arco de mapas: scrapyard = industrial percusivo → fundición → neón/synth futurista (mismo arco que la estética, ver tabla de mapas arriba).
+- **Audio**: sonidos MECÁNICOS de juguete/maquinaria — clanks metálicos cortos, servos, zumbidos eléctricos, chirps sintéticos. Cero gore (los enemigos son robots: mueren en "clank + burst", no en splat). La música sigue el arco vigente: fábrica abandonada = industrial percusivo → megafábrica activa = maquinaria energizada + synth futurista. Ciudad neón/estación orbital queda como escalón post-v1.

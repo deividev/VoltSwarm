@@ -4,7 +4,6 @@ import {
   ARENA_HALF_SIZE,
   BOSS,
   BOSS_LAB,
-  BOSS_TYPE_INDEXES,
   ELITES,
   ENEMIES,
   ENEMY_TYPES,
@@ -14,6 +13,7 @@ import {
   RUSTBRUTE,
   STATUS,
   VISUAL,
+  isBossTypeIndex,
   type EnemyTypeDef,
   type WeaponId,
 } from './config';
@@ -212,7 +212,7 @@ export class EnemySystem {
         depthTest: !VISUAL.groundMarkersOnTop,
         side: THREE.DoubleSide,
       }),
-      BOSS_TYPE_INDEXES.length,
+      ENEMY_TYPES.filter((type) => type.isBoss).length,
     );
     this.bossAura.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.bossAura.frustumCulled = false;
@@ -302,7 +302,7 @@ export class EnemySystem {
   private async upgradeVoxelModels(): Promise<void> {
     await Promise.all(
       ENEMY_TYPES.map(async (type, typeIndex) => {
-        const key = modelKeyForTypeName(type.name);
+        const key = type.modelKey ?? modelKeyForTypeName(type.name);
         const def = VOXEL_MODELS[key];
         if (!def) return;
         try {
@@ -567,7 +567,7 @@ export class EnemySystem {
     // but was never read — the Tesla Titan was silently holding the grunt's
     // 12 units, outside half the arsenal's reach, which is why it read as
     // "never comes close enough to fight" (playtest 2026-07-30).
-    const isBoss = BOSS_TYPE_INDEXES.includes(e.typeIndex);
+    const isBoss = isBossTypeIndex(e.typeIndex);
     const preferredDist = isBoss ? BOSS.tesla.preferredDist : GUNNER.preferredDist;
     const retreatDist = isBoss ? BOSS.tesla.retreatDist : GUNNER.retreatDist;
 
@@ -692,7 +692,7 @@ export class EnemySystem {
         shadowCount++;
       }
 
-      if (BOSS_TYPE_INDEXES.includes(e.typeIndex)) {
+      if (isBossTypeIndex(e.typeIndex)) {
         const r = e.radius * 1.7 * bossPulse;
         tmpMatrix.makeScale(r, 1, r);
         tmpMatrix.setPosition(e.x, 0.08, e.z);
@@ -711,7 +711,7 @@ export class EnemySystem {
       if (type.behavior === 'roller') {
         tmpRot.makeRotationX(e.phase);
         tmpMatrix.multiply(tmpRot);
-      } else if (VISUAL.enemyWobble.enabled && !BOSS_TYPE_INDEXES.includes(e.typeIndex)) {
+      } else if (VISUAL.enemyWobble.enabled && !isBossTypeIndex(e.typeIndex)) {
         // Walk rock: per-slot phase so the swarm never marches in sync.
         // Bosses are exempt — a waddling king loses its menace.
         tmpRot.makeRotationZ(
@@ -932,7 +932,7 @@ export class EnemySystem {
     let shoved = 0;
     for (let i = 0; i < this.pool.length; i++) {
       const e = this.pool[i];
-      if (!e?.active || BOSS_TYPE_INDEXES.includes(e.typeIndex)) continue;
+      if (!e?.active || isBossTypeIndex(e.typeIndex)) continue;
       const dx = e.x - x;
       const dz = e.z - z;
       const distSq = dx * dx + dz * dz;
@@ -982,7 +982,7 @@ export class EnemySystem {
     // range reproduces a swarm caught mid-advance instead.
     const { scatterMin, scatterMax } = BOSS_LAB;
     for (const e of this.pool) {
-      if (!e.active || BOSS_TYPE_INDEXES.includes(e.typeIndex)) continue;
+      if (!e.active || isBossTypeIndex(e.typeIndex)) continue;
       const angle = Math.random() * Math.PI * 2;
       // sqrt keeps the distribution even by AREA; a flat radius would crowd
       // everything near the player, which is the bug this is fixing.
@@ -1007,7 +1007,7 @@ export class EnemySystem {
   /** True while any boss type is alive in the pool. */
   bossAlive(): boolean {
     for (const e of this.pool) {
-      if (e.active && BOSS_TYPE_INDEXES.includes(e.typeIndex)) return true;
+      if (e.active && isBossTypeIndex(e.typeIndex)) return true;
     }
     return false;
   }
@@ -1019,7 +1019,7 @@ export class EnemySystem {
     let slot = 0;
     for (const e of this.pool) {
       if (!e.active) continue;
-      const isBoss = BOSS_TYPE_INDEXES.includes(e.typeIndex);
+      const isBoss = isBossTypeIndex(e.typeIndex);
       if (!isBoss && !ENEMY_TYPES[e.typeIndex]?.blocksOthers) continue;
       if (e.chargeState === CHARGE.lunging) continue;
       const entry = (this.dynamicObstacles[slot] ??= { x: 0, z: 0, radius: 0 });
@@ -1044,7 +1044,7 @@ export class EnemySystem {
   ): { x: number; z: number } {
     const isFlyer = ENEMY_TYPES[e.typeIndex]?.behavior === 'flyer';
     const cfg = ENEMIES.obstacleAvoidance;
-    const bossMultiplier = BOSS_TYPE_INDEXES.includes(e.typeIndex)
+    const bossMultiplier = isBossTypeIndex(e.typeIndex)
       ? cfg.bossLookAheadMultiplier
       : 1;
     const lookAhead = cfg.lookAhead * bossMultiplier + e.radius;
@@ -1087,7 +1087,7 @@ export class EnemySystem {
   /** Shoves the enemy along a direction. Bosses are immune. */
   applyKnockback(index: number, dirX: number, dirZ: number, force: number): void {
     const e = this.pool[index];
-    if (!e || !e.active || BOSS_TYPE_INDEXES.includes(e.typeIndex)) return;
+    if (!e || !e.active || isBossTypeIndex(e.typeIndex)) return;
     e.kbX += dirX * force;
     e.kbZ += dirZ * force;
   }
@@ -1095,7 +1095,7 @@ export class EnemySystem {
   /** Whether this pool index belongs to a boss (execute immunity, etc.). */
   isBossIndex(index: number): boolean {
     const e = this.pool[index];
-    return !!e && BOSS_TYPE_INDEXES.includes(e.typeIndex);
+    return !!e && isBossTypeIndex(e.typeIndex);
   }
 
   /** Deals damage; returns death info when the enemy dies, null otherwise. */

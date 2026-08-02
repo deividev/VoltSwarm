@@ -4,6 +4,8 @@ import {
   BARREL_PROP,
   CAMERA,
   CONTAINER_PROP,
+  MAPS,
+  MEGAFACTORY_MAP,
   SCAFFOLD_PROP,
   SPAWN_PLACEMENT,
   VISUAL,
@@ -144,6 +146,7 @@ export function createScene(): {
   scene: THREE.Scene;
   obstacles: Obstacle[];
   propMeshes: THREE.Object3D[];
+  maps: WorldMapController;
 } {
   const scene = new THREE.Scene();
   if (VISUAL.sky.enabled) {
@@ -160,12 +163,44 @@ export function createScene(): {
   sun.position.set(30, 50, 20);
   scene.add(sun);
 
-  buildGround(scene);
+  const maps = createWorldMapController(scene);
   // Nothing to avoid yet at construction time — the boss totem doesn't exist
   // until the first startRun(). Real per-run regeneration (avoiding the
   // totem) happens via placeRandomProps(), called again from game.ts.
   const props = placeRandomProps(scene, []);
-  return { scene, obstacles: props.obstacles, propMeshes: props.meshes };
+  return { scene, obstacles: props.obstacles, propMeshes: props.meshes, maps };
+}
+
+export interface WorldMapController {
+  readonly activeMapId: string;
+  /** Rebuilds only map-owned floor/scenery and returns its collision set. */
+  setMap(mapId: string): Obstacle[];
+}
+
+function createWorldMapController(scene: THREE.Scene): WorldMapController {
+  const root = new THREE.Group();
+  root.name = 'active-map';
+  scene.add(root);
+  let generation = 0;
+  let activeMapId = '';
+
+  const controller: WorldMapController = {
+    get activeMapId() { return activeMapId; },
+    setMap(mapId: string): Obstacle[] {
+      generation++;
+      activeMapId = mapId;
+      for (const child of [...root.children]) {
+        root.remove(child);
+        disposeObject(child);
+      }
+      if (mapId === MAPS[1].id) return buildMegafactoryMap(root);
+      buildScrapyardGround(root, generation, () => generation === controllerGeneration());
+      return [];
+    },
+  };
+  const controllerGeneration = (): number => generation;
+  controller.setMap(MAPS[0].id);
+  return controller;
 }
 
 /** Builds a fresh random layout of container gates + barrels, avoiding
@@ -204,7 +239,11 @@ export function clearProps(scene: THREE.Scene, meshes: THREE.Object3D[]): void {
   }
 }
 
-function buildGround(scene: THREE.Scene): void {
+function buildScrapyardGround(
+  scene: THREE.Object3D,
+  generation: number,
+  isCurrent: () => boolean,
+): void {
   // The ground is EXACTLY the playable area: where the floor ends, movement
   // ends. Invisible walls before the visual edge read as a bug.
   const size = ARENA_HALF_SIZE * 2;
@@ -220,12 +259,22 @@ function buildGround(scene: THREE.Scene): void {
 
   // AI-generated top-down factory floor loads async and swaps in over the
   // procedural placeholder; on failure the procedural texture simply stays.
-  void upgradeGroundTexture(ground);
+  void upgradeGroundTexture(ground, generation, isCurrent);
 }
 
-async function upgradeGroundTexture(ground: THREE.Mesh): Promise<void> {
+async function upgradeGroundTexture(
+  ground: THREE.Mesh,
+  _generation: number,
+  isCurrent: () => boolean,
+): Promise<void> {
   try {
     const texture = await new THREE.TextureLoader().loadAsync(VISUAL.ground.aiTextureUrl);
+    // A Map 1 texture may resolve after Map 2 has already replaced its ground.
+    // Discard it instead of mutating a disposed material from the old map.
+    if (!isCurrent() || !ground.parent) {
+      texture.dispose();
+      return;
+    }
     texture.colorSpace = THREE.SRGBColorSpace;
     texture.anisotropy = 4;
     texture.wrapS = THREE.RepeatWrapping;
@@ -239,6 +288,126 @@ async function upgradeGroundTexture(ground: THREE.Mesh): Promise<void> {
   } catch (error) {
     console.warn('AI ground texture unavailable, keeping procedural floor:', error);
   }
+}
+
+function buildMegafactoryMap(root: THREE.Object3D): Obstacle[] {
+  const cfg = MEGAFACTORY_MAP;
+  const size = ARENA_HALF_SIZE * 2;
+  const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(size, size),
+    litMaterial({ map: createMegafactoryGroundTexture() }),
+  );
+  ground.rotation.x = -Math.PI / 2;
+  root.add(ground);
+
+  const obstacles: Obstacle[] = [];
+  const towerMaterial = litMaterial({ color: cfg.colors.charcoal });
+  const trimMaterial = new THREE.MeshBasicMaterial({ color: cfg.colors.cyan });
+  for (let index = 0; index < cfg.towerCount; index++) {
+    const angle = (index / cfg.towerCount) * Math.PI * 2;
+    const heightLerp = (index % 4) / 3;
+    const height = THREE.MathUtils.lerp(cfg.towerHeightMin, cfg.towerHeightMax, heightLerp);
+    const x = Math.cos(angle) * cfg.perimeterRadius;
+    const z = Math.sin(angle) * cfg.perimeterRadius;
+    const tower = new THREE.Group();
+    tower.position.set(x, 0, z);
+    tower.rotation.y = -angle;
+    const body = new THREE.Mesh(
+      new THREE.BoxGeometry(cfg.towerWidth, height, cfg.towerDepth),
+      towerMaterial,
+    );
+    body.position.y = height / 2;
+    const trim = new THREE.Mesh(
+      new THREE.BoxGeometry(cfg.towerWidth * 0.72, 0.32, cfg.towerDepth + 0.08),
+      trimMaterial,
+    );
+    trim.position.y = height * 0.64;
+    tower.add(body, trim);
+    root.add(tower);
+    obstacles.push({ x, z, radius: cfg.towerColliderRadius, blocksFlyers: true });
+  }
+
+  const pipeMaterial = new THREE.MeshBasicMaterial({ color: cfg.colors.cyan });
+  for (let index = 0; index < cfg.pipeSegments; index++) {
+    const angle = (index / cfg.pipeSegments) * Math.PI * 2;
+    const next = ((index + 1) / cfg.pipeSegments) * Math.PI * 2;
+    const ax = Math.cos(angle) * cfg.perimeterRadius;
+    const az = Math.sin(angle) * cfg.perimeterRadius;
+    const bx = Math.cos(next) * cfg.perimeterRadius;
+    const bz = Math.sin(next) * cfg.perimeterRadius;
+    const length = Math.hypot(bx - ax, bz - az);
+    const pipe = new THREE.Mesh(
+      new THREE.CylinderGeometry(cfg.pipeRadius, cfg.pipeRadius, length, 6),
+      pipeMaterial,
+    );
+    pipe.position.set((ax + bx) / 2, cfg.pipeHeight, (az + bz) / 2);
+    pipe.rotation.z = Math.PI / 2;
+    pipe.rotation.y = -Math.atan2(bz - az, bx - ax);
+    root.add(pipe);
+  }
+
+  const heatMaterial = new THREE.MeshBasicMaterial({ color: cfg.colors.heat });
+  for (let index = 0; index < cfg.heatLaneCount; index++) {
+    const angle = (index / cfg.heatLaneCount) * Math.PI * 2;
+    const lane = new THREE.Mesh(
+      new THREE.PlaneGeometry(cfg.heatLaneWidth, cfg.heatLaneLength),
+      heatMaterial,
+    );
+    const distance = cfg.openCenterRadius + cfg.heatLaneLength / 2;
+    lane.rotation.x = -Math.PI / 2;
+    lane.rotation.z = -angle;
+    lane.position.set(Math.cos(angle) * distance, 0.025, Math.sin(angle) * distance);
+    root.add(lane);
+  }
+  return obstacles;
+}
+
+function createMegafactoryGroundTexture(): THREE.CanvasTexture {
+  const cfg = MEGAFACTORY_MAP;
+  const canvas = document.createElement('canvas');
+  canvas.width = VISUAL.ground.textureSize;
+  canvas.height = VISUAL.ground.textureSize;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D canvas context unavailable');
+  ctx.fillStyle = `#${cfg.colors.floor.toString(16).padStart(6, '0')}`;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const cell = canvas.width / VISUAL.ground.tiles;
+  ctx.strokeStyle = `#${cfg.colors.seam.toString(16).padStart(6, '0')}`;
+  ctx.lineWidth = 2;
+  for (let i = 0; i <= VISUAL.ground.tiles; i++) {
+    const p = Math.round(i * cell) + 0.5;
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, canvas.height);
+    ctx.moveTo(0, p);
+    ctx.lineTo(canvas.width, p);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = `#${cfg.colors.cyan.toString(16).padStart(6, '0')}`;
+  ctx.globalAlpha = 0.5;
+  ctx.lineWidth = 3;
+  ctx.strokeRect(cell, cell, canvas.width - cell * 2, canvas.height - cell * 2);
+  ctx.globalAlpha = 1;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 4;
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(4, 4);
+  return texture;
+}
+
+function disposeObject(object: THREE.Object3D): void {
+  object.traverse((child) => {
+    if (!(child instanceof THREE.Mesh)) return;
+    child.geometry.dispose();
+    const materials = Array.isArray(child.material) ? child.material : [child.material];
+    for (const material of materials) {
+      const mapped = material as THREE.Material & { map?: THREE.Texture | null };
+      mapped.map?.dispose();
+      material.dispose();
+    }
+  });
 }
 
 /** Screen-space vertical gradient used as the scene background: night navy

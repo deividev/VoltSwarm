@@ -133,6 +133,8 @@ class TelemetryFacade {
       outcome: record.outcome,
       map: record.map,
       durationS: record.durationS,
+      sectorsCleared: record.sectorsCleared,
+      mapsReached: record.mapsReached,
       level: record.level,
       kills: record.kills,
       bossesDefeated: record.bossesDefeated,

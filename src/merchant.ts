@@ -140,13 +140,13 @@ export class MerchantSystem {
     beamMat.opacity = 0.28 + pulse * 0.32;
   }
 
-  reset(): void {
+  reset(clockS = 0): void {
     this.active = false;
     this.group.visible = false;
     this.stock = [];
     this.arrivalPulseS = 0;
     this.beam.scale.setScalar(1);
     (this.beam.material as THREE.MeshBasicMaterial).opacity = 0.28;
-    this.nextVisitS = MERCHANT.firstVisitS;
+    this.nextVisitS = clockS + MERCHANT.firstVisitS;
   }
 }

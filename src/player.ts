@@ -345,6 +345,16 @@ export class Player {
     for (const tick of this.markerTicks) tick.scale.setScalar(1);
   }
 
+  /** Map boundary: move to the new arena's safe centre and clear hit timing,
+   * while preserving HP/max HP granted by the current build. */
+  enterMap(): void {
+    this.position.set(0, 0, 0);
+    this.invulnTimer = 0;
+    this.mesh.visible = true;
+    if (this.markerGroup) this.markerGroup.position.set(0, VISUAL.playerMarker.y, 0);
+    if (this.shadow) this.shadow.position.set(0, this.shadow.position.y, 0);
+  }
+
   /** Applies contact damage, respecting the invulnerability window. Returns true if damage landed. */
   takeHit(damage: number): boolean {
     if (this.invulnTimer > 0 || this.hp <= 0) return false;

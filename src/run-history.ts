@@ -1,4 +1,4 @@
-import type { WeaponId } from './config';
+import { MAPS, type WeaponId } from './config';
 import type { ModCounts } from './mods';
 import type { CoreLevels, WeaponBranchLevels, WeaponLevels, WeaponPower } from './upgrades';
 
@@ -33,6 +33,10 @@ export interface RunSnapshot {
   /** Character played. Same impossible-to-backfill argument as difficulty. */
   characterId?: string;
   durationS: number;
+  /** Structural run progress. Duration can no longer prove completion once a
+   * run crosses multiple maps. Optional for backward-compatible v1 records. */
+  sectorsCleared?: number;
+  mapsReached?: number;
   /** Per-run counters that contract objectives ask about. Optional because
    *  older records predate them; absent reads as unknown, never as zero. */
   damageTaken?: number;
@@ -197,6 +201,12 @@ export function saveRunRecord(snapshot: RunSnapshot): RunRecordV1 {
       : {}),
     ...(snapshot.cursedFinal !== undefined ? { cursedFinal: round3(snapshot.cursedFinal) } : {}),
     ...(snapshot.cursedTimeAvg !== undefined ? { cursedTimeAvg: round3(snapshot.cursedTimeAvg) } : {}),
+    ...(snapshot.sectorsCleared !== undefined
+      ? { sectorsCleared: Math.max(0, Math.floor(snapshot.sectorsCleared)) }
+      : {}),
+    ...(snapshot.mapsReached !== undefined
+      ? { mapsReached: Math.max(1, Math.floor(snapshot.mapsReached)) }
+      : {}),
     durationS: Math.max(0, Math.round(snapshot.durationS * 1000) / 1000),
     level: Math.max(1, Math.floor(snapshot.level)),
     kills: Math.max(0, Math.floor(snapshot.kills)),
@@ -219,6 +229,26 @@ export function saveRunRecord(snapshot: RunSnapshot): RunRecordV1 {
     console.warn('Could not persist run history.', error);
   }
   return record;
+}
+
+/** Migration view for records written before structural progress fields.
+ * Old `sector-cleared` records explicitly prove Map 1; raw duration alone does
+ * not. Existing granted rewards remain granted by profile policy. */
+export function sectorsClearedOf(record: Pick<RunRecordV1, 'sectorsCleared' | 'outcome' | 'map'>): number {
+  if (record.sectorsCleared !== undefined) return Math.max(0, Math.floor(record.sectorsCleared));
+  if (record.outcome === 'run-complete') return MAPS.length;
+  if (record.outcome === 'sector-cleared') return Math.max(1, Math.floor(record.map.number));
+  return 0;
+}
+
+export function mapsReachedOf(record: Pick<RunRecordV1, 'mapsReached' | 'map'>): number {
+  return record.mapsReached !== undefined
+    ? Math.max(1, Math.floor(record.mapsReached))
+    : Math.max(1, Math.floor(record.map.number));
+}
+
+export function isRunComplete(record: Pick<RunRecordV1, 'sectorsCleared' | 'outcome' | 'map'>): boolean {
+  return record.outcome === 'run-complete' || sectorsClearedOf(record) >= MAPS.length;
 }
 
 function round3(value: number): number {

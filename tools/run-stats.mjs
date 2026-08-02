@@ -170,9 +170,23 @@ for (const r of history) difficulties[r.difficulty ?? '(unlabelled)'] = (difficu
 console.log('\nRuns per difficulty:');
 for (const [d, n] of Object.entries(difficulties).sort()) console.log(`  ${d.padEnd(14)} ${String(n).padStart(4)}`);
 
-const finished = history.filter((r) => r.durationS >= 590);
+const LEGACY_FULL_RUN_SECTORS = 2;
+const sectorsCleared = (run) => run.sectorsCleared ?? (
+  run.outcome === 'run-complete'
+    ? Math.max(LEGACY_FULL_RUN_SECTORS, run.map?.number ?? 0)
+    : run.outcome === 'sector-cleared'
+      ? Math.max(1, run.map?.number ?? 1)
+      : 0
+);
+const mapsReached = (run) => run.mapsReached ?? Math.max(1, run.map?.number ?? 1);
+distribution('sectors cleared', history.map(sectorsCleared));
+distribution('maps reached', history.map(mapsReached));
+
+// Completion is structural. A 20-minute defeat in Map 2 is not a completed
+// run, while a future balance pass changing map duration must not break stats.
+const finished = history.filter((r) => r.outcome === 'run-complete');
 if (finished.length > 0) {
-  console.log(`\nFull 10:00 runs only (${finished.length}):`);
+  console.log(`\nCompleted full-arc runs only (${finished.length}):`);
   console.log('                        min     p25     p50     p75     p90     max');
   distribution('kills / run', finished.map((r) => r.kills));
   distribution('level reached', finished.map((r) => r.level));

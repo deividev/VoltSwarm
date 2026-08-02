@@ -131,7 +131,57 @@ export const SPAWN_PLACEMENT = {
   spiralStep: 1.25,
 };
 
-export const RUN_DURATION_S = 10 * 60;
+/** Ordered v1 run arc. Map clocks reset at each boundary; total run time does not. */
+export const MAPS = [
+  {
+    id: 'scrapyard',
+    number: 1,
+    title: 'Scrapyard',
+    durationS: 10 * 60,
+    /** Map 1 owns the full opening difficulty ramp. */
+    difficultyOffsetS: 0,
+  },
+  {
+    id: 'megafactory',
+    number: 2,
+    title: 'Swarm Foundry',
+    durationS: 10 * 60,
+    /** The foundry begins at late-run pressure instead of replaying minute one. */
+    difficultyOffsetS: 8 * 60,
+  },
+] as const;
+
+/** Compatibility alias for tools that intentionally simulate Map 1 only. */
+export const RUN_DURATION_S = MAPS[0].durationS;
+
+/** Honest procedural first pass for Map 2. These are layout/render numbers,
+ * not claims about final authored assets. The combat centre stays empty while
+ * monumental machinery and readable heat/energy lanes live at the perimeter. */
+export const MEGAFACTORY_MAP = {
+  openCenterRadius: 38,
+  perimeterRadius: 72,
+  towerCount: 12,
+  towerWidth: 7,
+  towerHeightMin: 12,
+  towerHeightMax: 22,
+  towerDepth: 7,
+  towerColliderRadius: 4.8,
+  pipeSegments: 16,
+  pipeRadius: 0.42,
+  pipeHeight: 0.18,
+  heatLaneCount: 8,
+  heatLaneWidth: 1.2,
+  heatLaneLength: 22,
+  colors: {
+    floor: 0x202831,
+    seam: 0x111820,
+    charcoal: 0x17212a,
+    steel: 0x40515d,
+    cyan: 0x01e6fe,
+    amber: 0xfdb601,
+    heat: 0xff6a24,
+  },
+} as const;
 
 /** Map-1 tactical prop: shipping-container chokepoints. Each gate is a pair
  *  of containers forming a wall with an opening — a subtle funnel; user
@@ -582,6 +632,11 @@ export type EnemyBehavior = 'chase' | 'roller' | 'gunner' | 'flyer' | 'charger';
 
 export interface EnemyTypeDef {
   name: string;
+  /** Explicit registry alias for names that intentionally do not match their
+   * model key (Hazard Marshal uses the historical `final-boss` asset slot). */
+  modelKey?: string;
+  /** Boss identity is semantic, not inferred from an array position. */
+  isBoss?: boolean;
   behavior: EnemyBehavior;
   hp: number;
   speed: number;
@@ -765,6 +820,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   // 1.8 x 1.35 = 2.43) so the visual hierarchy is never ambiguous.
   {
     name: 'Crusher King',
+    isBoss: true,
     behavior: 'chase',
     hp: 2600,
     speed: 3,
@@ -778,6 +834,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Tesla Titan',
+    isBoss: true,
     behavior: 'gunner',
     hp: 2200,
     speed: 2.4,
@@ -789,10 +846,49 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
     weight: 0,
     capacity: 1,
   },
+  {
+    name: 'Hazard Marshal',
+    modelKey: 'final-boss',
+    isBoss: true,
+    behavior: 'chase',
+    hp: 7200,
+    speed: 3.2,
+    scale: 5.2,
+    radius: 3.1,
+    xp: 300,
+    color: 0xfdb601,
+    unlockAtS: Infinity,
+    weight: 0,
+    capacity: 1,
+  },
 ];
 
 /** Pool indexes of the summonable bosses (must match ENEMY_TYPES order). */
 export const BOSS_TYPE_INDEXES = [6, 7];
+
+/** Final boss is deliberately outside BOSS_TYPE_INDEXES: Map 1's positional
+ * random draw must never select it. It is activated only by the Map 2 finale. */
+export const FINAL_BOSS_TYPE_INDEX = 8;
+
+export function isBossTypeIndex(typeIndex: number): boolean {
+  return ENEMY_TYPES[typeIndex]?.isBoss === true;
+}
+
+/** Provisional, reusable arena behavior for the first playable Map 2 pass.
+ * This is an integration harness, not the final Hazard Marshal moveset. */
+export const FINAL_BOSS_PROVISIONAL = {
+  spawnDistance: 24,
+  hpLevelReference: 30,
+  hpLevelMin: 0.85,
+  hpLevelMax: 1.6,
+  burstCooldownS: 5.5,
+  telegraphS: 1.1,
+  burstProjectiles: 16,
+  projectileSpeed: 13,
+  projectileDamage: 16,
+  shoveRadius: 12,
+  shoveForce: 14,
+} as const;
 
 export const ENEMIES = {
   spawnRingMin: 32,
@@ -1867,13 +1963,14 @@ export function difficultyScalar(elapsedS: number, cursedBonus: number): number 
 export const CONTRACTS = {
   /** Signature milestones, hand-authored for the moments a player remembers. */
   firstBossKill: 1,
-  fullRunSeconds: 595,
+  /** A complete run is structural now: both sectors, never elapsed time alone. */
+  fullRunSectors: MAPS.length,
   bossHunterKills: 5,
   fullLoadoutLevel: 25,
   /** One full run landed 625; this is meant to need a strong build, not a miracle. */
   overkillKillsInRun: 800,
   /** Longest run finished carrying ONE weapon and ZERO mods. */
-  puristSeconds: 595,
+  puristSectors: MAPS.length,
   /** Longest run finished without taking a single point of damage. */
   flawlessSeconds: 300,
   provingGroundWeapons: 4,

@@ -1,5 +1,12 @@
 import * as THREE from 'three';
-import { BOSS, BOSS_TYPE_INDEXES, ENEMY_TYPES } from './config';
+import {
+  BOSS,
+  BOSS_TYPE_INDEXES,
+  ENEMY_TYPES,
+  FINAL_BOSS_PROVISIONAL,
+  FINAL_BOSS_TYPE_INDEX,
+  isBossTypeIndex,
+} from './config';
 import { CHARGE } from './enemies';
 import type { EnemySystem } from './enemies';
 import type { EnemyProjectiles } from './enemy-projectiles';
@@ -33,6 +40,10 @@ export class BossSystem {
   private baseSpeed = 0;
   // Tesla timer.
   private burstTimer = 0;
+  // Hazard Marshal provisional arena loop. This proves the final-boss seam;
+  // it is intentionally not the final authored moveset.
+  private finalPhase: 'cooldown' | 'telegraph' = 'cooldown';
+  private finalTimer = 0;
   // Run continuity: each defeated boss raises the next one's HP.
   private hpMult = 1;
   private respawnTimer = 0;
@@ -176,6 +187,42 @@ export class BossSystem {
     this.bossTypeIndex = typeIndex;
   }
 
+  /** Activates the Map 2 finale without entering Map 1's random totem draw. */
+  startFinalBoss(
+    px: number,
+    pz: number,
+    playerLevel: number,
+    enemies: EnemySystem,
+    obstacles: Obstacle[],
+  ): string | null {
+    this.totem.visible = false;
+    this.bossTypeIndex = FINAL_BOSS_TYPE_INDEX;
+    const cfg = FINAL_BOSS_PROVISIONAL;
+    const levelScale = Math.min(
+      cfg.hpLevelMax,
+      Math.max(cfg.hpLevelMin, playerLevel / cfg.hpLevelReference),
+    );
+    this.bossIndex = enemies.spawnAt(
+      FINAL_BOSS_TYPE_INDEX,
+      px + cfg.spawnDistance,
+      pz,
+      levelScale,
+      false,
+      obstacles,
+    );
+    this.state = this.bossIndex === -1 ? 'done' : 'active';
+    this.finalPhase = 'cooldown';
+    this.finalTimer = cfg.burstCooldownS;
+    this.baseSpeed = ENEMY_TYPES[FINAL_BOSS_TYPE_INDEX]?.speed ?? 0;
+    if (this.bossIndex === -1) return null;
+    const boss = enemies.pool[this.bossIndex];
+    if (boss) {
+      this.lastSummonAt.x = boss.x;
+      this.lastSummonAt.z = boss.z;
+    }
+    return ENEMY_TYPES[FINAL_BOSS_TYPE_INDEX]?.name ?? null;
+  }
+
   /** True while the player stands in the summon zone of the idle totem. */
   playerInSummonZone = false;
 
@@ -298,12 +345,54 @@ export class BossSystem {
       return null;
     }
 
-    if (this.bossTypeIndex === BOSS_TYPE_INDEXES[0]) {
+    if (this.bossTypeIndex === FINAL_BOSS_TYPE_INDEX) {
+      this.updateFinalBossProvisional(dt, boss, px, pz, projectiles, enemies);
+    } else if (this.bossTypeIndex === BOSS_TYPE_INDEXES[0]) {
       this.updateCrusher(dt, boss, enemies, obstacles);
     } else {
       this.updateTesla(dt, boss, px, pz, projectiles, enemies);
     }
     return null;
+  }
+
+  /** Provisional foundry-lane pressure: a visible stop, then an aimed radial
+   * discharge that clears the boss's arena. Reusable integration behavior;
+   * not a declaration of Hazard Marshal's final combat design. */
+  private updateFinalBossProvisional(
+    dt: number,
+    boss: { x: number; z: number; speed: number },
+    px: number,
+    pz: number,
+    projectiles: EnemyProjectiles,
+    enemies: EnemySystem,
+  ): void {
+    const cfg = FINAL_BOSS_PROVISIONAL;
+    this.finalTimer -= dt;
+    if (this.finalTimer > 0) return;
+    if (this.finalPhase === 'cooldown') {
+      this.finalPhase = 'telegraph';
+      this.finalTimer = cfg.telegraphS;
+      boss.speed = 0;
+      return;
+    }
+
+    this.finalPhase = 'cooldown';
+    this.finalTimer = cfg.burstCooldownS;
+    boss.speed = this.baseSpeed;
+    enemies.shoveAwayFrom(boss.x, boss.z, cfg.shoveRadius, cfg.shoveForce);
+    const aimedOffset = Math.atan2(px - boss.x, pz - boss.z);
+    for (let index = 0; index < cfg.burstProjectiles; index++) {
+      const angle = aimedOffset + (index / cfg.burstProjectiles) * Math.PI * 2;
+      projectiles.fire(
+        boss.x,
+        boss.z,
+        Math.sin(angle),
+        Math.cos(angle),
+        cfg.projectileSpeed,
+        cfg.projectileDamage,
+        'tesla',
+      );
+    }
   }
 
   /** Crusher King: telegraphed charges plus periodic scrapling reinforcements. */
@@ -428,7 +517,11 @@ export class BossSystem {
 
   /** True when this pool index belongs to a boss type. */
   isBossType(typeIndex: number): boolean {
-    return BOSS_TYPE_INDEXES.includes(typeIndex);
+    return isBossTypeIndex(typeIndex);
+  }
+
+  isFinalBossType(typeIndex: number): boolean {
+    return typeIndex === FINAL_BOSS_TYPE_INDEX;
   }
 
   /** Called by the game when a boss dies: schedules the next, tougher totem. */
@@ -438,8 +531,22 @@ export class BossSystem {
     if (name) this.defeatedTypes.add(name);
     this.bossIndex = -1;
     this.bossesDefeated += 1;
-    this.hpMult *= BOSS.respawnHpGrowth;
-    this.respawnTimer = BOSS.respawnDelayS;
+    if (this.bossTypeIndex === FINAL_BOSS_TYPE_INDEX) {
+      this.respawnTimer = 0;
+    } else {
+      this.hpMult *= BOSS.respawnHpGrowth;
+      this.respawnTimer = BOSS.respawnDelayS;
+    }
+  }
+
+  /** Clears map-local actors while preserving run-wide boss history. */
+  clearForMapTransition(): void {
+    this.totem.visible = false;
+    this.state = 'done';
+    this.bossIndex = -1;
+    this.respawnTimer = 0;
+    this.summonTimer = 0;
+    this.playerInSummonZone = false;
   }
 
   reset(): void {

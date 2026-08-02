@@ -1,4 +1,4 @@
-import { BOSS_TYPE_INDEXES, CONTRACTS, PROFILE, WEAPON_INFO, type WeaponId } from './config';
+import { CONTRACTS, ENEMY_TYPES, PROFILE, WEAPON_INFO, type WeaponId } from './config';
 import { CORE_TITLES } from './upgrades';
 import { MOD_REGISTRY, refreshUnlockedMods, type ModId } from './mods';
 import { LIFETIME, saveProfile, type LifetimeStats } from './profile';
@@ -23,6 +23,7 @@ export type Objective =
   | { type: 'lifetime-kills'; n: number }
   | { type: 'kills-in-run'; n: number }
   | { type: 'finish-runs'; n: number }
+  | { type: 'complete-runs'; n: number }
   | { type: 'reach-level'; n: number }
   | { type: 'survive'; seconds: number }
   | { type: 'defeat-bosses'; n: number }
@@ -31,6 +32,7 @@ export type Objective =
   | { type: 'weapons-mastered'; n: number }
   | { type: 'distinct-starting-weapons'; n: number }
   | { type: 'minimal-run'; seconds: number }
+  | { type: 'minimal-sectors'; n: number }
   | { type: 'flawless-run'; seconds: number };
 
 export type Reward =
@@ -92,7 +94,7 @@ const SIGNATURE: Contract[] = [
   {
     id: 'second-wind', title: 'Second Wind',
     description: 'Survive a full run.',
-    objective: { type: 'survive', seconds: CONTRACTS.fullRunSeconds },
+    objective: { type: 'complete-runs', n: 1 },
     reward: { kind: 'socket', slot: 'core' },
   },
   {
@@ -116,7 +118,7 @@ const SIGNATURE: Contract[] = [
   {
     id: 'purist', title: 'Purist',
     description: 'Survive a full run with one weapon and no mods.',
-    objective: { type: 'minimal-run', seconds: CONTRACTS.puristSeconds },
+    objective: { type: 'minimal-sectors', n: CONTRACTS.puristSectors },
     reward: { kind: 'mod', id: 'phase-chassis' as ModId },
   },
   {
@@ -138,13 +140,13 @@ const SIGNATURE: Contract[] = [
     // Target read from the roster, so adding a boss raises the bar by itself.
     // It was hardcoded to 3 against a roster of 2, and as a defeat-bosses COUNT
     // — which would have meant "kill three bosses", not "kill each kind".
-    objective: { type: 'boss-kinds', n: BOSS_TYPE_INDEXES.length },
+    objective: { type: 'boss-kinds', n: ENEMY_TYPES.filter((type) => type.isBoss).length },
     reward: { kind: 'mod', id: 'magnetron-heart' as ModId },
   },
   {
     id: 'two-of-a-kind', title: 'Two of a Kind',
     description: 'Survive a full run with two different characters.',
-    objective: { type: 'survive', seconds: CONTRACTS.fullRunSeconds },
+    objective: { type: 'complete-runs', n: 1 },
     reward: { kind: 'next-core' },
     latent: 'Characters are not implemented.',
   },
@@ -209,11 +211,13 @@ export function progressOf(objective: Objective, stats: LifetimeStats = LIFETIME
     case 'lifetime-kills': return { current: stats.totalKills, target: objective.n };
     case 'kills-in-run': return { current: stats.bestKillsInRun, target: objective.n };
     case 'finish-runs': return { current: stats.runsFinished, target: objective.n };
+    case 'complete-runs': return { current: stats.runsCompleted, target: objective.n };
     case 'reach-level': return { current: stats.bestLevel, target: objective.n };
     case 'survive': return { current: stats.bestDurationS, target: objective.seconds };
     case 'defeat-bosses': return { current: stats.bossesDefeated, target: objective.n };
     case 'boss-kinds': return { current: stats.bossTypesDefeated.length, target: objective.n };
     case 'minimal-run': return { current: stats.bestMinimalRunS, target: objective.seconds };
+    case 'minimal-sectors': return { current: stats.bestMinimalSectors, target: objective.n };
     case 'flawless-run': return { current: stats.bestFlawlessRunS, target: objective.seconds };
     case 'weapons-mastered':
       return {

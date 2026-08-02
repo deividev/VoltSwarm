@@ -1,7 +1,14 @@
 import { PROFILE, WEAPON_INFO, isWeaponAvailable, type WeaponId } from './config';
 import { CORE_TITLES } from './upgrades';
 import { MOD_IDS, refreshUnlockedMods, type ModId } from './mods';
-import { clearRunHistory, loadRunHistory, type RunRecordV1 } from './run-history';
+import {
+  clearRunHistory,
+  isRunComplete,
+  loadRunHistory,
+  mapsReachedOf,
+  sectorsClearedOf,
+  type RunRecordV1,
+} from './run-history';
 // Type-only: erased at compile time, so this cannot create a runtime cycle with
 // contracts.ts, which imports LIFETIME from here.
 import type { Reward } from './contracts';
@@ -17,7 +24,7 @@ import type { Reward } from './contracts';
 // design note in config.ts.
 
 const STORAGE_KEY = 'voltswarm:profile';
-const VERSION = 2;
+const VERSION = 3;
 
 /** Monotonic career totals, the fact base every contract objective reads.
  *
@@ -28,6 +35,10 @@ const VERSION = 2;
 export interface LifetimeStats {
   runsFinished: number;
   runsSurvived: number;
+  runsCompleted: number;
+  totalSectorsCleared: number;
+  bestSectorsCleared: number;
+  maxMapsReached: number;
   totalKills: number;
   totalPlayS: number;
   bestKillsInRun: number;
@@ -49,6 +60,7 @@ export interface LifetimeStats {
   bestGoldEarnedInRun: number;
   /** Longest finished run carrying ONE weapon and ZERO mods. */
   bestMinimalRunS: number;
+  bestMinimalSectors: number;
   /** Longest finished run that took no damage at all. */
   bestFlawlessRunS: number;
   /** Contract ids already paid out. Rewards are never revoked, so raising a
@@ -67,12 +79,15 @@ export const LIFETIME: LifetimeStats = emptyLifetime();
 
 function emptyLifetime(): LifetimeStats {
   return {
-    runsFinished: 0, runsSurvived: 0, totalKills: 0, totalPlayS: 0,
+    runsFinished: 0, runsSurvived: 0, runsCompleted: 0,
+    totalSectorsCleared: 0, bestSectorsCleared: 0, maxMapsReached: 0,
+    totalKills: 0, totalPlayS: 0,
     bestKillsInRun: 0, bestLevel: 0, bestDurationS: 0, bossesDefeated: 0, bossTypesDefeated: [],
     damageTaken: 0, goldEarned: 0, shopPurchases: 0,
     damageByWeapon: {}, runsByStartingWeapon: {}, weaponMaxLevel: {},
     chestsByTier: {}, bestModsHeld: 0, bestGoldEarnedInRun: 0,
-    bestMinimalRunS: 0, bestFlawlessRunS: 0, completedContracts: [], grantedRewards: {},
+    bestMinimalRunS: 0, bestMinimalSectors: 0, bestFlawlessRunS: 0,
+    completedContracts: [], grantedRewards: {},
     countedRunIds: [],
   };
 }
@@ -141,6 +156,11 @@ export function recordRunInLifetime(record: RunRecordV1): void {
 
   LIFETIME.runsFinished += 1;
   if (record.outcome !== 'defeat') LIFETIME.runsSurvived += 1;
+  if (isRunComplete(record)) LIFETIME.runsCompleted += 1;
+  const sectorsCleared = sectorsClearedOf(record);
+  LIFETIME.totalSectorsCleared += sectorsCleared;
+  LIFETIME.bestSectorsCleared = Math.max(LIFETIME.bestSectorsCleared, sectorsCleared);
+  LIFETIME.maxMapsReached = Math.max(LIFETIME.maxMapsReached, mapsReachedOf(record));
   LIFETIME.totalKills += record.kills;
   LIFETIME.totalPlayS += record.durationS;
   LIFETIME.bossesDefeated += record.bossesDefeated;
@@ -162,6 +182,7 @@ export function recordRunInLifetime(record: RunRecordV1): void {
   const modsTaken = Object.values(record.modCounts).reduce((total, n) => total + Math.max(0, n), 0);
   if (weaponsCarried <= 1 && modsTaken === 0) {
     LIFETIME.bestMinimalRunS = Math.max(LIFETIME.bestMinimalRunS, record.durationS);
+    LIFETIME.bestMinimalSectors = Math.max(LIFETIME.bestMinimalSectors, sectorsCleared);
   }
   if (record.damageTaken === 0) {
     LIFETIME.bestFlawlessRunS = Math.max(LIFETIME.bestFlawlessRunS, record.durationS);
@@ -253,6 +274,10 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
   Object.assign(LIFETIME, {
     runsFinished: num(saved.runsFinished),
     runsSurvived: num(saved.runsSurvived),
+    runsCompleted: num(saved.runsCompleted),
+    totalSectorsCleared: num(saved.totalSectorsCleared),
+    bestSectorsCleared: num(saved.bestSectorsCleared),
+    maxMapsReached: num(saved.maxMapsReached),
     totalKills: num(saved.totalKills),
     totalPlayS: num(saved.totalPlayS),
     bestKillsInRun: num(saved.bestKillsInRun),
@@ -268,6 +293,7 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
     bestModsHeld: num(saved.bestModsHeld),
     bestGoldEarnedInRun: num(saved.bestGoldEarnedInRun),
     bestMinimalRunS: num(saved.bestMinimalRunS),
+    bestMinimalSectors: num(saved.bestMinimalSectors),
     bestFlawlessRunS: num(saved.bestFlawlessRunS),
     completedContracts: Array.isArray(saved.completedContracts)
       ? saved.completedContracts.filter((id): id is string => typeof id === 'string')
@@ -281,6 +307,27 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
       ? saved.countedRunIds.filter((id): id is string => typeof id === 'string')
       : [],
   } satisfies LifetimeStats);
+  // v2 ledgers already counted their run ids, so the normal idempotent backfill
+  // cannot populate the structural v3 fields. Derive only the new fields from
+  // surviving history; never replay kills/currency or revoke granted rewards.
+  if (saved.totalSectorsCleared === undefined) {
+    const history = loadRunHistory();
+    LIFETIME.runsCompleted = history.filter(isRunComplete).length;
+    LIFETIME.totalSectorsCleared = history.reduce((sum, record) => sum + sectorsClearedOf(record), 0);
+    LIFETIME.bestSectorsCleared = history.reduce(
+      (best, record) => Math.max(best, sectorsClearedOf(record)),
+      0,
+    );
+    LIFETIME.maxMapsReached = history.reduce(
+      (best, record) => Math.max(best, mapsReachedOf(record)),
+      0,
+    );
+    LIFETIME.bestMinimalSectors = history.reduce((best, record) => {
+      const weapons = Object.values(record.weaponLevels).filter((level) => level > 0).length;
+      const mods = Object.values(record.modCounts).reduce((sum, count) => sum + Math.max(0, count), 0);
+      return weapons <= 1 && mods === 0 ? Math.max(best, sectorsClearedOf(record)) : best;
+    }, 0);
+  }
 }
 
 /** Defaults first, then any saved extras. Unknown ids are dropped so a stale or

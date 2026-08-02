@@ -2,12 +2,12 @@
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Estado de la arquitectura (actualizado 2026-07-26, v0.6.5)
+## Estado de la arquitectura (actualizado 2026-08-02, v0.10.6-beta)
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
 3. ⏸️ **Preparación/viabilidad multijugador — DIFERIDA A POST-LANZAMIENTO (decisión del usuario 2026-07-25).** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno, para una feature que `MULTIPLAYER_FEASIBILITY.md` documenta como no diferenciadora, no prometida y que puede terminar NO-GO — mientras el contenido que decide si el juego vale su precio quedaba comprimido. Del gate se rescató solo la mitad barata: cobertura de smoke tests. **El determinismo de tick fijo, el RNG sembrado y los snapshots siguen sin implementar**, y por eso tampoco se guarda semilla en los registros de run. Si el gate se retoma y da GO, el primer objetivo sigue siendo exactamente 2 jugadores local split-screen; online peer-host exige aprobación posterior; hybrid y dedicated servers quedan fuera de alcance.
-4. **AHORA:** arco de run completo (Mapa 2 → gameplay de Volt Warden → 3 personajes diferenciados) → balance y retención con datos reales → catálogo de audio → Steamworks/cierre.
+4. 🟡 **AHORA:** primera versión jugable del arco completo ya integrada: Mapa 1 → Mapa 2 conservando build → Hazard Marshal provisional. El siguiente trabajo es validar y autorar el contenido final de Mapa 2 y el moveset definitivo del boss; después, 3 personajes diferenciados → balance y retención con datos reales → catálogo de audio → Steamworks/cierre.
 
 ## P1 — Estructural
 
@@ -88,11 +88,11 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - La invocación trae UN boss aleatorio de un pool de 2:
   - **Crusher King**: tanque con embestida telegrafiada y spawn de scraplings.
   - **Tesla Titan**: mantiene distancia y dispara ráfagas radiales de proyectiles.
-- Matar al boss NO termina el run: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida (ciclo farmear → boss → boss más duro hasta el timer). La única victoria actual es sobrevivir los 10 minutos; la pantalla final distingue `SYSTEM OVERLOAD` (muerte), `SECTOR CLEARED` (mapa completado) y deja preparado `RUN COMPLETE` para el último mapa.
-- Cada final de run persiste un registro local versionado con resultado, mapa, versión del build, fecha, duración, nivel, kills, bosses, build completa y daño real por arma. Son datos crudos —la métrica no se fija todavía— para poder derivar más adelante leaderboards por mapa sin migrar información incompleta.
+- En el Mapa 1, matar al boss NO termina el sector: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida. Al llegar a 10:00, la run cruza al Mapa 2; el reloj del mapa se reinicia, pero el reloj total y la build continúan.
+- Cada final de run persiste un registro local versionado con resultado, mapa donde terminó, versión del build, fecha, duración total, `sectorsCleared`, `mapsReached`, nivel, kills, bosses, build completa y daño real por arma. Son datos crudos para poder separar rendimiento por mapa y distinguir una run completa de una derrota larga sin inferirlo por duración.
 - Pase Steam 2026-07-15: el spawn de boss tiene beat de materialización reforzado con burst rojo, núcleo blanco, anillo de impacto y shake dedicado (`VISUAL.bossSummonVfx`) para que el título `AWAKENS` sea capturable.
-- Dirección futura (abierta, post-validación): cada boss derrotado transiciona a un mapa nuevo estilo Megabonk, culminando en un boss final. El ciclo de tótems actual es el placeholder mecánico de esa estructura.
-- Arco estético del multi-mapa (decidido 2026-07-03): scrapyard → fundición/fábrica → ciudad neón/estación orbital. El mundo es futurista; el scrapyard es el mapa 1, y cada mapa se ve más "futuro" que el anterior (detalle en `DIRECCION_ARTE.md`).
+- **Primera versión jugable del arco (2026-08-02, PROVISIONAL):** Mapa 1 durante 10 minutos → transición automática conservando armas, cores, mods, niveles, potencia acumulada, oro, HP actual, descartes y contadores de run → Mapa 2 durante 10 minutos → Hazard Marshal → `RUN COMPLETE` únicamente al derrotarlo. Se limpian solo actores y efectos locales del mapa; el jugador reaparece en el centro seguro.
+- Arco estético vigente: fábrica abandonada/desguace → **megafábrica futurista activa**. La antigua ciudad neón/estación orbital no se borra: queda como capa de inspiración o escenario posterior, no como el Mapa 2 de esta primera versión jugable (detalle en `DIRECCION_ARTE.md`).
 - Barra de vida del boss en el HUD.
 
 ### 13. Enemigo volador (Drone)
@@ -175,7 +175,7 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 ## Pipeline de modelos voxel 2D→3D — Implementado 2026-07-04
 
 - **Sistema**: referencia frontal plana por personaje (`assets/2d/ref-*.png`, gpt-image) → voxelización automática (`src/models/icon-voxelizer.ts`) → registro central (`src/models/registry.ts`). `EnemySystem.upgradeVoxelModels()` intercambia async la geometría de cualquier tipo de enemigo/boss registrado; sin entrada o si falla la carga, se mantienen las primitivas (fallback seguro).
-- **Estado**: Voltling cableado in-game y validado visualmente con enjambre denso; **Volt Warden** (boss nuevo, cabeza-casco flotante derivada del icono aprobado) tiene modelo listo pero SIN gameplay — diseño de mecánicas pendiente.
+- **Estado actual**: los modelos del enjambre están cableados y validados visualmente con densidad alta. **Hazard Marshal** ocupa el slot `final-boss` y ya entra en juego provisionalmente mediante `EnemySystem`; el pod **Volt Warden** reconstruido conserva sus hojas como diseño disponible para un enemigo futuro.
 - **Herramientas**: `tools/capture-model-preview.mjs <clave>` (viewer con luz del juego) y `tools/capture-ingame.mjs [segundos]` (arranca el juego headless, juega y captura).
 - **Criterio de aceptación por modelo**: silueta distinguible a distancia de cámara, paleta exacta, triángulos por instancia en presupuesto (enemigos ~3-6k), y validación final con 400+ enemigos activos.
 - **Pase de fidelidad 2026-07-13 (gate de captura)**: los 6 enemigos + jugador migrados de extrusión front-only al pipeline de hojas MEDIDAS de los bosses (`sideProfileRef` + `backPaintRef` — la cámara a 52° ve espaldas/techos y ahora están pintados de verdad); Sparkrunner rediseñado a v5 con brazos (aprobado); excepción Drone (solo espalda pintada — el perfil medido del rotor tapaba el techo); **greedy meshing en Y** en `voxel-builder.ts` (-27% a -66% de triángulos, visual idéntico). Rim light probado y rechazado por el usuario (revertido).
@@ -244,13 +244,13 @@ Reglas que no se rompen:
 - **Los techos de diseño (`maxWeaponSockets`/`maxCoreSockets`) NO se persisten**: son constantes de balance, así que subirlos alcanza a saves existentes.
 - Las listas de desbloqueo se **mergean sobre los defaults** y se filtran contra los registries reales: promover un ítem a desbloqueado-por-defecto llega a jugadores existentes, y un save editado a mano no puede inyectar un id fantasma.
 
-`LIFETIME` es el ledger monótono de carrera (runs, kills, mejores marcas, bosses y tipos de boss, daño por arma, runs por arma inicial, oro, cofres por tier, compras, hazañas de estilo). Vive aparte del historial **porque el historial se corta en 250 runs** y un contrato de "10.000 kills acumuladas" perdería terreno al envejecer las runs. Es idempotente por id de run, así que rellenar retroactivamente nunca infla totales.
+`LIFETIME` es el ledger monótono de carrera (runs, runs completas, sectores limpiados, máximo de mapas alcanzados, kills, mejores marcas, bosses y tipos de boss, daño por arma, runs por arma inicial, oro, cofres por tier, compras, hazañas de estilo). Vive aparte del historial **porque el historial se corta en 250 runs** y un contrato de "10.000 kills acumuladas" perdería terreno al envejecer las runs. Es idempotente por id de run, así que rellenar retroactivamente nunca infla totales.
 
 ### Historial de runs (`src/run-history.ts`)
 
 Los registros pasan a `userData/run-history.json` (antes solo `localStorage`, dentro del LevelDB de Chromium, ilegible para herramientas). `migrateRunHistory()` corre al arrancar, no de forma perezosa: migrar dentro de `loadRunHistory()` solo se disparaba al TERMINAR una run. **Aviso: `localStorage` es por ORIGEN** — lo escrito por un build empaquetado vive bajo `file://` y una sesión de dev server ve otro almacén.
 
-Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (reservado), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
+Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (reservado), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, `sectorsCleared`, `mapsReached` y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). La completitud es **estructural** (`run-complete` o todos los sectores), nunca `durationS >= N`: una derrota larga en el Mapa 2 no es una run completa. Los registros antiguos conservan compatibilidad sin inventar progreso a partir del reloj. **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
 
 ### Ciclo reutilizable de telemetría privada — `main` activa / Mapa 2 inert
 
@@ -323,9 +323,19 @@ Nunca puede mostrar dos mods iguales en celdas contiguas. Había dos causas: la 
 
 **Volt Pulse: cooldown 2.4 → 1.4s, daño sin tocar.** Su daño no era el problema: a 10 por pulso cada 2.4s necesita ~4 enemigos en el radio solo para igualar a Bolt Cannon, y esa densidad no existe en los primeros minutos — un arma de media run en manos de quien empieza. Subir el daño habría inflado el late, donde ya es fuerte. El coste real era el aire muerto: a diferencia de Orbital Blades, donde el jugador controla el contacto moviéndose, Pulse no ofrece nada que hacer entre disparo y disparo.
 
-## Boss final del Mapa 2 — modelo CERRADO 2026-07-31 (v0.8.1)
+## Mapa 2 + boss final — primera versión jugable PROVISIONAL (2026-08-02, v0.10.6-beta)
 
-Decisión del usuario: el boss final del Mapa 2 es el **Hazard Marshal**, clave `final-boss` en `src/models/registry.ts`. Sustituye al pod Volt Warden que ocupaba ese hueco. **Solo está cerrado el MODELO**: sigue sin estar enganchado a ningún tipo de enemigo y no tiene ninguna mecánica de pelea diseñada.
+### Megafábrica futurista activa
+
+El Mapa 2 ya existe como primera arena procedural jugable: suelo metálico generado en runtime, centro de combate abierto, doce torres monumentales en el perímetro, anillo de conductos cian y ocho carriles térmicos radiales. La composición protege la lectura del enjambre en el centro y concentra la escala industrial en los bordes. **No hay todavía textura raster final, props voxel finales ni set final de enemigos propio del mapa**; esta versión prueba estructura, continuidad y silueta espacial, no cierra el arte.
+
+La dificultad usa reloj propio de mapa con una base de presión tardía (`difficultyOffsetS`), evitando repetir el minuto uno al cruzar. El Mapa 2 conserva la build y el estado persistente de la run, pero limpia enemigos, proyectiles, pickups, orbes, cofres, mercader, buffs temporales y otros actores locales.
+
+### Hazard Marshal: integración provisional
+
+Decisión del usuario: el boss final del Mapa 2 es el **Hazard Marshal**, clave `final-boss` en `src/models/registry.ts`. Sustituye al pod Volt Warden que ocupaba ese hueco. El modelo ya está enganchado al juego como tipo semántico de boss y se renderiza mediante el `InstancedMesh` compartido de `EnemySystem`, preservando el guardarraíl de un mesh por tipo. Al terminar los 10 minutos del Mapa 2 aparece sin pasar por el sorteo de tótems del Mapa 1; derrotarlo cierra el segundo sector y la run.
+
+**Su combate actual es un arnés PROVISIONAL de integración, no el moveset final:** persecución, parada telegrafiada, empuje de arena y descarga radial orientada al jugador. Prueba spawn, targeting, inmunidades de boss, VFX/HUD, muerte y cierre de run. No declara fases, patrones definitivos, arena reactiva ni animaciones de ataque finales.
 
 ### Por qué cambió el candidato
 
@@ -354,7 +364,8 @@ Dos, ambas opt-in, ninguna cambia el comportamiento de los modelos existentes:
 
 ### Pendiente
 
-- **Gameplay: cero.** Ni fases, ni telegrafías, ni patrones, ni si el arena cambia.
+- **Gameplay final:** faltan fases, telegrafías y patrones autorados, relación definitiva con el arena y animaciones de ataque. El patrón radial actual es provisional y reemplazable.
+- **Arte final del mapa:** no existen todavía assets raster finales, props voxel finales ni una pasada de iluminación/ambiente aprobada por el usuario.
 - **Aviso de lenguaje visual:** el boss es ámbar+carbón y los Voltling del enjambre también. A tamaño de boss más el doble anillo rojo se distingue, pero conviene revisarlo al definir el elenco del Mapa 2 (la fundición mueve paletas igualmente).
 - **Ángulos 90°/270°** siguen siendo los más flojos. Importa menos de lo que parece: el boss gira siempre hacia el jugador y la cámara va detrás del jugador, así que in-game el ángulo dominante es el frontal.
 
@@ -362,11 +373,11 @@ Dos, ambas opt-in, ninguna cambia el comportamiento de los modelos existentes:
 
 El boss tiene **rig de piezas con jerarquía de pivotes** (`src/models/rig.ts`): cabeza, torso, dos brazos, dos muslos y dos espinillas, cortados del MISMO `VoxelGrid` que la malla única. Tres clips: `idle` (0.31 Hz), `walk` (0.62 Hz) y `hit` (disparo único).
 
-Es la única entidad que puede permitírselo: el resto del elenco se dibuja con `InstancedMesh` y una matriz por instancia, que no tiene miembros. De un boss solo hay uno en pantalla.
+Es una ruta autorada que el boss podría permitirse porque solo hay uno en pantalla; no cambia el guardarraíl del enjambre, donde cada tipo se dibuja mediante `InstancedMesh` y una matriz por instancia sin miembros.
 
 **Sistema completo, reutilizable para futuros enemigos/personajes/bosses, en `docs/ANIMACION_RIG.md`** — incluye cómo partir un modelo, el convenio de signos, por qué un seno hace que una marcha parezca sintética, y la verificación obligatoria del reparto de piezas.
 
-**Nada está enganchado al juego todavía**: el rig se revisa desde `model-preview.html?model=final-boss&anim=<clip>`.
+**El rig todavía no está enganchado al runtime de combate:** la primera integración jugable del Hazard Marshal usa la malla única del `InstancedMesh` de enemigos. Los clips se revisan desde `model-preview.html?model=final-boss&anim=<clip>` y quedan disponibles para la pasada de moveset final.
 
 ### Feedback de golpe — tinte, no animación (decisión 2026-07-31)
 
