@@ -10,6 +10,7 @@ const {
   exponentialBackoffMs,
 } = require('../electron/dist/telemetry/queue.js');
 const { TelemetryClient } = require('../electron/dist/telemetry/client.js');
+const { isPlaytestEligible, TELEMETRY_CONFIG } = require('../electron/dist/telemetry/config.js');
 const { validateRendererTelemetryEvent } = require('../electron/dist/telemetry/validation.js');
 
 const FIXED_DATE = new Date('2026-08-01T12:00:00.000Z');
@@ -132,8 +133,14 @@ function testClient(directory, fetchImpl, options = {}) {
   });
 }
 
-test('disabled or unconsented clients create no identity or queue side effects', () => {
+test('map-2 global gate and missing consent prevent identity, queue, and network side effects', () => {
   withTempDirectory((directory) => {
+    let networkCalls = 0;
+    const map2Runtime = { packaged: true, benchmark: false, buildVersion: '0.10.6-beta' };
+    assert.equal(isPlaytestEligible(TELEMETRY_CONFIG, map2Runtime), false);
+    assert.throws(() => new TelemetryClient(
+      directory, map2Runtime, TELEMETRY_CONFIG, true, { fetch: async () => { networkCalls += 1; } },
+    ), /telemetry_not_authorized/);
     const runtime = { packaged: true, benchmark: false, buildVersion: '0.10.5-beta' };
     assert.throws(() => new TelemetryClient(
       directory, runtime, { ...TEST_CONFIG, enabled: false }, true,
@@ -141,6 +148,7 @@ test('disabled or unconsented clients create no identity or queue side effects',
     assert.throws(() => new TelemetryClient(
       directory, runtime, TEST_CONFIG, false,
     ), /telemetry_not_authorized/);
+    assert.equal(networkCalls, 0);
     assert.deepEqual(fs.readdirSync(directory), []);
   });
 });

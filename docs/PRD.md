@@ -230,7 +230,7 @@ Successful local packaged Electron run via `npm run benchmark:audio`: determinis
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
-La release activa de Steam Playtest Wave 1 es `0.10.5-beta`. Admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08` de las builds históricas `0.10.2-beta` y `0.10.3-beta`: quien ya completó la epoch conserva su progreso, mientras una instalación nueva recibe el reset limpio una sola vez. El consentimiento de telemetría nunca autoriza el borrado, que exige una confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional (`pending` antes de borrar, `complete` solo tras limpiar archivo y fallbacks legacy), y settings/consentimiento/identidad/cola quedan fuera del reset.
+La release activa de Steam Playtest Wave 1 en `main` es `0.10.5-beta`: admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08`. La rama de desarrollo `codex/map-2` usa `0.10.6-beta` con el master desactivado y `resetEpoch: null`, así que ni procesa un marcador pendiente ni vuelve a resetear grabaciones. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
 
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 
@@ -252,9 +252,9 @@ Los registros pasan a `userData/run-history.json` (antes solo `localStorage`, de
 
 Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (reservado), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
 
-### Ciclo reutilizable de telemetría privada — Wave 1 activa (`0.10.5-beta`)
+### Ciclo reutilizable de telemetría privada — `main` activa / Mapa 2 inert
 
-Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. La elegibilidad es estrictamente `enabled && packaged && !benchmark && admittedBuildVersions.includes(buildVersion)`. Si falla, no hay prompt, reset, lectura/escritura de consentimiento, identidad, cola ni red, y la fachada renderer informa no disponible. En la release activa: `enabled: true`, allowlist exacta `['0.10.5-beta']`, `gameId: 'voltswarm'`, `waveId: 'wave-1'` y `resetEpoch: 'wave-1-rc-2026-08'`.
+Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. `main` `0.10.5-beta` mantiene la release Wave 1 activa. En `codex/map-2` `0.10.6-beta`, el config es `enabled: false`, allowlist `[]`, `gameId: 'voltswarm'`, `waveId: 'map-2'` y `resetEpoch: null`. La elegibilidad global queda siempre falsa: Electron no puede mostrar prompts de consentimiento/reset, crear identidad/cola, abrir red ni declarar disponible la fachada que habilita el feedback final.
 
 Cuando una wave futura se habilite, Electron main exige una prueba atómica `userData/telemetry-consent.json` ligada al digest determinista de `consentVersion` y de todo el copy renderizado desde `TELEMETRY_CONFIG.disclosure`: ausencia pide consentimiento; corrupción bloquea; la misma disclosure sirve silenciosamente en launches/waves posteriores; cambiar versión o texto vuelve a preguntar automáticamente. El reset tiene un diálogo independiente incluso con consentimiento existente. El renderer **nunca sube datos directamente**: solo publica eventos tipados mediante `contextBridge`; Electron main valida, identifica, encola y sube después de elegibilidad y consentimiento.
 
