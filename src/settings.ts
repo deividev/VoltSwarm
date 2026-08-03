@@ -55,7 +55,7 @@ export const RESOLUTIONS = [
 ] as const;
 
 export const DEFAULT_SETTINGS: GameSettings = {
-  displayMode: 'windowed',
+  displayMode: 'fullscreen',
   resolution: '1280x720',
   masterVolume: 0.8,
   musicVolume: 0.7,
@@ -151,7 +151,10 @@ function normalizeSettings(value: Partial<GameSettings>): GameSettings {
       ? value.resolution
       : DEFAULT_SETTINGS.resolution;
   return {
-    displayMode: value.displayMode === 'fullscreen' ? 'fullscreen' : 'windowed',
+    displayMode:
+      value.displayMode === 'windowed' || value.displayMode === 'fullscreen'
+        ? value.displayMode
+        : DEFAULT_SETTINGS.displayMode,
     resolution,
     masterVolume: clamp01(value.masterVolume, DEFAULT_SETTINGS.masterVolume),
     musicVolume: clamp01(value.musicVolume, DEFAULT_SETTINGS.musicVolume),

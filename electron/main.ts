@@ -57,12 +57,14 @@ function initialWindowSettings(): { fullscreen: boolean; width: number; height: 
     };
     const match = /^(\d+)x(\d+)$/.exec(settings.resolution ?? '');
     return {
-      fullscreen: settings.displayMode === 'fullscreen',
+      // Preserve an explicit player choice. Missing/legacy values use the
+      // first-launch default instead of silently forcing windowed mode.
+      fullscreen: settings.displayMode !== 'windowed',
       width: match ? Number(match[1]) : 1280,
       height: match ? Number(match[2]) : 720,
     };
   } catch {
-    return { fullscreen: false, width: 1280, height: 720 };
+    return { fullscreen: true, width: 1280, height: 720 };
   }
 }
 
