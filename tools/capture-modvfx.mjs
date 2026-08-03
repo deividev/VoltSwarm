@@ -7,6 +7,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
+import { confirmOnlyVisibleCharacterIfPresent } from './character-flow.mjs';
 
 const [
   modId,
@@ -54,6 +55,7 @@ try {
   await page.goto(`http://localhost:${PORT}/`);
   await page.waitForSelector('#play-button', { visible: true, timeout: 15000 });
   await page.click('#play-button');
+  await confirmOnlyVisibleCharacterIfPresent(page);
   await page.waitForSelector('#draft-cards > *', { visible: true, timeout: 15000 });
   await page.click('#draft-cards > *');
   await new Promise((r) => setTimeout(r, 2000));

@@ -43,6 +43,15 @@ import { DamageNumbers } from './damage-numbers';
 import { BossSystem } from './boss';
 import { AudioDirector, type AudioEventId } from './audio';
 import { VoxelBurst } from './particles';
+import {
+  DEFAULT_CHARACTER_ID,
+  CHARACTER_REGISTRY,
+  characterStats,
+  fieldRepairHp,
+  registeredCharacterId,
+  resolveCharacterId,
+  type CharacterId,
+} from './characters';
 
 /** Per-weapon fire sound. Weapons without a dedicated asset yet fall back to
  *  the (silent-by-default) generic 'weapon-activation' via the ?? in the hook. */
@@ -193,6 +202,8 @@ export class Game {
   /** Loading handoff: the picked weapon, whether the world is built yet, and
    *  the warmup countdown (see LOADING_WARMUP_FRAMES). */
   private pendingWeapon: WeaponId | null = null;
+  private pendingCharacterId: CharacterId = DEFAULT_CHARACTER_ID;
+  private currentCharacterId: CharacterId = DEFAULT_CHARACTER_ID;
   private runReady = false;
   private warmupFrames = 0;
   /** Frames to wait so the loading screen PAINTS before the world-build hitch
@@ -338,7 +349,7 @@ export class Game {
     this.merchant = new MerchantSystem(this.scene);
     this.hud = new Hud(
       container,
-      (weapon) => this.enterLoading(weapon),
+      (character, weapon) => this.enterLoading(character, weapon),
       (card) => this.applyUpgrade(card),
       () => this.resumeRun(),
       () => this.quitToMenu(),
@@ -390,7 +401,8 @@ export class Game {
   /** Play → weapon pick lands here: raise the loading screen, then the world
    *  is built and warmed on the next frames (tickLoading) so the reveal is
    *  smooth. Keeps the heavy setup OFF the click frame. */
-  private enterLoading(startingWeapon: WeaponId): void {
+  private enterLoading(characterId: CharacterId, startingWeapon: WeaponId): void {
+    this.pendingCharacterId = resolveCharacterId(characterId, PROFILE);
     this.pendingWeapon = startingWeapon;
     this.runReady = false;
     this.loadingDelay = 1;
@@ -415,7 +427,7 @@ export class Game {
       return;
     }
     if (!this.runReady) {
-      if (this.pendingWeapon) this.buildRun(this.pendingWeapon);
+      if (this.pendingWeapon) this.buildRun(this.pendingCharacterId, this.pendingWeapon);
       this.runReady = true;
       this.warmupFrames = LOADING_WARMUP_FRAMES;
       return;
@@ -440,7 +452,8 @@ export class Game {
     }
   }
 
-  private buildRun(startingWeapon: WeaponId): void {
+  private buildRun(requestedCharacterId: CharacterId, startingWeapon: WeaponId): void {
+    this.currentCharacterId = resolveCharacterId(requestedCharacterId, PROFILE);
     this.resetRunWorld();
     this.currentRunId = createRunId();
     this.startingWeapon = startingWeapon;
@@ -453,7 +466,12 @@ export class Game {
     this.runEnclosedS = 0;
     this.runEnclosedLowHpS = 0;
     this.runPeakEnclosedSectors = 0;
-    this.stats = defaultStats();
+    const character = CHARACTER_REGISTRY[this.currentCharacterId];
+    this.stats = characterStats(this.currentCharacterId);
+    this.player.maxHp = character.maxHp;
+    this.player.hp = character.maxHp;
+    this.player.moveSpeed = character.moveSpeed;
+    this.player.setCharacterModelKey(character.modelKey);
     this.weaponLevels = emptyWeaponLevels();
     this.weaponPower = emptyWeaponPower();
     this.weaponBranches = emptyWeaponBranches();
@@ -527,7 +545,15 @@ export class Game {
     // Load the recorded build. Stats are REPLAYED from core picks rather than
     // restored, because the record stores how many times each core was taken
     // and never which rarity rolled — see replayCoresOntoStats.
-    this.stats = defaultStats();
+    // Preserve the recorded identity even if it is no longer unlocked. Unknown
+    // legacy ids resolve to the default character, not a currently unlocked one.
+    this.currentCharacterId = registeredCharacterId(record.characterId);
+    const character = CHARACTER_REGISTRY[this.currentCharacterId];
+    this.stats = characterStats(this.currentCharacterId);
+    this.player.maxHp = character.maxHp;
+    this.player.hp = character.maxHp;
+    this.player.moveSpeed = character.moveSpeed;
+    this.player.setCharacterModelKey(character.modelKey);
     this.weaponLevels = { ...emptyWeaponLevels(), ...record.weaponLevels };
     this.weaponBranches = record.weaponBranches
       ? structuredClone(record.weaponBranches)
@@ -613,7 +639,7 @@ export class Game {
   /** Packaged benchmark-only deterministic swarm; never reachable in normal builds. */
   private startAudioBenchmark(): { scenario: string; seed: number; enemies: number; digest: string } {
     this.installBenchmarkRandom(AUDIO.benchmark.seed);
-    this.buildRun('bolt');
+    this.buildRun(DEFAULT_CHARACTER_ID, 'bolt');
     (Object.keys(this.weaponLevels) as WeaponId[]).forEach((id) => { this.weaponLevels[id] = 1; });
     this.weaponDamage = emptyWeaponLevels();
     const voltlingCount = AUDIO.benchmark.typeCounts[0] ?? 0;
@@ -716,6 +742,7 @@ export class Game {
       discardsRemaining: this.discardsLeft,
     });
     this.currentUpgradeOffer = [];
+    const coreLevelBefore = card.draftKind === 'core' ? (this.coreLevels[card.id] ?? 0) : null;
     card.apply(
       this.stats,
       this.player,
@@ -733,6 +760,14 @@ export class Game {
         },
       },
     );
+    if (coreLevelBefore !== null && (this.coreLevels[card.id] ?? 0) > coreLevelBefore) {
+      this.player.hp = fieldRepairHp(
+        this.currentCharacterId,
+        this.player.hp,
+        this.player.maxHp,
+        'gameplay',
+      );
+    }
     this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
     // First copy = a socket just filled → stronger pop than a plain level-up.
     const weaponId = weaponIdFromUpgradeCard(card.id);
@@ -2157,6 +2192,7 @@ export class Game {
       id: runId,
       outcome,
       map: SCRAPYARD_MAP,
+      characterId: this.currentCharacterId,
       ...(this.startingWeapon ? { startingWeapon: this.startingWeapon } : {}),
       // No difficulty selector exists yet, so every run is the one and only
       // curve. Labelling it now means the day a selector lands, these records

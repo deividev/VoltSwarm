@@ -1267,6 +1267,11 @@ export const MAX_WEAPON_LEVEL = 20;
 /** One Core magnitude per rarity: [gray, green, blue, purple, gold]. */
 export type CoreTierMagnitudes = readonly [number, number, number, number, number];
 
+/** Unit definitions, not balance knobs. Percentage ratings use 1.0 as 100%. */
+export const STAT_RATING_UNITS = {
+  armorFullScale: 1,
+} as const;
+
 /** All Core and Ammo Feeder magnitudes live here, not in the draft system. */
 export const CORE_TIER_MAGNITUDES = {
   damage: [0.1, 0.14, 0.18, 0.3, 0.42],
@@ -1278,14 +1283,14 @@ export const CORE_TIER_MAGNITUDES = {
   'pickup-range': [0.2, 0.28, 0.35, 0.6, 0.85],
   'projectile-speed': [0.1, 0.14, 0.18, 0.3, 0.42],
   area: [0.08, 0.11, 0.14, 0.22, 0.3],
-  armor: [8, 11, 15, 25, 35],
+  armor: [0.08, 0.11, 0.15, 0.25, 0.35],
   regen: [1, 2, 3, 4, 6],
   'max-hp': [15, 20, 25, 45, 65],
   evasion: [8, 11, 14, 22, 30],
   thorns: [6, 9, 12, 20, 28],
   lifesteal: [3, 4, 6, 10, 14],
   duration: [0.1, 0.13, 0.16, 0.25, 0.35],
-  luck: [6, 8, 10, 14, 20],
+  luck: [0.06, 0.08, 0.1, 0.14, 0.2],
   cursed: [0.06, 0.08, 0.1, 0.14, 0.2],
   'projectile-count': [1, 1, 1, 1, 1],
 } as const satisfies Record<string, CoreTierMagnitudes>;
@@ -1550,7 +1555,26 @@ export const DRAFT_FALLBACK = {
   salvageDividendGold: 50,
 };
 
+/** Character tuning. Registry/copy lives in characters.ts; every gameplay
+ * magnitude stays here so a balance pass has one source of truth. */
+export const CHARACTER_BALANCE = {
+  fieldEngineer: {
+    maxHp: 110,
+    moveSpeed: 11,
+    damage: 0.95,
+    attackSpeed: 1,
+    critChance: 0.05,
+    critDamage: 0.5,
+    armor: 0.05,
+    regen: 0,
+    luck: 0,
+    fieldRepairFraction: 0.06,
+  },
+} as const;
+
 export const PROFILE = {
+  /** Stable character ids. Contracts may append future characters. */
+  unlockedCharacters: ['field-engineer'] as string[],
   /** Weapon sockets: 1 default, +1 via contract (max 2). */
   weaponSockets: 1,
   /** Core sockets: 2 default, +2 via contracts (max 4). */
@@ -1690,13 +1714,15 @@ export const MODS = {
   },
 };
 
-/** Card tier roll weights (gray→gold) and how Luck shifts them upward.
+/** Card tier roll weights (gray→gold) and how fractional Luck rating shifts them upward.
  *  Effective weight = base + luck * luckShift.
+ *  A 0.10 Luck rating means 10%, but it is not a direct +10 percentage-point
+ *  rarity chance: the shifted weights are normalized by the complete pool.
  *  At 0 Luck, three cards have a 5.88% chance to show any purple/gold card
  *  and a 0.60% chance to show at least one gold card. */
 export const TIERS = {
   weights: { gray: 62, green: 27, blue: 9, purple: 1.8, gold: 0.2 },
-  luckShift: { gray: 0, green: 0, blue: 0.45, purple: 0.35, gold: 0.2 },
+  luckShift: { gray: 0, green: 0, blue: 45, purple: 35, gold: 20 },
 };
 
 export const BOSS = {

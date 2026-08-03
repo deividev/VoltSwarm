@@ -133,6 +133,72 @@ export const HUMANOID_PARTS: RigPartSpec[] = [
   { name: 'torso', bands: [{ y0: 0, y1: 1, x0: 0, x1: 1 }], pivotY: 0.55, pivotX: 0.5 },
 ];
 
+/**
+ * Part layout for the Field Engineer (the starting character). Bands were READ
+ * OFF the model's own 89x130 front map, not adapted from the boss by eye — the
+ * two have very different proportions (this one is stocky, with a helmet
+ * spanning a quarter of its height and hands that hang to 76%).
+ *
+ * Measured boundaries that drive the numbers below:
+ *   - helmet occupies rows 0-36, columns 27-54 at the crown
+ *   - hands still present at rows 95-99, so the arm band must reach y 0.77 or
+ *     both hands are orphaned into the torso
+ *   - legs run in columns 19-34 and 47-62 …
+ *   - … but the BOOTS flare to columns 14-37 and 43-66, so the leg bands take
+ *     the full half-width below the hands (the same trap that froze the boss's
+ *     boot flares in place)
+ *   - knee joint at about row 112 of 130
+ */
+export const FIELD_ENGINEER_PARTS: RigPartSpec[] = [
+  {
+    name: 'head',
+    bands: [{ y0: 0, y1: 0.28, x0: 0.24, x1: 0.72 }],
+    pivotY: 0.28,
+    pivotX: 0.48,
+    parent: 'torso',
+  },
+  {
+    name: 'armL',
+    bands: [{ y0: 0.26, y1: 0.77, x0: 0, x1: 0.19 }],
+    pivotY: 0.3,
+    pivotX: 0.1,
+    parent: 'torso',
+  },
+  {
+    // The right arm is the RAISED one holding the tool, so it reaches further
+    // out and higher than the left. Its own band, not a mirror.
+    name: 'armR',
+    bands: [{ y0: 0.24, y1: 0.77, x0: 0.75, x1: 1 }],
+    pivotY: 0.29,
+    pivotX: 0.86,
+    parent: 'torso',
+  },
+  { name: 'legL', bands: [{ y0: 0.77, y1: 0.86, x0: 0, x1: 0.47 }], pivotY: 0.77, pivotX: 0.3 },
+  {
+    name: 'shinL',
+    bands: [{ y0: 0.86, y1: 1, x0: 0, x1: 0.47 }],
+    pivotY: 0.86,
+    pivotX: 0.3,
+    parent: 'legL',
+  },
+  { name: 'legR', bands: [{ y0: 0.77, y1: 0.86, x0: 0.47, x1: 1 }], pivotY: 0.77, pivotX: 0.62 },
+  {
+    name: 'shinR',
+    bands: [{ y0: 0.86, y1: 1, x0: 0.47, x1: 1 }],
+    pivotY: 0.86,
+    pivotX: 0.62,
+    parent: 'legR',
+  },
+  { name: 'torso', bands: [{ y0: 0, y1: 1, x0: 0, x1: 1 }], pivotY: 0.62, pivotX: 0.5 },
+];
+
+/** Which part layout each model uses. A model absent from here falls back to
+ *  the humanoid boss layout. */
+export const RIG_PARTS: Record<string, RigPartSpec[]> = {
+  'final-boss': HUMANOID_PARTS,
+  'field-engineer': FIELD_ENGINEER_PARTS,
+};
+
 /** Copies only the voxels inside a band into a same-sized empty grid, so every
  *  part keeps the full model's coordinate frame and the pieces reassemble
  *  exactly. `claimed` marks cells already taken by an earlier (higher
@@ -269,6 +335,24 @@ export function buildRig(
   }
 
   return { root, parts, height: height * voxelSize, report };
+}
+
+/** Attaches model-space details to an animated rig part while preserving their
+ * authored world position. The details then inherit torso motion instead of
+ * remaining static beside the rig. */
+export function attachToRigPart(
+  rig: Rig,
+  details: THREE.Object3D,
+  partName = 'torso',
+): boolean {
+  const part = rig.parts[partName];
+  if (!part) {
+    rig.root.add(details);
+    return false;
+  }
+  details.position.sub(part.pivot.position);
+  part.pivot.add(details);
+  return true;
 }
 
 export type RigClip = 'idle' | 'walk' | 'hit';

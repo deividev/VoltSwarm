@@ -4,6 +4,7 @@ import type { PlayerInput } from './input';
 import type { Obstacle } from './world';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
+import { buildRuntimeModelDetails, disposeRuntimeModel } from './models/runtime-details';
 import { litMaterial } from './toon';
 
 /** Three.js sorts render items PER MESH and does not inherit renderOrder from a
@@ -36,6 +37,7 @@ export class Player {
   private markerGlow: THREE.Mesh | null = null;
   private readonly markerTicks: THREE.Mesh[] = [];
   private markerPulse = 0;
+  private requestedModelKey = 'player';
 
   constructor(scene: THREE.Scene) {
     this.mesh = new THREE.Group();
@@ -210,29 +212,44 @@ export class Player {
 
     // The image-derived voxel model loads async and swaps in over the
     // primitives; on failure the primitives simply stay.
-    void this.upgradeVoxelModel();
+    void this.upgradeVoxelModel(this.requestedModelKey);
   }
 
-  private async upgradeVoxelModel(): Promise<void> {
-    const def = VOXEL_MODELS['player'];
+  /** Character registry seam: model selection is independent from the voxel
+   * registry, and stale async loads can never overwrite a newer selection. */
+  setCharacterModelKey(modelKey: string): void {
+    if (modelKey === this.requestedModelKey) return;
+    this.requestedModelKey = modelKey;
+    void this.upgradeVoxelModel(modelKey);
+  }
+
+  private async upgradeVoxelModel(modelKey: string): Promise<void> {
+    const def = VOXEL_MODELS[modelKey];
     if (!def) return;
     try {
-      const geometry = buildGridGeometry(await buildModelGrid('player'), def.voxelSize);
+      const geometry = buildGridGeometry(await buildModelGrid(modelKey), def.voxelSize);
+      if (modelKey !== this.requestedModelKey) {
+        geometry.dispose();
+        return;
+      }
       // Voxel models face +Z; the player rig faces -Z (see visor placement).
       geometry.rotateY(Math.PI);
       const voxelMesh = new THREE.Mesh(geometry, litMaterial({ vertexColors: true }));
       for (const child of [...this.mesh.children]) {
         this.mesh.remove(child);
-        if (child instanceof THREE.Mesh) {
-          child.geometry.dispose();
-          if (child.material instanceof THREE.Material) child.material.dispose();
-        }
+        disposeRuntimeModel(child);
       }
       this.mesh.add(voxelMesh);
+      const runtimeDetails = buildRuntimeModelDetails(def, (color) => litMaterial({ color }));
+      if (runtimeDetails) {
+        // Registry model space faces +Z; the live player faces -Z.
+        runtimeDetails.rotation.y = Math.PI;
+        this.mesh.add(runtimeDetails);
+      }
       // The swapped-in model must keep the character order too.
       if (VISUAL.groundMarkersOnTop) setRenderOrder(this.mesh, VISUAL.renderOrders.character);
     } catch (error) {
-      console.warn('Player voxel model unavailable, keeping primitive rig:', error);
+      console.warn(`Player voxel model ${modelKey} unavailable, keeping current rig:`, error);
     }
   }
 

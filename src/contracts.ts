@@ -2,6 +2,7 @@ import { BOSS_TYPE_INDEXES, CONTRACTS, PROFILE, WEAPON_INFO, type WeaponId } fro
 import { CORE_TITLES } from './upgrades';
 import { MOD_REGISTRY, refreshUnlockedMods, type ModId } from './mods';
 import { LIFETIME, saveProfile, type LifetimeStats } from './profile';
+import { CHARACTER_REGISTRY, grantCharacterId, type CharacterId } from './characters';
 
 // Contracts: the only progression engine (there is no meta-currency in v1).
 //
@@ -34,6 +35,7 @@ export type Objective =
   | { type: 'flawless-run'; seconds: number };
 
 export type Reward =
+  | { kind: 'character'; id: CharacterId }
   | { kind: 'weapon'; id: WeaponId }
   | { kind: 'core'; id: string }
   | { kind: 'mod'; id: ModId }
@@ -313,7 +315,7 @@ export function devCompleteAllContracts(): EarnedContract[] {
   const earned: EarnedContract[] = [];
   for (const contract of ACTIVE_CONTRACTS) {
     if (LIFETIME.completedContracts.includes(contract.id)) continue;
-    const granted = grant(contract.reward);
+    const granted = grantReward(contract.reward);
     if (granted === null) continue;
     LIFETIME.completedContracts.push(contract.id);
     LIFETIME.grantedRewards[contract.id] = granted;
@@ -331,7 +333,7 @@ export function settleContracts(): EarnedContract[] {
   for (const contract of ACTIVE_CONTRACTS) {
     if (LIFETIME.completedContracts.includes(contract.id)) continue;
     if (!isComplete(contract)) continue;
-    const granted = grant(contract.reward);
+    const granted = grantReward(contract.reward);
     // A ladder deliberately carries more rungs than its queue has entries, so
     // new content lands in a slot that already exists. Until then the spare
     // rung stays PENDING rather than settling for nothing: marking it complete
@@ -353,20 +355,23 @@ export function settleContracts(): EarnedContract[] {
 /** Applies a reward. Queue rewards resolve to the first entry the player does
  *  not already own, so a queue that has run dry simply pays nothing rather
  *  than handing out a duplicate. */
-function grant(reward: Reward): Reward | null {
+export function grantReward(reward: Reward): Reward | null {
   switch (reward.kind) {
     case 'next-weapon': {
       const id = WEAPON_QUEUE.find((w) => !PROFILE.unlockedWeapons.includes(w));
-      return id ? grant({ kind: 'weapon', id }) : null;
+      return id ? grantReward({ kind: 'weapon', id }) : null;
     }
     case 'next-core': {
       const id = CORE_QUEUE.find((c) => !PROFILE.unlockedCores.includes(c));
-      return id ? grant({ kind: 'core', id }) : null;
+      return id ? grantReward({ kind: 'core', id }) : null;
     }
     case 'next-mod': {
       const id = MOD_QUEUE.find((m) => !PROFILE.unlockedMods.includes(m));
-      return id ? grant({ kind: 'mod', id }) : null;
+      return id ? grantReward({ kind: 'mod', id }) : null;
     }
+    case 'character':
+      grantCharacterId(PROFILE.unlockedCharacters, reward.id);
+      return reward;
     case 'weapon':
       if (!PROFILE.unlockedWeapons.includes(reward.id)) PROFILE.unlockedWeapons.push(reward.id);
       return reward;
@@ -396,6 +401,7 @@ function grant(reward: Reward): Reward | null {
 export function rewardName(reward: Reward | null): string {
   if (!reward) return 'nothing';
   switch (reward.kind) {
+    case 'character': return CHARACTER_REGISTRY[reward.id]?.name ?? reward.id;
     case 'weapon': return WEAPON_INFO[reward.id]?.title ?? reward.id;
     case 'core': return CORE_TITLES[reward.id] ?? reward.id;
     case 'mod': return MOD_REGISTRY[reward.id]?.label ?? reward.id;
@@ -411,6 +417,7 @@ export function rewardName(reward: Reward | null): string {
 export function describeReward(reward: Reward | null): string {
   if (!reward) return 'Nothing left to unlock';
   switch (reward.kind) {
+    case 'character': return `Character: ${CHARACTER_REGISTRY[reward.id]?.name ?? reward.id}`;
     case 'weapon': return `Weapon: ${WEAPON_INFO[reward.id]?.title ?? reward.id}`;
     case 'core': return `Core: ${CORE_TITLES[reward.id] ?? reward.id}`;
     case 'mod': return `Mod: ${MOD_REGISTRY[reward.id]?.label ?? reward.id}`;
@@ -426,10 +433,11 @@ export function describeReward(reward: Reward | null): string {
 }
 
 /** Which section of the Contracts screen a contract belongs to. */
-export type RewardCategory = 'weapon' | 'core' | 'mod' | 'socket' | 'other';
+export type RewardCategory = 'character' | 'weapon' | 'core' | 'mod' | 'socket' | 'other';
 
 export function rewardCategory(reward: Reward): RewardCategory {
   switch (reward.kind) {
+    case 'character': return 'character';
     case 'weapon': case 'next-weapon': return 'weapon';
     case 'core': case 'next-core': return 'core';
     case 'mod': case 'next-mod': return 'mod';

@@ -1,6 +1,8 @@
 // The RPG stat sheet. Every combat system reads from here; upgrades and chest
 // rewards only ever mutate this object.
 
+import { STAT_RATING_UNITS } from './config';
+
 export interface PlayerStats {
   /** Global damage multiplier. */
   damage: number;
@@ -22,11 +24,11 @@ export interface PlayerStats {
   projectileSpeed: number;
   /** Size multiplier for AoEs, projectiles and blades. */
   area: number;
-  /** Armor points; reduction = armor / (armor + 100) — diminishing returns. */
+  /** Fractional Armor rating; reduction = armor / (armor + 1), with diminishing returns. */
   armor: number;
   /** HP healed per regen tick. */
   regen: number;
-  /** Luck points; shifts upgrade rarity weights. */
+  /** Fractional Luck rating; shifts rarity weights rather than adding direct probability. */
   luck: number;
   /** Cursed difficulty bonus (fraction) chosen by the player. */
   cursedDifficulty: number;
@@ -73,7 +75,8 @@ export function dodgeChance(evasion: number): number {
 
 /** Applies armor's diminishing-returns reduction to incoming damage. */
 export function applyArmor(damage: number, armor: number): number {
-  return Math.max(1, Math.round(damage * (1 - armor / (armor + 100))));
+  const reduction = armor / (armor + STAT_RATING_UNITS.armorFullScale);
+  return Math.max(1, Math.round(damage * (1 - reduction)));
 }
 
 export interface HitResult {

@@ -3,6 +3,7 @@ import { mkdirSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import os from 'node:os';
 import puppeteer from 'puppeteer-core';
+import { confirmOnlyVisibleCharacterIfPresent } from './character-flow.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUTPUT = resolve(ROOT, 'tmp/perf-audio-output');
@@ -42,6 +43,7 @@ try {
   if (!page) throw new Error('No renderer target found');
   await page.waitForSelector('#play-button', { visible: true, timeout: 20_000 });
   await page.click('#play-button');
+  await confirmOnlyVisibleCharacterIfPresent(page);
   await page.waitForSelector('#draft-cards > *', { visible: true, timeout: 20_000 });
   await page.click('#draft-cards > *');
   await page.waitForFunction(() => Boolean(window.__voltswarmAudioBenchmark), { timeout: 20_000 });

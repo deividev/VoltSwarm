@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { buildGridGeometry, countGridVoxels } from './voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './registry';
-import { buildRig, poseRig } from './rig';
+import { attachToRigPart, buildRig, poseRig, RIG_PARTS } from './rig';
 import type { Rig, RigClip } from './rig';
+import { buildRuntimeModelDetails } from './runtime-details';
 
 /**
  * Standalone voxel model viewer (model-preview.html?model=<registry-key>).
@@ -61,10 +62,20 @@ const clip: RigClip | null =
 const hero = new THREE.Group();
 let rig: Rig | null = null;
 if (clip) {
-  rig = buildRig(grid, def.voxelSize, material);
+  // Each model brings its own part layout; proportions differ enough that
+  // reusing the boss's bands on another character orphans limbs.
+  rig = buildRig(grid, def.voxelSize, material, RIG_PARTS[modelName]);
   hero.add(rig.root);
 } else {
   hero.add(new THREE.Mesh(buildGridGeometry(grid, def.voxelSize), material));
+}
+const runtimeDetails = buildRuntimeModelDetails(
+  def,
+  (color) => new THREE.MeshLambertMaterial({ color }),
+);
+if (runtimeDetails) {
+  if (rig) attachToRigPart(rig, runtimeDetails);
+  else hero.add(runtimeDetails);
 }
 hero.scale.setScalar(def.previewScale ?? framing.heroScale);
 hero.rotation.y = -0.3 + (orbitDeg * Math.PI) / 180;

@@ -92,7 +92,7 @@ interface StatCardDef {
 
 const pct = (v: number): string => `+${Math.round(v * 100)}%`;
 
-const STAT_CARDS: StatCardDef[] = [
+export const STAT_CARDS: StatCardDef[] = [
   {
     id: 'damage',
     title: 'Power Coupling',
@@ -179,7 +179,7 @@ const STAT_CARDS: StatCardDef[] = [
     id: 'armor',
     title: 'Deflector Plates',
     magnitudes: CORE_TIER_MAGNITUDES.armor,
-    describe: (v) => `+${v} Armor`,
+    describe: (v) => `${pct(v)} Armor rating (diminishing returns)`,
     apply: (s, _p, v) => {
       s.armor += v;
     },
@@ -249,7 +249,7 @@ const STAT_CARDS: StatCardDef[] = [
     id: 'luck',
     title: 'Lucky Gear',
     magnitudes: CORE_TIER_MAGNITUDES.luck,
-    describe: (v) => `+${v} Luck (better tier rolls)`,
+    describe: (v) => `${pct(v)} Luck rating (better tier weights, not direct odds)`,
     apply: (s, _p, v) => {
       s.luck += v;
     },
@@ -313,11 +313,11 @@ CORE_TITLES['projectile-count'] = 'Ammo Feeder';
 
 /** Luck-weighted tier roll — shared by the card draft, the chest reel and
  *  the merchant stock. */
-export function rollRarity(luck: number): Rarity {
+export function rollRarity(luck: number, random: () => number = Math.random): Rarity {
   const weights = TIER_ORDER.map(
     (tier) => TIERS.weights[tier] + luck * TIERS.luckShift[tier],
   );
-  let roll = Math.random() * weights.reduce((a, b) => a + b, 0);
+  let roll = random() * weights.reduce((a, b) => a + b, 0);
   for (let i = 0; i < TIER_ORDER.length; i++) {
     roll -= weights[i]!;
     if (roll < 0) return TIER_ORDER[i]!;

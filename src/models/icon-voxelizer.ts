@@ -105,6 +105,22 @@ export interface IconVoxelizeOptions {
    * hull as a cross product and FUSES limbs that hang clear of the body.
    */
   sidePaint?: boolean;
+  /**
+   * Skips the left-right symmetrization pass (2026-08-03).
+   *
+   * `symmetrizeFront` exists because most of this cast IS symmetric, and there
+   * a downsampling artefact that breaks the mirror reads as damage. But it
+   * fills any gap on one side with whatever the other side has — so on an
+   * ASYMMETRIC character it is destructive: the field engineer holds a tool
+   * with one arm raised and the other down, and symmetrization packed the
+   * armpit gaps solid, fusing both arms and both legs into the torso as one
+   * slab. Measured: the sheets carry real transparent gaps up to 51 px wide
+   * (over 6 cells) and they were surviving the downsample intact — this pass
+   * was what closed them.
+   *
+   * Set it on any model whose reference is deliberately asymmetric.
+   */
+  asymmetric?: boolean;
 }
 
 /** A reference image quantized to the palette, with its content bbox. */
@@ -201,7 +217,7 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
   const front = downsampleMap(image, gridW, gridH);
 
   cleanupFront(front);
-  symmetrizeFront(front);
+  if (!options.asymmetric) symmetrizeFront(front);
 
   // Extrusion. Each vertical band (head/torso/skirt) gets its own per-column
   // depth profile: row-local profiles produce a ragged surface, one global

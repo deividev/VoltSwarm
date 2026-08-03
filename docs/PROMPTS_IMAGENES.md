@@ -216,6 +216,24 @@ Sujetos por personaje — **ELENCO COMPLETO 2026-07-05** (todos con ref aprobada
 - **Volt Warden (boss nuevo)** ✅ (`ref-volt-warden-front-v2.png`): chibi helmet-head boss, goggle visor, grilles, cyan core, shoulder pads, hover skirt — yellow / dark / cyan. Modelo listo; gameplay pendiente de diseño.
 - **Jugador** ✅ (`ref-player-front-v3.png`): scavenger hero, head ~1/3 naranja #ff8c33 con visor oscuro #1c2a38, cuerpo blanco hueso #e8e3d5, mochila de herramientas (two-tone `armorColors`)
 
+### Field Engineer — modelo runtime v1 técnicamente validado; aprobación visual final no registrada
+
+**Objetivo visual:** evolución reconocible del jugador actual y posible perfil inicial perdonador. Su silueta debe leerse desde cámara cenital por tres masas: casco de seguridad naranja grande + módulo herramienta asimétrico en hombro derecho + mochila-taller físicamente unida. Añadir antebrazos y botas reforzados, columna de energía cian, exactamente **3 alojamientos grandes de Core** en la espalda y cables gruesos que los conecten. Nada puede flotar ni depender de detalle fino que desaparezca al voxelizar.
+
+**Paleta cerrada para la exploración:** naranja `#ff8f2f` · hueso `#e8e2d2` · charcoal `#222831` · azul noche `#162533` · acento cian `#01e6fe`.
+
+**Fuentes candidate v1 existentes** (preservar; no sobreescribir):
+
+- Render/turnaround: `art/concept/field-engineer/field-engineer-turnaround-render-v1.png`
+- Chroma: `art/concept/field-engineer/field-engineer-turnaround-chroma-v1.png`
+- Alpha: `art/concept/field-engineer/field-engineer-turnaround-alpha-v1.png`
+- Turnaround plano: `art/concept/field-engineer/field-engineer-turnaround-flat-v1.png`
+- Hojas planas prioritarias para 3D: `field-engineer-front-flat-v1.png`, `field-engineer-side-flat-v1.png`, `field-engineer-back-flat-v1.png` en la misma carpeta.
+
+**Estado técnico actual:** el modelo está registrado e integrado en runtime como **candidate visual** a 89 columnas. No usa `voxelizeMultiView`: ese camino fusionaba los huecos entre torso y extremidades. El cuerpo se genera desde la frontal con `sideProfileRef` medido y asimétrico; `ref-field-engineer-side-depth-v1.png` elimina deliberadamente la mochila para no inflar también el frente. `backPaintRef` aporta pintura, NO geometría. El volumen trasero de la mochila se reconstruye mediante `runtimeDetails.backpack`, una geometría procedural compartida por el preview y el jugador, con exactamente tres alojamientos y columna cian. El preview 0°/90°/180°/270°, la marcha vista desde atrás y el gate de 400+ están superados (431–440 enemigos, 118.87 FPS medios, bucket mínimo 92.41 FPS, p99 8.5 ms, 0 errores de página y 431/431 enemigos en movimiento). Esta validación técnica NO equivale a aprobación visual final: no consta aprobación explícita del usuario.
+
+**Refs runtime que deben viajar juntas:** `ref-field-engineer-front-v1.png`, `ref-field-engineer-side-v1.png`, `ref-field-engineer-side-depth-v1.png` y `ref-field-engineer-back-v1.png`, todas bajo `public/assets/2d/`. Las siete fuentes conceptuales de `art/concept/field-engineer/` se conservan como provenance y material de comparación; no son carga runtime.
+
 Regla de silueta (de `DIRECCION_ARTE.md`): cada personaje se distingue por SILUETA además de color — si dos referencias comparten silueta, se rehace una.
 
 ## 7. Props de escenario del Mapa 1 (fábrica abandonada)

@@ -18,6 +18,15 @@ import { CORE_TITLES, weaponIdFromUpgradeCard, type CoreLevels, type Rarity, typ
 import { MOD_IDS, MOD_REGISTRY, UNLOCKED_MOD_IDS, describeMod, modsOfTier, refreshUnlockedMods, type ModCounts, type ModId } from './mods';
 import { coreOrbIcon, warmCoreOrbs } from './core-orbs';
 import {
+  CHARACTER_REGISTRY,
+  DEFAULT_CHARACTER_ID,
+  characterStatRows,
+  labelWeaponOptions,
+  resolveCharacterId,
+  type CharacterDef,
+  type CharacterId,
+} from './characters';
+import {
   ACTION_IDS,
   ACTION_LABELS,
   cloneBindings,
@@ -239,13 +248,13 @@ const STAT_ROWS: StatRow[] = [
   { key: 'projectileCount', icon: '🔩', label: 'Projectiles', format: (v) => `+${asPoints(v)}` },
   { key: 'projectileSpeed', icon: '🚀', label: 'Proj Speed', format: asMult },
   { key: 'area', icon: '⭕', label: 'Area', format: asMult },
-  { key: 'armor', icon: '🛡️', label: 'Armor', format: asPoints },
+  { key: 'armor', icon: '🛡️', label: 'Armor', format: asPct },
   { key: 'regen', icon: '❤️', label: 'Regen', format: (v) => `${asPoints(v)}/5s` },
   { key: 'evasion', icon: '👻', label: 'Evasion', format: asPoints },
   { key: 'thorns', icon: '🌵', label: 'Thorns', format: asPoints },
   { key: 'lifesteal', icon: '🩸', label: 'Lifesteal', format: (v) => `${asPoints(v)}%` },
   { key: 'duration', icon: '⏳', label: 'Duration', format: asMult },
-  { key: 'luck', icon: '🍀', label: 'Luck', format: asPoints },
+  { key: 'luck', icon: '🍀', label: 'Luck', format: asPct },
   { key: 'xpGain', icon: '📖', label: 'XP Gain', format: asMult },
   { key: 'cursedDifficulty', icon: '💀', label: 'Cursed', format: (v) => `+${asPct(v)}` },
 ];
@@ -291,10 +300,11 @@ export class Hud {
   private feedbackFun: StructuredFeedback['fun'] | null = null;
   private feedbackDifficulty: FeedbackDifficulty | null = null;
   private readonly feedbackReasons = new Set<FeedbackReason>();
+  private selectedCharacterId: CharacterId = DEFAULT_CHARACTER_ID;
 
   constructor(
     root: HTMLElement,
-    private readonly onStart: (weapon: WeaponId) => void,
+    private readonly onStart: (character: CharacterId, weapon: WeaponId) => void,
     private readonly onUpgradeChosen: (card: UpgradeCard) => void,
     private readonly onResume: () => void,
     private readonly onQuitToMenu: () => void,
@@ -338,6 +348,7 @@ export class Hud {
         </div>
         <div id="menu-buttons">
           <button id="play-button">Play</button>
+          <button id="characters-button">Characters</button>
           <button id="contracts-button">Contracts</button>
           ${DEV_TOOLS.unlockPanel ? '<button id="unlocks-button">Unlocks</button>' : ''}
           <button id="menu-settings-button">Settings</button>
@@ -345,6 +356,23 @@ export class Hud {
           <button id="exit-button">Exit</button>
         </div>
         <div id="version-tag">${__APP_DISPLAY_VERSION__}</div>
+      </div>
+      <div id="characters-overlay" class="overlay menu-view hidden">
+        <div class="character-screen overlay-panel">
+          <div class="panel-header">Characters</div>
+          <div id="characters-roster" class="character-layout"></div>
+          <div class="character-actions"><button id="characters-back-button">Back</button></div>
+        </div>
+      </div>
+      <div id="character-select-overlay" class="overlay menu-view hidden">
+        <div class="character-screen overlay-panel">
+          <div class="panel-header">Choose Your Character</div>
+          <div id="character-select-roster" class="character-layout"></div>
+          <div class="character-actions">
+            <button id="character-select-back-button">Back</button>
+            <button id="character-confirm-button">Confirm</button>
+          </div>
+        </div>
       </div>
       <div id="contracts-overlay" class="overlay menu-view hidden">
         <div id="contracts-panel" class="overlay-panel">
@@ -374,6 +402,7 @@ export class Hud {
         <h2>Choose your starting weapon</h2>
         <p class="stats-line">More weapons, cores and sockets unlock through contracts</p>
         <div id="draft-cards"></div>
+        <button id="draft-back-button">Back</button>
       </div>
       <!-- Loading screen: covers world build + warmup renders so the reveal is
            smooth. Placeholder animation for now; a richer one drops in here. -->
@@ -612,7 +641,29 @@ export class Hud {
     );
     mustGet('play-button').addEventListener('click', () => {
       mustGet('menu-overlay').classList.add('hidden');
-      this.showDraft();
+      this.showCharacterSelection();
+    });
+    mustGet('characters-button').addEventListener('click', () => {
+      mustGet('menu-overlay').classList.add('hidden');
+      this.renderCharacterRoster('characters-roster', false);
+      mustGet('characters-overlay').classList.remove('hidden');
+    });
+    mustGet('characters-back-button').addEventListener('click', () => {
+      mustGet('characters-overlay').classList.add('hidden');
+      mustGet('menu-overlay').classList.remove('hidden');
+    });
+    mustGet('character-select-back-button').addEventListener('click', () => {
+      mustGet('character-select-overlay').classList.add('hidden');
+      mustGet('menu-overlay').classList.remove('hidden');
+    });
+    mustGet('character-confirm-button').addEventListener('click', () => {
+      this.selectedCharacterId = resolveCharacterId(this.selectedCharacterId, PROFILE);
+      mustGet('character-select-overlay').classList.add('hidden');
+      this.showDraft(this.selectedCharacterId);
+    });
+    mustGet('draft-back-button').addEventListener('click', () => {
+      this.startOverlay.classList.add('hidden');
+      this.showCharacterSelection();
     });
     const openFullGameStore = async (): Promise<void> => {
       const opened = await window.electronAPI?.steam.openFullGameStore();
@@ -979,6 +1030,7 @@ export class Hud {
     host.innerHTML = '';
 
     const SECTIONS: { key: RewardCategory; title: string }[] = [
+      { key: 'character', title: 'Characters' },
       { key: 'weapon', title: 'Weapons' },
       { key: 'core', title: 'Cores' },
       { key: 'mod', title: 'Mods' },
@@ -1322,6 +1374,8 @@ export class Hud {
   // action. Overlay priority: topmost-first (settings sits over pause).
   private static readonly NAV_OVERLAYS = [
     'settings-overlay',
+    'character-select-overlay',
+    'characters-overlay',
     'contracts-overlay',
     'unlocks-overlay',
     'shop-overlay',
@@ -1435,7 +1489,8 @@ export class Hud {
     }
     if (input.consumeGamepadPress(1)) {
       const back = container.querySelector<HTMLElement>(
-        '#settings-back-button, #contracts-back-button, #unlocks-back-button, #shop-leave-button, ' +
+        '#settings-back-button, #character-select-back-button, #characters-back-button, #draft-back-button, ' +
+          '#contracts-back-button, #unlocks-back-button, #shop-leave-button, ' +
           '#chest-continue, #resume-button, #restart-button',
       );
       if (back && back.offsetParent !== null) back.click();
@@ -1502,7 +1557,87 @@ export class Hud {
 
   /** Start-of-run weapon draft: 3 random distinct options out of the
    *  profile's UNLOCKED weapons (contract-locked ones never appear). */
-  private showDraft(): void {
+  private showCharacterSelection(): void {
+    this.selectedCharacterId = resolveCharacterId(this.selectedCharacterId, PROFILE);
+    this.renderCharacterRoster('character-select-roster', true);
+    mustGet('character-select-overlay').classList.remove('hidden');
+  }
+
+  /** One registry drives both the start selector and the main-menu roster. */
+  private renderCharacterRoster(hostId: string, selectable: boolean): void {
+    const host = mustGet(hostId);
+    if (selectable) host.dataset.defaultCharacterId = DEFAULT_CHARACTER_ID;
+    const characters = Object.values(CHARACTER_REGISTRY);
+    const selected = CHARACTER_REGISTRY[this.selectedCharacterId] ?? CHARACTER_REGISTRY[DEFAULT_CHARACTER_ID];
+    const selectedUnlocked = PROFILE.unlockedCharacters.includes(selected.id);
+    host.innerHTML = '<div class="character-grid"></div><div class="character-detail"></div>';
+    const grid = host.querySelector<HTMLElement>('.character-grid')!;
+    const detail = host.querySelector<HTMLElement>('.character-detail')!;
+
+    for (const character of characters) {
+      const unlocked = PROFILE.unlockedCharacters.includes(character.id);
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = `character-card${character.id === selected.id ? ' selected' : ''}${unlocked ? '' : ' locked'}`;
+      card.dataset.characterId = character.id;
+      card.dataset.characterUnlocked = `${unlocked}`;
+      card.setAttribute('aria-pressed', `${character.id === selected.id}`);
+      card.innerHTML = this.characterPortraitHtml(character);
+      const name = document.createElement('strong');
+      name.textContent = character.name;
+      const status = document.createElement('span');
+      status.textContent = unlocked ? 'Unlocked' : 'Locked';
+      card.append(name, status);
+      card.addEventListener('click', () => {
+        this.selectedCharacterId = character.id;
+        this.renderCharacterRoster(hostId, selectable);
+      });
+      grid.appendChild(card);
+    }
+
+    const statRows = characterStatRows(selected);
+    detail.innerHTML = `
+      ${this.characterPortraitHtml(selected, true)}
+      <h2>${selected.name}</h2>
+      <p>${selected.shortDescription}</p>
+      <div class="character-stat-grid">
+        ${statRows.map((row) => `<span>${row.label}</span><strong>${row.value}</strong>`).join('')}
+      </div>
+      <section><h3>${selected.signature.name}</h3><p>${selected.signature.description}</p></section>
+      <section><h3>Tradeoff</h3><p>${selected.tradeoff}</p></section>
+      <section><h3>Recommended Weapon</h3><p>${WEAPON_INFO[selected.recommendedWeapon].title}</p></section>
+      ${this.characterUnlockHtml(selected, selectedUnlocked)}
+    `;
+
+    if (selectable) {
+      const confirm = mustGet('character-confirm-button') as HTMLButtonElement;
+      confirm.disabled = !selectedUnlocked;
+    }
+  }
+
+  private characterPortraitHtml(character: CharacterDef, large = false): string {
+    const cls = `character-portrait${large ? ' large' : ''}`;
+    return character.portrait
+      ? `<img class="${cls}" src="${character.portrait}" alt="" />`
+      : `<div class="${cls} fallback" aria-hidden="true">FE</div>`;
+  }
+
+  private characterUnlockHtml(character: CharacterDef, unlocked: boolean): string {
+    const unlock = character.unlock;
+    if (unlocked || unlock.kind === 'default') {
+      return '<div class="character-unlock unlocked">Unlocked</div>';
+    }
+    const contract = ACTIVE_CONTRACTS.find((item) => item.id === unlock.contractId);
+    if (!contract) return '<div class="character-unlock locked">Requirement unavailable</div>';
+    const progress = progressOf(contract.objective);
+    const pct = Math.min(100, Math.round(progress.current / Math.max(1, progress.target) * 100));
+    return `<div class="character-unlock locked">
+      <span>${contract.title}: ${progress.current}/${progress.target}</span>
+      <div class="character-progress"><i style="width:${pct}%"></i></div>
+    </div>`;
+  }
+
+  private showDraft(characterId: CharacterId): void {
     const all = (Object.keys(WEAPON_INFO) as WeaponId[]).filter((id) =>
       PROFILE.unlockedWeapons.includes(id),
     );
@@ -1513,7 +1648,8 @@ export class Hud {
     }
 
     this.draftCards.innerHTML = '';
-    for (const weaponId of options) {
+    for (const option of labelWeaponOptions(characterId, options)) {
+      const weaponId = option.id;
       const info = WEAPON_INFO[weaponId];
       const card = document.createElement('div');
       card.className = 'upgrade-card blue';
@@ -1521,11 +1657,17 @@ export class Hud {
       title.textContent = info.title;
       const desc = document.createElement('p');
       desc.textContent = info.description;
+      if (option.recommended) {
+        const recommended = document.createElement('span');
+        recommended.className = 'recommended-tag';
+        recommended.textContent = 'Recommended';
+        card.appendChild(recommended);
+      }
       card.insertAdjacentHTML('beforeend', cardIconHtml(`weapon-${weaponId}`));
       card.append(title, desc);
       card.addEventListener('click', () => {
         this.startOverlay.classList.add('hidden');
-        this.onStart(weaponId);
+        this.onStart(characterId, weaponId);
       });
       this.draftCards.appendChild(card);
     }

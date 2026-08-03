@@ -63,10 +63,26 @@ export interface VoxelModelDef {
   /** Paints the outer left/right faces from the side sheet's own colours
    *  instead of smearing the front silhouette edge. See icon-voxelizer. */
   sidePaint?: boolean;
+  /** Skips the left-right symmetrization pass. REQUIRED for any reference that
+   *  is deliberately asymmetric, or the mirror fills its gaps. See
+   *  icon-voxelizer. */
+  asymmetric?: boolean;
   /** Colors that protrude from the armor (muzzle rings, raised plates). */
   raisedColors?: number[];
   /** Overrides the per-kind hero scale in the preview viewer. */
   previewScale?: number;
+  /** Optional code-built volumes that the measured-profile shell cannot
+   * represent without symmetrically inflating the opposite side. */
+  runtimeDetails?: {
+    backpack?: {
+      size: readonly [number, number, number];
+      position: readonly [number, number, number];
+      bodyColor: number;
+      trimColor: number;
+      accentColor: number;
+      socketCount: number;
+    };
+  };
   /**
    * Post-classification color swap: `{sourceHex: targetHex}`, applied to the
    * finished grid AFTER classification/extrusion. This is how color variants
@@ -431,6 +447,86 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
       { from: 0.72, to: 1, depthFactor: 0.28 },
     ],
     raisedTopFraction: 0.1,
+  },
+  // FIELD ENGINEER — new starting-character model (2026-08-03). Built from the
+  // hand-authored flat sheets in art/concept/field-engineer/, which audited
+  // clean: one contiguous piece each (plus a few 1-3 px specks that vanish in
+  // the downsample), an exact 5-colour palette with no antialiasing, and — the
+  // part that actually matters — all THREE views share the same content height
+  // (730 px), which is what icon-voxelizer needs since it aligns rows by height
+  // fraction.
+  //
+  // Registered as the Field Engineer's live player model. It remains an art
+  // candidate until multi-angle and 400+ swarm verification are approved.
+  'field-engineer': {
+    kind: 'player',
+    ref: 'assets/2d/ref-field-engineer-front-v1.png',
+    // Measured-profile pipeline. voxelizeMultiView was BUILT AND REJECTED
+    // here: the hull cross-product fused the arms and legs into one solid
+    // block, exactly the phantom-fill this path exists to avoid.
+    // DEPTH comes from a PACK-FREE side sheet (tools/make-field-engineer-
+    // depth-sheet.mjs), not from the artist's full side view. sideProfileRef
+    // yields ONE half-depth per row and applies it SYMMETRICALLY about the body
+    // axis, so the rear-mounted pack was inflating the FRONT of the torso as
+    // well: the character read as a barrel, and the arms — which share those
+    // rows — inherited ~12 voxels of depth against ~7 of width and came out as
+    // fat cylinders. Cutting the pack takes the depth/width ratio from 0.66 to
+    // 0.42. runtimeDetails restores the rear pack as dedicated volume;
+    // backPaintRef only paints the existing shell and cannot add geometry.
+    sideProfileRef: 'assets/2d/ref-field-engineer-side-depth-v1.png',
+    backPaintRef: 'assets/2d/ref-field-engineer-back-v1.png',
+    // sidePaint is deliberately OFF. It was tried and it speckled the flanks:
+    // this side sheet uses navy as a graphic OUTLINE around every shape, so
+    // repainting the outer faces from it scatters dark pixels over the hull.
+    sidePaint: false,
+    // 89 columns. The earlier 45 was chosen from the on-screen pixel budget
+    // (the player occupies about 50x58 px at 1080p), but that budget only
+    // governs the GAME view — the model is also judged in turnarounds and will
+    // front a character-select screen, and at 45 the reference's panel lines
+    // and wrist detail were being averaged away. The sheets are drawn at native
+    // resolution and are NOT an upscale of a small grid (no lossless downsample
+    // factor exists), so this is a chosen fidelity point, not a recovered one.
+    targetWidth: 89,
+    // 130 rows at 0.0154 keeps the ~2u height the primitive player rig was
+    // tuned around, so hitboxes and camera framing are unaffected.
+    voxelSize: 0.0154,
+    bodyColor: BONE,
+    // Palette MEASURED off the sheets: #e8e2d2 cream, #222831 navy, #ff8f2f
+    // orange, #162533 deep shadow, #01e6fe cyan. Each is within a few units of
+    // an existing cast constant, so the constants are REUSED rather than
+    // cloned — five near-duplicate hexes would drift apart over time. Verified
+    // the two darks still separate: #162533 lands nearer VISOR_DARK than DARK.
+    palette: [BONE, ORANGE, DARK, VISOR_DARK, LOGO_CYAN],
+    // Cyan and visor stay out of frontOnly: that path insets 2 voxels and the
+    // slot goes black at the game camera angle (the foreman lesson).
+    frontOnly: [],
+    // Navy counts as ARMOUR: in these sheets it is a graphic OUTLINE around
+    // every shape, not a physical recess. Carving it was tried and the whole
+    // body came out pitted like a pincushion. The limbs are separated by REAL
+    // transparent gaps in the art, not by the outline — see .
+    armorColors: [BONE, ORANGE, DARK],
+    // THE fix for the fused arms and legs. The reference is deliberately
+    // asymmetric (one arm raised holding the tool, the other down), and the
+    // symmetrization pass was mirroring solid material into the armpit gaps
+    // and packing them shut.
+    asymmetric: true,
+    runtimeDetails: {
+      backpack: {
+        size: [0.82, 0.68, 0.28],
+        position: [-0.03, 1.18, -0.35],
+        bodyColor: BONE,
+        trimColor: DARK,
+        accentColor: LOGO_CYAN,
+        socketCount: 3,
+      },
+    },
+    segments: [
+      { from: 0, to: 0.3 }, // helmet
+      { from: 0.3, to: 0.68 }, // torso, arms, backpack
+      { from: 0.68, to: 1 }, // legs and boots
+    ],
+    raisedTopFraction: 0,
+    previewScale: 2.0,
   },
   'tesla-titan': {
     kind: 'boss',
@@ -902,6 +998,7 @@ export async function buildModelGrid(key: string): Promise<VoxelGrid> {
         verticalRoundness: def.verticalRoundness,
         sideProfileRef: def.sideProfileRef,
         sidePaint: def.sidePaint,
+        asymmetric: def.asymmetric,
         backPaintRef: def.backPaintRef,
         raisedColors: def.raisedColors,
         bodyColor: def.bodyColor,

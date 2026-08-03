@@ -23,6 +23,7 @@ Reusability legend:
   Edge fallback in some. Launch is `headless: 'new'`, usually with `--use-gl=angle`
   (required for headless WebGL).
 - **Game boot sequence**: goto page → `waitForSelector('#play-button')` → click →
+  confirm the visible Character Selection by its `data-character-id` (or accept the legacy direct draft) →
   `waitForSelector('#draft-cards > *')` → click a card → act.
 - **Dev hook**: the running game exposes `window.__voltswarm` with mutable internals used
   by every capture/verify tool: `.gold`, `.openChest()`, `.enemies.spawnAt()`, `.player`,

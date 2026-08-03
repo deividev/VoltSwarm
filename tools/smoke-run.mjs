@@ -15,6 +15,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
+import { confirmOnlyVisibleCharacterIfPresent } from './character-flow.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUTPUT = resolve(ROOT, 'tmp/smoke-output');
@@ -211,6 +212,7 @@ try {
       // evaluate().click() rather than page.click(): the latter hit-tests for a
       // clickable point and loses a race with the menu's layout/animation.
       await page.evaluate(() => document.querySelector('#play-button').click());
+      await confirmOnlyVisibleCharacterIfPresent(page);
       await page.waitForSelector('#draft-cards > *', { visible: true, timeout: 30_000 });
       const weaponName = await page.evaluate((done) => {
         const cards = [...document.querySelectorAll('#draft-cards > *')];
