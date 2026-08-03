@@ -1,11 +1,16 @@
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
+const ts = require('typescript');
+const vm = require('node:vm');
 const pkg = require('../package.json');
 const {
   FULL_GAME_STEAM_APP_ID,
   FULL_GAME_STEAM_URL,
   isCanonicalFullGameSteamTarget,
   validateDemoBuildMetadata,
+  validateDemoRuntimeMetadata,
   windowsFileVersionForDemo,
 } = require('./build-metadata.cjs');
 
@@ -17,10 +22,79 @@ function packageAtVersion(version) {
   };
 }
 
+function loadSettingsModule({ electronSettings = null, localStorageSettings = null } = {}) {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'settings.ts'), 'utf8');
+  const compiled = ts.transpileModule(source, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const localStorage = {
+    getItem: () => localStorageSettings,
+    setItem: () => {},
+  };
+  const module = { exports: {} };
+  vm.runInNewContext(compiled, {
+    module,
+    exports: module.exports,
+    window: {
+      electronAPI: electronSettings === null ? undefined : { loadSettings: () => electronSettings },
+      localStorage,
+    },
+  });
+  return module.exports;
+}
+
 test('package embeds the complete Map 1 demo contract', () => {
   assert.deepEqual(validateDemoBuildMetadata(pkg), []);
   assert.equal(pkg.voltswarmBuild.flavor, 'demo');
   assert.deepEqual(pkg.voltswarmBuild.allowedMaps, ['scrapyard']);
+});
+
+test('packaged metadata preserves the complete runtime identity without electron-builder config', () => {
+  const packagedPackage = {
+    version: pkg.version,
+    voltswarmBuild: pkg.voltswarmBuild,
+  };
+  assert.deepEqual(validateDemoRuntimeMetadata(packagedPackage), []);
+  assert.equal(packagedPackage.voltswarmBuild.appId, 'com.davidseco.voltswarm.demo');
+  assert.equal(packagedPackage.voltswarmBuild.productName, 'Voltswarm Demo');
+});
+
+test('Electron runtime never reads electron-builder packaging configuration', () => {
+  const electronMainSource = fs.readFileSync(path.join(__dirname, '..', 'electron', 'main.ts'), 'utf8');
+  assert.doesNotMatch(electronMainSource, /\bpackageJson\.build\b/);
+  assert.match(electronMainSource, /BUILD_METADATA\.appId/);
+  assert.match(electronMainSource, /BUILD_METADATA\.productName/);
+});
+
+test('first launch defaults to fullscreen in native and renderer settings', () => {
+  const electronMainSource = fs.readFileSync(path.join(__dirname, '..', 'electron', 'main.ts'), 'utf8');
+  const initialWindowSettingsStart = electronMainSource.indexOf('function initialWindowSettings');
+  const initialWindowSettingsEnd = electronMainSource.indexOf('/** Applies', initialWindowSettingsStart);
+  assert.notEqual(initialWindowSettingsStart, -1);
+  assert.notEqual(initialWindowSettingsEnd, -1);
+  const initialWindowSettings = electronMainSource.slice(
+    initialWindowSettingsStart,
+    initialWindowSettingsEnd,
+  );
+  assert.match(initialWindowSettings, /catch \{\s*return \{ fullscreen: true, width: 1280, height: 720 \};\s*}/);
+  assert.match(initialWindowSettings, /fullscreen: settings\.displayMode === 'fullscreen'/);
+
+  const { DEFAULT_SETTINGS, loadSettings } = loadSettingsModule();
+  assert.equal(DEFAULT_SETTINGS.displayMode, 'fullscreen');
+  assert.equal(loadSettings().displayMode, 'fullscreen');
+});
+
+test('persisted display modes remain authoritative after startup', () => {
+  for (const displayMode of ['windowed', 'fullscreen']) {
+    const { loadSettings } = loadSettingsModule({
+      electronSettings: JSON.stringify({ displayMode, resolution: '1600x900' }),
+    });
+    const settings = loadSettings();
+    assert.deepEqual(
+      { displayMode: settings.displayMode, resolution: settings.resolution },
+      { displayMode, resolution: '1600x900' },
+    );
+  }
 });
 
 test('demo build contract accepts canonical SemVer demo versions', () => {
@@ -39,6 +113,15 @@ test('demo build contract rejects missing, non-numeric, or drifting Windows File
   for (const buildVersion of [undefined, '0.11.1-demo', '0.11.0.0', '0.11.1']) {
     const candidate = { ...pkg, build: { ...pkg.build, buildVersion } };
     assert.notDeepEqual(validateDemoBuildMetadata(candidate), [], String(buildVersion));
+  }
+});
+
+test('demo build contract rejects packaging identity that drifts from runtime identity', () => {
+  for (const build of [
+    { ...pkg.build, appId: 'com.example.wrong' },
+    { ...pkg.build, productName: 'Wrong Demo' },
+  ]) {
+    assert.notDeepEqual(validateDemoBuildMetadata({ ...pkg, build }), []);
   }
 });
 

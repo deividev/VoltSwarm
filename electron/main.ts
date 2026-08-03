@@ -9,24 +9,26 @@ import { completePlaytestReset, isPlaytestResetRequired, preparePlaytestReset } 
 interface PackageBuildMetadata {
   flavor: string;
   allowedMaps: string[];
+  appId: string;
+  productName: string;
   userDataDirectory: string;
   fullGameSteamAppId: number;
   fullGameSteamUrl: string;
 }
 
-// electron-builder embeds this package.json. Identity, content scope,
-// persistence isolation, and the CTA target therefore share one authority.
+// electron-builder preserves voltswarmBuild in its embedded package.json.
+// Runtime identity, content scope, persistence isolation, and the CTA target
+// therefore share one authority that is independent of packaging configuration.
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const packageJson = require('../../package.json') as {
   voltswarmBuild: PackageBuildMetadata;
-  build: { appId: string; productName: string };
 };
 const BUILD_METADATA = packageJson.voltswarmBuild;
-const APP_TITLE = packageJson.build.productName;
+const APP_TITLE = BUILD_METADATA.productName;
 
 app.setName(APP_TITLE);
 app.setPath('userData', path.join(app.getPath('appData'), BUILD_METADATA.userDataDirectory));
-app.setAppUserModelId(packageJson.build.appId);
+app.setAppUserModelId(BUILD_METADATA.appId);
 
 let mainWindow: BrowserWindow | null = null;
 let telemetryClient: TelemetryClient | null = null;
@@ -98,7 +100,7 @@ function initialWindowSettings(): { fullscreen: boolean; width: number; height: 
       height: match ? Number(match[2]) : 720,
     };
   } catch {
-    return { fullscreen: false, width: 1280, height: 720 };
+    return { fullscreen: true, width: 1280, height: 720 };
   }
 }
 

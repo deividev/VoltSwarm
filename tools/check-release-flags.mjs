@@ -40,12 +40,6 @@ function blockOf(name) {
 
 const problems = [];
 problems.push(...validateDemoBuildMetadata(pkg));
-if (pkg.build?.appId !== 'com.davidseco.voltswarm.demo') {
-  problems.push('electron-builder appId must be com.davidseco.voltswarm.demo');
-}
-if (pkg.build?.productName !== 'Voltswarm Demo') {
-  problems.push('electron-builder productName must be Voltswarm Demo');
-}
 if (pkg.build?.directories?.output !== 'release-demo-map1') {
   problems.push('demo packages must use the isolated release-demo-map1 output directory');
 }
@@ -67,8 +61,12 @@ if (!pkg.scripts?.package?.includes('check:release-flags') ||
 }
 if (!electronMainSource.includes("app.setPath('userData'") ||
     !electronMainSource.includes('BUILD_METADATA.userDataDirectory') ||
-    !electronMainSource.includes('app.setAppUserModelId(packageJson.build.appId)')) {
-  problems.push('Electron must apply the package-owned demo userData and app identity');
+    !electronMainSource.includes('app.setAppUserModelId(BUILD_METADATA.appId)') ||
+    !electronMainSource.includes('const APP_TITLE = BUILD_METADATA.productName')) {
+  problems.push('Electron must apply the package-owned demo userData and runtime identity');
+}
+if (/\bpackageJson\.build\b/.test(electronMainSource)) {
+  problems.push('Electron runtime must not read electron-builder packaging configuration');
 }
 if (!electronMainSource.includes('shell.openExternal(target') ||
     !electronMainSource.includes('fullGameStoreTarget()')) {
