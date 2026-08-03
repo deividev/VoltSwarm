@@ -69,7 +69,7 @@ export interface CharacterProfileView {
 }
 
 export function isCharacterId(value: unknown): value is CharacterId {
-  return typeof value === 'string' && value in CHARACTER_REGISTRY;
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(CHARACTER_REGISTRY, value);
 }
 
 /** Resolves persisted run data against the registry without requiring the

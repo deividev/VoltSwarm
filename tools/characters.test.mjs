@@ -22,6 +22,11 @@ test('registry fallback and unlock filtering use stable ids', () => {
   const unlocked = { unlockedCharacters: ['field-engineer', 'unknown-character'] };
   assert.equal(characters.resolveCharacterId('unknown-character', unlocked), 'field-engineer');
   assert.equal(characters.resolveCharacterId('field-engineer', locked), 'field-engineer');
+  for (const inheritedId of ['__proto__', 'constructor', 'toString']) {
+    assert.equal(characters.isCharacterId(inheritedId), false);
+    assert.equal(characters.registeredCharacterId(inheritedId), characters.DEFAULT_CHARACTER_ID);
+    assert.equal(characters.resolveCharacterId(inheritedId, unlocked), characters.DEFAULT_CHARACTER_ID);
+  }
   assert.deepEqual(characters.unlockedCharacters(locked), []);
   assert.deepEqual(characters.unlockedCharacters(unlocked).map((entry) => entry.id), ['field-engineer']);
 });
