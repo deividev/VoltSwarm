@@ -208,6 +208,13 @@ export const FOREMAN_CYAN = 0x46d9ec;
 // The logo is only THREE colours and has no cream at all: amber #fdb601 at
 // 60% of the mascot, a cool blue-black #152532 at 25%, electric cyan #01e6fe
 // at 15%. The wordmark runs even hotter at 82% amber.
+// Tesla Titan seam tone (2026-07-31). Added so its v2 sheets can carve panel
+// lines and coil windings WITHOUT punching full charcoal holes through a bright
+// cyan hull — charcoal on cyan reads as damage, a deep teal reads as machining.
+// Same "3-step ramp of one hue" convention as the container/scaffold/barrel
+// families: it sits below ELECTRIC_CYAN in value, on the same hue.
+export const TESLA_DEEP = 0x1a7d78;
+
 export const LOGO_AMBER = 0xfdb601;
 export const LOGO_DARK = 0x152532;
 export const LOGO_CYAN = 0x01e6fe;
@@ -427,27 +434,43 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   'tesla-titan': {
     kind: 'boss',
-    ref: 'assets/2d/ref-tesla-titan-front.png',
-    // Measured-profile pipeline (2026-07-09): tower profile + painted back
-    // (rings wrap seamlessly; the back swaps the visor for an access panel).
-    sideProfileRef: 'assets/2d/ref-tesla-titan-side-v1.png',
-    backPaintRef: 'assets/2d/ref-tesla-titan-back-v1.png',
-    // Tall pylon sized to the primitive rig (~2u). The bright-cyan rings
-    // are wider than the tower, so they wrap as full slabs on their own;
-    // they are also the prime bloom emissives of Phase 1.
-    targetWidth: 25,
-    voxelSize: 0.048,
+    // REBUILT 2026-07-31. The v1 sheets were a bare column with three flat ring
+    // slabs and almost no interior detail, which put this boss at 8 059 voxels
+    // / 6 592 triangles against the Crusher King's 27 740 / 13 480 — it read as
+    // stacked discs next to a boss with a face and panelling. Raising
+    // targetWidth alone could not have fixed it: there was nothing inside the
+    // sheet to resolve. tools/make-tesla-titan-sheets.mjs authors all three
+    // views at the model's exact voxel resolution (45x76, so the voxelizer's
+    // downsample is a lossless 1:1) with coil windings, ring notches, a vented
+    // head housing and a stepped armoured base.
+    ref: 'assets/2d/ref-tesla-titan-front-v2.png',
+    sideProfileRef: 'assets/2d/ref-tesla-titan-side-v2.png',
+    backPaintRef: 'assets/2d/ref-tesla-titan-back-v2.png',
+    // The side sheet now carries real flank detail, so use it for COLOUR too
+    // and not just depth — see `sidePaint` in icon-voxelizer.
+    sidePaint: true,
+    // 45 columns matches the Crusher King's density class. voxelSize keeps the
+    // 76-row tower at the same ~2u the primitive rig was tuned around, before
+    // the type's own boss instance scale multiplies on top.
+    targetWidth: 45,
+    voxelSize: 0.0263,
     bodyColor: ELECTRIC_CYAN,
-    palette: [ELECTRIC_CYAN, CYAN, DARK, AMBER],
-    frontOnly: [AMBER],
-    armorColors: [ELECTRIC_CYAN],
+    palette: [ELECTRIC_CYAN, CYAN, TESLA_DEEP, DARK, AMBER],
+    // Not frontOnly: that path insets the colour 2 voxels and buries the visor
+    // at the game camera angle (the foreman lesson).
+    frontOnly: [],
+    // Hull is both cyans — the rings ARE structure, not decals. Deep teal and
+    // charcoal are what carve relief.
+    armorColors: [ELECTRIC_CYAN, CYAN],
     segments: [
       { from: 0, to: 0.22, depthFactor: 0.45 },
       { from: 0.22, to: 0.82, depthFactor: 0.4 },
       { from: 0.82, to: 1, depthFactor: 0.34 },
     ],
     raisedTopFraction: 0,
-    previewScale: 2.4,
+    // Framing only: the v2 tower is 76 rows tall, so the old 2.4 ran its head
+    // off the top of the viewer even though the world height is unchanged.
+    previewScale: 1.75,
   },
   'crusher-king': {
     kind: 'boss',
