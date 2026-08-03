@@ -12,6 +12,7 @@ import {
 // Type-only: erased at compile time, so this cannot create a runtime cycle with
 // contracts.ts, which imports LIFETIME from here.
 import type { Reward } from './contracts';
+import { CHARACTER_REGISTRY } from './characters';
 
 // Cross-run player profile. Mirrors the settings persistence seam
 // (src/settings.ts): Electron writes a JSON file under userData, the browser
@@ -24,7 +25,7 @@ import type { Reward } from './contracts';
 // design note in config.ts.
 
 const STORAGE_KEY = 'voltswarm:profile';
-const VERSION = 3;
+const VERSION = 4;
 
 /** Monotonic career totals, the fact base every contract objective reads.
  *
@@ -97,6 +98,7 @@ function emptyLifetime(): LifetimeStats {
  *  must reach existing players instead of being frozen into their save. */
 interface ProfileSave {
   version: number;
+  unlockedCharacters: string[];
   weaponSockets: number;
   coreSockets: number;
   levelupDiscards: number;
@@ -111,6 +113,7 @@ interface ProfileSave {
  *  may only ADD to these lists, so promoting a new item to default-unlocked
  *  later reaches players who already have a save. */
 const DEFAULTS = {
+  unlockedCharacters: [...PROFILE.unlockedCharacters] as string[],
   weaponSockets: PROFILE.weaponSockets,
   coreSockets: PROFILE.coreSockets,
   levelupDiscards: PROFILE.levelupDiscards,
@@ -124,6 +127,7 @@ const DEFAULTS = {
 const VALID_WEAPONS = new Set(Object.keys(WEAPON_INFO).filter((id) => isWeaponAvailable(id as WeaponId)));
 const VALID_CORES = new Set(Object.keys(CORE_TITLES));
 const VALID_MODS = new Set<string>(MOD_IDS);
+const VALID_CHARACTERS = new Set<string>(Object.keys(CHARACTER_REGISTRY));
 
 /** Reads the stored profile and applies it to PROFILE. Safe to call once at
  *  boot; a missing, corrupt or partial save leaves the fresh-profile defaults. */
@@ -217,6 +221,7 @@ function backfillLifetime(history: RunRecordV1[]): void {
 export function saveProfile(): void {
   const save: ProfileSave = {
     version: VERSION,
+    unlockedCharacters: [...PROFILE.unlockedCharacters],
     weaponSockets: PROFILE.weaponSockets,
     coreSockets: PROFILE.coreSockets,
     levelupDiscards: PROFILE.levelupDiscards,
@@ -232,6 +237,7 @@ export function saveProfile(): void {
 
 /** Wipes stored progress and restores the fresh-profile state. */
 export function resetProfile(): void {
+  normalizeCharacterUnlocks(undefined);
   PROFILE.weaponSockets = DEFAULTS.weaponSockets;
   PROFILE.coreSockets = DEFAULTS.coreSockets;
   PROFILE.levelupDiscards = DEFAULTS.levelupDiscards;
@@ -247,6 +253,7 @@ export function resetProfile(): void {
 }
 
 function applyProfile(value: Partial<ProfileSave>): void {
+  normalizeCharacterUnlocks(value.unlockedCharacters);
   PROFILE.weaponSockets = clampSockets(value.weaponSockets, DEFAULTS.weaponSockets, PROFILE.maxWeaponSockets);
   PROFILE.coreSockets = clampSockets(value.coreSockets, DEFAULTS.coreSockets, PROFILE.maxCoreSockets);
   PROFILE.levelupDiscards = clampSockets(value.levelupDiscards, DEFAULTS.levelupDiscards, 99);
@@ -254,6 +261,17 @@ function applyProfile(value: Partial<ProfileSave>): void {
   PROFILE.unlockedCores = mergeUnlocks(DEFAULTS.unlockedCores, value.unlockedCores, VALID_CORES);
   PROFILE.unlockedMods = mergeUnlocks(DEFAULTS.unlockedMods, value.unlockedMods, VALID_MODS) as ModId[];
   applyLifetime(value.lifetime);
+}
+
+/** Load, migration and reset all preserve the live array identity held by
+ * character-gating consumers. Unknown ids are filtered by the registry. */
+export function normalizeCharacterUnlocks(saved: unknown): void {
+  const normalized = mergeUnlocks(
+    DEFAULTS.unlockedCharacters,
+    saved,
+    VALID_CHARACTERS,
+  );
+  PROFILE.unlockedCharacters.splice(0, PROFILE.unlockedCharacters.length, ...normalized);
 }
 
 /** Field-by-field so a truncated or hand-edited ledger degrades to zeros

@@ -44,6 +44,15 @@ import { DamageNumbers } from './damage-numbers';
 import { BossSystem } from './boss';
 import { AudioDirector, type AudioEventId } from './audio';
 import { VoxelBurst } from './particles';
+import {
+  DEFAULT_CHARACTER_ID,
+  CHARACTER_REGISTRY,
+  characterStats,
+  fieldRepairHp,
+  registeredCharacterId,
+  resolveCharacterId,
+  type CharacterId,
+} from './characters';
 
 /** Per-weapon fire sound. Weapons without a dedicated asset yet fall back to
  *  the (silent-by-default) generic 'weapon-activation' via the ?? in the hook. */
@@ -196,6 +205,8 @@ export class Game {
   /** Loading handoff: the picked weapon, whether the world is built yet, and
    *  the warmup countdown (see LOADING_WARMUP_FRAMES). */
   private pendingWeapon: WeaponId | null = null;
+  private pendingCharacterId: CharacterId = DEFAULT_CHARACTER_ID;
+  private currentCharacterId: CharacterId = DEFAULT_CHARACTER_ID;
   private pendingMapId: MapId = MAPS[0].id;
   private runReady = false;
   private warmupFrames = 0;
@@ -351,7 +362,7 @@ export class Game {
     this.merchant = new MerchantSystem(this.scene);
     this.hud = new Hud(
       container,
-      (weapon, mapId) => this.enterLoading(weapon, mapId),
+      (character, weapon, mapId) => this.enterLoading(character, weapon, mapId),
       (card) => this.applyUpgrade(card),
       () => this.resumeRun(),
       () => this.quitToMenu(),
@@ -403,7 +414,12 @@ export class Game {
   /** Play → weapon pick lands here: raise the loading screen, then the world
    *  is built and warmed on the next frames (tickLoading) so the reveal is
    *  smooth. Keeps the heavy setup OFF the click frame. */
-  private enterLoading(startingWeapon: WeaponId, mapId: MapId = MAPS[0].id): void {
+  private enterLoading(
+    characterId: CharacterId,
+    startingWeapon: WeaponId,
+    mapId: MapId = MAPS[0].id,
+  ): void {
+    this.pendingCharacterId = resolveCharacterId(characterId, PROFILE);
     this.pendingWeapon = startingWeapon;
     this.pendingMapId = mapId;
     this.runReady = false;
@@ -429,7 +445,9 @@ export class Game {
       return;
     }
     if (!this.runReady) {
-      if (this.pendingWeapon) this.buildRun(this.pendingWeapon, this.pendingMapId);
+      if (this.pendingWeapon) {
+        this.buildRun(this.pendingCharacterId, this.pendingWeapon, this.pendingMapId);
+      }
       this.runReady = true;
       this.warmupFrames = LOADING_WARMUP_FRAMES;
       return;
@@ -454,7 +472,12 @@ export class Game {
     }
   }
 
-  private buildRun(startingWeapon: WeaponId, selectedMapId: MapId = MAPS[0].id): void {
+  private buildRun(
+    requestedCharacterId: CharacterId,
+    startingWeapon: WeaponId,
+    selectedMapId: MapId = MAPS[0].id,
+  ): void {
+    this.currentCharacterId = resolveCharacterId(requestedCharacterId, PROFILE);
     this.resetRunWorld();
     clearProps(this.scene, this.propMeshes);
     this.propMeshes = [];
@@ -477,7 +500,12 @@ export class Game {
     this.runEnclosedS = 0;
     this.runEnclosedLowHpS = 0;
     this.runPeakEnclosedSectors = 0;
-    this.stats = defaultStats();
+    const character = CHARACTER_REGISTRY[this.currentCharacterId];
+    this.stats = characterStats(this.currentCharacterId);
+    this.player.maxHp = character.maxHp;
+    this.player.hp = character.maxHp;
+    this.player.moveSpeed = character.moveSpeed;
+    this.player.setCharacterModelKey(character.modelKey);
     this.weaponLevels = emptyWeaponLevels();
     this.weaponPower = emptyWeaponPower();
     this.weaponBranches = emptyWeaponBranches();
@@ -552,13 +580,24 @@ export class Game {
     // Load the recorded build. Stats are REPLAYED from core picks rather than
     // restored, because the record stores how many times each core was taken
     // and never which rarity rolled — see replayCoresOntoStats.
-    this.stats = defaultStats();
+    // Preserve the registered character recorded with the build. Older or
+    // unknown ids fall back to the default, but current unlocks cannot rewrite
+    // the identity of an existing run record.
+    this.currentCharacterId = registeredCharacterId(record.characterId);
+    const character = CHARACTER_REGISTRY[this.currentCharacterId];
+    this.stats = characterStats(this.currentCharacterId);
+    this.player.maxHp = character.maxHp;
+    this.player.hp = character.maxHp;
+    this.player.moveSpeed = character.moveSpeed;
+    this.player.setCharacterModelKey(character.modelKey);
     this.weaponLevels = { ...emptyWeaponLevels(), ...record.weaponLevels };
     this.weaponBranches = record.weaponBranches
       ? structuredClone(record.weaponBranches)
       : emptyWeaponBranches();
     this.modCounts = { ...record.modCounts };
     this.coreLevels = { ...record.coreLevels };
+    // Direct replay mutates stats/player only; it never enters the gameplay
+    // upgrade path that triggers Field Repair.
     replayCoresOntoStats(this.stats, this.player, this.coreLevels);
     this.progression.level = record.level;
     // HP cores act on the player object directly (the `_p` arg the stat cards
@@ -640,7 +679,7 @@ export class Game {
   /** Packaged benchmark-only deterministic swarm; never reachable in normal builds. */
   private startAudioBenchmark(): { scenario: string; seed: number; enemies: number; digest: string } {
     this.installBenchmarkRandom(AUDIO.benchmark.seed);
-    this.buildRun('bolt');
+    this.buildRun(DEFAULT_CHARACTER_ID, 'bolt');
     (Object.keys(this.weaponLevels) as WeaponId[]).forEach((id) => { this.weaponLevels[id] = 1; });
     this.weaponDamage = emptyWeaponLevels();
     const voltlingCount = AUDIO.benchmark.typeCounts[0] ?? 0;
@@ -743,6 +782,7 @@ export class Game {
       discardsRemaining: this.discardsLeft,
     });
     this.currentUpgradeOffer = [];
+    const coreLevelBefore = card.draftKind === 'core' ? (this.coreLevels[card.id] ?? 0) : null;
     card.apply(
       this.stats,
       this.player,
@@ -760,6 +800,14 @@ export class Game {
         },
       },
     );
+    if (coreLevelBefore !== null && (this.coreLevels[card.id] ?? 0) > coreLevelBefore) {
+      this.player.hp = fieldRepairHp(
+        this.currentCharacterId,
+        this.player.hp,
+        this.player.maxHp,
+        'gameplay',
+      );
+    }
     this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
     // First copy = a socket just filled → stronger pop than a plain level-up.
     const weaponId = weaponIdFromUpgradeCard(card.id);
@@ -2266,6 +2314,7 @@ export class Game {
       id: runId,
       outcome,
       map: this.currentMap,
+      characterId: this.currentCharacterId,
       ...(this.startingWeapon ? { startingWeapon: this.startingWeapon } : {}),
       // No difficulty selector exists yet, so every run is the one and only
       // curve. Labelling it now means the day a selector lands, these records

@@ -225,7 +225,7 @@ Notas: **Piston Stompers** recicla la idea descartada Piston Boots (Lista 3). Ic
 - Drop: **25% de los kills → 2 unidades** · elites **10** · boss **50**. El drop normal pasó de 1 a 2 en el playtest económico del 2026-07-17: duplica el ingreso esperado por enemigo de 0.25 a 0.50 sin aumentar la cantidad de pickups ni tocar a la vez la rampa de precios. Obligatorio reusar el merge de los orbes de XP (pickups cercanos se funden) — con 400+ enemigos no se llena el suelo de monedas. Ingreso objetivo: ~400-500 por run de 10 min; validar compras reales en el siguiente playtest.
 - **Los precios ESCALAN con el tiempo de run** (decisión 2026-07-09: la densidad de enemigos crece → el ingreso crece → precios fijos regalarían los tiers altos): `precio = base del tier × (1 + 0.12 × minuto)`. Bases: gris 25 · verde 45 · azul 80 · morado 140 · dorado 240. Todo en `config.ts`, un cambio por playtest.
 
-**Rareza del draft (recalibrada 2026-07-17):** pesos a `Luck = 0` gris 62 · verde 27 · azul 9 · morado 1.8 · dorado 0.2. Con tres cartas, la probabilidad inicial de ver morado/dorado baja de 31.85% a 5.88%, y la de ver dorado baja de 8.73% a 0.60%. Se conserva `luckShift`: Lucky Gear es la vía para abrir tiers altos de forma progresiva, no un requisito para que exista el jackpot inicial.
+**Rareza del draft (recalibrada 2026-07-17; unidad normalizada 2026-08-03):** pesos a `Luck = 0%` gris 62 · verde 27 · azul 9 · morado 1.8 · dorado 0.2. Con tres cartas, la probabilidad inicial de ver morado/dorado baja de 31.85% a 5.88%, y la de ver dorado baja de 8.73% a 0.60%. Luck se guarda y muestra como rating porcentual (`0.10` = `10%`), pero NO suma puntos porcentuales directos a una probabilidad: desplaza los pesos azul/morado/dorado y después se normaliza el pool. `luckShift` se reescaló para conservar exactamente la curva anterior; Lucky Gear sigue siendo la vía para abrir tiers altos de forma progresiva, no un requisito para que exista el jackpot inicial.
 
 **El chatarrero** (vendedor futurista, misma estética del elenco):
 
@@ -248,7 +248,16 @@ Una silueta no define un personaje jugable. Cada personaje futuro debe tener las
 | Pasiva o regla signature | Interactúa con sistemas reales (armas, cores, mods, economía o movimiento), no un bonus plano aislado. |
 | Tradeoff significativo | Aporta una razón para elegirlo y otra para no hacerlo; debe sobrevivir playtest de balance. |
 
-Los nombres, armas, cifras y pasivas concretas todavía **no están diseñados ni comprometidos**. Los bocetos anteriores se mantienen como dirección temática, no como especificación de implementación. Diseñar cada personaje después de validar el balance base y registrar su propuesta aquí antes de programarlo.
+El primer personaje jugable es **Field Engineer**, evolución reconocible del jugador actual. Su gameplay y magnitudes están implementados; el modelo runtime v1 superó la validación técnica, pero las referencias visuales continúan como candidate hasta que exista aprobación final explícita del usuario. Los demás personajes siguen sin nombre, cifras ni pasivas comprometidas.
+
+### ✅ Personaje inicial — Field Engineer
+
+- **Rol:** perfil inicial legible y perdonador: 110 HP, Armor rating 5%, Damage ×0.95, Move Speed 11, Attack Speed ×1, crítico 5%/+50%, Luck/Regen 0.
+- **Signature — Field Repair:** instalar o subir de tier un Core durante gameplay cura 6% de HP máximo después de aplicar el Core, con clamp y sin overheal. No dispara en load/replay/Boss Lab/rebuild.
+- **Elección temprana:** Bolt Cannon conserva sus odds normales. Si aparece naturalmente, su tarjeta muestra `Recommended`; no se garantiza ni equipa por obligación.
+- **Identidad:** supervivencia por HP/Armor y relación con Cores, NUNCA por movilidad. Cumple la regla de doblar un sistema existente en vez de añadir un stat plano como única identidad.
+- **Visual:** casco de seguridad naranja grande, visor oscuro, cuerpo hueso/charcoal, mochila-taller unida, herramienta asimétrica en hombro derecho, refuerzos en antebrazos/botas, columna de energía cian y exactamente tres alojamientos grandes de Core conectados con cables gruesos. La lectura cenital debe ser casco + hombro herramienta + mochila.
+- **Estado:** sistema jugable, selección, persistencia y UI implementados. Modelo runtime v1 técnicamente validado: preview 0°/90°/180°/270°, marcha trasera y gate 400+ superados (431–440 enemigos, 118.87 FPS medios, bucket mínimo 92.41 FPS, p99 8.5 ms, 0 errores de página y 431/431 enemigos en movimiento). Las referencias de `art/concept/field-engineer/` siguen candidate v1 porque no consta aprobación visual final explícita del usuario.
 
 ### Decisiones cerradas 2026-07-30 (detalle y medición en `DISENO_FRENESI.md` §4)
 
@@ -265,7 +274,7 @@ Los nombres, armas, cifras y pasivas concretas todavía **no están diseñados n
 - Su perfil debe **sesgar, no forzar**, la sinergia con uno o más estilos de arma.
 - Una pasiva pequeña debe completar su identidad más allá de los números base.
 - Las combinaciones pueden ser definitorias y fuertes, pero deben mantenerse acotadas: no pueden invalidar las demás armas.
-- **No fijar cifras ni diseños concretos todavía**: esperar Mapa 2, Volt Warden y datos percentiles comparables de runs humanas.
+- **Las cifras de Field Engineer están fijadas para su primera versión jugable** y se recalibrarán con percentiles cuando exista una build comparable; no extrapolarlas a personajes futuros.
 
 La exploración parte de un perfil compuesto por **sesgo de stat, contra-stat real, afinidad de estilo de arma y pasiva pequeña**. El objetivo es que la combinación personaje-build resulte fuerte y definitoria, pero nunca obligatoria ni desproporcionada: debe orientar una decisión temprana sin convertir el resto del arsenal en una elección errónea.
 

@@ -5,6 +5,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
+import { confirmOnlyVisibleCharacterIfPresent } from './character-flow.mjs';
 
 const PORT = 5197;
 const chromePath = [
@@ -28,6 +29,7 @@ try {
   await page.goto(`http://localhost:${PORT}/`);
   await page.waitForSelector('#play-button', { visible: true, timeout: 15000 });
   await page.click('#play-button');
+  await confirmOnlyVisibleCharacterIfPresent(page);
   await page.waitForSelector('#draft-cards > *', { visible: true, timeout: 15000 });
   await page.click('#draft-cards > *');
   await new Promise((r) => setTimeout(r, 1500));
@@ -36,7 +38,7 @@ try {
     const ps = window.__voltswarm.pickups;
     const tally = {};
     for (let n = 0; n < 400; n++) {
-      ps.spawnAt(0, 0, 10); // high luck → many gold rolls pre-cap
+      ps.spawnAt(0, 0, 0.10, []); // 10% Luck rating → many gold rolls pre-cap
       const slot = ps.slots.find((s) => s.active);
       if (slot) {
         tally[slot.tier] = (tally[slot.tier] || 0) + 1;
@@ -48,7 +50,7 @@ try {
   });
 
   await browser.close();
-  console.log('Chest tier tally over 400 spawns at luck=10:', JSON.stringify(result));
+  console.log('Chest tier tally over 400 spawns at 10% Luck rating:', JSON.stringify(result));
   console.log(result.gold ? 'FAIL: gold chests still appear' : 'PASS: no gold chests (capped to a populated tier)');
 } catch (err) {
   console.error('Verify failed:', err.message);

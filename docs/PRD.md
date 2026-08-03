@@ -19,7 +19,8 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - Criterio de aceptación: matar lejos y no acercarse = no XP. Recoger dispara level-up.
 
 ### 2. Ficha de stats RPG + pool de mejoras con rareza
-- Ficha del personaje: Damage, Attack Speed, Crit Chance, Crit Damage, Move Speed, Attack Range, Pickup Range, Projectile Count, Projectile Speed, Area (tamaño de disparos/efectos), Armor (retornos decrecientes), Regen.
+- Ficha del personaje: Damage, Attack Speed, Crit Chance, Crit Damage, Move Speed, Attack Range, Pickup Range, Projectile Count, Projectile Speed, Area (tamaño de disparos/efectos), Armor (rating porcentual con retornos decrecientes), Regen y Luck (rating porcentual que desplaza pesos de rareza).
+- **Semántica de Armor y Luck (2026-08-03):** ambos se almacenan como fracciones y se muestran como porcentaje (`0.08` = `8%`). Armor NO es reducción directa punto por punto: la reducción efectiva es `armor / (armor + 1)`. Luck NO es una probabilidad directa de tier: desplaza los pesos azul/morado/dorado y luego se normaliza el pool completo. La migración desde puntos conserva exactamente las curvas anteriores; cambia la unidad visible, no el balance.
 - Level-up: al cruzar el umbral de XP, primero se muestra un beat visual `LEVEL UP!` encima del jugador (`VISUAL.levelUpIntro`) y después se abre la UI con 3 cartas aleatorias entre mejoras de stat y cartas de arma (desbloquear/subir nivel de arma).
 - **Tiers (rareza) — DEFINICIÓN CANÓNICA. 5 tiers: gris → verde → azul → morado → dorado** (`Rarity` en `upgrades.ts`; pesos de tirada en `TIERS.weights`/`luckShift`, Luck sube los tiers altos). ⚠️ Cada categoría usa los tiers DISTINTO — esto es lo que hay que respetar para que no haya desalineamientos:
   - **Calibración base (playtest 2026-07-17):** con `Luck = 0`, pesos por carta 62/27/9/1.8/0.2%. En una pantalla de 3 cartas esto deja 5.88% de ver al menos una morada/dorada y 0.60% de ver una dorada. Los tiers altos iniciales son jackpots; Lucky Gear debe volverlos progresivamente fiables.
@@ -203,7 +204,19 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 ## Fuera de alcance actual
 - Multiplayer/co-op: no implementado ni anunciado; solo existe el gate interno de viabilidad de `docs/MULTIPLAYER_FEASIBILITY.md`. Local/Remote Play persistiría solo en el save host/local; la progresión por cuenta de invitados no está prometida. Native online solo podría persistir cuentas propias tras validación host-authoritative.
 - Dedicated servers: fuera de alcance.
-- Meta-progresión entre runs, moneda, mapas múltiples, evolución de armas y personajes diferenciados: post-validación; el trabajo de personajes vive en `DESIGN_MEJORAS.md`.
+- Meta-progresión entre runs, moneda, mapas múltiples y evolución de armas: post-validación. **Field Engineer** ya es el personaje inicial jugable; los otros dos personajes de lanzamiento siguen fuera de alcance y sin diseño comprometido. Su modelo runtime v1 está técnicamente validado, pero permanece como candidate visual hasta que exista aprobación final explícita del usuario (`DISENO_PERSONAJES.md`).
+
+### Personajes — Field Engineer
+
+- `src/characters.ts` define un registry data-driven con ID estable, copy derivada de `CHARACTER_BALANCE`, `modelKey`, perfil base, signature, arma recomendada y metadata de unlock.
+- Flujo de nueva run: **Play → Character Selection → Starting Weapon Draft → Loading → Run**. La selección es una `menu-view`, no un `GameState` nuevo; exige Confirm y soporta teclado/gamepad.
+- Field Engineer (`field-engineer`) está desbloqueado por defecto: 110 HP, Armor rating 5%, Damage ×0.95, Move Speed 11, Attack Speed ×1, crítico 5%/+50%, Luck/Regen 0 y los sockets globales sin cambios (1/2 iniciales, 2/4 máximos).
+- **Field Repair** cura 6% del HP máximo después de instalar o subir tier de un Core durante gameplay. Clampea a máximo, no hace overheal y no se ejecuta en load, replay, Boss Lab o reconstrucción.
+- Bolt Cannon no se garantiza ni cambia las odds: si entra naturalmente en el draft, solo muestra `Recommended`.
+- `PROFILE.unlockedCharacters` persiste IDs y Contracts admite rewards `character`; todavía no existen contratos ni umbrales de personajes.
+- El menú **Characters** usa el mismo registry y tiene estructura de requirement/progreso derivada de Contracts para futuros bloqueados, sin duplicar thresholds.
+- Boss Lab conserva el `characterId` registrado y reconstruye primero ese baseline antes de reproducir Cores; la reproducción no atraviesa el trigger de gameplay de Field Repair.
+- El modelo runtime v1 usa perfil lateral medido sin mochila más volumen procedural trasero dedicado. `backPaintRef` solo pinta la carcasa existente. La validación técnica superó el preview 0°/90°/180°/270°, la marcha vista desde atrás y el gate de 400+ (431–440 enemigos, 118.87 FPS medios, bucket mínimo 92.41 FPS, p99 8.5 ms, 0 errores de página y 431/431 enemigos en movimiento). No consta aprobación visual final explícita del usuario, por lo que sigue siendo candidate visual.
 
 ## Orden de implementación
 Ficha+pool → orbes XP → dificultad → separación → damage numbers → elites → roller/gunner → colisiones props → tuning → armas nuevas → draft → tótem+bosses → volador → verificación completa (FPS 100+ enemigos, run jugable de punta a punta).
