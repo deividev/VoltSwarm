@@ -389,3 +389,25 @@ Es la única entidad que puede permitírselo: el resto del elenco se dibuja con 
 `enemies.ts` ya implementa el destello (`hitFlash = 0.08` + `FLASH_TINT` por `setColorAt`), hoy en **blanco** `(2.5, 2.5, 2.5)`. Falta añadirle rojo, con dos cuidados: el tinte es multiplicativo (un rojo puro sobre crema da rosa lavado) y el rojo ya significa *boss* en el lenguaje visual del juego. Detalle y valores propuestos en `ANIMACION_RIG.md` §8.
 
 El clip `hit` no se descarta: se recoloca a eventos **raros** — cambio de fase, rotura de armadura, stagger.
+
+## Tesla Titan — modelo rehecho 2026-08-03
+
+Se veía flojo al lado del Crusher King, y **la causa no era el voxelizador sino la referencia**: la hoja v1 era una columna lisa con tres discos planos y casi ningún detalle interior. Subirle la resolución no habría arreglado nada — no había nada dentro que resolver.
+
+Las tres hojas se rehacen **autoradas a la resolución exacta de vóxel del modelo** (45×76, así el remuestreo del voxelizador es un mapeo 1:1 sin pérdida) con `tools/make-tesla-titan-sheets.mjs`. Autoradas y no generadas por IA porque el diseño es geométrico y regular — una torre de bobinas —, que es justo el caso donde el autorado da control total, resultado determinista y regenerable con un comando.
+
+**Detalle nuevo:** bobinados por tramo de columna con conducto central de carga, muescas radiales y nodos emisores en los tres anillos, carcasa de cabeza con rejillas laterales y alojamiento de visor, base blindada escalonada con garras y emisores.
+
+| | antes | ahora | Crusher King (vara de medir) |
+| --- | --- | --- | --- |
+| vóxeles | 8.059 | **48.360** | 27.740 |
+| triángulos | 6.592 | **29.832** | 13.480 |
+| columnas | 25 | **45** | 41 |
+
+**Constante nueva `TESLA_DEEP` (`#1a7d78`).** Hacía falta: el charcoal sobre cian brillante lee como daño, no como mecanizado. Un teal profundo del mismo tono permite tallar juntas y bobinados sin agujerear el casco. Misma convención de rampa de 3 pasos que las familias contenedor/andamio/bidón.
+
+También se le activa `sidePaint`: ahora que la hoja lateral tiene detalle real, sus colores pintan los flancos en vez de estirar el borde de la silueta frontal.
+
+**La altura en el mundo NO cambia**: 76 filas × 0,0263 = 2,00u, lo mismo que medía antes (42 × 0,048). Escala de instancia, hitbox y balance quedan intactos; solo cambia la densidad visual. El `previewScale` sí baja (2.4 → 1.75) porque la torre pasó de 42 a 76 filas y se salía del visor — eso es solo encuadre de revisión.
+
+**Pendiente conocido (pre-existente, no una regresión):** la torre es tan alta que su cabeza queda detrás del HUD a distancia de combate. Ya pasaba con el modelo viejo — la altura en el mundo es idéntica —, pero antes no había arriba nada que perderse. Decisión aplazada a cuando exista la pelea real: dejarlo como lectura de coloso, acortar la torre, o bajar su escala de instancia.
