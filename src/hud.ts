@@ -106,14 +106,24 @@ export function coinHtml(amount: number | string): string {
 
 // Approved voxel icon art replacing the stat emoji placeholders, one stat
 // at a time as each is generated and validated (docs/PROMPTS_IMAGENES.md §4).
-/** Timed crate buffs that show a countdown chip in the HUD. */
-export type TimedBuffId = 'frenzy' | 'haste';
+/** Timed player states that show a countdown chip in the HUD. */
+export type TimedBuffId = 'frenzy' | 'haste' | 'overload';
 
 /** Buff chips borrow the stat icon that matches what the buff DOES, so the
- *  player reads 'damage' and 'move speed' from art they already know. */
-const BUFF_ICONS: Record<TimedBuffId, string> = {
-  frenzy: 'assets/2d/icon-stat-damage.png',
-  haste: 'assets/2d/icon-stat-move-speed.png',
+ *  player reads 'damage', 'move speed' and 'attack speed' from art they
+ *  already know.
+ *
+ *  LABELS MUST MATCH WHAT THE PLAYER WAS ALREADY TOLD. The pickup toast says
+ *  "Overdrive: +50% speed", so the chip says OVERDRIVE — calling it "Haste"
+ *  here (its internal name) would invent a second word for one thing. Overload
+ *  takes its label from MOD_REGISTRY['overload-trigger'] for the same reason.
+ *
+ *  ASCII only: PS2P has real glyph gaps and silently falls back to a thin
+ *  system face on anything it lacks. */
+const BUFF_INFO: Record<TimedBuffId, { icon: string; label: string }> = {
+  frenzy: { icon: 'assets/2d/icon-stat-damage.png', label: 'FRENZY' },
+  haste: { icon: 'assets/2d/icon-stat-move-speed.png', label: 'OVERDRIVE' },
+  overload: { icon: 'assets/2d/icon-stat-attack-speed.png', label: 'OVERLOAD' },
 };
 
 const STAT_ICON_IMAGES: Partial<Record<keyof PlayerStats, string>> = {
@@ -1908,9 +1918,13 @@ export class Hud {
         chip = document.createElement('div');
         chip.className = 'buff-chip';
         chip.dataset['buff'] = buff.id;
+        const info = BUFF_INFO[buff.id];
         chip.innerHTML =
-          `<img class="ui-glyph" src="${BUFF_ICONS[buff.id]}" alt="" />` +
-          `<div class="buff-track"><div class="buff-fill"></div></div>`;
+          `<img class="ui-glyph" src="${info.icon}" alt="" />` +
+          `<div class="buff-body">` +
+          `<span class="buff-name">${info.label}</span>` +
+          `<div class="buff-track"><div class="buff-fill"></div></div>` +
+          `</div>`;
         row.appendChild(chip);
       }
       const fill = chip.querySelector<HTMLElement>('.buff-fill');
