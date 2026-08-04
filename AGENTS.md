@@ -117,7 +117,7 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 
 ---
 
-## Estado operativo actual (2026-08-04) — `codex/map-2` **0.12.2** recording-safe; `main` Playtest **0.10.5-beta**
+## Estado operativo actual (2026-08-04) — `codex/map-2` **0.12.3** recording-safe; `main` Playtest **0.10.5-beta**
 
 **REGLA DE VERSIONADO (usuario 2026-07-25, formato visible fijado 2026-08-01): antes de CADA commit se sube `version` en `package.json` según SemVer y se escribe esa versión en el asunto del commit.** No es decorativo: `__APP_VERSION__` conserva el valor SemVer crudo y se estampa en cada registro de run como `buildVersion`; el menú deriva `__APP_DISPLAY_VERSION__` con el número primero y la etiqueta después (por ejemplo, `0.10.2 Beta`). Un commit que cambia comportamiento sin subir versión hace que esos registros mientan.
 

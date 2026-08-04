@@ -206,7 +206,7 @@ La base Megabonk que adoptamos: items = categoría separada del draft, obtenida 
 | Orb Siphon | 🟢 Verde | Opening a chest pulls every XP orb on the map to you | +2s haste por cofre | Cofre + chorro de orbes azules | Default |
 | Chain Relay | 🔵 Azul | Critical hits arc lightning to up to 3 nearby enemies | +1 salto | Relé industrial + arco bifurcado | Contrato |
 | Piston Stompers | 🔵 Azul | Every 12 steps, stomp: AoE damage scaling with Move Speed | −2 pasos (mín. 6) | Bota con suela de pistón | Default |
-| Overload Trigger | 🔵 Azul | Elite and boss kills overcharge you: +100% attack speed 5s | +2s | Interruptor industrial rojo en ON | Contrato |
+| Overload Trigger | 🟣 Morado | Elite and boss kills overcharge you: +100% attack speed 5s | +2s | Interruptor industrial rojo en ON | Contrato |
 | Phase Chassis | 🟣 Morado | After taking damage, phase 1s: enemies pass through you | +0.4s | Silueta de robot translúcida | Contrato |
 | Foreman's Whistle | 🟣 Morado | The scrapper visits twice as often and stocks +1 mod | −10% precios (tope 50%) | Silbato de latón de fábrica | Default |
 | Magnetron Heart | 🟡 Dorado | Every 45s: drags the whole horde toward you 2s, then a nova deals damage per enemy dragged | +daño por enemigo, −5s ciclo (mín. 30s) | Núcleo magnetrón con flechas de atracción | Contrato |
