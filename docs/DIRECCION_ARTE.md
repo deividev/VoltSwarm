@@ -4,6 +4,19 @@ Decisión del 2026-07-02: mantenemos la ambientación scrapyard pero la direcci�
 
 **Alcance de variantes:** el juego completo (`codex/map-2`) recorre Scrapyard / Mapa 1 → Swarm Foundry / Mapa 2 → Hazard Marshal; el arco ya es jugable, aunque su arte y combate final siguen provisionales. La Steam Demo separada contiene solo Scrapyard / Mapa 1 y termina a los 10 minutos; no transiciona a otro mapa. Volt Warden queda como diseño histórico/futuro.
 
+## Contrato visual de UI para todo personaje jugable
+
+Checklist obligatorio antes de dar por integrada una incorporación:
+
+- [ ] `CharacterDef` declara `modelKey` validado y ruta empaquetada a una frontal ortográfica aprobada. El pipeline sigue produciendo frontal/lateral/trasera planas; la frontal solo pasa a ser retrato después de validación y aprobación.
+- [ ] La frontal transparente se muestra sobre el tile gris compartido `#444e5e`, borde `#2b3340`. La tarjeta izquierda siempre conserva retrato + nombre + estado y selección cian.
+- [ ] El estado desbloqueado dice `Unlocked`. El bloqueado usa texto visible exacto `Locked` + `assets/2d/icon-ui-lock-v2.png`; nunca emoji ni arte de candado nuevo.
+- [ ] El detalle usa un icono existente, distinto y veraz por stat; no agrupa stats no relacionados y jamás representa Armor con Shield. Números/unidades proceden de config/`CharacterDef`.
+- [ ] Encabezado de arquetipo, firma con magnitud config-derived, Recommended Weapon solo de presentación, tradeoff y Contract/progreso bloqueado son módulos obligatorios.
+- [ ] Menú y pre-run comparten renderer, automatización `data-character-*`, navegación teclado/gamepad, scroll responsive y gating de Confirm. La UI vigente no muestra visor 3D; la infraestructura de preview queda dormida para futuro.
+
+**Implementación vigente, no historia:** Field Engineer ya satisface este contrato usando `ref-field-engineer-front-v1.png`. Las notas cronológicas posteriores explican cómo se obtuvo el asset, pero no sustituyen este checklist.
+
 ## El mundo es futurista; el scrapyard es el primer mapa
 
 Decisión del 2026-07-03 (usuario): el juego es de estética FUTURISTA — todos los enemigos son robots — y el scrapyard no es la identidad del juego sino su **primer escenario**: el desguace donde van a morir los robots (junkpunk). La progresión de mapas es también la progresión estética hacia lo futurista puro:
@@ -75,6 +88,7 @@ Reglas de presupuesto y validación:
 
 - **La métrica es TRIÁNGULOS por instancia, no voxels** (el builder fusiona tramos y extrae solo la cáscara). Orientación: enemigos de enjambre ~3-6k tris (`targetWidth` 17-21); bosses/jugador sin límite práctico (`targetWidth` ~41, solo 1-2 instancias).
 - Revisión SIEMPRE con `node tools/capture-model-preview.mjs <clave>` (luz/fondo del juego real) y después in-game (`node tools/capture-ingame.mjs`).
+- **Selección de personaje:** aplicar el contrato vigente al inicio de este documento. Field Engineer reutiliza la frontal aprobada; la infraestructura 3D continúa dormida.
 - El guardarraíl no cambia: todo modelo nuevo se valida con el enjambre al máximo (400+) antes de darse por definitivo.
 - La cámara es top-down: el TECHO del modelo es la superficie más visible. Si un personaje necesita más lectura cenital, el detalle va en el techo de su referencia (vents, paneles), no en más resolución.
 

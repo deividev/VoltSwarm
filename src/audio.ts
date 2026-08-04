@@ -19,6 +19,26 @@ type Voice = { source: AudioBufferSourceNode; gain: GainNode; bus: 'sfx' | 'musi
 type ManifestAsset = { runtime: { path: string; format: 'ogg' | 'wav' } };
 type Manifest = { events?: Partial<Record<AudioEventId, ManifestAsset[]>> };
 
+/** Resolves an event variant without ever returning an out-of-range index.
+ * Audition pins are intentional developer overrides, fixed choices are release
+ * policy, and every other event preserves manifest rotation. */
+export function selectAudioVariantIndex(
+  entryCount: number,
+  pinnedIndex: number | undefined,
+  fixedIndex: number | undefined,
+  randomValue = Math.random(),
+): number | null {
+  if (!Number.isSafeInteger(entryCount) || entryCount <= 0) return null;
+  const bounded = (value: number): number => {
+    if (!Number.isFinite(value)) return 0;
+    return ((Math.trunc(value) % entryCount) + entryCount) % entryCount;
+  };
+  if (pinnedIndex !== undefined) return bounded(pinnedIndex);
+  if (fixedIndex !== undefined) return bounded(fixedIndex);
+  const safeRandom = Number.isFinite(randomValue) ? Math.min(Math.max(randomValue, 0), 1 - Number.EPSILON) : 0;
+  return Math.floor(safeRandom * entryCount);
+}
+
 /** Observer-only renderer audio. It never changes gameplay and silently degrades without assets/Web Audio. */
 export class AudioDirector {
   private context: AudioContext | null = null;
@@ -250,9 +270,12 @@ export class AudioDirector {
     if (token !== this.generation) return null;
     const entries = this.manifest?.events?.[id];
     if (!entries || entries.length === 0) return null;
-    const pinned = this.pinnedVariant.get(id);
-    const index = pinned !== undefined ? pinned % entries.length : Math.floor(Math.random() * entries.length);
-    return entries[index]?.runtime.path ?? null;
+    const index = selectAudioVariantIndex(
+      entries.length,
+      this.pinnedVariant.get(id),
+      AUDIO.fixedVariantIndex[id],
+    );
+    return index === null ? null : entries[index]?.runtime.path ?? entries[0]?.runtime.path ?? null;
   }
   private async loadManifest(token: number): Promise<void> {
     try {

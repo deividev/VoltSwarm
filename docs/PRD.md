@@ -8,7 +8,7 @@
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Estado de la arquitectura (actualizado 2026-08-04, v0.11.8)
+## Estado de la arquitectura (actualizado 2026-08-04, v0.11.9)
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
@@ -214,13 +214,27 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 
 ### Personajes — Field Engineer
 
+#### Contrato reutilizable de UI para personajes jugables — implementado
+
+Antes de integrar un personaje nuevo, verificar TODO este checklist:
+
+- [ ] **Definición y arte:** `CharacterDef` aporta un `modelKey` validado y una ruta empaquetada a su referencia/retrato ortográfico frontal aprobado. La tarjeta reutiliza esa frontal 2D para identificación rápida; si tiene transparencia, se presenta sobre el fondo compartido `#444e5e` con borde `#2b3340`.
+- [ ] **Tarjeta izquierda:** siempre muestra retrato, nombre y estado. La selección usa cian. Desbloqueado muestra `Unlocked`; bloqueado muestra texto visible exacto `Locked` junto a `assets/2d/icon-ui-lock-v2.png` (decorativo porque el texto comunica el estado). Nunca usar emoji ni crear otro candado.
+- [ ] **Detalle derecho:** encabezado de arquetipo; una fila y un icono existente distinto por stat veraz; nunca combinar stats no relacionados ni usar Shield para Armor. Valores, magnitudes y unidades salen de config/`CharacterDef`.
+- [ ] **Módulos obligatorios:** firma/regla con magnitud exacta derivada de config, **Recommended Weapon** como recomendación de presentación que no cambia pool ni odds, tradeoff explícito y requisito/progreso de Contract cuando esté bloqueado.
+- [ ] **Un solo flujo:** Characters y la selección pre-run comparten renderer. Se preservan `data-character-*`, scroll responsive independiente, teclado/gamepad y el bloqueo de Confirm para personajes cerrados.
+- [ ] **Estrategia de render:** la UI actual es 2D y no monta visor 3D, canvas, observers, RAF ni otro contexto WebGL. `src/models/character-preview.ts` permanece dormido y reservado para un caso futuro explícito.
+- [ ] **Pipeline:** todo personaje nuevo conserva frontal/lateral/trasera planas. La frontal solo puede servir como retrato tras validación/aprobación y registro en una ruta empaquetada.
+
+#### Implementación actual: Field Engineer
+
 - `src/characters.ts` define un registry data-driven con ID estable, copy derivada de `CHARACTER_BALANCE`, `modelKey`, perfil base, signature, arma recomendada y metadata de unlock.
 - Flujo de nueva run: **Play → Character Selection → Starting Weapon Draft → Loading → Run**. La selección es una `menu-view`, no un `GameState` nuevo; exige Confirm y soporta teclado/gamepad.
 - Field Engineer (`field-engineer`) está desbloqueado por defecto: 110 HP, Armor rating 5%, Damage ×0.95, Move Speed 11, Attack Speed ×1, crítico 5%/+50%, Luck/Regen 0 y los sockets globales sin cambios (1/2 iniciales, 2/4 máximos).
 - **Field Repair** cura 6% del HP máximo después de instalar o subir tier de un Core durante gameplay. Clampea a máximo, no hace overheal y no se ejecuta en load, replay, Boss Lab o reconstrucción.
 - Bolt Cannon no se garantiza ni cambia las odds: si entra naturalmente en el draft, solo muestra `Recommended`.
 - `PROFILE.unlockedCharacters` persiste IDs y Contracts admite rewards `character`; todavía no existen contratos ni umbrales de personajes.
-- El menú **Characters** usa el mismo registry y tiene estructura de requirement/progreso derivada de Contracts para futuros bloqueados, sin duplicar thresholds.
+- El menú **Characters** y la selección previa al arma usan el mismo roster. Para identificación rápida, la tarjeta izquierda reutiliza intencionalmente la referencia ortográfica frontal aprobada del modelo (`ref-field-engineer-front-v1.png`, fondo transparente); no genera un retrato alternativo ni muestra concept art. El detalle reutiliza el lenguaje del stat-sheet/RIG: cada stat tiene fila e icono propios (Crit Chance, Crit Damage, Luck y Regen nunca se combinan), Field Repair es el módulo firma con su regla config-backed de 6%, Bolt Cannon aparece solo como **Recommended Weapon** y el tradeoff declara `-5% Damage`; el footer de unlock comparte chip verde o requisito de Contract con barra segmentada. Roster y detalle desplazan por separado, y bajo 760 px la grilla de stats pasa a una columna. La identificación es inmediata y no crea canvas, observers, RAF ni contexto WebGL. La infraestructura reutilizable de preview 3D permanece en `src/models/character-preview.ts` para un caso futuro específico, pero está dormida y no es visible para el jugador. La estructura de requirement/progreso sigue derivada de Contracts para futuros bloqueados, sin duplicar thresholds ni alterar los atributos `data-character-*` de automatización.
 - Boss Lab conserva el `characterId` registrado y reconstruye primero ese baseline antes de reproducir Cores; la reproducción no atraviesa el trigger de gameplay de Field Repair.
 - El modelo runtime v1 usa perfil lateral medido sin mochila más volumen procedural trasero dedicado. `backPaintRef` solo pinta la carcasa existente. La validación técnica superó el preview 0°/90°/180°/270°, la marcha vista desde atrás y el gate de 400+ (431–440 enemigos, 118.87 FPS medios, bucket mínimo 92.41 FPS, p99 8.5 ms, 0 errores de página y 431/431 enemigos en movimiento). No consta aprobación visual final explícita del usuario, por lo que sigue siendo candidate visual.
 
@@ -250,7 +264,7 @@ Successful local packaged Electron run via `npm run benchmark:audio`: determinis
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
-La release activa de Steam Playtest Wave 1 en `main` es `0.10.5-beta`: admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08`. La rama de desarrollo `codex/map-2` usa `0.11.8` con el master desactivado y `resetEpoch: null`, así que ni procesa un marcador pendiente ni vuelve a resetear grabaciones. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
+La release activa de Steam Playtest Wave 1 en `main` es `0.10.5-beta`: admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08`. La rama de desarrollo `codex/map-2` usa `0.11.9` con el master desactivado y `resetEpoch: null`, así que ni procesa un marcador pendiente ni vuelve a resetear grabaciones. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
 
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 
@@ -274,7 +288,7 @@ Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty`
 
 ### Ciclo reutilizable de telemetría privada — `main` activa / Mapa 2 inert
 
-Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. `main` `0.10.5-beta` mantiene la release Wave 1 activa. En `codex/map-2` `0.11.8`, el config es `enabled: false`, allowlist `[]`, `gameId: 'voltswarm'`, `waveId: 'map-2'` y `resetEpoch: null`. La elegibilidad global queda siempre falsa: Electron no puede mostrar prompts de consentimiento/reset, crear identidad/cola, abrir red ni declarar disponible la fachada que habilita el feedback final.
+Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. `main` `0.10.5-beta` mantiene la release Wave 1 activa. En `codex/map-2` `0.11.9`, el config es `enabled: false`, allowlist `[]`, `gameId: 'voltswarm'`, `waveId: 'map-2'` y `resetEpoch: null`. La elegibilidad global queda siempre falsa: Electron no puede mostrar prompts de consentimiento/reset, crear identidad/cola, abrir red ni declarar disponible la fachada que habilita el feedback final.
 
 Cuando una wave futura se habilite, Electron main exige una prueba atómica `userData/telemetry-consent.json` ligada al digest determinista de `consentVersion` y de todo el copy renderizado desde `TELEMETRY_CONFIG.disclosure`: ausencia pide consentimiento; corrupción bloquea; la misma disclosure sirve silenciosamente en launches/waves posteriores; cambiar versión o texto vuelve a preguntar automáticamente. El reset tiene un diálogo independiente incluso con consentimiento existente. El renderer **nunca sube datos directamente**: solo publica eventos tipados mediante `contextBridge`; Electron main valida, identifica, encola y sube después de elegibilidad y consentimiento.
 

@@ -16,7 +16,7 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 | Contrato / desbloqueo / progresión entre runs | `docs/PRD.md` §"Perfil persistente y Contratos" → `src/contracts.ts` | Añadir contenido = `push` a una cola, NUNCA escribir un contrato · lo otorgado se guarda como IDS, jamás como índice · lo otorgado nunca se revoca · umbrales solo en `config.ts CONTRACTS` |
 | Datos de runs / calibrar números | `npm run stats` (percentiles, nunca promedios) | Solo cuenta una run TERMINADA · jugar desde Electron, no navegador · datos de bot ≠ datos humanos |
 | Arma / mejora / stat nueva | `docs/METODO_DISENO.md` (proceso) → `docs/DESIGN_MEJORAS.md` (¿ya está diseñada? estado ✅/🟢/🟡/🔴) | Sin apuntado manual · anti-clon de Megabonk |
-| Personaje jugable nuevo, dash, o "se siente quieto" | `docs/DISENO_FRENESI.md` §4 (decisiones cerradas) → `docs/DESIGN_MEJORAS.md` §Personajes | Identidad = REGLA que dobla un sistema existente, NUNCA movilidad ni stats sueltos · ningún personaje sobrevive por moverse bien · dash universal e idéntico y va DESPUÉS de que la densidad importe · personaje = contrato FIRMA, jamás peldaño de escalera |
+| Personaje jugable nuevo, dash, o "se siente quieto" | `docs/DISENO_FRENESI.md` §4 (decisiones cerradas) → `docs/DESIGN_MEJORAS.md` §Personajes → `docs/PRD.md` §Personajes | Identidad = REGLA que dobla un sistema existente, NUNCA movilidad ni stats sueltos · ningún personaje sobrevive por moverse bien · dash universal e idéntico y va DESPUÉS de que la densidad importe · personaje = contrato FIRMA, jamás peldaño de escalera · cumplir el contrato reutilizable de UI antes de integrar |
 | Enemigo / mapa / prop nuevo | `docs/DIRECCION_ARTE.md` (silueta, paleta, arco de mapas) | Silueta única por tipo · InstancedMesh por tipo |
 | Modelo 3D de personaje/prop (nuevo o existente) | `docs/PROMPTS_IMAGENES.md` §6-7 (prompt maestro) → `docs/DIRECCION_ARTE.md` (pipeline 2D→3D) | **3 vistas SIEMPRE** (frontal/lateral/trasera, regla 2026-07-06) contiguas y planas → entrada en `src/models/registry.ts` · validar enjambre 400+ |
 | Suelo/ambiente de mapa | `docs/PROMPTS_IMAGENES.md` §7b (pipeline distinto: textura cenital, no se voxeliza) | Vista top-down estricta, sin props/personajes en la imagen · mosaico vía `RepeatWrapping` · `litMaterial()` para no desentonar con el resto |
@@ -30,6 +30,18 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 | "¿Qué toca ahora?" a nivel proyecto | `docs/ROADMAP_STEAM.md` — es LA fuente de verdad del orden | No reordenar de memoria sin actualizar el doc |
 
 Regla general: si el pedido no encaja claro en una fila, `docs/PRD.md` primero (qué existe) y `docs/ROADMAP_STEAM.md` segundo (qué toca ahora).
+
+## Contrato obligatorio — UI de personaje jugable nuevo
+
+Este checklist es la regla vigente; las notas históricas del estado del proyecto no la sustituyen:
+
+- [ ] `CharacterDef` aporta `modelKey` validado y ruta empaquetada a una frontal ortográfica/retrato aprobado. El pipeline de arte mantiene **frontal/lateral/trasera** planas; la frontal solo entra en UI después de validación/aprobación.
+- [ ] La tarjeta izquierda siempre muestra retrato, nombre y estado. Transparencia sobre `#444e5e`, borde `#2b3340`, selección cian. Abierto = `Unlocked`; cerrado = texto visible exacto `Locked` + `assets/2d/icon-ui-lock-v2.png`, jamás emoji u otro candado.
+- [ ] El detalle usa un icono in-game existente, distinto y veraz por stat. No combinar stats no relacionados, no usar Shield para Armor y derivar números/unidades de config/`CharacterDef`.
+- [ ] Son obligatorios: encabezado de arquetipo, firma/regla con magnitud config-derived, Recommended Weapon solo como recomendación visual, tradeoff y Contract/progreso cuando esté bloqueado.
+- [ ] Characters y pre-run comparten renderer. Preservar `data-character-*`, teclado/gamepad, scroll responsive y Confirm bloqueado. No montar visor 3D visible; el preview dormido es solo futuro.
+
+**Implementación actual:** Field Engineer cumple el contrato con `ref-field-engineer-front-v1.png`. Consultar el checklist verificable en `docs/PRD.md`, la dirección visual en `docs/DIRECCION_ARTE.md` y el pipeline de tres vistas en `docs/PROMPTS_IMAGENES.md`.
 
 ## Guardarraíles técnicos NO NEGOCIABLES (aplican siempre, sin excepción)
 
@@ -105,7 +117,7 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 
 ---
 
-## Estado operativo actual (2026-08-04) — `codex/map-2` **0.11.8** recording-safe; `main` Playtest **0.10.5-beta**
+## Estado operativo actual (2026-08-04) — `codex/map-2` **0.11.9** recording-safe; `main` Playtest **0.10.5-beta**
 
 **REGLA DE VERSIONADO (usuario 2026-07-25, formato visible fijado 2026-08-01): antes de CADA commit se sube `version` en `package.json` según SemVer y se escribe esa versión en el asunto del commit.** No es decorativo: `__APP_VERSION__` conserva el valor SemVer crudo y se estampa en cada registro de run como `buildVersion`; el menú deriva `__APP_DISPLAY_VERSION__` con el número primero y la etiqueta después (por ejemplo, `0.10.2 Beta`). Un commit que cambia comportamiento sin subir versión hace que esos registros mientan.
 

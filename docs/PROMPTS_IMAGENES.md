@@ -15,6 +15,20 @@ Tras una pasada de limpieza carpeta por carpeta, la estructura quedó así (cada
 - **`assets/preview/`** — scratch de las tools de captura (se repuebla solo); se conserva `scanline-demo.png`.
 - **`tools/remove-green.mjs`** — keyer de fondo VERDE con de-spill (para renders green-screen de Codex); el viejo `remove-background.mjs` (por distancia de color) dejaba fleco verde en los bordes. Usar `remove-green` para cualquier render green-screen nuevo.
 
+## Checklist de arte + UI para un personaje jugable nuevo
+
+Esta es la regla vigente; los historiales de iteración de las secciones posteriores no la reemplazan:
+
+- [ ] Generar **siempre tres hojas planas**: frontal, lateral y trasera, siguiendo el prompt maestro de §6. Validarlas, aprobarlas y registrarlas como rutas empaquetadas antes de cablear el personaje.
+- [ ] `CharacterDef` debe declarar un `modelKey` validado y la ruta de su frontal/retrato aprobado. Solo la frontal validada puede reutilizarse como retrato de UI; no usar concept art ni un render bonito como sustituto.
+- [ ] Una frontal con alpha se presenta sobre el tile `#444e5e` con borde `#2b3340`. La tarjeta izquierda conserva retrato, nombre, estado y selección cian.
+- [ ] Estado: `Unlocked`, o texto visible exacto `Locked` + `assets/2d/icon-ui-lock-v2.png`. El icono es decorativo junto al texto; no generar emoji ni otro candado.
+- [ ] El detalle usa un icono in-game existente, distinto y veraz por stat; no combina stats no relacionados ni usa Shield para Armor. Magnitudes/unidades salen de config/`CharacterDef`.
+- [ ] Incluir encabezado de arquetipo, firma/regla con magnitud config-derived, Recommended Weapon como recomendación visual sin tocar pool/odds, tradeoff y Contract/progreso bloqueado.
+- [ ] Mantener el renderer compartido de menú/pre-run, `data-character-*`, teclado/gamepad, scroll responsive y Confirm bloqueado. La UI actual no monta visor 3D; el preview dormido es infraestructura futura.
+
+**Implementación actual:** Field Engineer reutiliza `public/assets/2d/ref-field-engineer-front-v1.png` después de su validación. El resto de esta guía conserva el pipeline y su historia técnica.
+
 ## Regla de consistencia (NO NEGOCIABLE)
 
 **Toda imagen generada para este juego es VOXEL. Sin excepción.** Icono, logo, icono de arma, icono de stat, ornamento de carta, prop de escenario: todos deben mostrar geometría cúbica/voxel visible, no solo "flat colors" o "vector limpio". "Plano y saturado" describe la paleta, no reemplaza la construcción voxel — un icono vectorial plano sin cubos rompe la coherencia con los modelos 3D del juego aunque use los mismos colores.

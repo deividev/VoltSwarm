@@ -1,6 +1,6 @@
 # Voltswarm — Roadmap a Steam
 
-Fecha: 2026-08-04. Versión de máquina actual en `codex/map-2`: **0.11.8** (UI: **0.11.8**).
+Fecha: 2026-08-04. Versión de máquina actual en `codex/map-2`: **0.11.9** (UI: **0.11.9**).
 
 ## Alcance de variantes — decisión vigente
 
@@ -123,8 +123,8 @@ Lo que falta para que las capturas/GIFs vendan la página de Steam:
 - ✅ **Pausa** — Escape + pause-on-blur implementados y verificados.
 - ✅ **Build completa + desglose de daño por arma en pantalla final — COMPLETADO 2026-07-17.** La pantalla conserva Weapons/Cores/Mods con el mismo lenguaje visual del RIG. Instrumento de balance sobre el embudo `dealDamage`: daño real sin overkill, atribución de DoT, porcentaje del total y barras comparativas ordenadas.
 - ✅ **Settings in-game — SUPERADO por Settings v3 (2026-07-13, PRD §"Settings v3")**: pantalla completa con sidebar General/Controls, auto-apply (sin botón Apply), remapeo de controles teclado+gamepad, IPC de fullscreen/resolución aplicándose solo al cambiar (fix del parpadeo). Los sliders de volumen existen, persisten y gobiernan la Audio Foundation
-- ✅ **Menú principal completo**: Play / Unlocks / Settings / Exit; Settings compartido con pausa; versión visible abajo a la derecha como `MAJOR.MINOR.PATCH Label` (`0.11.8`). `vite.config.ts` deriva la presentación desde el SemVer crudo de `package.json`. **Futuro, no implementado:** si el gate da GO, el destino pasa a `Play Solo` / `Play Multiplayer`.
-- ✅ **Steam Playtest Wave 1 activa en `main` (`0.10.5-beta`):** esa release mantiene admisión exacta, `waveId: wave-1`, consentimiento y reset Wave 1. **Desarrollo Mapa 2 (`0.11.8`) es recording-safe:** `enabled: false`, allowlist vacía, `waveId: map-2`, `resetEpoch: null`; la elegibilidad global falsa impide prompts, identidad, cola, red y formulario final de feedback. El código reusable, disclosure, endpoint/token y límites permanecen intactos.
+- ✅ **Menú principal completo**: Play / Unlocks / Settings / Exit; Settings compartido con pausa; versión visible abajo a la derecha como `MAJOR.MINOR.PATCH Label` (`0.11.9`). `vite.config.ts` deriva la presentación desde el SemVer crudo de `package.json`. **Futuro, no implementado:** si el gate da GO, el destino pasa a `Play Solo` / `Play Multiplayer`.
+- ✅ **Steam Playtest Wave 1 activa en `main` (`0.10.5-beta`):** esa release mantiene admisión exacta, `waveId: wave-1`, consentimiento y reset Wave 1. **Desarrollo Mapa 2 (`0.11.9`) es recording-safe:** `enabled: false`, allowlist vacía, `waveId: map-2`, `resetEpoch: null`; la elegibilidad global falsa impide prompts, identidad, cola, red y formulario final de feedback. El código reusable, disclosure, endpoint/token y límites permanecen intactos.
 - ✅ **Reset separado por rama:** `main` conserva `wave-1-rc-2026-08`; `codex/map-2` no procesa reset alguno, ni siquiera un marcador pendiente.
 
 ## Fase 4a — Audio v1 (CERRADO)

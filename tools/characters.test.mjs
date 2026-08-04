@@ -52,12 +52,21 @@ test('Field Engineer has the exact approved run profile', () => {
 
 test('character stat rows derive baselines and format percentage ratings', () => {
   const engineer = characters.CHARACTER_REGISTRY['field-engineer'];
-  const rows = Object.fromEntries(characters.characterStatRows(engineer).map((row) => [row.label, row.value]));
-  assert.equal(rows['Max HP'], `${engineer.maxHp} (+${engineer.maxHp - config.PLAYER.maxHp})`);
-  assert.equal(rows.Armor, `${Math.round(engineer.stats.armor * 100)}%`);
-  assert.equal(rows.Damage, `${Math.round((engineer.stats.damage - stats.defaultStats().damage) * 100)}%`);
-  assert.equal(rows['Move Speed'], `${engineer.moveSpeed} (+${engineer.moveSpeed - config.PLAYER.moveSpeed})`);
-  assert.equal(rows['Luck / Regen'], `${Math.round(engineer.stats.luck * 100)}% / ${engineer.stats.regen}`);
+  const rows = Object.fromEntries(characters.characterStatRows(engineer).map((row) => [row.label, row]));
+  assert.equal(rows['Max HP'].value, `${engineer.maxHp} (+${engineer.maxHp - config.PLAYER.maxHp})`);
+  assert.equal(rows.Armor.value, `${Math.round(engineer.stats.armor * 100)}%`);
+  assert.equal(rows.Armor.icon, 'assets/2d/icon-stat-armor-v2.png');
+  assert.notEqual(rows.Armor.icon, 'assets/2d/icon-stat-shield-v2.png');
+  assert.equal(rows.Damage.value, `${Math.round((engineer.stats.damage - stats.defaultStats().damage) * 100)}%`);
+  assert.equal(rows['Move Speed'].value, `${engineer.moveSpeed}`);
+  assert.equal(rows['Crit Chance'].icon, 'assets/2d/icon-stat-crit.png');
+  assert.equal(rows['Crit Damage'].icon, 'assets/2d/icon-stat-crit-damage.png');
+  assert.equal(rows.Luck.icon, 'assets/2d/icon-stat-luck.png');
+  assert.equal(rows.Regen.icon, 'assets/2d/icon-stat-regen.png');
+  assert.equal(rows.Luck.value, `${Math.round(engineer.stats.luck * 100)}%`);
+  assert.equal(rows.Regen.value, `${engineer.stats.regen}/${config.PLAYER.regenTickS}s`);
+  assert.equal(characters.characterStatRows(engineer).length, 9);
+  assert.equal(engineer.signature.badge, `${config.CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction * 100}% MAX HP / CORE UPGRADE`);
 });
 
 test('registered run characters survive profile lock changes', () => {
@@ -117,9 +126,10 @@ test('Bolt recommendation labels presentation without mutating draft membership 
 });
 
 test('character actions stay inside a viewport-bounded panel with internal scrolling', async () => {
-  const [hudSource, cssSource] = await Promise.all([
+  const [hudSource, cssSource, configSource] = await Promise.all([
     readFile(new URL('../src/hud.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/ui.css', import.meta.url), 'utf8'),
+    readFile(new URL('../src/config.ts', import.meta.url), 'utf8'),
   ]);
   assert.match(
     hudSource,
@@ -131,6 +141,9 @@ test('character actions stay inside a viewport-bounded panel with internal scrol
   assert.match(cssSource, /\.character-screen\s*\{[\s\S]*position:\s*static;[\s\S]*height:\s*min\(820px, calc\(100dvh - 32px\)\);[\s\S]*overflow:\s*hidden;/);
   assert.match(cssSource, /\.character-layout\s*\{[\s\S]*flex:\s*1 1 auto;[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*hidden;/);
   assert.match(cssSource, /\.character-actions\s*\{[\s\S]*flex:\s*0 0 auto;/);
+  assert.match(configSource, /MENU_NAVIGATION\s*=\s*\{[\s\S]*characterDetailScrollPx:\s*\d+/);
+  assert.match(hudSource, /detail\.dataset\.characterDetailScroll\s*=\s*'true'/);
+  assert.match(hudSource, /MENU_NAVIGATION\.characterDetailScrollPx/);
 });
 
 test('automation chooses the explicit unlocked default from a scalable roster', () => {
@@ -201,4 +214,40 @@ test('preview and live runtime own their material and attachment policies', asyn
   assert.match(previewSource, /buildRuntimeModelDetails\([\s\S]*new THREE\.MeshLambertMaterial\(\{ color \}\)/);
   assert.match(previewSource, /if \(rig\) attachToRigPart\(rig, runtimeDetails\)/);
   assert.match(playerSource, /buildRuntimeModelDetails\(def, \(color\) => litMaterial\(\{ color \}\)\)/);
+});
+
+test('both character rosters reuse the approved front model reference without mounting WebGL', async () => {
+  const [hudSource, cssSource, portraitBytes] = await Promise.all([
+    readFile(new URL('../src/hud.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/ui.css', import.meta.url), 'utf8'),
+    readFile(new URL('../public/assets/2d/ref-field-engineer-front-v1.png', import.meta.url)),
+  ]);
+  assert.match(hudSource, /renderCharacterRoster\('characters-roster', false\)/);
+  assert.match(hudSource, /renderCharacterRoster\('character-select-roster', true\)/);
+  assert.doesNotMatch(hudSource, /CharacterModelPreview|character-model-preview|character-model-canvas/);
+  assert.match(hudSource, /alt="\$\{character\.name\} front orthographic model reference"/);
+  assert.match(hudSource, /aria-label="\$\{character\.name\} character portrait fallback"/);
+  assert.match(cssSource, /\.character-card \.character-portrait\s*\{[\s\S]*object-fit:\s*contain/);
+  assert.doesNotMatch(cssSource, /\.character-model-preview|\.character-model-canvas/);
+  assert.match(hudSource, /data-character-stat="\$\{row\.id\}"/);
+  assert.match(hudSource, /data-character-module="signature"[\s\S]*icon-item-repair\.png/);
+  assert.match(hudSource, /data-character-module="recommended-weapon"[\s\S]*Recommended Weapon/);
+  assert.match(hudSource, /data-character-module="tradeoff"[\s\S]*icon-stat-damage\.png/);
+  assert.match(hudSource, /character-unlock-chip[\s\S]*Unlocked/);
+  assert.match(hudSource, /icon-ui-lock-v2\.png[\s\S]*segmentedContractBarHtml/);
+  assert.match(hudSource, /lockIcon\.src\s*=\s*'assets\/2d\/icon-ui-lock-v2\.png'/);
+  assert.match(hudSource, /lockIcon\.alt\s*=\s*''/);
+  assert.match(hudSource, /status\.append\(unlocked \? 'Unlocked' : 'Locked'\)/);
+  assert.doesNotMatch(hudSource, /status\.innerHTML/);
+  assert.match(cssSource, /\.character-stat-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2/);
+  assert.match(cssSource, /@media \(max-width:\s*760px\)[\s\S]*\.character-stat-grid,[\s\S]*grid-template-columns:\s*1fr/);
+  assert.equal(characters.CHARACTER_REGISTRY['field-engineer'].modelKey, 'field-engineer');
+  assert.equal(
+    characters.CHARACTER_REGISTRY['field-engineer'].portrait,
+    'assets/2d/ref-field-engineer-front-v1.png',
+  );
+  assert.ok(registry.VOXEL_MODELS[characters.CHARACTER_REGISTRY['field-engineer'].modelKey]);
+  assert.equal(portraitBytes.toString('ascii', 1, 4), 'PNG');
+  assert.equal(portraitBytes.readUInt32BE(16), 597);
+  assert.equal(portraitBytes.readUInt32BE(20), 826);
 });
