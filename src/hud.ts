@@ -2335,11 +2335,11 @@ export class Hud {
     // one at spawn, so cross-tier teasing never happens.
     const tierPool = modsOfTier(tier);
     const spinPool = tierPool.length > 0 ? [...tierPool] : [...UNLOCKED_MOD_IDS];
-    // A reel needs variety to read as a reel. Purple holds two mods and gold
-    // holds one, so a strict same-tier strip either alternates A/B/A/B or shows
-    // one icon nineteen times — which is precisely what "the reel looks rigged"
-    // looks like. Below three entries it borrows other tiers purely as passing
-    // scenery; the tier is still signalled by the card frame, and the cell it
+    // A reel needs variety to read as a reel. Gold holds one mod, so a strict
+    // same-tier strip would show one icon nineteen times — precisely what "the
+    // reel looks rigged" looks like. Below three entries it borrows other tiers
+    // purely as passing scenery; the tier is still signalled by the card frame,
+    // and the cell it
     // LANDS on is always the rolled tier's prize.
     if (spinPool.length < 3) {
       for (const id of MOD_IDS) {

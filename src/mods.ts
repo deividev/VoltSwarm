@@ -144,7 +144,7 @@ export const MOD_REGISTRY: Record<ModId, ModInfo> = {
     image: 'assets/2d/icon-mod-piston-stompers.png',
   },
   'overload-trigger': {
-    tier: 'blue',
+    tier: 'purple',
     kind: 'permanent',
     label: 'Overload Trigger',
     description: `Elite and boss kills overcharge you: x${MODS.overloadTrigger.attackSpeedMult} attack speed for ${MODS.overloadTrigger.durationS}s.`,

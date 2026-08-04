@@ -8,7 +8,7 @@ const CASES = [
   ['gray', 'repair'],
   ['green', 'scrap-cache'],
   ['blue', 'barrier-cell'],
-  ['purple', 'phase-chassis'],
+  ['purple', 'overload-trigger'],
   ['gold', 'magnetron-heart'],
 ];
 const CHROME_PATHS = [
@@ -69,15 +69,17 @@ try {
       return {
         ids: cells.map((cell) => cell.dataset.modId),
         token: window.__chestPrizeNode.dataset.identityToken,
+        cardTier: document.querySelector('#chest-card').classList.contains(tier),
       };
     }, { tier, finalMod });
 
     assert.equal(before.ids.length, 19);
     assert.equal(before.ids.at(-1), finalMod);
+    assert.equal(before.cardTier, true, `${finalMod} must render with its ${tier} rarity shell`);
     for (let index = 1; index < before.ids.length; index++) {
       assert.notEqual(before.ids[index], before.ids[index - 1], `${tier} browser adjacency at ${index}`);
     }
-    if (tier === 'purple' || tier === 'gold') assert.ok(new Set(before.ids.slice(0, -1)).size >= 3);
+    if (tier === 'gold') assert.ok(new Set(before.ids.slice(0, -1)).size >= 3);
 
     const landed = await page.evaluate(() => {
       document.querySelector('#chest-reel').dispatchEvent(new TransitionEvent('transitionend', {
@@ -93,6 +95,7 @@ try {
         landedCount: window.__chestLandedCount,
         cardLanded: document.querySelector('#chest-card').classList.contains('landed'),
         continueVisible: !document.querySelector('#chest-continue').classList.contains('hidden'),
+        rarityLabel: document.querySelector('#chest-card .rarity-tag')?.textContent,
       };
     });
     assert.deepEqual(landed, {
@@ -104,6 +107,7 @@ try {
       landedCount: 1,
       cardLanded: true,
       continueVisible: true,
+      rarityLabel: tier === 'purple' ? 'Epic' : ({ gray: 'Common', green: 'Uncommon', blue: 'Rare', gold: 'Legendary' })[tier],
     });
 
     await page.click('#chest-continue');

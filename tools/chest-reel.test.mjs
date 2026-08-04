@@ -5,6 +5,8 @@ import { createServer } from 'vite';
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
 const hud = await server.ssrLoadModule('/src/hud.ts');
 const mods = await server.ssrLoadModule('/src/mods.ts');
+const config = await server.ssrLoadModule('/src/config.ts');
+const contracts = await server.ssrLoadModule('/src/contracts.ts');
 
 after(async () => server.close());
 
@@ -26,12 +28,40 @@ for (const tier of ['gray', 'green', 'blue', 'purple', 'gold']) {
   });
 }
 
-test('purple and gold borrow varied scenery without changing the prize tier', () => {
-  for (const tier of ['purple', 'gold']) {
-    const finalMod = mods.modsOfTier(tier)[0];
-    const strip = hud.buildChestReelStrip(finalMod, tier, 0);
-    assert.equal(strip.at(-1), finalMod);
-    assert.ok(new Set(strip.slice(0, -1)).size >= 3);
-    assert.ok(strip.slice(0, -1).some((id) => mods.MOD_REGISTRY[id].tier !== tier));
-  }
+test('blue and purple pools contain exactly three intrinsic-tier mods', () => {
+  assert.deepEqual(mods.modsOfTier('blue'), [
+    'barrier-cell',
+    'chain-relay',
+    'piston-stompers',
+  ]);
+  assert.deepEqual(mods.modsOfTier('purple'), [
+    'overload-trigger',
+    'phase-chassis',
+    'foremans-whistle',
+  ]);
+});
+
+test('Overload Trigger derives Epic rarity and economy without changing its behavior contract', () => {
+  const overload = mods.MOD_REGISTRY['overload-trigger'];
+  assert.equal(overload.tier, 'purple');
+  assert.equal(mods.modPrice('overload-trigger', 0, 0), config.MERCHANT.tierPrices.purple);
+  assert.notEqual(mods.modPrice('overload-trigger', 0, 0), config.MERCHANT.tierPrices.blue);
+  assert.deepEqual(config.MODS.overloadTrigger, {
+    durationS: 5,
+    durationPerCopyS: 2,
+    attackSpeedMult: 2,
+  });
+  assert.match(overload.description, /x2 attack speed for 5s/);
+  assert.deepEqual(
+    contracts.ACTIVE_CONTRACTS.find((contract) => contract.id === 'overkill')?.reward,
+    { kind: 'mod', id: 'overload-trigger' },
+  );
+});
+
+test('gold borrows varied scenery without changing the prize tier', () => {
+  const finalMod = mods.modsOfTier('gold')[0];
+  const strip = hud.buildChestReelStrip(finalMod, 'gold', 0);
+  assert.equal(strip.at(-1), finalMod);
+  assert.ok(new Set(strip.slice(0, -1)).size >= 3);
+  assert.ok(strip.slice(0, -1).some((id) => mods.MOD_REGISTRY[id].tier !== 'gold'));
 });
