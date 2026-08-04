@@ -68,6 +68,21 @@ try {
       window.__chestPrizeNode.dataset.identityToken = `${tier}-${finalMod}`;
       return {
         ids: cells.map((cell) => cell.dataset.modId),
+        neutralCount: cells.filter((cell) => cell.classList.contains('chest-cell-anticipation')).length,
+        neutralImageCount: reel.querySelectorAll('.chest-cell-anticipation img').length,
+        neutralLockCount: reel.querySelectorAll('.chest-cell-anticipation .chest-cell-lock').length,
+        neutralMarkCount: reel.querySelectorAll('.chest-cell-anticipation .chest-anticipation-mark').length,
+        neutralTiers: cells
+          .filter((cell) => cell.classList.contains('chest-cell-anticipation'))
+          .map((cell) => cell.dataset.anticipationTier),
+        neutralBurstColors: [...reel.querySelectorAll('.chest-cell-anticipation .chest-anticipation-mark i')]
+          .map((voxel) => getComputedStyle(voxel).backgroundColor),
+        itemImageSources: [...reel.querySelectorAll('.chest-cell:not(.chest-cell-anticipation) .chest-icon-img')]
+          .map((image) => image.getAttribute('src')),
+        neutralText: cells
+          .filter((cell) => cell.classList.contains('chest-cell-anticipation'))
+          .map((cell) => cell.textContent.trim()),
+        penultimateNeutral: cells.at(-2).classList.contains('chest-cell-anticipation'),
         token: window.__chestPrizeNode.dataset.identityToken,
         cardTier: document.querySelector('#chest-card').classList.contains(tier),
       };
@@ -76,10 +91,25 @@ try {
     assert.equal(before.ids.length, 19);
     assert.equal(before.ids.at(-1), finalMod);
     assert.equal(before.cardTier, true, `${finalMod} must render with its ${tier} rarity shell`);
-    for (let index = 1; index < before.ids.length; index++) {
-      assert.notEqual(before.ids[index], before.ids[index - 1], `${tier} browser adjacency at ${index}`);
+    const itemIds = before.ids.filter(Boolean);
+    for (let index = 1; index < itemIds.length; index++) {
+      assert.notEqual(itemIds[index], itemIds[index - 1], `${tier} browser item adjacency at ${index}`);
     }
-    if (tier === 'gold') assert.ok(new Set(before.ids.slice(0, -1)).size >= 3);
+    if (tier === 'gold') {
+      assert.deepEqual(before.ids.slice(0, -1), Array(18).fill(null));
+      assert.equal(before.neutralCount, 18);
+      assert.equal(before.neutralImageCount, 0);
+      assert.equal(before.neutralLockCount, 0);
+      assert.equal(before.neutralMarkCount, 18);
+      assert.deepEqual(before.neutralTiers, Array(18).fill('gold'));
+      assert.deepEqual([...new Set(before.neutralBurstColors)], ['rgb(242, 182, 50)']);
+      assert.deepEqual(before.neutralText, Array(18).fill(''));
+      assert.equal(before.penultimateNeutral, true);
+      assert.deepEqual(before.itemImageSources, ['assets/2d/icon-mod-magnetron-heart.png']);
+    } else {
+      assert.equal(before.neutralCount, 0);
+      assert.ok(before.ids.every(Boolean));
+    }
 
     const landed = await page.evaluate(() => {
       document.querySelector('#chest-reel').dispatchEvent(new TransitionEvent('transitionend', {
@@ -96,9 +126,16 @@ try {
         cardLanded: document.querySelector('#chest-card').classList.contains('landed'),
         continueVisible: !document.querySelector('#chest-continue').classList.contains('hidden'),
         rarityLabel: document.querySelector('#chest-card .rarity-tag')?.textContent,
+        rewardLabel: document.querySelector('#chest-label')?.textContent,
+        promotedSrc: promoted?.getAttribute('src'),
       };
     });
-    assert.deepEqual(landed, {
+    const { rewardLabel, promotedSrc, ...landedState } = landed;
+    if (tier === 'gold') {
+      assert.equal(rewardLabel, 'Magnetron Heart');
+      assert.equal(promotedSrc, 'assets/2d/icon-mod-magnetron-heart.png');
+    }
+    assert.deepEqual(landedState, {
       sameNode: true,
       token: before.token,
       childCount: 1,

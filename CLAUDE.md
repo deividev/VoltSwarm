@@ -108,7 +108,7 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 
 ---
 
-## Estado operativo actual (2026-08-04) — `codex/map-2` **0.12.3**
+## Estado operativo actual (2026-08-04) — `codex/map-2` **0.12.4**
 
 **REGLA DE VERSIONADO UNIVERSAL (usuario 2026-07-25, formato visible fijado 2026-08-01): aplica a Claude, GPT/Codex y cualquier otro agente o herramienta que modifique el repositorio. Antes de CADA commit se sube `version` en `package.json` según SemVer y se escribe esa versión en el asunto del commit.** `__APP_VERSION__` conserva el valor SemVer crudo y se estampa como `buildVersion`; el menú deriva `__APP_DISPLAY_VERSION__` con el número primero y la etiqueta después (por ejemplo, `0.10.2 Beta`). Un commit que cambia comportamiento sin subir versión hace que los registros mientan.
 
