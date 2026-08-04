@@ -8,7 +8,7 @@
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Estado de la arquitectura (actualizado 2026-08-04, v0.12.1)
+## Estado de la arquitectura (actualizado 2026-08-04, v0.12.2)
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
@@ -264,7 +264,7 @@ Successful local packaged Electron run via `npm run benchmark:audio`: determinis
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
-La release activa de Steam Playtest Wave 1 en `main` es `0.10.5-beta`: admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08`. La rama de desarrollo `codex/map-2` usa `0.12.1` con el master desactivado y `resetEpoch: null`, así que ni procesa un marcador pendiente ni vuelve a resetear grabaciones. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
+La release activa de Steam Playtest Wave 1 en `main` es `0.10.5-beta`: admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08`. La rama de desarrollo `codex/map-2` usa `0.12.2` con el master desactivado y `resetEpoch: null`, así que ni procesa un marcador pendiente ni vuelve a resetear grabaciones. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
 
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 
@@ -288,7 +288,7 @@ Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty`
 
 ### Ciclo reutilizable de telemetría privada — `main` activa / Mapa 2 inert
 
-Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. `main` `0.10.5-beta` mantiene la release Wave 1 activa. En `codex/map-2` `0.12.1`, el config es `enabled: false`, allowlist `[]`, `gameId: 'voltswarm'`, `waveId: 'map-2'` y `resetEpoch: null`. La elegibilidad global queda siempre falsa: Electron no puede mostrar prompts de consentimiento/reset, crear identidad/cola, abrir red ni declarar disponible la fachada que habilita el feedback final.
+Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. `main` `0.10.5-beta` mantiene la release Wave 1 activa. En `codex/map-2` `0.12.2`, el config es `enabled: false`, allowlist `[]`, `gameId: 'voltswarm'`, `waveId: 'map-2'` y `resetEpoch: null`. La elegibilidad global queda siempre falsa: Electron no puede mostrar prompts de consentimiento/reset, crear identidad/cola, abrir red ni declarar disponible la fachada que habilita el feedback final.
 
 Cuando una wave futura se habilite, Electron main exige una prueba atómica `userData/telemetry-consent.json` ligada al digest determinista de `consentVersion` y de todo el copy renderizado desde `TELEMETRY_CONFIG.disclosure`: ausencia pide consentimiento; corrupción bloquea; la misma disclosure sirve silenciosamente en launches/waves posteriores; cambiar versión o texto vuelve a preguntar automáticamente. El reset tiene un diálogo independiente incluso con consentimiento existente. El renderer **nunca sube datos directamente**: solo publica eventos tipados mediante `contextBridge`; Electron main valida, identifica, encola y sube después de elegibilidad y consentimiento.
 
@@ -352,6 +352,8 @@ El "glow" del marcador del jugador era un `CircleGeometry` pelado —borde duro,
 ### Ruleta del cofre
 
 Nunca puede mostrar dos mods iguales en celdas contiguas. Había dos causas: la tira era un ciclo del pool con el premio pegado al final (si el ciclo terminaba en el premio, quedaban dos iguales — ~1 de cada 4 aperturas), y los tiers pequeños no daban para una ruleta (purple tiene 2 mods, **gold tiene 1**: mostraba 19 celdas idénticas). Ahora la tira se construye como ids y se sanean adyacencias sin tocar nunca la celda del premio, y por debajo de 3 entradas el giro toma prestados mods de otros tiers **solo como paisaje** — el tier lo sigue diciendo el marco de la carta y la celda donde aterriza es siempre el premio del tier correcto.
+
+El aterrizaje y el reveal son **una única aparición continua** del premio. La ruleta promociona al contenedor final el mismo nodo visual que aterrizó — nunca lo oculta para clonar o recrear inmediatamente el mismo mod — y conserva el timing, el fallback de `transitionend`, el flash, los god-rays, las chispas, el overshoot, el audio y el botón Continue.
 
 ### Balance
 

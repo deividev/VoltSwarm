@@ -53,6 +53,47 @@ const RARITY_LABEL: Record<string, string> = {
   gold: 'Legendary',
 };
 
+/** Build the deterministic reel sequence while keeping the rolled prize last. */
+export function buildChestReelStrip(
+  finalMod: ModId,
+  tier: Rarity,
+  startIndex: number,
+  sceneryCellCount = 18,
+): ModId[] {
+  const tierPool = modsOfTier(tier);
+  const spinPool = tierPool.length > 0 ? [...tierPool] : [...UNLOCKED_MOD_IDS];
+  if (spinPool.length < 3) {
+    for (const id of MOD_IDS) {
+      if (spinPool.length >= 4) break;
+      if (!spinPool.includes(id)) spinPool.push(id);
+    }
+  }
+
+  if (spinPool.length === 0) return [finalMod];
+  const normalizedStart = ((startIndex % spinPool.length) + spinPool.length) % spinPool.length;
+  const strip: ModId[] = [];
+  for (let i = 0; i < sceneryCellCount; i++) {
+    strip.push(spinPool[(normalizedStart + i) % spinPool.length]!);
+  }
+  strip.push(finalMod);
+
+  if (spinPool.length > 1) {
+    const fix = (index: number): void => {
+      const replacement = spinPool.find(
+        (id) => id !== strip[index - 1] && id !== strip[index + 1],
+      );
+      if (replacement) strip[index] = replacement;
+    };
+    for (let i = 1; i < strip.length - 1; i++) {
+      if (strip[i] === strip[i - 1]) fix(i);
+    }
+    const last = strip.length - 1;
+    if (strip[last] === strip[last - 1]) fix(last - 1);
+  }
+
+  return strip;
+}
+
 // Mod display data (icons, labels, descriptions) lives in mods.ts — the
 // unified registry feeds the chest reel, the shop and the items panel alike.
 
@@ -2307,46 +2348,27 @@ export class Hud {
         if (!spinPool.includes(id)) spinPool.push(id);
       }
     }
-    const cellHtml = (id: ModId | undefined): string => {
-      const entry = id ? MOD_REGISTRY[id] : undefined;
-      const locked = id ? !UNLOCKED_MOD_IDS.includes(id) : false;
+    const cellHtml = (id: ModId): string => {
+      const entry = MOD_REGISTRY[id];
+      const locked = !UNLOCKED_MOD_IDS.includes(id);
       const lock = locked
         ? '<img class="chest-cell-lock" src="assets/2d/icon-ui-lock-v2.png" alt="" />'
         : '';
-      return `<div class="chest-cell${locked ? ' locked' : ''}">${iconHtml(entry)}${lock}</div>`;
+      return `<div class="chest-cell${locked ? ' locked' : ''}" data-mod-id="${id}">${iconHtml(entry)}${lock}</div>`;
     };
     const startIdx = Math.floor(Math.random() * spinPool.length);
-    const strip: (ModId | undefined)[] = [];
-    for (let i = 0; i < cellCount; i++) {
-      strip.push(spinPool[(startIdx + i) % spinPool.length]);
-    }
-    strip.push(finalMod); // always unlocked → never padlocked
-
-    // No two neighbours may show the same mod. The prize is appended after a
-    // straight cycle of the pool, so whenever that cycle happened to end on the
-    // prize the reel stopped on a visible pair — which reads as a rigged reel
-    // even though the roll was fair. The LAST cell is the prize and must never
-    // be swapped, so a collision there is fixed by changing the cell before it.
-    // A pool of one cannot avoid repeats and is left alone.
-    if (spinPool.length > 1) {
-      const fix = (index: number): void => {
-        const replacement = spinPool.find(
-          (id) => id !== strip[index - 1] && id !== strip[index + 1],
-        );
-        if (replacement) strip[index] = replacement;
-      };
-      for (let i = 1; i < strip.length - 1; i++) {
-        if (strip[i] === strip[i - 1]) fix(i);
-      }
-      const last = strip.length - 1;
-      if (strip[last] === strip[last - 1]) fix(last - 1);
-    }
+    const strip = buildChestReelStrip(finalMod, tier, startIdx, cellCount);
 
     const final = MOD_REGISTRY[finalMod];
     reel.innerHTML = strip.map(cellHtml).join('');
+    const prizeCell = reel.lastElementChild;
+    const landedReward = prizeCell?.querySelector<HTMLElement>('.chest-icon-img, .chest-cell-emoji');
+    if (!landedReward) throw new Error(`Chest prize cell has no reward visual: ${finalMod}`);
 
     const land = (): void => {
-      icon.innerHTML = iconHtml(final);
+      // Promote the exact landed node: hiding then recreating the same reward
+      // reads as a temporal duplicate even when spatial adjacency is correct.
+      icon.replaceChildren(landedReward);
       label.textContent = final.label;
       // What the reward actually does (2026-07-08 user request).
       desc.textContent = describeMod(finalMod, nextCopies);
