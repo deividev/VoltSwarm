@@ -84,6 +84,35 @@ export interface VoxelModelDef {
     };
   };
   /**
+   * Cylindrical wheels stamped into the FINISHED grid (axle along X, so the
+   * tyre is round in the Y/Z plane).
+   *
+   * Why this cannot live in the sheets: the extruder scales every column's
+   * depth by `sqrt(1 - t²)` about its segment centre, so a feature at the
+   * silhouette edge always ends up shallower than one near the middle. A tyre
+   * is the opposite — constant width across its whole face. Measured on the
+   * Sparkrunner's 4-column wheel: the outer columns land on half-depth 2 while
+   * the inner ones land on 4, i.e. a stepped wedge, not a wheel.
+   *
+   * Stamping happens inside `buildModelGrid`, so the swarm InstancedMesh path
+   * and the preview get the same geometry, and it writes into the SAME voxel
+   * grid — no extra mesh, no extra draw call.
+   */
+  wheels?: {
+    /** Radius in voxels, in the Y/Z plane. The band is 2*radius+1 tall. */
+    radius: number;
+    /** Grid Y of the wheel centre, counted from the BOTTOM of the model. */
+    centerY: number;
+    /** Inclusive X column ranges, one per wheel. */
+    columns: readonly (readonly [number, number])[];
+    tireColor: number;
+    /** Painted on each wheel's two end faces only, so it reads as a hub cap
+     *  from the side without coring the tyre through. */
+    hubColor: number;
+    /** Hub cap radius, in the same Y/Z plane as `radius`. */
+    hubRadius: number;
+  };
+  /**
    * Post-classification color swap: `{sourceHex: targetHex}`, applied to the
    * finished grid AFTER classification/extrusion. This is how color variants
    * (2026-07-06) are built — swapping the PALETTE itself before classifying
@@ -310,27 +339,63 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   sparkrunner: {
     kind: 'enemy',
-    ref: 'assets/2d/ref-sparkrunner-front-v5.png',
-    // Measured-profile pipeline (2026-07-13): v5 sheet set — real chunky
-    // ARMS fused to a solid shoulder bar (v4's thin joints read as floating
-    // arms) with WIDE torso gaps below (v3's narrow gaps fused at swarm
-    // resolution), side gives action-figure depth, painted back matches v5.
-    sideProfileRef: 'assets/2d/ref-sparkrunner-side-v3.png',
-    backPaintRef: 'assets/2d/ref-sparkrunner-back-v5.png',
-    // Arms widen the sheet's bbox, so width buys more columns while the
-    // smaller voxel keeps the runner ~1.9u tall like the primitive.
-    targetWidth: 21,
-    voxelSize: 0.037,
+    // v6 (2026-08-04) — HAND-AUTHORED sheets at the model's exact 25x60 voxel
+    // resolution (tools/make-sparkrunner-sheets.mjs), so downsampleMap is a
+    // lossless 1:1 mapping and 1-cell details survive verbatim. This replaces
+    // the Codex-generated v5 set, which had two problems the 45-degree capture
+    // made obvious: the "arms" were the outer third of the TORSO SLAB behind a
+    // 1-column notch that the depth pass then extruded to full chest depth, so
+    // the whole upper body read as one box; and the flat boots gave an enemy
+    // that glides at 8.5 u/s nothing to glide ON, which read as hovering.
+    ref: 'assets/2d/ref-sparkrunner-front-v6.png',
+    sideProfileRef: 'assets/2d/ref-sparkrunner-side-v6.png',
+    backPaintRef: 'assets/2d/ref-sparkrunner-back-v6.png',
+    // 25 columns (was 21) buys the room for arms that hang CLEAR of the torso
+    // behind 2-column gaps; the smaller voxel holds the world footprint at the
+    // 0.78 x 1.92u the gameplay radius/scale were tuned around.
+    targetWidth: 25,
+    voxelSize: 0.032,
     bodyColor: ELECTRIC_CYAN,
     palette: [ELECTRIC_CYAN, DARK, AMBER],
-    frontOnly: [AMBER],
-    // Head round and forward; torso slimmer; legs nearly flat.
+    // Amber is deliberately NOT frontOnly: that path insets it 2 voxels, which
+    // swallows the visor at the game's 3/4 camera (the foreman lesson).
+    frontOnly: [],
+    // Amber is left as a DETAIL colour (armorColors therefore defaults to the
+    // body colour alone), so the visor and the hazard bands sink one voxel.
+    // Worth recording because the intuition is wrong: promoting amber to
+    // armour to make those bands flush was measured at 4760 triangles against
+    // 4736 for the recessed version — recessing details is NOT what this model
+    // spends its geometry on, so choose inset on looks, not on budget.
+    // With a measured side profile these bands only supply each volume's own
+    // centre/half-width for the left-right falloff. The middle band spans the
+    // ARMS on purpose (cols 0-24); splitting it would treat the forearms as
+    // near-centre and extrude them as deep as the chest — exactly the v5 bug.
+    // Fractions are picked so `ceil(to * 60)` lands on the intended first row
+    // of the next volume: head 0-18, shoulders/arms/torso 19-43, legs 44-59.
     segments: [
-      { from: 0, to: 0.35, depthFactor: 0.36 },
-      { from: 0.35, to: 0.7, depthFactor: 0.32 },
-      { from: 0.7, to: 1, depthFactor: 0.28 },
+      { from: 0, to: 0.31, depthFactor: 0.36 },
+      { from: 0.31, to: 0.73, depthFactor: 0.32 },
+      { from: 0.73, to: 1, depthFactor: 0.28 },
     ],
     raisedTopFraction: 0.12,
+    // Rows 51-59 of the sheet, i.e. grid Y 0-8, under each leg (cols 7-10 and
+    // 14-17). Keep in sync with make-sparkrunner-sheets.mjs, which asserts it.
+    // Radius 4 against legs authored at half-depth 2 is the whole point: the
+    // tyre has to break the strut's silhouette fore and aft or it just reads as
+    // a darker boot, which is exactly what a radius-3 first pass did.
+    wheels: {
+      radius: 4,
+      centerY: 4,
+      columns: [
+        [7, 10],
+        [14, 17],
+      ],
+      tireColor: DARK,
+      hubColor: AMBER,
+      // 1, not 2. At radius 2 the cap covered five of the wheel face's nine
+      // cells and the 3/4 camera read it as a yellow toe rather than a hub.
+      hubRadius: 1,
+    },
   },
   rustbrute: {
     kind: 'enemy',
@@ -1005,7 +1070,63 @@ export async function buildModelGrid(key: string): Promise<VoxelGrid> {
       });
   if (def.recolorMap) recolorGrid(grid, def.recolorMap);
   for (const region of def.recolorRegions ?? []) recolorGridRegion(grid, region);
+  if (def.wheels) stampWheels(grid, def.wheels);
   return grid;
+}
+
+/** Carves a cylinder into the grid for each wheel (see `wheels` on
+ *  VoxelModelDef for why the sheets cannot express one). Everything the sheet
+ *  put inside the band is cleared first, so the authored block becomes the
+ *  tyre's bounding volume rather than surviving around it. */
+function stampWheels(grid: VoxelGrid, spec: NonNullable<VoxelModelDef['wheels']>): void {
+  const height = grid.length;
+  const depth = grid[0]?.length ?? 0;
+  const yFrom = Math.max(0, spec.centerY - spec.radius);
+  const yTo = Math.min(height - 1, spec.centerY + spec.radius);
+  const rimSq = (spec.radius + 0.5) ** 2;
+  const hubSq = (spec.hubRadius + 0.5) ** 2;
+
+  for (const [xFrom, xTo] of spec.columns) {
+    // Centre the tyre on the Z the body already occupies here rather than on
+    // the grid midpoint: the voxelizer reserves extra FRONT slots for raised
+    // details, so the grid is deliberately not symmetric about its centre.
+    let zLo = depth;
+    let zHi = -1;
+    for (let y = yFrom; y <= yTo; y++) {
+      for (let z = 0; z < depth; z++) {
+        const row = grid[y]?.[z];
+        if (!row) continue;
+        for (let x = xFrom; x <= xTo; x++) {
+          if (row[x] == null) continue;
+          if (z < zLo) zLo = z;
+          if (z > zHi) zHi = z;
+        }
+      }
+    }
+    if (zHi < 0) continue;
+    const centerZ = (zLo + zHi) / 2;
+
+    for (let y = yFrom; y <= yTo; y++) {
+      const dy = y - spec.centerY;
+      for (let z = 0; z < depth; z++) {
+        const row = grid[y]?.[z];
+        if (!row) continue;
+        const dz = z - centerZ;
+        const distSq = dy * dy + dz * dz;
+        const inside = distSq <= rimSq;
+        const isHub = distSq <= hubSq;
+        for (let x = xFrom; x <= xTo; x++) {
+          if (!inside) {
+            row[x] = null;
+          } else if (isHub && (x === xFrom || x === xTo)) {
+            row[x] = spec.hubColor;
+          } else {
+            row[x] = spec.tireColor;
+          }
+        }
+      }
+    }
+  }
 }
 
 /** Applies a post-classification color swap in place (see `recolorMap` on
