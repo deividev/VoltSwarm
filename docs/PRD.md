@@ -8,7 +8,7 @@
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Estado de la arquitectura (actualizado 2026-08-04, v0.12.5)
+## Estado de la arquitectura (actualizado 2026-08-04, v0.12.6)
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
@@ -26,10 +26,10 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 
 ### 2. Ficha de stats RPG + pool de mejoras con rareza
 - Ficha del personaje: Damage, Attack Speed, Crit Chance, Crit Damage, Move Speed, Attack Range, Pickup Range, Projectile Count, Projectile Speed, Area (tamaño de disparos/efectos), Armor (rating porcentual con retornos decrecientes), Regen y Luck (rating porcentual que desplaza pesos de rareza).
-- **Semántica de Armor y Luck (2026-08-03):** ambos se almacenan como fracciones y se muestran como porcentaje (`0.08` = `8%`). Armor NO es reducción directa punto por punto: la reducción efectiva es `armor / (armor + 1)`. Luck NO es una probabilidad directa de tier: desplaza los pesos azul/morado/dorado y luego se normaliza el pool completo. La migración desde puntos conserva exactamente las curvas anteriores; cambia la unidad visible, no el balance.
+- **Semántica de Armor y Luck (2026-08-03):** ambos se almacenan como fracciones y se muestran como porcentaje (`0.08` = `8%`). Armor NO es reducción directa punto por punto: la reducción efectiva es `armor / (armor + 1)`. Luck NO es una probabilidad directa de tier: desplaza los pesos azul/morado/dorado y luego se normaliza el pool completo. La migración desde puntos conservó las curvas anteriores; la única excepción posterior es el experimento Common de Lucky Gear documentado debajo.
 - Level-up: al cruzar el umbral de XP, primero se muestra un beat visual `LEVEL UP!` encima del jugador (`VISUAL.levelUpIntro`) y después se abre la UI con 3 cartas aleatorias entre mejoras de stat y cartas de arma (desbloquear/subir nivel de arma).
 - **Tiers (rareza) — DEFINICIÓN CANÓNICA. 5 tiers: gris → verde → azul → morado → dorado** (`Rarity` en `upgrades.ts`; pesos de tirada en `TIERS.weights`/`luckShift`, Luck sube los tiers altos). ⚠️ Cada categoría usa los tiers DISTINTO — esto es lo que hay que respetar para que no haya desalineamientos:
-  - **Calibración base (playtest 2026-07-17):** con `Luck = 0`, pesos por carta 62/27/9/1.8/0.2%. En una pantalla de 3 cartas esto deja 5.88% de ver al menos una morada/dorada y 0.60% de ver una dorada. Los tiers altos iniciales son jackpots; Lucky Gear debe volverlos progresivamente fiables.
+  - **Calibración base (playtest 2026-07-17; experimento 2026-08-04):** con `Luck = 0`, pesos por carta 62/27/9/1.8/0.2. En una pantalla de 3 cartas esto deja `5.881%` de ver al menos una morada/dorada y `0.599%` de ver una dorada. La primera copia Common de Lucky Gear baja de `+6%` a `+4%`: con ella las probabilidades pasan a aproximadamente `11.633%` y `2.857%`. Es el ÚNICO número de balance que cambia para el próximo playtest humano; Luck base sigue en `0%`, los tiers superiores siguen en `8/10/14/20%` y no cambian pesos, `luckShift`, fórmulas, consumidores, desbloqueos ni economía de cofres/chatarrero.
   - **Orbes (Cores):** el tier se **TIRA** en cada carta del draft (luck-weighted). El tier fija la **magnitud** del stat: cada core define un array de 5 valores `[gris, verde, azul, morado, dorado]`. Un mismo core puede salir en CUALQUIERA de los 5 tiers.
   - **Compatibilidad del draft (2026-07-17):** un core dependiente de arma solo entra si al menos un arma o mod instalado consume realmente ese stat. La matriz explícita cubre Range, Projectile Speed, Area, Duration y Projectile Count; los stats universales permanecen siempre disponibles. Así una elección de socket permanente nunca es una carta sin efecto para la build actual.
   - Chaos Module usa la misma matriz y la misma regla de valor marginal que el draft directo: no puede elegir un stat incompatible ni Crit Chance o Lifesteal cuando ya alcanzaron su cap efectivo. Crit Chance y Lifesteal se limitan además a 100%; Crit Damage y los stats sin techo siguen sin cap artificial.
@@ -264,7 +264,7 @@ Successful local packaged Electron run via `npm run benchmark:audio`: determinis
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
-La release activa de Steam Playtest Wave 1 en `main` es `0.10.5-beta`: admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08`. La rama de desarrollo `codex/map-2` usa `0.12.5` con el master desactivado y `resetEpoch: null`, así que ni procesa un marcador pendiente ni vuelve a resetear grabaciones. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
+La release activa de Steam Playtest Wave 1 en `main` es `0.10.5-beta`: admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08`. La rama de desarrollo `codex/map-2` usa `0.12.6` con el master desactivado y `resetEpoch: null`, así que ni procesa un marcador pendiente ni vuelve a resetear grabaciones. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
 
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 
@@ -288,7 +288,7 @@ Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty`
 
 ### Ciclo reutilizable de telemetría privada — `main` activa / Mapa 2 inert
 
-Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. `main` `0.10.5-beta` mantiene la release Wave 1 activa. En `codex/map-2` `0.12.5`, el config es `enabled: false`, allowlist `[]`, `gameId: 'voltswarm'`, `waveId: 'map-2'` y `resetEpoch: null`. La elegibilidad global queda siempre falsa: Electron no puede mostrar prompts de consentimiento/reset, crear identidad/cola, abrir red ni declarar disponible la fachada que habilita el feedback final.
+Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. `main` `0.10.5-beta` mantiene la release Wave 1 activa. En `codex/map-2` `0.12.6`, el config es `enabled: false`, allowlist `[]`, `gameId: 'voltswarm'`, `waveId: 'map-2'` y `resetEpoch: null`. La elegibilidad global queda siempre falsa: Electron no puede mostrar prompts de consentimiento/reset, crear identidad/cola, abrir red ni declarar disponible la fachada que habilita el feedback final.
 
 Cuando una wave futura se habilite, Electron main exige una prueba atómica `userData/telemetry-consent.json` ligada al digest determinista de `consentVersion` y de todo el copy renderizado desde `TELEMETRY_CONFIG.disclosure`: ausencia pide consentimiento; corrupción bloquea; la misma disclosure sirve silenciosamente en launches/waves posteriores; cambiar versión o texto vuelve a preguntar automáticamente. El reset tiene un diálogo independiente incluso con consentimiento existente. El renderer **nunca sube datos directamente**: solo publica eventos tipados mediante `contextBridge`; Electron main valida, identifica, encola y sube después de elegibilidad y consentimiento.
 

@@ -15,8 +15,11 @@ after(async () => {
 const rarities = ['gray', 'green', 'blue', 'purple', 'gold'];
 const rarityRollOrder = [...rarities].reverse();
 const legacyArmor = [8, 11, 15, 25, 35];
+const expectedLuck = [0.04, 0.08, 0.1, 0.14, 0.2];
 const legacyLuck = [6, 8, 10, 14, 20];
 const legacyLuckShift = { gray: 0, green: 0, blue: 0.45, purple: 0.35, gold: 0.2 };
+const expectedTierWeights = { gray: 62, green: 27, blue: 9, purple: 1.8, gold: 0.2 };
+const expectedLuckShift = { gray: 0, green: 0, blue: 45, purple: 35, gold: 20 };
 
 function legacyArmorDamage(damage, armorPoints) {
   return Math.max(1, Math.round(damage * (1 - armorPoints / (armorPoints + 100))));
@@ -34,6 +37,21 @@ function legacyRarity(luckPoints, random) {
   return 'gray';
 }
 
+function tierProbabilities(luckRating) {
+  const weighted = Object.fromEntries(
+    rarities.map((tier) => [
+      tier,
+      expectedTierWeights[tier] + luckRating * expectedLuckShift[tier],
+    ]),
+  );
+  const total = Object.values(weighted).reduce((sum, weight) => sum + weight, 0);
+  return Object.fromEntries(rarities.map((tier) => [tier, weighted[tier] / total]));
+}
+
+function chanceInThree(singleRollChance) {
+  return 1 - (1 - singleRollChance) ** 3;
+}
+
 test('Armor percentage ratings preserve the legacy diminishing-returns curve', () => {
   assert.deepEqual(config.CORE_TIER_MAGNITUDES.armor, legacyArmor.map((value) => value / 100));
 
@@ -47,10 +65,18 @@ test('Armor percentage ratings preserve the legacy diminishing-returns curve', (
   }
 });
 
-test('Luck percentage ratings preserve every legacy rarity boundary', () => {
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.luck, legacyLuck.map((value) => value / 100));
+test('Common Lucky Gear is 4% while higher tiers preserve legacy rarity boundaries', () => {
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.luck, expectedLuck);
 
-  for (let index = 0; index < legacyLuck.length; index++) {
+  for (let step = 0; step <= 1000; step++) {
+    const random = step / 1001;
+    assert.equal(
+      upgrades.rollRarity(expectedLuck[0], () => random),
+      legacyRarity(4, random),
+    );
+  }
+
+  for (let index = 1; index < legacyLuck.length; index++) {
     const luckRating = config.CORE_TIER_MAGNITUDES.luck[index];
     for (const tier of rarities) {
       assert.ok(
@@ -70,11 +96,24 @@ test('Luck percentage ratings preserve every legacy rarity boundary', () => {
   }
 });
 
+test('Luck probabilities preserve the baseline and apply the Common 4% experiment', () => {
+  assert.deepEqual(config.TIERS.weights, expectedTierWeights);
+  assert.deepEqual(config.TIERS.luckShift, expectedLuckShift);
+  assert.equal(stats.defaultStats().luck, 0);
+
+  const baseline = tierProbabilities(0);
+  const common = tierProbabilities(config.CORE_TIER_MAGNITUDES.luck[0]);
+  assert.ok(Math.abs(chanceInThree(baseline.purple + baseline.gold) - 0.058808) < 1e-12);
+  assert.ok(Math.abs(chanceInThree(baseline.gold) - 0.005988008) < 1e-12);
+  assert.ok(Math.abs(chanceInThree(common.purple + common.gold) - 0.11632695863677733) < 1e-12);
+  assert.ok(Math.abs(chanceInThree(common.gold) - 0.028569675978607045) < 1e-12);
+});
+
 test('Armor and Luck cards and stat rows render percentage ratings', async () => {
   const armor = upgrades.STAT_CARDS.find((card) => card.id === 'armor');
   const luck = upgrades.STAT_CARDS.find((card) => card.id === 'luck');
   assert.match(armor.describe(config.CORE_TIER_MAGNITUDES.armor[0]), /^\+8% Armor rating/);
-  assert.match(luck.describe(config.CORE_TIER_MAGNITUDES.luck[0]), /^\+6% Luck rating/);
+  assert.match(luck.describe(config.CORE_TIER_MAGNITUDES.luck[0]), /^\+4% Luck rating/);
 
   const hudSource = await readFile(new URL('../src/hud.ts', import.meta.url), 'utf8');
   assert.match(hudSource, /key: 'armor'.*label: 'Armor'.*format: asPct/);
