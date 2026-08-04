@@ -4,17 +4,19 @@ Decisión del 2026-07-02: mantenemos la ambientación scrapyard pero la direcci�
 
 ## El mundo es futurista; el scrapyard es el primer mapa
 
+**Alcance de variante:** la Steam Demo contiene solo Scrapyard / Mapa 1 y no transiciona a otro mapa. El juego completo, fuera de la demo, continúa en Mapa 2 **Swarm Foundry** y culmina contra **Hazard Marshal**; ese arco/finale ya es jugable, pero su combate actual sigue provisional. Volt Warden queda como diseño histórico/futuro.
+
 Decisión del 2026-07-03 (usuario): el juego es de estética FUTURISTA — todos los enemigos son robots — y el scrapyard no es la identidad del juego sino su **primer escenario**: el desguace donde van a morir los robots (junkpunk). La progresión de mapas es también la progresión estética hacia lo futurista puro:
 
 | Mapa | Escenario | Lenguaje visual |
 | --- | --- | --- |
 | 1 | **Fábrica abandonada** (redefinido 2026-07-06, antes "scrapyard") | Industrial con TOQUE futurista: planchas metálicas oscuras, remaches, franjas de peligro amarillas/negras, líneas de conducto cian tenues (apagadas, sin energía activa — es una fábrica MUERTA, no una en marcha) |
-| 2 | *(pendiente, se diseña después de validar el Mapa 1)* | Candidato: fundición/fábrica ACTIVA — mismo lenguaje que el Mapa 1 pero con la maquinaria encendida (cintas en marcha, brillos de calor, conductos cian iluminados) |
-| 3 | Escenario del boss final (2026-07-06: pasa a ser el Mapa 2 de la v1, saltando el intermedio por ahora) | Ciudad neón / estación orbital: emisivos, holografía, futurismo puro |
+| 2 | **Swarm Foundry** | Fundición/fábrica activa: maquinaria encendida, cintas en marcha, brillos de calor y conductos cian iluminados; arena del Hazard Marshal del juego completo |
+| 3 | Futuro / no comprometido | Ciudad neón / estación orbital: emisivos, holografía, futurismo puro |
 
 Regla: cada mapa nuevo se ve MÁS "futuro" que el anterior — empezás en la fábrica apagada del mundo y peleás hacia la fuente que fabrica a los robots. Las armas-herramienta (Press, Welder, Tire) viajan con el jugador y mantienen su identidad de desguace en cualquier mapa.
 
-**v1 usa 2 mapas** (decisión del usuario 2026-07-06): Mapa 1 (fábrica abandonada, éste) + Mapa 2 (boss final, futurista puro). El mapa intermedio de fundición activa queda diseñado en la tabla pero se construye después, basándose en lo que funcione del Mapa 1.
+El juego completo usa 2 mapas: Mapa 1 Scrapyard y Mapa 2 Swarm Foundry con Hazard Marshal. La demo pública queda congelada en Mapa 1.
 
 ## Por qué
 

@@ -157,7 +157,7 @@ Historial (superseded — ornamentos de esquina por rareza):
 
 ## 6. Modelos 3D de personajes — pipeline 2D→3D (actualizado 2026-07-06: referencia de 3 vistas)
 
-Los modelos 3D NO se generan directamente: se genera una hoja de referencia por personaje y `src/models/icon-voxelizer.ts` la convierte en voxels automáticamente (detalle del pipeline en `DIRECCION_ARTE.md`). Ya validado: Voltling, Sparkrunner, Rustbrute, Roller, Gunner, Drone, Crusher King, Tesla Titan, Volt Warden y el jugador (todos con referencia FRONTAL únicamente, técnica previa a esta actualización).
+Los modelos 3D NO se generan directamente: se genera una hoja de referencia por personaje y `src/models/icon-voxelizer.ts` la convierte en voxels automáticamente (detalle del pipeline en `DIRECCION_ARTE.md`). Ya validado: Voltling, Sparkrunner, Rustbrute, Roller, Gunner, Drone, Crusher King, Tesla Titan, Hazard Marshal y el jugador. Volt Warden se conserva solo como diseño histórico/futuro.
 
 **REGLA NUEVA (2026-07-06): a partir de ahora, generar SIEMPRE 3 vistas por personaje — frontal, lateral y trasera —, no solo frontal.** Motivo: el boss final de prueba (`final-boss` en `registry.ts`, ref `ref-volt-warden-front.png` sin `-v2`) se ve bien de frente pero es una masa lisa sin detalle de lado y de espaldas — la técnica de extrusión algorítmica (segments/depthFactor) solo puede ADIVINAR la profundidad real sin una vista lateral que la confirme. Con las 3 vistas, la lateral fija el perfil de profundidad real (en vez de la aproximación elíptica actual) y la trasera evita que la espalda quede en blanco o repita la cara.
 
@@ -213,7 +213,7 @@ Sujetos por personaje — **ELENCO COMPLETO 2026-07-05** (todos con ref aprobada
 - **Drone** ✅ (`ref-drone-front.png`): flat wide flyer, THIN rotor blade band (deep rotor caps the roof in dark — camera looks down at flyers), amber eye — pink #ff9de2 / dark / amber
 - **Crusher King (boss)** ✅ (`ref-crusher-king-front-v2.png`): brute king, gold crown (full material, NOT frontOnly — silhouette), gold glare visor, toothed jaw, huge fists — red / dark / gold #f2b632
 - **Tesla Titan (boss)** ✅ (`ref-tesla-titan-front.png`): tall coil tower, three wrapped bright-cyan ring slabs (bloom emissives), amber visor, orb tip, anchored base — cyan #2ee6de / #7ee0ff / dark / amber
-- **Volt Warden (boss nuevo)** ✅ (`ref-volt-warden-front-v2.png`): chibi helmet-head boss, goggle visor, grilles, cyan core, shoulder pads, hover skirt — yellow / dark / cyan. Modelo listo; gameplay pendiente de diseño.
+- **Volt Warden (diseño histórico/futuro)** (`ref-volt-warden-front-v2.png`): chibi helmet-head boss, goggle visor, grilles, cyan core, shoulder pads, hover skirt — yellow / dark / cyan. No es el boss final vigente.
 - **Jugador** ✅ (`ref-player-front-v3.png`): scavenger hero, head ~1/3 naranja #ff8c33 con visor oscuro #1c2a38, cuerpo blanco hueso #e8e3d5, mochila de herramientas (two-tone `armorColors`)
 
 ### Field Engineer — modelo runtime v1 técnicamente validado; aprobación visual final no registrada
@@ -324,7 +324,7 @@ Regla practica: si el asset necesita marca, componer mecanicamente desde el fond
 ## Orden de ejecución sugerido
 
 1. Icono final de la app (candidato fuerte ya generado: `assets/2d/app-icon-test.png`; falta convertir a `.ico`)
-2. Referencias frontales de los 5 enemigos restantes + 2 bosses + jugador → voxelización vía registry (§6; Voltling y Volt Warden ya hechos)
+2. Referencias frontales de los 5 enemigos restantes + bosses + jugador → voxelización vía registry (§6; Voltling y Hazard Marshal ya hechos; Volt Warden es histórico/futuro)
 3. Logo + key art (necesarios para la página de Steam ya en Fase 2)
 4. Iconos de armas y stats (pulen el HUD, no bloquean nada)
 5. Props de escenario y ornamentos de rareza (última milla, coinciden con Fase 5 de contenido)

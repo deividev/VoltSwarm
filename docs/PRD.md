@@ -1,13 +1,17 @@
 # Voltswarm — PRD v2 (definitivo)
 
-## Steam Map 1 Demo — 0.11.3 Demo
+## Alcance por variante — fuente de verdad
 
-La demo pública ofrece una run completa del Scrapyard (Mapa 1) y termina ahí. `package.json` es la fuente única del contrato de build: `voltswarmBuild` contiene flavor `demo`, `allowedMaps: ['scrapyard']`, identidad runtime (`appId: 'com.davidseco.voltswarm.demo'`, `productName: 'Voltswarm Demo'`), `userDataDirectory: 'Voltswarm Demo'`, y el juego completo en Steam App ID `4979220` / `https://store.steampowered.com/app/4979220/Voltswarm/`. `build` es solo configuración de electron-builder y debe coincidir con esa identidad; Electron no depende de ella porque electron-builder no la preserva en `app.asar`.
+**Steam Demo (`codex/demo-map1`):** Scrapyard / Mapa 1 únicamente. `package.json` permite solo `['scrapyard']`; una run termina a los 10 minutos como `SECTOR CLEARED`, sin transición a Mapa 2. Todo el contenido del arco completo queda explícitamente fuera de esta build.
+
+**Juego completo (`codex/map-2`):** Mapa 1 → Mapa 2 **Swarm Foundry** → **Hazard Marshal**. El arco y el finale ya son jugables; Hazard Marshal aparece mediante `modelKey: 'final-boss'`. Su configuración de combate y moveset actuales son provisionales; faltan mecánicas autoradas definitivas, arena y balance. Volt Warden es diseño histórico/futuro, no el boss final vigente.
+
+La demo mantiene flavor `demo`, identidad runtime (`appId: 'com.davidseco.voltswarm.demo'`, `productName: 'Voltswarm Demo'`), `userDataDirectory: 'Voltswarm Demo'` y CTA al juego completo en Steam App ID `4979220` / `https://store.steampowered.com/app/4979220/Voltswarm/`. `build` es solo configuración de electron-builder y debe coincidir con esa identidad; Electron no depende de ella porque electron-builder no la preserva en `app.asar`.
 
 Criterios de aceptación:
 
 - Identidad Electron y de artefactos explícita de demo; saves separados del juego completo y del playtest.
-- Etiqueta visible `0.11.3 Demo`; ningún Mapa 2 admitido.
+- La versión visible se deriva de `package.json`; ningún mapa distinto de Scrapyard es admisible.
 - Telemetría, consentimiento, reset de playtest, identidad, cola, red y feedback sin efectos laterales en flavor `demo`; el código reutilizable permanece.
 - **Wishlist Full Game** en menú principal y pantalla final, operable con teclado/gamepad. Electron abre únicamente la URL HTTPS canónica, sin aceptar URL del renderer; el CTA se oculta o falla de forma segura si el destino no está disponible.
 - Los dos comandos de empaquetado ejecutan el guard de release, que valida flavor, versión, allowlist, telemetría, identidad, `userData`, Steam y flags dev existentes.
@@ -21,7 +25,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
 3. ⏸️ **Preparación/viabilidad multijugador — DIFERIDA A POST-LANZAMIENTO (decisión del usuario 2026-07-25).** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno, para una feature que `MULTIPLAYER_FEASIBILITY.md` documenta como no diferenciadora, no prometida y que puede terminar NO-GO — mientras el contenido que decide si el juego vale su precio quedaba comprimido. Del gate se rescató solo la mitad barata: cobertura de smoke tests. **El determinismo de tick fijo, el RNG sembrado y los snapshots siguen sin implementar**, y por eso tampoco se guarda semilla en los registros de run. Si el gate se retoma y da GO, el primer objetivo sigue siendo exactamente 2 jugadores local split-screen; online peer-host exige aprobación posterior; hybrid y dedicated servers quedan fuera de alcance.
-4. **AHORA:** arco de run completo (Mapa 2 → gameplay de Volt Warden → 3 personajes diferenciados) → balance y retención con datos reales → catálogo de audio → Steamworks/cierre.
+4. **Juego completo, fuera de esta demo:** arco Mapa 1 → Mapa 2 Swarm Foundry → Hazard Marshal provisional → personajes diferenciados → balance y retención con datos reales → catálogo de audio → Steamworks/cierre.
 
 ## P1 — Estructural
 
@@ -103,10 +107,10 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - La invocación trae UN boss aleatorio de un pool de 2:
   - **Crusher King**: tanque con embestida telegrafiada y spawn de scraplings.
   - **Tesla Titan**: mantiene distancia y dispara ráfagas radiales de proyectiles.
-- Matar al boss NO termina el run: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida (ciclo farmear → boss → boss más duro hasta el timer). La única victoria actual es sobrevivir los 10 minutos; la pantalla final distingue `SYSTEM OVERLOAD` (muerte), `SECTOR CLEARED` (mapa completado) y deja preparado `RUN COMPLETE` para el último mapa.
+- Matar al boss NO termina el run: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida (ciclo farmear → boss → boss más duro hasta el timer). En **`codex/demo-map1`**, la única victoria es sobrevivir los 10 minutos; la pantalla final distingue `SYSTEM OVERLOAD` (muerte), `SECTOR CLEARED` (mapa completado) y deja preparado `RUN COMPLETE` para el último mapa.
 - Cada final de run persiste un registro local versionado con resultado, mapa, versión del build, fecha, duración, nivel, kills, bosses, build completa y daño real por arma. Son datos crudos —la métrica no se fija todavía— para poder derivar más adelante leaderboards por mapa sin migrar información incompleta.
 - Pase Steam 2026-07-15: el spawn de boss tiene beat de materialización reforzado con burst rojo, núcleo blanco, anillo de impacto y shake dedicado (`VISUAL.bossSummonVfx`) para que el título `AWAKENS` sea capturable.
-- Dirección futura (abierta, post-validación): cada boss derrotado transiciona a un mapa nuevo estilo Megabonk, culminando en un boss final. El ciclo de tótems actual es el placeholder mecánico de esa estructura.
+- **Histórico/superseded para `codex/map-2`:** el ciclo de tótems y la transición abierta entre mapas fueron placeholders. El arco Mapa 1 → Swarm Foundry → Hazard Marshal ya es jugable; solo su combate autorado final sigue provisional.
 - Arco estético del multi-mapa (decidido 2026-07-03): scrapyard → fundición/fábrica → ciudad neón/estación orbital. El mundo es futurista; el scrapyard es el mapa 1, y cada mapa se ve más "futuro" que el anterior (detalle en `DIRECCION_ARTE.md`).
 - Barra de vida del boss en el HUD.
 
@@ -190,7 +194,7 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 ## Pipeline de modelos voxel 2D→3D — Implementado 2026-07-04
 
 - **Sistema**: referencia frontal plana por personaje (`assets/2d/ref-*.png`, gpt-image) → voxelización automática (`src/models/icon-voxelizer.ts`) → registro central (`src/models/registry.ts`). `EnemySystem.upgradeVoxelModels()` intercambia async la geometría de cualquier tipo de enemigo/boss registrado; sin entrada o si falla la carga, se mantienen las primitivas (fallback seguro).
-- **Estado**: Voltling cableado in-game y validado visualmente con enjambre denso; **Volt Warden** (boss nuevo, cabeza-casco flotante derivada del icono aprobado) tiene modelo listo pero SIN gameplay — diseño de mecánicas pendiente.
+- **Estado**: Voltling cableado in-game y validado visualmente con enjambre denso; **Volt Warden** es un diseño histórico/futuro con modelo candidato, no el boss final vigente.
 - **Herramientas**: `tools/capture-model-preview.mjs <clave>` (viewer con luz del juego) y `tools/capture-ingame.mjs [segundos]` (arranca el juego headless, juega y captura).
 - **Criterio de aceptación por modelo**: silueta distinguible a distancia de cámara, paleta exacta, triángulos por instancia en presupuesto (enemigos ~3-6k), y validación final con 400+ enemigos activos.
 - **Pase de fidelidad 2026-07-13 (gate de captura)**: los 6 enemigos + jugador migrados de extrusión front-only al pipeline de hojas MEDIDAS de los bosses (`sideProfileRef` + `backPaintRef` — la cámara a 52° ve espaldas/techos y ahora están pintados de verdad); Sparkrunner rediseñado a v5 con brazos (aprobado); excepción Drone (solo espalda pintada — el perfil medido del rotor tapaba el techo); **greedy meshing en Y** en `voxel-builder.ts` (-27% a -66% de triángulos, visual idéntico). Rim light probado y rechazado por el usuario (revertido).
@@ -353,7 +357,7 @@ Nunca puede mostrar dos mods iguales en celdas contiguas. Había dos causas: la 
 
 ## Boss final del Mapa 2 — modelo CERRADO 2026-07-31 (v0.8.1)
 
-Decisión del usuario: el boss final del Mapa 2 es el **Hazard Marshal**, clave `final-boss` en `src/models/registry.ts`. Sustituye al pod Volt Warden que ocupaba ese hueco. **Solo está cerrado el MODELO**: sigue sin estar enganchado a ningún tipo de enemigo y no tiene ninguna mecánica de pelea diseñada.
+Decisión del usuario: el boss final del Mapa 2 es el **Hazard Marshal**, clave `final-boss` en `src/models/registry.ts`. Sustituye al pod Volt Warden que ocupaba ese hueco. Está integrado como enemigo spawnable y jugable mediante `modelKey: 'final-boss'`, dentro del arco Mapa 1 → Mapa 2 → finale. La configuración de combate y moveset vigentes son provisionales; faltan mecánicas autoradas definitivas, arena y balance.
 
 ### Por qué cambió el candidato
 
@@ -382,7 +386,7 @@ Dos, ambas opt-in, ninguna cambia el comportamiento de los modelos existentes:
 
 ### Pendiente
 
-- **Gameplay: cero.** Ni fases, ni telegrafías, ni patrones, ni si el arena cambia.
+- **Gameplay definitivo:** las fases, telegrafías, patrones y cambios de arena siguen por autorar y balancear. La configuración y moveset jugables actuales son provisionales.
 - **Aviso de lenguaje visual:** el boss es ámbar+carbón y los Voltling del enjambre también. A tamaño de boss más el doble anillo rojo se distingue, pero conviene revisarlo al definir el elenco del Mapa 2 (la fundición mueve paletas igualmente).
 - **Ángulos 90°/270°** siguen siendo los más flojos. Importa menos de lo que parece: el boss gira siempre hacia el jugador y la cámara va detrás del jugador, así que in-game el ángulo dominante es el frontal.
 
@@ -394,7 +398,7 @@ Es la única entidad que puede permitírselo: el resto del elenco se dibuja con 
 
 **Sistema completo, reutilizable para futuros enemigos/personajes/bosses, en `docs/ANIMACION_RIG.md`** — incluye cómo partir un modelo, el convenio de signos, por qué un seno hace que una marcha parezca sintética, y la verificación obligatoria del reparto de piezas.
 
-**Nada está enganchado al juego todavía**: el rig se revisa desde `model-preview.html?model=final-boss&anim=<clip>`.
+El rig se revisa desde `model-preview.html?model=final-boss&anim=<clip>`. Esa preview no sustituye la integración runtime: Hazard Marshal ya está enganchado como `modelKey: 'final-boss'`; las animaciones de ataque definitivas dependen del moveset que queda por autorar.
 
 ### Feedback de golpe — tinte, no animación (decisión 2026-07-31)
 
