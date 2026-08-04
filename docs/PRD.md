@@ -20,7 +20,7 @@ El balance no cambia en este corte. Los cambios futuros se validan primero en `m
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Estado de la arquitectura (actualizado 2026-08-04, v0.12.4-demo)
+## Estado de la arquitectura (actualizado 2026-08-04, v0.12.5-demo)
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
@@ -354,6 +354,8 @@ El "glow" del marcador del jugador era un `CircleGeometry` pelado —borde duro,
 ### Ruleta del cofre
 
 Nunca puede mostrar dos mods iguales en celdas contiguas. Blue y purple tienen 3 mods propios cada uno y conservan una tira formada solo por sus objetos reales. Gold tiene un único premio, Magnetron Heart: sus 18 celdas previas son **anticipación Legendary neutral**, geometría voxel teñida por `--burst`, y la penúltima también es neutral. Esas celdas no son Mods ni recompensas: no llevan `data-mod-id`, nombre, candado, imagen de objeto, moneda ni asset de modelo. La celda final sigue siendo exactamente Magnetron Heart.
+
+**Criterio de salida obligatorio — solución temporal:** las 18 celdas neutrales existen solo mientras el pool gold tenga menos de 3 Mods reales. En cuanto `modsOfTier('gold').length >= 3`, la construcción de la tira vuelve automáticamente a celdas item-only del mismo tier y desaparece toda anticipación neutral. Añadir el tercer Mod gold CIERRA este placeholder; ningún pase futuro de contenido debe conservarlo manualmente.
 
 El aterrizaje y el reveal son **una única aparición continua** del premio. La ruleta promociona al contenedor final el mismo nodo visual que aterrizó — nunca lo oculta para clonar o recrear inmediatamente el mismo mod — y conserva el timing, el fallback de `transitionend`, el flash, los god-rays, las chispas, el overshoot, el audio y el botón Continue.
 
