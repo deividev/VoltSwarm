@@ -1,20 +1,34 @@
 # Voltswarm — Roadmap a Steam
 
-Fecha: 2026-08-02. Versión de máquina actual en `codex/map-2`: **0.10.6-beta** (UI: **0.10.6 Beta**).
+Fecha: 2026-08-04. Versión de máquina actual en `codex/map-2`: **0.11.8** (UI: **0.11.8**).
 
-**⚠️ ORDEN REORDENADO POR DECISIÓN DEL USUARIO (2026-07-25): el gate de viabilidad multijugador se DIFIERE a post-lanzamiento.** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno del 4 de noviembre, para una feature que este mismo roadmap documenta como no diferenciadora, no prometida públicamente y que puede terminar en NO-GO — mientras el Mapa 2, el boss final, los 3 personajes y los contratos quedaban comprimidos en ~3 semanas. Del gate se rescató solo la mitad barata: cobertura de smoke tests (`npm run test:smoke`). El determinismo de tick fijo sigue diferido.
+## Alcance de variantes — decisión vigente
 
-**Orden vigente:** higiene de release + smoke ✅ → perfil persistente + Contratos ✅ → audio v1 ✅ → **Mapa 2 + Hazard Marshal, primera versión jugable PROVISIONAL 🟡** → arte/gameplay final del bloque → **3 personajes diferenciados** → playtests humanos, balance y retención → Steamworks/cierre. El gate multijugador se reevalúa **después** del lanzamiento.
+**Juego completo (`codex/map-2`):** Mapa 1 / Scrapyard → Mapa 2 **Swarm Foundry** → **Hazard Marshal**. El arco y el finale ya son jugables; Hazard Marshal conserva `modelKey: 'final-boss'`. Su integración y combate actuales son provisionales: faltan moveset autorado definitivo, arena y balance. Volt Warden es diseño histórico/futuro, nunca el boss final vigente.
+
+**Steam Demo (`codex/demo-map1`, separada):** solo Scrapyard / Mapa 1; termina a los 10 minutos con `SECTOR CLEARED`, sin transición a Mapa 2. No amplía ni sustituye este backlog del juego completo.
+
+**Checklist de aceptación congelado de Demo:**
+- [x] Solo Scrapyard / Mapa 1 es seleccionable o jugable.
+- [x] A los 10 minutos termina en `SECTOR CLEARED`; no existe transición a Mapa 2.
+- [x] CTA del juego completo en menú y final, operable con teclado/gamepad y validado por Electron.
+- [x] Los comandos de empaquetado ejecutan el guard de release de demo.
+
+**Texto superseded:** la decisión del 2026-07-14 de “lanzamiento completo directo, sin demo pública” ya no gobierna el plan. Se conserva abajo únicamente como historia de la decisión anterior.
+
+**⚠️ ORDEN REORDENADO POR DECISIÓN DEL USUARIO (2026-07-25): el gate de viabilidad multijugador se DIFIERE a post-lanzamiento.** Se conserva la cobertura de smoke tests; el determinismo de tick fijo sigue diferido.
+
+**Orden vigente del juego completo:** higiene de release + smoke ✅ → perfil persistente + Contratos ✅ → audio v1 ✅ → **Mapa 2 Swarm Foundry + Hazard Marshal provisional** → arte/gameplay final del bloque → **3 personajes diferenciados** → playtests humanos, balance y retención → Steamworks/cierre. El gate multijugador se reevalúa **después** del lanzamiento.
 
 Orden anterior (superseded): foundation de audio → viabilidad multijugador → contenido/balance/retención → catálogo de audio → Steamworks. **Nombre: Voltswarm — CERRADO (confirmado 2026-07-05).** Precio objetivo histórico: **$4.99** con descuento de lanzamiento 10-15%; revisión de mercado previa al lanzamiento pendiente.
 
-**Página Coming Soon pública:** verificada el 2026-07-29 en `https://store.steampowered.com/app/4979220/Voltswarm/`. La primera versión de la página salió sin tráiler: usa screenshots reales y loops animados en `About This Game`. El tráiler principal se producirá cuando estén terminados el Mapa 2, Hazard Marshal y los personajes adicionales, para que represente el juego completo.
+**Estado externo:** Steam App ID `4979220` y `https://store.steampowered.com/app/4979220/Voltswarm/` están verificados. Las afirmaciones históricas de disponibilidad o revisión requieren confirmación externa actual; no se infiere publicación, revisión ni Coming Soon desde este roadmap. El tráiler principal se producirá cuando estén terminados el Mapa 2, Hazard Marshal y los personajes adicionales, para que represente el juego completo.
 
-**Estrategia de lanzamiento confirmada (2026-07-14): lanzamiento completo directo, sin demo pública previa y sin participar en Steam Next Fest.** La página Coming Soon acumula wishlists mientras se termina la versión completa; no se desvía producción hacia una build separada de demo.
+**Estrategia histórica superseded (2026-07-14): lanzamiento completo directo, sin demo pública previa y sin participar en Steam Next Fest.** Fue reemplazada por la Demo pública de Mapa 1; no debe bloquear trabajo de demo ni presentarse como estrategia vigente.
 
-**Fecha objetivo interna (stretch agresivo, 2026-07-17): miércoles 4 de noviembre de 2026.** No es una estimación segura ni una promesa pública/confirmada. Revalidar después de cerrar Mapa 2 + Hazard Marshal y los 3 personajes; si fallan gates medidos, re-baselinar en vez de ocultar el riesgo. Scope freeze para aspirar a esta fecha: exactamente 3 personajes de lanzamiento, ~30 contratos y sin expansión de contenido no planificada. Multiplayer, determinismo de red, host migration, dedicated servers e hybrid local+online quedan fuera del camino crítico y se reevalúan post-lanzamiento. Detalle operativo en `docs/MARKETING_PLAN_LAUNCH_2026.md`.
+**Objetivo interno de RC de la Demo: fin de agosto de 2026.** No es fecha pública, promesa de disponibilidad ni predicción de revisión externa. Se revalida contra su checklist congelado y no fija la fecha del juego completo. El objetivo anterior del 4 de noviembre queda como registro histórico, no como gobernanza vigente.
 
-**Estado operativo actualizado 2026-08-02:** página pública como Coming Soon, paquete/handoff comercial cerrado y audio v1 cerrado. Mapa 2 + Hazard Marshal ya tienen una primera versión jugable PROVISIONAL; faltan sus assets finales y el moveset autorado. Después vienen 3 personajes diferenciados. Los playtests humanos y la calibración de balance se harán cuando ese contenido exista en una build comparable.
+**Estado operativo:** el paquete/handoff comercial y audio v1 no significan que el juego completo esté cerrado. Mapa 2 + Hazard Marshal ya tienen una primera versión jugable PROVISIONAL; faltan assets finales, moveset autorado, arena y balance. Después vienen 3 personajes diferenciados. Los playtests humanos y la calibración de balance se harán cuando ese contenido exista en una build comparable.
 
 ## Hecho (pase de endurecimiento, 2026-07-04)
 
@@ -79,13 +93,13 @@ Lo que falta para que las capturas/GIFs vendan la página de Steam:
 
 ## Fase 2 — Handoff al publisher y página Coming Soon
 
-- **Deadline público objetivo: 31 de julio de 2026** (página validada por Valve y publicada como Coming Soon). Es un objetivo, no una confirmación del resultado o del plazo de revisión.
+- **Histórico superseded:** el deadline público objetivo del 31 de julio de 2026 no gobierna el plan. Cualquier estado de revisión, publicación o Coming Soon requiere confirmación externa actual.
 - ✅ **Handoff interno completado el 2026-07-16:** el material y la información de la página ya fueron enviados al publisher.
-- ✅ **Página creada por el publisher y enviada a revisión:** estado externo confirmado por el usuario el 2026-07-16.
-- 🔄 **Estado actual:** Steam/Valve está revisando la página.
-- ⛔ **Todavía no confirmado:** aprobación de Valve, publicación o visibilidad como Coming Soon. No inventar App ID, fecha ni resultado de la revisión.
+- ✅ **Página creada por el publisher y enviada a revisión:** registro histórico confirmado por el usuario el 2026-07-16.
+- **Registro histórico:** se informó que Steam/Valve revisaba la página. El estado actual de revisión requiere confirmación externa.
+- ⛔ **Todavía no confirmado:** aprobación de Valve, publicación o visibilidad como Coming Soon. Steam App ID `4979220` está verificado; no inventar fecha ni resultado de la revisión.
 - La página inicial sale deliberadamente sin tráiler. Screenshots y loops animados deben demostrar solo contenido real del build actual; el contenido futuro se etiqueta de forma explícita como plan para la versión completa.
-- **Secuencia externa:** responder cualquier feedback de Steam → esperar aprobación confirmada → publicar Coming Soon. Mientras esté en revisión, no anunciar que ya está live.
+- **Secuencia externa cuando se reconfirme la revisión:** responder cualquier feedback de Steam → esperar aprobación confirmada → publicar Coming Soon. No anunciar que está live sin confirmación externa actual.
 
 **Contenido del handoff enviado (2026-07-16):**
 - ✅ **Store/library assets:** exports vigentes en `art/steam/image/` desde `background-clean-master-3840x2160.png` + logos aprobados: Main 1232×706, Header 920×430, Small 462×174, Vertical 748×896, Library Capsule 600×900, Library Hero 3840×1240, Library Logo 1280×720 y X Header 1500×500.
@@ -109,8 +123,8 @@ Lo que falta para que las capturas/GIFs vendan la página de Steam:
 - ✅ **Pausa** — Escape + pause-on-blur implementados y verificados.
 - ✅ **Build completa + desglose de daño por arma en pantalla final — COMPLETADO 2026-07-17.** La pantalla conserva Weapons/Cores/Mods con el mismo lenguaje visual del RIG. Instrumento de balance sobre el embudo `dealDamage`: daño real sin overkill, atribución de DoT, porcentaje del total y barras comparativas ordenadas.
 - ✅ **Settings in-game — SUPERADO por Settings v3 (2026-07-13, PRD §"Settings v3")**: pantalla completa con sidebar General/Controls, auto-apply (sin botón Apply), remapeo de controles teclado+gamepad, IPC de fullscreen/resolución aplicándose solo al cambiar (fix del parpadeo). Los sliders de volumen existen, persisten y gobiernan la Audio Foundation
-- ✅ **Menú principal completo**: Play / Unlocks / Settings / Exit; Settings compartido con pausa; versión visible abajo a la derecha como `MAJOR.MINOR.PATCH Label` (`0.10.6 Beta`). `vite.config.ts` deriva la presentación desde el SemVer crudo de `package.json`. **Futuro, no implementado:** si el gate da GO, el destino pasa a `Play Solo` / `Play Multiplayer`.
-- ✅ **Steam Playtest Wave 1 activa en `main` (`0.10.5-beta`):** esa release mantiene admisión exacta, `waveId: wave-1`, consentimiento y reset Wave 1. **Desarrollo Mapa 2 (`0.10.6-beta`) es recording-safe:** `enabled: false`, allowlist vacía, `waveId: map-2`, `resetEpoch: null`; la elegibilidad global falsa impide prompts, identidad, cola, red y formulario final de feedback. El código reusable, disclosure, endpoint/token y límites permanecen intactos.
+- ✅ **Menú principal completo**: Play / Unlocks / Settings / Exit; Settings compartido con pausa; versión visible abajo a la derecha como `MAJOR.MINOR.PATCH Label` (`0.11.8`). `vite.config.ts` deriva la presentación desde el SemVer crudo de `package.json`. **Futuro, no implementado:** si el gate da GO, el destino pasa a `Play Solo` / `Play Multiplayer`.
+- ✅ **Steam Playtest Wave 1 activa en `main` (`0.10.5-beta`):** esa release mantiene admisión exacta, `waveId: wave-1`, consentimiento y reset Wave 1. **Desarrollo Mapa 2 (`0.11.8`) es recording-safe:** `enabled: false`, allowlist vacía, `waveId: map-2`, `resetEpoch: null`; la elegibilidad global falsa impide prompts, identidad, cola, red y formulario final de feedback. El código reusable, disclosure, endpoint/token y límites permanecen intactos.
 - ✅ **Reset separado por rama:** `main` conserva `wave-1-rc-2026-08`; `codex/map-2` no procesa reset alguno, ni siquiera un marcador pendiente.
 
 ## Fase 4a — Audio v1 (CERRADO)
@@ -188,7 +202,7 @@ La lista levantada 2026-07-26 queda como registro de decisiones. La primera impl
 1b. **Leaderboards de Steam** (API de leaderboards vía steamworks.js): comparar runs propios y de otros jugadores. Decisiones de diseño pendientes: métrica principal (kills totales vs bosses derrotados vs nivel alcanzado — recomendación: un leaderboard por mapa con kills como métrica, y el detalle del run en el desglose), y asumir que es client-authoritative (falsificable — estándar aceptado en indies de este tamaño, no invertir en anti-cheat)
 2. Legal: créditos, licencias de terceros (three.js MIT), EULA si aplica
 3. Firma de código (presupuestar certificado o aceptar SmartScreen "Unknown Publisher")
-4. ~~Demo para festivales~~ — **DESCARTADA por decisión del usuario (2026-07-14)**. El juego sale directamente como versión completa; Steam Next Fest queda fuera del calendario.
+4. **Histórico superseded (2026-07-14):** la decisión de no Demo/Next Fest fue reemplazada por la Steam Demo de Mapa 1. No gobierna el plan actual ni limita la Demo.
 
 ## Post-lanzamiento (del gap-analysis vs Megabonk; NO bloquean v1)
 

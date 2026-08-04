@@ -23,7 +23,7 @@ Fecha: 2026-07-03. Objetivo: subir el nivel visual manteniendo el estilo "juguet
 6. **Micro-animación de enemigos** — ⏸️ EN PAUSA (2026-07-05) — Implementado (`VISUAL.enemyWobble`, bosses exentos) pero DESACTIVADO por decisión del usuario tras playtest: no convenció la sensación. Revisar más adelante (¿amplitud menor? ¿solo al spawnear?) antes de decidir mantener o borrar el código.
 7. **Screen shake sutil** — ✅ HECHO (2026-07-05) — Solo con daño REAL recibido (no MISS/BLOCK — la sacudida es información) y en muerte de boss; decaimiento exponencial. `VISUAL.screenShake`.
 8. **Cielo degradado + vignette** — ✅ HECHO (2026-07-05) — Fondo con gradiente vertical fundido con la niebla + vignette en el composer (`RenderPass → bloom → vignette → OutputPass`). `VISUAL.sky` / `VISUAL.vignette`.
-9. **Modelos voxel IA** — ✅ ELENCO COMPLETO (2026-07-05) — Pipeline 2D→3D congelado y validado: 6 enemigos + 2 bosses in-game + jugador, todos vía `src/models/registry.ts`. Volt Warden (boss nuevo) modelado pero SIN gameplay (no tiene entrada en `ENEMY_TYPES`, no puede spawnear todavía). 121 FPS validados con el elenco completo + bloom activo.
+9. **Modelos voxel IA** — ✅ Pipeline 2D→3D congelado y validado: 6 enemigos + bosses in-game + jugador, todos vía `src/models/registry.ts`. Hazard Marshal es el boss final vigente del juego completo, integrado de forma provisional; Volt Warden queda como diseño histórico/futuro. 121 FPS validados con el elenco completo + bloom activo.
 
 Regla de oro (de Megabonk): cada efecto se valida con el enjambre al máximo (400+) antes de darse por bueno. El look nunca paga con FPS.
 

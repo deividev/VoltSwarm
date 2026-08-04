@@ -1,8 +1,14 @@
 # Voltswarm — PRD v2 (definitivo)
 
+## Alcance de variantes — fuente de verdad
+
+**Juego completo (`codex/map-2`):** Mapa 1 / Scrapyard → Mapa 2 **Swarm Foundry** → **Hazard Marshal**. El arco y el finale ya son jugables; Hazard Marshal conserva `modelKey: 'final-boss'`. Su integración y combate actuales son provisionales: faltan moveset autorado definitivo, arena y balance. Volt Warden es diseño histórico/futuro, no el boss final vigente.
+
+**Steam Demo (`codex/demo-map1`, separada):** solo Scrapyard / Mapa 1; termina a los 10 minutos como `SECTOR CLEARED`, sin transición a Mapa 2. No describe el flujo ni los metadatos de producto de esta rama de juego completo.
+
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Estado de la arquitectura (actualizado 2026-08-02, v0.10.6-beta)
+## Estado de la arquitectura (actualizado 2026-08-04, v0.11.8)
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
@@ -244,7 +250,7 @@ Successful local packaged Electron run via `npm run benchmark:audio`: determinis
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
-La release activa de Steam Playtest Wave 1 en `main` es `0.10.5-beta`: admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08`. La rama de desarrollo `codex/map-2` usa `0.10.6-beta` con el master desactivado y `resetEpoch: null`, así que ni procesa un marcador pendiente ni vuelve a resetear grabaciones. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
+La release activa de Steam Playtest Wave 1 en `main` es `0.10.5-beta`: admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08`. La rama de desarrollo `codex/map-2` usa `0.11.8` con el master desactivado y `resetEpoch: null`, así que ni procesa un marcador pendiente ni vuelve a resetear grabaciones. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
 
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 
@@ -268,7 +274,7 @@ Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty`
 
 ### Ciclo reutilizable de telemetría privada — `main` activa / Mapa 2 inert
 
-Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. `main` `0.10.5-beta` mantiene la release Wave 1 activa. En `codex/map-2` `0.10.6-beta`, el config es `enabled: false`, allowlist `[]`, `gameId: 'voltswarm'`, `waveId: 'map-2'` y `resetEpoch: null`. La elegibilidad global queda siempre falsa: Electron no puede mostrar prompts de consentimiento/reset, crear identidad/cola, abrir red ni declarar disponible la fachada que habilita el feedback final.
+Un único `TELEMETRY_CONFIG` tipado gobierna habilitación, builds exactas admitidas, `gameId`, `waveId`, schema/disclosure, epoch nullable y límites de transporte/cola. `main` `0.10.5-beta` mantiene la release Wave 1 activa. En `codex/map-2` `0.11.8`, el config es `enabled: false`, allowlist `[]`, `gameId: 'voltswarm'`, `waveId: 'map-2'` y `resetEpoch: null`. La elegibilidad global queda siempre falsa: Electron no puede mostrar prompts de consentimiento/reset, crear identidad/cola, abrir red ni declarar disponible la fachada que habilita el feedback final.
 
 Cuando una wave futura se habilite, Electron main exige una prueba atómica `userData/telemetry-consent.json` ligada al digest determinista de `consentVersion` y de todo el copy renderizado desde `TELEMETRY_CONFIG.disclosure`: ausencia pide consentimiento; corrupción bloquea; la misma disclosure sirve silenciosamente en launches/waves posteriores; cambiar versión o texto vuelve a preguntar automáticamente. El reset tiene un diálogo independiente incluso con consentimiento existente. El renderer **nunca sube datos directamente**: solo publica eventos tipados mediante `contextBridge`; Electron main valida, identifica, encola y sube después de elegibilidad y consentimiento.
 

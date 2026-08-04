@@ -2,6 +2,8 @@
 
 Decisión del 2026-07-02: mantenemos la ambientación scrapyard pero la dirección de arte pasa de "óxido realista" a **juguete industrial** — robots de metal pintado con colores saturados, tipo maquinaria de obra, sobre un suelo oscuro neutro. Dibujo animado, no Mad Max.
 
+**Alcance de variantes:** el juego completo (`codex/map-2`) recorre Scrapyard / Mapa 1 → Swarm Foundry / Mapa 2 → Hazard Marshal; el arco ya es jugable, aunque su arte y combate final siguen provisionales. La Steam Demo separada contiene solo Scrapyard / Mapa 1 y termina a los 10 minutos; no transiciona a otro mapa. Volt Warden queda como diseño histórico/futuro.
+
 ## El mundo es futurista; el scrapyard es el primer mapa
 
 Decisión del 2026-07-03 (usuario): el juego es de estética FUTURISTA — todos los enemigos son robots — y el scrapyard no es la identidad del juego sino su **primer escenario**: el desguace donde van a morir los robots (junkpunk). La progresión de mapas es también la progresión estética hacia lo futurista puro:

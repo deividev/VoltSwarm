@@ -298,7 +298,7 @@ Estos ejemplos describen relaciones de diseño, no personajes, pasivas, nombres 
 | Hostigamiento móvil | Más movilidad y rango a cambio de menor resistencia. | Proyectiles de alcance y rebote como Bolt o Ricochet. | Favorecer el reposicionamiento y la selección de objetivos, sin bloquear un build cercano viable. |
 | Presión sostenida | Más cadencia y resistencia a cambio de menor área o movilidad. | Un estilo de fuego rápido o continuo, pensado para mantener presión. | Apoyar la continuidad de combate sin convertir cada impacto del juego en una mejora global. |
 
-La elección definitiva de contra-stats, afinidades y pasivas se validará con el contenido completo de Mapa 2, Volt Warden y percentiles de runs humanas comparables. Hasta entonces, estos arquetipos son hipótesis de exploración, no contratos de implementación.
+La elección definitiva de contra-stats, afinidades y pasivas se validará con el contenido completo de Mapa 2 Swarm Foundry, Hazard Marshal y percentiles de runs humanas comparables. Hasta entonces, estos arquetipos son hipótesis de exploración, no contratos de implementación.
 
 Fuentes estructurales: [Megabonk en Steam](https://store.steampowered.com/app/3405340/Megabonk/) · [Vampire Survivors en Steam](https://store.steampowered.com/app/1794680/Vampire_Survivors/).
 

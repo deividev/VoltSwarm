@@ -2,7 +2,7 @@
 
 > **Estado (2026-07-17):** la Audio Foundation est? implementada: `AudioDirector` sem?ntico, buses Master/Music/SFX ligados a settings persistentes, assets locales pre-renderizados y una prueba de loop musical generado temporal. No equivale al cat?logo final: la producci?n, mezcla y licencia de P1/P2/P3 contin?an despu?s de contenido/balance.
 >
-> **Límite explícito:** foundation ≠ producción de ~95 assets. Antes del catálogo completo, re-auditar esta lista contra el juego terminado: Volt Warden, mapa 2+, contratos, endless y todo lo añadido después del 2026-07-13 no está inventariado aquí. Única excepción: adelantar la música principal si el tráiler final la necesita. El pipeline de autoría, licencias y reproducibilidad vive en `docs/AUDIO_AUTHORING_PIPELINE.md`.
+> **Límite explícito:** foundation ≠ producción de ~95 assets. Antes del catálogo completo, re-auditar esta lista contra el juego terminado: Hazard Marshal provisional, Mapa 2 Swarm Foundry, contratos, endless y todo lo añadido después del 2026-07-13 no está inventariado aquí. Única excepción: adelantar la música principal si el tráiler final la necesita. El pipeline de autoría, licencias y reproducibilidad vive en `docs/AUDIO_AUTHORING_PIPELINE.md`.
 
 ## Dirección de audio (regla de `DIRECCION_ARTE.md`, no negociable)
 
@@ -96,7 +96,7 @@ Voltling/Sparkrunner no necesitan voz propia: los cubre el clank común (son mas
 | `sfx-boss-tesla-burst` | Tesla Titan: anillo radial | Descarga eléctrica grande (más gorda que el Gunner) + disparo de estrella roja con impacto propio | P1 |
 | `sfx-boss-death` | Boss DESTROYED | Fanfarria de demolición (colapso metálico + sting de victoria) — claramente distinta al clank común | P1 |
 
-Volt Warden: **fuera de alcance** — sin mecánicas diseñadas aún (Fase 5). Anotar su audio cuando exista.
+Hazard Marshal: **fuera de alcance** — el combate y moveset actuales son provisionales. Anotar su audio cuando exista el diseño de pelea definitivo. Volt Warden queda como diseño histórico/futuro.
 
 ## 4. Jugador
 
