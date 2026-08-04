@@ -20,7 +20,7 @@ El balance no cambia en este corte. Los cambios futuros se validan primero en `m
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Estado de la arquitectura (actualizado 2026-07-26, v0.6.5)
+## Estado de la arquitectura (actualizado 2026-08-04, v0.12.1-demo)
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
@@ -236,7 +236,7 @@ Todo personaje nuevo exige `modelKey` validado y frontal/lateral/trasera planas 
 - **Field Repair** cura 6% del HP máximo después de instalar o subir tier de un Core durante gameplay. Clampea a máximo, no hace overheal y no se ejecuta en load, replay, Boss Lab o reconstrucción.
 - Bolt Cannon no se garantiza ni cambia las odds: si entra naturalmente en el draft, solo muestra `Recommended`.
 - `PROFILE.unlockedCharacters` persiste IDs y Contracts admite rewards `character`; todavía no existen contratos ni umbrales de personajes.
-- El menú **Characters** y la selección previa al arma usan el mismo roster y una frontal ortográfica 2D aprobada (`ref-field-engineer-front-v1.png`). El detalle mantiene filas e iconos propios por stat, Field Repair es config-backed, Bolt Cannon sigue siendo solo **Recommended Weapon**, el tradeoff declara `-5% Damage` y el unlock comparte chip verde o Contract con barra segmentada. El preview 3D permanece dormido y no es visible; los atributos `data-character-*` no cambian.
+- El menú **Characters** y la selección previa al arma usan el mismo roster y una frontal ortográfica 2D aprobada (`ref-field-engineer-front-v1.png`). El detalle mantiene filas e iconos propios por stat, Field Repair es config-backed, Bolt Cannon sigue siendo solo **Recommended Weapon** y el tradeoff declara `-5% Damage`. El estado `Unlocked` vive solo bajo el retrato y no se duplica en el detalle; un personaje bloqueado sí añade allí el requisito de Contract con candado y barra segmentada. El preview 3D permanece dormido y no es visible; los atributos `data-character-*` no cambian.
 - Boss Lab conserva el `characterId` registrado y reconstruye primero ese baseline antes de reproducir Cores; la reproducción no atraviesa el trigger de gameplay de Field Repair.
 - El modelo runtime v1 usa perfil lateral medido sin mochila más volumen procedural trasero dedicado. `backPaintRef` solo pinta la carcasa existente. La validación técnica superó el preview 0°/90°/180°/270°, la marcha vista desde atrás y el gate de 400+ (431–440 enemigos, 118.87 FPS medios, bucket mínimo 92.41 FPS, p99 8.5 ms, 0 errores de página y 431/431 enemigos en movimiento). No consta aprobación visual final explícita del usuario, por lo que sigue siendo candidate visual.
 

@@ -233,7 +233,9 @@ test('both character rosters reuse the approved front model reference without mo
   assert.match(hudSource, /data-character-module="signature"[\s\S]*icon-item-repair\.png/);
   assert.match(hudSource, /data-character-module="recommended-weapon"[\s\S]*Recommended Weapon/);
   assert.match(hudSource, /data-character-module="tradeoff"[\s\S]*icon-stat-damage\.png/);
-  assert.match(hudSource, /character-unlock-chip[\s\S]*Unlocked/);
+  assert.match(hudSource, /if \(unlocked \|\| unlock\.kind === 'default'\) \{[\s\S]*return '';/);
+  assert.doesNotMatch(hudSource, /character-unlock-chip|character-unlock-footer unlocked/);
+  assert.doesNotMatch(cssSource, /character-unlock-chip|character-unlock-footer\.unlocked/);
   assert.match(hudSource, /icon-ui-lock-v2\.png[\s\S]*segmentedContractBarHtml/);
   assert.match(hudSource, /lockIcon\.src\s*=\s*'assets\/2d\/icon-ui-lock-v2\.png'/);
   assert.match(hudSource, /lockIcon\.alt\s*=\s*''/);

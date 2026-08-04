@@ -119,7 +119,7 @@ try {
         title: module.querySelector('h3')?.textContent?.trim(),
         badge: module.querySelector('.character-rule-badge')?.textContent?.trim() ?? null,
       })),
-      unlock: detail?.querySelector('.character-unlock-chip')?.textContent?.trim(),
+      unlockFooter: detail?.querySelector('.character-unlock-footer')?.className ?? null,
       canvases: document.querySelectorAll('.character-model-canvas').length,
       webglContexts: window.__characterPortraitWebglContexts,
       gridOverflow: root ? getComputedStyle(root.querySelector('.character-grid')).overflowY : null,
@@ -145,7 +145,7 @@ try {
       detail.scrollTop = 0;
       detail.focus();
     });
-    const seen = { recommended: false, tradeoff: false, footer: false };
+    const seen = { recommended: false, tradeoff: false };
     let firstDelta = 0;
     for (let step = 0; step < 20; step++) {
       const state = await page.$eval(detailSelector, (detail) => {
@@ -160,12 +160,10 @@ try {
           scrollTop: detail.scrollTop,
           recommended: visible('[data-character-module="recommended-weapon"]'),
           tradeoff: visible('[data-character-module="tradeoff"]'),
-          footer: visible('.character-unlock-footer'),
         };
       });
       seen.recommended ||= state.recommended;
       seen.tradeoff ||= state.tradeoff;
-      seen.footer ||= state.footer;
       const before = state.scrollTop;
       await page.keyboard.press('ArrowDown');
       const after = await page.$eval(detailSelector, (detail) => detail.scrollTop);
@@ -177,7 +175,7 @@ try {
       }
     }
     assert.ok(firstDelta > 0, `${rootSelector} must scroll on the first vertical step`);
-    assert.deepEqual(seen, { recommended: true, tradeoff: true, footer: true });
+    assert.deepEqual(seen, { recommended: true, tradeoff: true });
 
     // At the lower boundary ArrowDown exits to actions; ArrowUp returns to
     // the detail pane. At the upper boundary ArrowUp exits to the roster card,
@@ -232,7 +230,7 @@ try {
     const afterStick = await page.$eval(detailSelector, (detail) => detail.scrollTop);
     assert.ok(afterStick > beforeStick, `${rootSelector} must scroll through the real stick path`);
 
-    const seen = { recommended: false, tradeoff: false, footer: false };
+    const seen = { recommended: false, tradeoff: false };
     for (let step = 0; step < 20; step++) {
       const state = await page.$eval(detailSelector, (detail) => {
         const bounds = detail.getBoundingClientRect();
@@ -245,17 +243,15 @@ try {
         return {
           recommended: visible('[data-character-module="recommended-weapon"]'),
           tradeoff: visible('[data-character-module="tradeoff"]'),
-          footer: visible('.character-unlock-footer'),
         };
       });
       seen.recommended ||= state.recommended;
       seen.tradeoff ||= state.tradeoff;
-      seen.footer ||= state.footer;
       await padEdge({ button: 13 });
       const exitFocused = await page.$eval(`#${expectedExitId}`, (item) => item.classList.contains('pad-focus'));
       if (exitFocused) break;
     }
-    assert.deepEqual(seen, { recommended: true, tradeoff: true, footer: true });
+    assert.deepEqual(seen, { recommended: true, tradeoff: true });
     await assertPadFocus(`#${expectedExitId}`);
 
     await padEdge({ button: 12 });
@@ -405,7 +401,7 @@ try {
       badge: null,
     },
   ]);
-  assert.equal(selectorState.unlock, 'Unlocked');
+  assert.equal(selectorState.unlockFooter, null);
   assert.equal(selectorState.canvases, 0);
   assert.equal(selectorState.webglContexts, baselineWebglContexts);
   assert.equal(selectorState.gridOverflow, 'auto');
