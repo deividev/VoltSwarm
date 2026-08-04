@@ -1710,7 +1710,7 @@ export class Hud {
 
   private characterUnlockHtml(character: CharacterDef, unlocked: boolean): string {
     if (unlocked || character.unlock.kind === 'default') {
-      return '<footer class="character-unlock-footer unlocked"><span class="character-unlock-chip">Unlocked</span></footer>';
+      return '';
     }
     const contractId = character.unlock.contractId;
     const contract = ACTIVE_CONTRACTS.find((item) => item.id === contractId);

@@ -3149,16 +3149,6 @@ body:has(.menu-view:not(.hidden)) #build-panel {
   background: rgba(16, 20, 27, 0.9);
   border: 2px solid #334854;
 }
-.character-unlock-footer.unlocked { border-left: 3px solid #5fd068; }
-.character-unlock-chip {
-  display: inline-block;
-  padding: 5px 8px;
-  color: #162533;
-  background: #5fd068;
-  font-size: 8px;
-  letter-spacing: 0.8px;
-  text-transform: uppercase;
-}
 .character-unlock-footer.locked { border-left: 3px solid #ffbc66; }
 .character-unlock-head,
 .character-unlock-requirement {
