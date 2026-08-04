@@ -995,6 +995,26 @@ body:has(#end-overlay:not(.hidden)) #build-panel {
   align-items: center;
   justify-content: center;
 }
+/* Honest empty-tier anticipation: voxel brackets in the active tier color,
+   never a fake reward icon, currency token, lock, label or model asset. */
+.chest-anticipation-mark {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  transform: rotate(calc(var(--anticipation-phase, 0) * 45deg));
+  filter: drop-shadow(0 0 13px var(--burst, #f2b632));
+}
+.chest-anticipation-mark i {
+  position: absolute;
+  width: 34px;
+  height: 12px;
+  background: var(--burst, #f2b632);
+  box-shadow: 0 0 0 4px rgba(14, 20, 30, 0.82);
+}
+.chest-anticipation-mark i:nth-child(1) { top: 18px; left: 8px; transform: rotate(45deg); }
+.chest-anticipation-mark i:nth-child(2) { top: 18px; right: 8px; transform: rotate(-45deg); }
+.chest-anticipation-mark i:nth-child(3) { bottom: 18px; left: 8px; transform: rotate(-45deg); }
+.chest-anticipation-mark i:nth-child(4) { right: 8px; bottom: 18px; transform: rotate(45deg); }
 /* Mystery pass: while the reel spins, icons show as DARK shaded shapes —
    grayscale keeps the internal voxel detail (flat silhouettes turned splashy
    mods into paint blobs), brightness hides the color read, and a faint

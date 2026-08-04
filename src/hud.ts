@@ -53,45 +53,50 @@ const RARITY_LABEL: Record<string, string> = {
   gold: 'Legendary',
 };
 
+export type ChestReelCell =
+  | { kind: 'mod'; id: ModId }
+  | { kind: 'anticipation'; tier: Rarity; variant: number };
+
 /** Build the deterministic reel sequence while keeping the rolled prize last. */
 export function buildChestReelStrip(
   finalMod: ModId,
   tier: Rarity,
   startIndex: number,
   sceneryCellCount = 18,
-): ModId[] {
+): ChestReelCell[] {
   const tierPool = modsOfTier(tier);
   const spinPool = tierPool.length > 0 ? [...tierPool] : [...UNLOCKED_MOD_IDS];
   if (spinPool.length < 3) {
-    for (const id of MOD_IDS) {
-      if (spinPool.length >= 4) break;
-      if (!spinPool.includes(id)) spinPool.push(id);
+    const anticipation: ChestReelCell[] = [];
+    for (let i = 0; i < sceneryCellCount; i++) {
+      anticipation.push({ kind: 'anticipation', tier, variant: (startIndex + i) % 4 });
     }
+    anticipation.push({ kind: 'mod', id: finalMod });
+    return anticipation;
   }
 
-  if (spinPool.length === 0) return [finalMod];
   const normalizedStart = ((startIndex % spinPool.length) + spinPool.length) % spinPool.length;
-  const strip: ModId[] = [];
+  const itemIds: ModId[] = [];
   for (let i = 0; i < sceneryCellCount; i++) {
-    strip.push(spinPool[(normalizedStart + i) % spinPool.length]!);
+    itemIds.push(spinPool[(normalizedStart + i) % spinPool.length]!);
   }
-  strip.push(finalMod);
+  itemIds.push(finalMod);
 
   if (spinPool.length > 1) {
     const fix = (index: number): void => {
       const replacement = spinPool.find(
-        (id) => id !== strip[index - 1] && id !== strip[index + 1],
+        (id) => id !== itemIds[index - 1] && id !== itemIds[index + 1],
       );
-      if (replacement) strip[index] = replacement;
+      if (replacement) itemIds[index] = replacement;
     };
-    for (let i = 1; i < strip.length - 1; i++) {
-      if (strip[i] === strip[i - 1]) fix(i);
+    for (let i = 1; i < itemIds.length - 1; i++) {
+      if (itemIds[i] === itemIds[i - 1]) fix(i);
     }
-    const last = strip.length - 1;
-    if (strip[last] === strip[last - 1]) fix(last - 1);
+    const last = itemIds.length - 1;
+    if (itemIds[last] === itemIds[last - 1]) fix(last - 1);
   }
 
-  return strip;
+  return itemIds.map((id) => ({ kind: 'mod', id }));
 }
 
 // Mod display data (icons, labels, descriptions) lives in mods.ts — the
@@ -2329,31 +2334,21 @@ export class Hud {
     icon.innerHTML = '';
     const cellCount = 18;
     // Spin through ALL mods OF THE CHEST'S TIER — unlocked AND contract-locked
-    // — so locked content is teased (a padlock badge marks it). The reel still
-    // only LANDS on the unlocked finalMod. Falls back to the whole unlocked
-    // pool only if the tier is somehow empty. Tier is capped to a populated
-    // one at spawn, so cross-tier teasing never happens.
+    // — so locked content is teased (a padlock badge marks it). A populated
+    // tier with fewer than three items uses neutral tier anticipation cells,
+    // never objects from a lower rarity. The reel only lands on finalMod.
     const tierPool = modsOfTier(tier);
     const spinPool = tierPool.length > 0 ? [...tierPool] : [...UNLOCKED_MOD_IDS];
-    // A reel needs variety to read as a reel. Gold holds one mod, so a strict
-    // same-tier strip would show one icon nineteen times — precisely what "the
-    // reel looks rigged" looks like. Below three entries it borrows other tiers
-    // purely as passing scenery; the tier is still signalled by the card frame,
-    // and the cell it
-    // LANDS on is always the rolled tier's prize.
-    if (spinPool.length < 3) {
-      for (const id of MOD_IDS) {
-        if (spinPool.length >= 4) break;
-        if (!spinPool.includes(id)) spinPool.push(id);
+    const cellHtml = (cell: ChestReelCell): string => {
+      if (cell.kind === 'anticipation') {
+        return `<div class="chest-cell chest-cell-anticipation" data-anticipation-tier="${cell.tier}" style="--anticipation-phase:${cell.variant}" aria-hidden="true"><span class="chest-anticipation-mark"><i></i><i></i><i></i><i></i></span></div>`;
       }
-    }
-    const cellHtml = (id: ModId): string => {
-      const entry = MOD_REGISTRY[id];
-      const locked = !UNLOCKED_MOD_IDS.includes(id);
+      const entry = MOD_REGISTRY[cell.id];
+      const locked = !UNLOCKED_MOD_IDS.includes(cell.id);
       const lock = locked
         ? '<img class="chest-cell-lock" src="assets/2d/icon-ui-lock-v2.png" alt="" />'
         : '';
-      return `<div class="chest-cell${locked ? ' locked' : ''}" data-mod-id="${id}">${iconHtml(entry)}${lock}</div>`;
+      return `<div class="chest-cell${locked ? ' locked' : ''}" data-mod-id="${cell.id}">${iconHtml(entry)}${lock}</div>`;
     };
     const startIdx = Math.floor(Math.random() * spinPool.length);
     const strip = buildChestReelStrip(finalMod, tier, startIdx, cellCount);

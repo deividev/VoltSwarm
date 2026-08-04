@@ -19,9 +19,13 @@ for (const tier of ['gray', 'green', 'blue', 'purple', 'gold']) {
       for (let start = 0; start < Math.max(mods.MOD_IDS.length, 4); start++) {
         const strip = hud.buildChestReelStrip(finalMod, tier, start);
         assert.equal(strip.length, 19);
-        assert.equal(strip.at(-1), finalMod);
+        assert.deepEqual(strip.at(-1), { kind: 'mod', id: finalMod });
         for (let index = 1; index < strip.length; index++) {
-          assert.notEqual(strip[index], strip[index - 1], `${tier}/${finalMod}/start-${start} at ${index}`);
+          const previous = strip[index - 1];
+          const current = strip[index];
+          if (previous.kind === 'mod' && current.kind === 'mod') {
+            assert.notEqual(current.id, previous.id, `${tier}/${finalMod}/start-${start} at ${index}`);
+          }
         }
       }
     }
@@ -58,10 +62,20 @@ test('Overload Trigger derives Epic rarity and economy without changing its beha
   );
 });
 
-test('gold borrows varied scenery without changing the prize tier', () => {
+test('gold uses only neutral Legendary anticipation before the exact prize', () => {
   const finalMod = mods.modsOfTier('gold')[0];
   const strip = hud.buildChestReelStrip(finalMod, 'gold', 0);
-  assert.equal(strip.at(-1), finalMod);
-  assert.ok(new Set(strip.slice(0, -1)).size >= 3);
-  assert.ok(strip.slice(0, -1).some((id) => mods.MOD_REGISTRY[id].tier !== 'gold'));
+  assert.deepEqual(strip.at(-1), { kind: 'mod', id: finalMod });
+  assert.deepEqual(strip.at(-2), { kind: 'anticipation', tier: 'gold', variant: 1 });
+  assert.ok(strip.slice(0, -1).every((cell) => cell.kind === 'anticipation' && cell.tier === 'gold'));
+  assert.equal(strip.slice(0, -1).some((cell) => cell.kind === 'mod'), false);
+});
+
+test('tiers with at least three items keep their complete item-only reel behavior', () => {
+  for (const tier of ['gray', 'green', 'blue', 'purple']) {
+    const finalMod = mods.modsOfTier(tier)[0];
+    const strip = hud.buildChestReelStrip(finalMod, tier, 0);
+    assert.ok(strip.every((cell) => cell.kind === 'mod'));
+    assert.deepEqual(strip.at(-1), { kind: 'mod', id: finalMod });
+  }
 });
