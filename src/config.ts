@@ -1323,7 +1323,7 @@ export const CORE_TIER_MAGNITUDES = {
   thorns: [6, 9, 12, 20, 28],
   lifesteal: [3, 4, 6, 10, 14],
   duration: [0.1, 0.13, 0.16, 0.25, 0.35],
-  luck: [0.06, 0.08, 0.1, 0.14, 0.2],
+  luck: [0.04, 0.08, 0.1, 0.14, 0.2],
   cursed: [0.06, 0.08, 0.1, 0.14, 0.2],
   'projectile-count': [1, 1, 1, 1, 1],
 } as const satisfies Record<string, CoreTierMagnitudes>;
@@ -1751,8 +1751,9 @@ export const MODS = {
  *  Effective weight = base + luck * luckShift.
  *  A 0.10 Luck rating means 10%, but it is not a direct +10 percentage-point
  *  rarity chance: the shifted weights are normalized by the complete pool.
- *  At 0 Luck, three cards have a 5.88% chance to show any purple/gold card
- *  and a 0.60% chance to show at least one gold card. */
+ *  At 0 Luck, three cards have a 5.881% chance to show any purple/gold card
+ *  and a 0.599% chance to show at least one gold card. Common Lucky Gear
+ *  raises those chances to about 11.633% and 2.857%, respectively. */
 export const TIERS = {
   weights: { gray: 62, green: 27, blue: 9, purple: 1.8, gold: 0.2 },
   luckShift: { gray: 0, green: 0, blue: 45, purple: 35, gold: 20 },
