@@ -1472,6 +1472,21 @@ img.ui-glyph {
   width: 26px;
   height: 26px;
 }
+/* Name over bar: the icon says what KIND of buff, the name removes any doubt,
+   and the bar says how long is left. A player who has not memorised the icon
+   set can still read the chip. */
+.buff-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.buff-name {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  color: #cfe6ff;
+  line-height: 1;
+}
 .buff-track {
   width: 68px;
   height: 8px;

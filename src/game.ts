@@ -1124,6 +1124,19 @@ export class Game {
             totalS: PICKUPS.hasteDurationS * this.stats.duration,
           }]
         : []),
+      // Overload Trigger: x2 attack speed after an elite/boss kill. It had no
+      // indicator at all, same defect as the crate buffs — and it is the
+      // biggest of the three, so not showing it was the worst of the set.
+      ...(this.overloadS > 0
+        ? [{
+            id: 'overload' as const,
+            remainingS: this.overloadS,
+            totalS:
+              MODS.overloadTrigger.durationS +
+              Math.max(0, (this.modCounts['overload-trigger'] ?? 1) - 1) *
+                MODS.overloadTrigger.durationPerCopyS,
+          }]
+        : []),
     ]);
     if (this.lifestealCooldown > 0) this.lifestealCooldown -= dt;
     if (this.overloadS > 0) this.overloadS -= dt;
