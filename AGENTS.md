@@ -10,6 +10,14 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 
 ## ⚡ Lo primero que hay que mirar, según lo que te pidan
 
+## Contrato obligatorio — UI de personaje jugable nuevo
+
+- `CharacterDef`: `modelKey` validado y frontal ortográfica aprobada en una ruta empaquetada; el pipeline mantiene frontal/lateral/trasera planas.
+- Tarjeta: retrato + nombre + estado; frontal con alpha sobre `#444e5e`, borde `#2b3340`, selección cian. Bloqueado = texto exacto `Locked` + `assets/2d/icon-ui-lock-v2.png`, nunca emoji.
+- Detalle: un icono in-game distinto y veraz por stat, sin combinar stats ni usar Shield para Armor; todos los valores/unidades derivan de config/`CharacterDef`.
+- Incluir firma con magnitud config-derived, Recommended Weapon solo visual, tradeoff y Contract/progreso bloqueado.
+- Characters y pre-run comparten renderer, `data-character-*`, teclado/gamepad, scroll responsive y Confirm bloqueado. El preview 3D queda dormido, sin montarse.
+
 | Te piden... | Leé ESTO primero | Guardarraíl que no se negocia aquí |
 | --- | --- | --- |
 | Fix de un bug puntual | `docs/PRD.md` (¿qué debería hacer este sistema?) | Números en `src/config.ts`, nunca hardcodeados |

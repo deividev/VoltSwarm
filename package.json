@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.11.8-demo",
+  "version": "0.11.9-demo",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -21,6 +21,9 @@
     "test:demo": "node --test tools/demo-build.test.cjs tools/version-format.test.cjs",
     "test:playtest-reset": "npm run electron:build && node --test tools/playtest-reset.test.cjs",
     "test:characters": "node --test tools/characters.test.mjs",
+    "test:character-preview": "node --test tools/character-preview-state.test.mjs",
+    "test:character-portrait-browser": "node tools/character-portrait-browser.test.mjs",
+    "test:audio-selection": "node --test tools/audio-selection.test.mjs",
     "test:stat-units": "node --test tools/stat-units.test.mjs",
     "stats": "node tools/run-stats.mjs",
     "reset:profile": "node tools/reset-profile.mjs",
@@ -55,7 +58,7 @@
     "vite": "^5.4.10"
   },
   "build": {
-    "buildVersion": "0.11.8.0",
+    "buildVersion": "0.11.9.0",
     "appId": "com.davidseco.voltswarm.demo",
     "productName": "Voltswarm Demo",
     "directories": {

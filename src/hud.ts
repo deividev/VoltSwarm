@@ -1,4 +1,4 @@
-import { PROFILE, DEV_TOOLS, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, type WeaponId } from './config';
+import { PROFILE, DEV_TOOLS, MENU_NAVIGATION, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, type WeaponId } from './config';
 import { LIFETIME, resetProfile, saveProfile } from './profile';
 import {
   ACTIVE_CONTRACTS,
@@ -863,6 +863,7 @@ export class Hud {
       },
       { capture: true },
     );
+    window.addEventListener('keydown', (event) => this.handleCharacterDetailKeyDown(event));
 
     // Pre-composites every core icon inside the tier-tinted orb shell;
     // cards/panel fall back to bare icons until this resolves.
@@ -1114,12 +1115,6 @@ export class Hud {
     const item = document.createElement('div');
     item.className = `contract-row${row.done ? ' done' : ''}`;
 
-    // Cells rather than a smooth fill: the whole HUD speaks in segmented bars,
-    // and a continuous gradient here would read as a different game.
-    const CELLS = 12;
-    const filled = row.target > 0 ? Math.round((row.current / row.target) * CELLS) : 0;
-    const cells = Array.from({ length: CELLS }, (_, i) => `<i class="${i < filled ? 'on' : ''}"></i>`).join('');
-
     item.innerHTML =
       `<div class="contract-icon">${rewardIconHtml(resolved, row.done)}</div>` +
       '<div class="contract-body">' +
@@ -1128,7 +1123,7 @@ export class Hud {
           `<span class="contract-count">${row.done ? 'COMPLETE' : `${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}`}</span>` +
         '</div>' +
         `<div class="contract-desc">${row.contract.description}</div>` +
-        `<div class="contract-bar">${cells}</div>` +
+        segmentedContractBarHtml(row.current, row.target) +
         `<div class="contract-reward">${rewardLabelHtml(row.contract.reward, resolved, row.done)}</div>` +
       '</div>';
     return item;
@@ -1316,6 +1311,7 @@ export class Hud {
         COIN_ICON,
         SKULL_ICON,
         'assets/2d/icon-ui-lock-v2.png',
+        'assets/2d/icon-item-repair.png',
         'assets/2d/ref-scrapper-front-v2.png',
         'assets/2d/logo-mascot-v3.png',
         'assets/2d/logo-letras-v3.png',
@@ -1323,6 +1319,9 @@ export class Hud {
         ...Object.values(STAT_ICON_IMAGES),
         ...Object.values(CARD_ICON_IMAGES),
         ...Object.values(BOSS_PORTRAITS),
+        ...Object.values(CHARACTER_REGISTRY)
+          .map((character) => character.portrait)
+          .filter((src): src is string => typeof src === 'string'),
         ...Object.values(MOD_REGISTRY)
           .map((mod) => mod.image)
           .filter((src): src is string => typeof src === 'string'),
@@ -1420,16 +1419,7 @@ export class Hud {
     }
     // The chest reel card (#chest-card) is a display, not a choice — the
     // only action after opening a chest is Continue, so focus lands there.
-    const items = Array.from(
-      container.querySelectorAll<HTMLElement>(
-        'button, select, input[type="range"], .upgrade-card:not(#chest-card), .unlock-row',
-      ),
-    ).filter(
-      (el) =>
-        el.offsetParent !== null &&
-        !el.classList.contains('hidden') &&
-        !(el as HTMLButtonElement).disabled,
-    );
+    const items = this.menuNavItems(container);
     if (items.length === 0) return;
     if (this.padNavContainer !== container) {
       this.padNavContainer = container;
@@ -1479,7 +1469,10 @@ export class Hud {
     } else if (horizontal !== 0 && vertical === 0) {
       vertical = horizontal;
     }
-    if (vertical !== 0) {
+    if (vertical !== 0 && current?.matches('[data-character-detail-scroll]') && this.scrollCharacterDetail(current, vertical)) {
+      // Keep focus in the detail pane until the requested direction reaches
+      // its boundary. The next press then resumes ordinary menu traversal.
+    } else if (vertical !== 0) {
       this.padNavIndex = (this.padNavIndex + vertical + items.length) % items.length;
       this.setPadFocus(items[this.padNavIndex] ?? null);
     } else if (!items[this.padNavIndex]?.classList.contains('pad-focus')) {
@@ -1565,6 +1558,53 @@ export class Hud {
     }
   }
 
+  private menuNavItems(container: HTMLElement): HTMLElement[] {
+    return Array.from(
+      container.querySelectorAll<HTMLElement>(
+        'button, select, input[type="range"], .upgrade-card:not(#chest-card), .unlock-row, [data-character-detail-scroll]',
+      ),
+    ).filter(
+      (el) =>
+        el.offsetParent !== null &&
+        !el.classList.contains('hidden') &&
+        !(el as HTMLButtonElement).disabled,
+    );
+  }
+
+  private scrollCharacterDetail(detail: HTMLElement, direction: number): boolean {
+    const before = detail.scrollTop;
+    const max = Math.max(0, detail.scrollHeight - detail.clientHeight);
+    detail.scrollTop = Math.min(max, Math.max(0, before + direction * MENU_NAVIGATION.characterDetailScrollPx));
+    return detail.scrollTop !== before;
+  }
+
+  private handleCharacterDetailKeyDown(event: KeyboardEvent): void {
+    const direction = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0;
+    if (direction === 0 || !(event.target instanceof HTMLElement)) return;
+    const target = event.target;
+    const container = target.closest<HTMLElement>('#character-select-overlay, #characters-overlay');
+    if (!container || container.classList.contains('hidden')) return;
+
+    if (target.matches('[data-character-detail-scroll]') && this.scrollCharacterDetail(target, direction)) {
+      event.preventDefault();
+      return;
+    }
+
+    const items = this.menuNavItems(container);
+    const index = items.indexOf(target);
+    const nextIndex = index + direction;
+    const next = nextIndex >= 0 && nextIndex < items.length ? items[nextIndex] : null;
+    if (index < 0 || !next) return;
+    // Arrow navigation is scoped to entering or leaving the scroll region;
+    // ordinary buttons keep their existing keyboard behavior elsewhere.
+    if (!target.matches('[data-character-detail-scroll]') && !next.matches('[data-character-detail-scroll]')) return;
+    event.preventDefault();
+    this.padNavContainer = container;
+    this.padNavIndex = nextIndex;
+    this.setPadFocus(next);
+    next.focus({ preventScroll: true });
+  }
+
   /** Start-of-run weapon draft: 3 random distinct options out of the
    *  profile's UNLOCKED weapons (contract-locked ones never appear). */
   private showCharacterSelection(): void {
@@ -1583,6 +1623,10 @@ export class Hud {
     host.innerHTML = '<div class="character-grid"></div><div class="character-detail"></div>';
     const grid = host.querySelector<HTMLElement>('.character-grid')!;
     const detail = host.querySelector<HTMLElement>('.character-detail')!;
+    detail.tabIndex = 0;
+    detail.dataset.characterDetailScroll = 'true';
+    detail.setAttribute('role', 'region');
+    detail.setAttribute('aria-label', `${selected.name} character details`);
 
     for (const character of characters) {
       const unlocked = PROFILE.unlockedCharacters.includes(character.id);
@@ -1596,7 +1640,14 @@ export class Hud {
       const name = document.createElement('strong');
       name.textContent = character.name;
       const status = document.createElement('span');
-      status.textContent = unlocked ? 'Unlocked' : 'Locked';
+      status.className = `character-card-status ${unlocked ? 'unlocked' : 'locked'}`;
+      if (!unlocked) {
+        const lockIcon = document.createElement('img');
+        lockIcon.src = 'assets/2d/icon-ui-lock-v2.png';
+        lockIcon.alt = '';
+        status.append(lockIcon);
+      }
+      status.append(unlocked ? 'Unlocked' : 'Locked');
       card.append(name, status);
       card.addEventListener('click', () => {
         this.selectedCharacterId = character.id;
@@ -1606,16 +1657,50 @@ export class Hud {
     }
 
     const statRows = characterStatRows(selected);
+    const damageTradeoff = statRows.find((row) => row.id === 'damage');
+    const recommendedWeapon = WEAPON_INFO[selected.recommendedWeapon];
+    const recommendedWeaponIcon = WEAPON_ICON_IMAGES[selected.recommendedWeapon];
     detail.innerHTML = `
-      ${this.characterPortraitHtml(selected, true)}
-      <h2>${selected.name}</h2>
-      <p>${selected.shortDescription}</p>
+      <header class="character-detail-header">
+        <span>Character Profile</span>
+        <h2>${selected.name}</h2>
+        <p>${selected.shortDescription}</p>
+      </header>
       <div class="character-stat-grid">
-        ${statRows.map((row) => `<span>${row.label}</span><strong>${row.value}</strong>`).join('')}
+        ${statRows.map((row) => `
+          <div class="character-stat-row build-row" data-character-stat="${row.id}">
+            <img class="build-icon build-icon-img" src="${row.icon}" alt="" />
+            <span>${row.label}</span>
+            <strong class="build-value">${row.value}</strong>
+          </div>`).join('')}
       </div>
-      <section><h3>${selected.signature.name}</h3><p>${selected.signature.description}</p></section>
-      <section><h3>Tradeoff</h3><p>${selected.tradeoff}</p></section>
-      <section><h3>Recommended Weapon</h3><p>${WEAPON_INFO[selected.recommendedWeapon].title}</p></section>
+      <div class="character-module-grid">
+        <section class="character-module signature" data-character-module="signature">
+          ${rigTileHtml({ src: 'assets/2d/icon-item-repair.png', label: selected.signature.name, cls: 'character-module-tile' })}
+          <div class="character-module-copy">
+            <span class="character-module-kicker">Signature</span>
+            <h3>${selected.signature.name}</h3>
+            <p>${selected.signature.description}</p>
+            <span class="character-rule-badge">${selected.signature.badge}</span>
+          </div>
+        </section>
+        <section class="character-module" data-character-module="recommended-weapon">
+          ${rigTileHtml({ src: recommendedWeaponIcon, label: recommendedWeapon.title, cls: 'character-module-tile' })}
+          <div class="character-module-copy">
+            <span class="character-module-kicker">Recommended Weapon</span>
+            <h3>${recommendedWeapon.title}</h3>
+            <p>Highlighted when offered in the starting draft.</p>
+          </div>
+        </section>
+        <section class="character-module tradeoff" data-character-module="tradeoff">
+          ${rigTileHtml({ src: 'assets/2d/icon-stat-damage.png', label: 'Damage tradeoff', cls: 'character-module-tile' })}
+          <div class="character-module-copy">
+            <span class="character-module-kicker">Tradeoff</span>
+            <h3>${damageTradeoff?.value ?? ''} Damage</h3>
+            <p>${selected.tradeoff}</p>
+          </div>
+        </section>
+      </div>
       ${this.characterUnlockHtml(selected, selectedUnlocked)}
     `;
 
@@ -1627,24 +1712,31 @@ export class Hud {
 
   private characterPortraitHtml(character: CharacterDef, large = false): string {
     const cls = `character-portrait${large ? ' large' : ''}`;
+    const initials = character.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
     return character.portrait
-      ? `<img class="${cls}" src="${character.portrait}" alt="" />`
-      : `<div class="${cls} fallback" aria-hidden="true">FE</div>`;
+      ? `<img class="${cls}" src="${character.portrait}" alt="${character.name} front orthographic model reference" />`
+      : `<div class="${cls} fallback" role="img" aria-label="${character.name} character portrait fallback">${initials}</div>`;
   }
 
   private characterUnlockHtml(character: CharacterDef, unlocked: boolean): string {
     const unlock = character.unlock;
     if (unlocked || unlock.kind === 'default') {
-      return '<div class="character-unlock unlocked">Unlocked</div>';
+      return '<footer class="character-unlock-footer unlocked"><span class="character-unlock-chip">Unlocked</span></footer>';
     }
     const contract = ACTIVE_CONTRACTS.find((item) => item.id === unlock.contractId);
-    if (!contract) return '<div class="character-unlock locked">Requirement unavailable</div>';
+    if (!contract) return `<footer class="character-unlock-footer locked">
+      <div class="character-unlock-head"><img src="assets/2d/icon-ui-lock-v2.png" alt="" /><span>Locked</span></div>
+      <span>Requirement unavailable</span>
+    </footer>`;
     const progress = progressOf(contract.objective);
-    const pct = Math.min(100, Math.round(progress.current / Math.max(1, progress.target) * 100));
-    return `<div class="character-unlock locked">
-      <span>${contract.title}: ${progress.current}/${progress.target}</span>
-      <div class="character-progress"><i style="width:${pct}%"></i></div>
-    </div>`;
+    return `<footer class="character-unlock-footer locked">
+      <div class="character-unlock-head"><img src="assets/2d/icon-ui-lock-v2.png" alt="" /><span>Locked</span></div>
+      <div class="character-unlock-requirement">
+        <strong>${contract.title}</strong>
+        <span>${progress.current} / ${progress.target}</span>
+      </div>
+      ${segmentedContractBarHtml(progress.current, progress.target, `${contract.title} progress`)}
+    </footer>`;
   }
 
   private showDraft(characterId: CharacterId): void {
@@ -2510,6 +2602,19 @@ function rewardLabelHtml(original: Reward, resolved: Reward | null, done: boolea
 /** Objectives measured in seconds read as time; everything else stays a count.
  *  The distinction has to come from the objective TYPE, never from the size of
  *  the number — "300 kills" formatted as a duration would say 5:00. */
+/** Shared segmented progress grammar for Contracts and future locked character
+ * requirements. The data stays exact while the cells provide quick shape. */
+function segmentedContractBarHtml(current: number, target: number, label?: string): string {
+  const cellCount = 12;
+  const filled = target > 0 ? Math.round((current / target) * cellCount) : 0;
+  const cells = Array.from(
+    { length: cellCount },
+    (_, index) => `<i class="${index < filled ? 'on' : ''}"></i>`,
+  ).join('');
+  const aria = label ? ` role="progressbar" aria-label="${label}" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${current}"` : '';
+  return `<div class="contract-bar"${aria}>${cells}</div>`;
+}
+
 function fmtProgress(value: number, asTime: boolean): string {
   const total = Math.floor(value);
   if (!asTime) return String(total);

@@ -4,6 +4,10 @@ Decisión del 2026-07-02: mantenemos la ambientación scrapyard pero la direcci�
 
 ## El mundo es futurista; el scrapyard es el primer mapa
 
+## Contrato visual de UI para todo personaje jugable
+
+La incorporación exige `modelKey` validado y frontal/lateral/trasera planas aprobadas. La frontal transparente usa tile `#444e5e` y borde `#2b3340`; la tarjeta conserva retrato, nombre, estado y selección cian. `Unlocked` es el estado abierto; el cerrado muestra `Locked` + `assets/2d/icon-ui-lock-v2.png`, sin emoji ni otro candado. El detalle usa iconos existentes, distintos y veraces por stat, con magnitudes desde config/`CharacterDef`, firma, Recommended Weapon solo visual, tradeoff y Contract/progreso. Menú/pre-run comparten renderer, `data-character-*`, navegación teclado/gamepad y Confirm; la UI no muestra preview 3D. Field Engineer satisface el contrato con `ref-field-engineer-front-v1.png`.
+
 **Alcance de variante:** la Steam Demo contiene solo Scrapyard / Mapa 1 y no transiciona a otro mapa. El juego completo, fuera de la demo, continúa en Mapa 2 **Swarm Foundry** y culmina contra **Hazard Marshal**; ese arco/finale ya es jugable, pero su combate actual sigue provisional. Volt Warden queda como diseño histórico/futuro.
 
 Decisión del 2026-07-03 (usuario): el juego es de estética FUTURISTA — todos los enemigos son robots — y el scrapyard no es la identidad del juego sino su **primer escenario**: el desguace donde van a morir los robots (junkpunk). La progresión de mapas es también la progresión estética hacia lo futurista puro:

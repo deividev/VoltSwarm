@@ -20,6 +20,8 @@ Fecha: 2026-08-04. La versión visible de cada variante se deriva de su `package
 
 **Propagación posterior de balance:** el balance se decide y valida primero en `main`; después se propaga explícitamente `main -> demo-map1` y `main -> map-2`. No se calibran números de gameplay directamente en las ramas derivadas y este corte de demo no cambia balance.
 
+**Port de UX compartida a la Demo (0.11.9-demo):** la revelación de cofre usa la variante de audio de release fijada y el roster comparte contrato 2D de menú/pre-run. No añade mapas, transición ni reclamaciones de Mapa 2 a la demo.
+
 **⚠️ ORDEN REORDENADO POR DECISIÓN DEL USUARIO (2026-07-25): el gate de viabilidad multijugador se DIFIERE a post-lanzamiento.** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno para una feature no diferenciadora, no prometida públicamente y que puede terminar en NO-GO. Del gate se rescató solo la mitad barata: cobertura de smoke tests (`npm run test:smoke`). El determinismo de tick fijo sigue diferido.
 
 **Orden vigente del juego completo:** higiene de release + smoke ✅ → perfil persistente + Contratos ✅ → audio v1 ✅ → **Mapa 2 Swarm Foundry + Hazard Marshal provisional** → **3 personajes diferenciados** → playtests humanos, balance y retención → Steamworks/cierre. El gate multijugador se reevalúa **después** del lanzamiento. Este contenido no amplía la demo.

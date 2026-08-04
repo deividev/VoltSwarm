@@ -18,7 +18,7 @@ export interface CharacterDef {
   maxHp: number;
   moveSpeed: number;
   stats: PlayerStats;
-  signature: { name: string; description: string };
+  signature: { name: string; description: string; badge: string };
   tradeoff: string;
   recommendedWeapon: WeaponId;
   unlock: CharacterUnlock;
@@ -32,6 +32,10 @@ const asSignedPercent = (value: number): string => {
   return `${percent >= 0 ? '+' : ''}${percent}%`;
 };
 const asSignedNumber = (value: number): string => `${value >= 0 ? '+' : ''}${value}`;
+const asValueWithDelta = (value: number, baseline: number): string => {
+  const delta = value - baseline;
+  return delta === 0 ? `${value}` : `${value} (${asSignedNumber(delta)})`;
+};
 
 const fieldEngineerStats = (): PlayerStats => ({
   ...BASE_STATS,
@@ -49,7 +53,7 @@ export const CHARACTER_REGISTRY: Readonly<Record<CharacterId, CharacterDef>> = {
     id: DEFAULT_CHARACTER_ID,
     name: 'Field Engineer',
     shortDescription: 'A forgiving chassis that turns Core upgrades into repairs.',
-    portrait: null,
+    portrait: 'assets/2d/ref-field-engineer-front-v1.png',
     modelKey: 'field-engineer',
     maxHp: CHARACTER_BALANCE.fieldEngineer.maxHp,
     moveSpeed: CHARACTER_BALANCE.fieldEngineer.moveSpeed,
@@ -57,6 +61,7 @@ export const CHARACTER_REGISTRY: Readonly<Record<CharacterId, CharacterDef>> = {
     signature: {
       name: 'Field Repair',
       description: `Installing or upgrading a Core restores ${asPercent(CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction)} of maximum HP.`,
+      badge: `${asPercent(CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction)} MAX HP / CORE UPGRADE`,
     },
     tradeoff: `More durability and repair access, but ${asPercent(BASE_STATS.damage - CHARACTER_BALANCE.fieldEngineer.damage)} less damage.`,
     recommendedWeapon: 'bolt',
@@ -107,8 +112,10 @@ export function characterStats(characterId: CharacterId): PlayerStats {
 }
 
 export interface CharacterStatRow {
+  id: string;
   label: string;
   value: string;
+  icon: string;
 }
 
 /** Presentation values derived from the same config-backed character data as
@@ -117,24 +124,24 @@ export interface CharacterStatRow {
 export function characterStatRows(character: CharacterDef): CharacterStatRow[] {
   return [
     {
+      id: 'max-hp',
       label: 'Max HP',
-      value: `${character.maxHp} (${asSignedNumber(character.maxHp - PLAYER.maxHp)})`,
+      value: asValueWithDelta(character.maxHp, PLAYER.maxHp),
+      icon: 'assets/2d/icon-card-max-hp.png',
     },
-    { label: 'Armor', value: asPercent(character.stats.armor) },
-    { label: 'Damage', value: asSignedPercent(character.stats.damage - BASE_STATS.damage) },
+    { id: 'armor', label: 'Armor', value: asPercent(character.stats.armor), icon: 'assets/2d/icon-stat-armor-v2.png' },
+    { id: 'damage', label: 'Damage', value: asSignedPercent(character.stats.damage - BASE_STATS.damage), icon: 'assets/2d/icon-stat-damage.png' },
     {
+      id: 'move-speed',
       label: 'Move Speed',
-      value: `${character.moveSpeed} (${asSignedNumber(character.moveSpeed - PLAYER.moveSpeed)})`,
+      value: asValueWithDelta(character.moveSpeed, PLAYER.moveSpeed),
+      icon: 'assets/2d/icon-stat-move-speed.png',
     },
-    { label: 'Attack Speed', value: `x${character.stats.attackSpeed}` },
-    {
-      label: 'Crit',
-      value: `${asPercent(character.stats.critChance)} / +${asPercent(character.stats.critDamage)}`,
-    },
-    {
-      label: 'Luck / Regen',
-      value: `${asPercent(character.stats.luck)} / ${character.stats.regen}`,
-    },
+    { id: 'attack-speed', label: 'Attack Speed', value: `x${character.stats.attackSpeed}`, icon: 'assets/2d/icon-stat-attack-speed.png' },
+    { id: 'crit-chance', label: 'Crit Chance', value: asPercent(character.stats.critChance), icon: 'assets/2d/icon-stat-crit.png' },
+    { id: 'crit-damage', label: 'Crit Damage', value: `+${asPercent(character.stats.critDamage)}`, icon: 'assets/2d/icon-stat-crit-damage.png' },
+    { id: 'luck', label: 'Luck', value: asPercent(character.stats.luck), icon: 'assets/2d/icon-stat-luck.png' },
+    { id: 'regen', label: 'Regen', value: `${character.stats.regen}/${PLAYER.regenTickS}s`, icon: 'assets/2d/icon-stat-regen.png' },
   ];
 }
 

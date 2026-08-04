@@ -54,7 +54,7 @@ Current runtime source of truth: `AUDIO.validation.enabledEvents` (config.ts) +
 | `panel-open` | shares `modern-levelup-open` | scrapper shop open = same "options open up" beat | WIRED |
 | `chest-open` | `modern-chest-open` | act 1: mechanical latch pop, 240ms | DONE |
 | `chest-spin` | `modern-chest-spin` | act 2: 2.6s riser, one tick per REEL CELL at bezier-solved times, shimmer on final approach | DONE |
-| `chest-reveal` | `modern-chest-reveal` | act 3: impact in the flash, arp riding the 0.6s icon rise, top note at settle | DONE |
+| `chest-reveal` | `modern-chest-reveal` | act 3: impact in the flash, arp riding the 0.6s icon rise, top note at settle. **Fijado a la variante 0 desde `AUDIO.fixedVariantIndex`**: el manifiesto conserva otros candidatos para audición, pero una run normal ya no los sortea. Un pin dev sigue teniendo prioridad. | DONE |
 | `foundation-music` | `music-lead.mp3` = "Neon Horizon" | in-run bed, loops on music bus, ducks on pause/menu | WIRED (provisional lead; more takes planned) |
 | `menu-music` | `menu-music.mp3` = "Neon Swarm (4)" | title-screen theme, starts on first menu gesture, hands over to the run bed on Play | WIRED |
 | `player-hit` | `player-hit` x2 | PRIORITY danger: metallic clang + heavy sub thud + downward stress bend, peak 0.85 | WIRED (batch A, verdict pending) |

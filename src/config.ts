@@ -65,6 +65,11 @@ export const AUDIO = {
   validation: {
     enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'foundation-music', 'menu-music'] as readonly string[],
   },
+  /** Release-owned variant choices. Dev audition pins still override these;
+   * events absent here keep their normal random rotation. */
+  fixedVariantIndex: {
+    'chest-reveal': 0,
+  } as Readonly<Record<string, number>>,
   voiceCaps: { global: 18, sfx: 14, music: 2 },
   cooldownS: {
     /** Spaced out so death debris reads as background rain under the weapon
@@ -121,6 +126,28 @@ export const AUDIO = {
     sacrificeIntervalS: 0.25,
     sacrificeBatch: 4,
   },
+} as const;
+
+/** Main-menu character model preview. This renderer is separate from gameplay,
+ * but its quality and cadence remain centrally tunable like every visual. */
+export const CHARACTER_MODEL_PREVIEW = {
+  maxDevicePixelRatio: 2,
+  fieldOfViewDeg: 36,
+  nearPlane: 0.1,
+  farPlane: 100,
+  cameraDistanceScale: 2.4,
+  cameraHeightRatio: 0.52,
+  targetHeightRatio: 0.48,
+  minimumCameraDistance: 3.6,
+  spinRadiansPerSecond: 0.22,
+  startingRotationRad: -0.3,
+  backgroundColor: 0x0b1118,
+  hemisphereSkyColor: 0xcfe0ec,
+  hemisphereGroundColor: 0x3c4048,
+  hemisphereIntensity: 1.25,
+  keyLightColor: 0xfff4e0,
+  keyLightIntensity: 1.5,
+  keyLightPosition: [6, 10, 4] as const,
 } as const;
 
 
@@ -252,6 +279,12 @@ export const PLAYER = {
   walkBobHz: 3.2,
   walkBobAmplitude: 0.09,
   walkRockAmplitude: 0.06,
+};
+
+/** Shared menu-navigation tuning. Kept out of HUD code so keyboard and
+ * gamepad traversal use the same deliberate scroll step. */
+export const MENU_NAVIGATION = {
+  characterDetailScrollPx: 180,
 };
 
 /** Instrumentation for the frenzy work: is the player ever actually trapped?

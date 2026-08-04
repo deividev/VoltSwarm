@@ -226,13 +226,17 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 
 ### Personajes — Field Engineer
 
+#### Contrato reutilizable de UI para personajes jugables — implementado
+
+Todo personaje nuevo exige `modelKey` validado y frontal/lateral/trasera planas aprobadas; la frontal empaquetada es el retrato 2D sobre `#444e5e`/`#2b3340`. La tarjeta comunica retrato, nombre y estado: `Unlocked` o texto visible exacto `Locked` junto a `assets/2d/icon-ui-lock-v2.png`, sin emoji. El detalle tiene encabezado, una fila con icono in-game veraz por cada stat (sin combinar stats ni usar Shield para Armor), firma config-derived, Recommended Weapon solo de presentación, tradeoff y Contract/progreso. Menú y pre-run comparten renderer, `data-character-*`, scroll responsive, teclado/gamepad y bloqueo de Confirm. No se monta WebGL: `src/models/character-preview.ts` queda como infraestructura dormida. Field Engineer implementa este contrato con `ref-field-engineer-front-v1.png`.
+
 - `src/characters.ts` define un registry data-driven con ID estable, copy derivada de `CHARACTER_BALANCE`, `modelKey`, perfil base, signature, arma recomendada y metadata de unlock.
 - Flujo de nueva run: **Play → Character Selection → Starting Weapon Draft → Loading → Run**. La selección es una `menu-view`, no un `GameState` nuevo; exige Confirm y soporta teclado/gamepad.
 - Field Engineer (`field-engineer`) está desbloqueado por defecto: 110 HP, Armor rating 5%, Damage ×0.95, Move Speed 11, Attack Speed ×1, crítico 5%/+50%, Luck/Regen 0 y los sockets globales sin cambios (1/2 iniciales, 2/4 máximos).
 - **Field Repair** cura 6% del HP máximo después de instalar o subir tier de un Core durante gameplay. Clampea a máximo, no hace overheal y no se ejecuta en load, replay, Boss Lab o reconstrucción.
 - Bolt Cannon no se garantiza ni cambia las odds: si entra naturalmente en el draft, solo muestra `Recommended`.
 - `PROFILE.unlockedCharacters` persiste IDs y Contracts admite rewards `character`; todavía no existen contratos ni umbrales de personajes.
-- El menú **Characters** usa el mismo registry y tiene estructura de requirement/progreso derivada de Contracts para futuros bloqueados, sin duplicar thresholds.
+- El menú **Characters** y la selección previa al arma usan el mismo roster y una frontal ortográfica 2D aprobada (`ref-field-engineer-front-v1.png`). El detalle mantiene filas e iconos propios por stat, Field Repair es config-backed, Bolt Cannon sigue siendo solo **Recommended Weapon**, el tradeoff declara `-5% Damage` y el unlock comparte chip verde o Contract con barra segmentada. El preview 3D permanece dormido y no es visible; los atributos `data-character-*` no cambian.
 - Boss Lab conserva el `characterId` registrado y reconstruye primero ese baseline antes de reproducir Cores; la reproducción no atraviesa el trigger de gameplay de Field Repair.
 - El modelo runtime v1 usa perfil lateral medido sin mochila más volumen procedural trasero dedicado. `backPaintRef` solo pinta la carcasa existente. La validación técnica superó el preview 0°/90°/180°/270°, la marcha vista desde atrás y el gate de 400+ (431–440 enemigos, 118.87 FPS medios, bucket mínimo 92.41 FPS, p99 8.5 ms, 0 errores de página y 431/431 enemigos en movimiento). No consta aprobación visual final explícita del usuario, por lo que sigue siendo candidate visual.
 

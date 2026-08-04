@@ -17,6 +17,10 @@ Tras una pasada de limpieza carpeta por carpeta, la estructura quedó así (cada
 
 ## Regla de consistencia (NO NEGOCIABLE)
 
+## Checklist de arte + UI para un personaje jugable nuevo
+
+Generar y aprobar siempre frontal/lateral/trasera planas antes de registrar un `modelKey` y la ruta empaquetada de la frontal. Solo esa frontal validada puede ser retrato: sobre `#444e5e`, borde `#2b3340`, tarjeta con retrato/nombre/estado/selección cian. Estado bloqueado = texto `Locked` + `assets/2d/icon-ui-lock-v2.png`; no emoji. El detalle usa iconos in-game distintos y veraces por stat, valores config-derived, firma, recomendación visual de arma, tradeoff y Contract/progreso. Mantener renderer compartido, `data-character-*`, teclado/gamepad, scroll, Confirm bloqueado y preview 3D sin montar. Field Engineer reutiliza `public/assets/2d/ref-field-engineer-front-v1.png`.
+
 **Toda imagen generada para este juego es VOXEL. Sin excepción.** Icono, logo, icono de arma, icono de stat, ornamento de carta, prop de escenario: todos deben mostrar geometría cúbica/voxel visible, no solo "flat colors" o "vector limpio". "Plano y saturado" describe la paleta, no reemplaza la construcción voxel — un icono vectorial plano sin cubos rompe la coherencia con los modelos 3D del juego aunque use los mismos colores.
 
 Por eso la palabra **`voxel`** (o `built from cubic voxel blocks` / `blocky cubic construction`) va SIEMPRE explícita en cada prompt de este documento, nunca sobreentendida por el prompt base. Si al redactar un prompt nuevo la palabra "voxel" no aparece en el texto, el prompt está incompleto — corregirlo antes de usarlo.
