@@ -5,7 +5,9 @@ import type { CoreLevels, WeaponBranchLevels, WeaponLevels, WeaponPower } from '
 export type RunOutcome = 'defeat' | 'sector-cleared' | 'run-complete';
 
 export const RUN_OUTCOME_TITLES: Record<RunOutcome, string> = {
-  defeat: 'System Overload',
+  /** The defeat beat states the failure in the machine's own voice, so the
+   *  title is set in caps to match the in-world SYSTEM OVERLOAD banner. */
+  defeat: 'SYSTEM OVERLOAD',
   'sector-cleared': 'Sector Cleared',
   'run-complete': 'Run Complete',
 };

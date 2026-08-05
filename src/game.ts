@@ -12,6 +12,7 @@ import {
   BOSS_TYPE_INDEXES,
   CHEST,
   DEV_TOOLS,
+  DEFEAT_TRANSITION,
   ELITES,
   ENEMY_TYPES,
   GOLD,
@@ -43,7 +44,7 @@ import { MOD_REGISTRY, barrierCellCapacity, barrierCellRegenS, describeMod, isMo
 import { DamageNumbers } from './damage-numbers';
 import { BossSystem } from './boss';
 import { AudioDirector, type AudioEventId } from './audio';
-import { VoxelBurst } from './particles';
+import { DefeatSparks, VoxelBurst } from './particles';
 import {
   DEFAULT_CHARACTER_ID,
   CHARACTER_REGISTRY,
@@ -126,6 +127,15 @@ import {
   createRunFlowState,
   type RunFlowState,
 } from './run-flow';
+import {
+  actionsAcceptInput,
+  advanceDefeat,
+  createDefeatState,
+  disarmDefeatGate,
+  overloadPressure,
+  type DefeatState,
+} from './defeat-transition';
+import type { EarnedContract } from './contracts';
 
 type GameState =
   | 'menu'
@@ -136,6 +146,9 @@ type GameState =
   | 'levelup'
   | 'chest'
   | 'shop'
+  /** Staged defeat beat. The run is already durably recorded here; only the
+   *  presentation is still running. Terminal, and never advances to a map. */
+  | 'defeat-transition'
   | 'ended';
 
 // Warmup frames rendered behind the loading screen after the world is built,
@@ -178,6 +191,9 @@ export class Game {
   private readonly damageNumbers: DamageNumbers;
   private readonly boss: BossSystem;
   private readonly burst: VoxelBurst;
+  /** Defeat-only spark pool. Separate from `burst` so the defeat beat can
+   *  animate while every combat particle stays frozen with the battle. */
+  private readonly defeatSparks: DefeatSparks;
   private readonly goldSys: GoldSystem;
   private readonly merchant: MerchantSystem;
   /** Camera shake amplitude, decays exponentially (config.VISUAL.screenShake). */
@@ -219,6 +235,13 @@ export class Game {
   private currentRunId: string | null = null;
   /** Terminal side effects (history, telemetry, contracts and HUD) may run once per run. */
   private runFinalized = false;
+  /** Live defeat presentation, or null when no defeat beat is running. */
+  private defeat: DefeatState | null = null;
+  /** Summary data captured at the fatal instant and replayed at the reveal, so
+   *  persistence never waits for the animation. */
+  private defeatSummary: { record: RunRecordV1; earnedContracts: EarnedContract[] } | null = null;
+  /** Fractional spark budget carried between presentation frames. */
+  private defeatSparkCarry = 0;
   /** The exact cards visible in the active draft, retained until pick/discard. */
   private currentUpgradeOffer: string[] = [];
   /** The weapon this run was drafted with. Recorded on the run record because
@@ -358,6 +381,7 @@ export class Game {
     this.damageNumbers = new DamageNumbers(container);
     this.boss = new BossSystem(this.scene);
     this.burst = new VoxelBurst(this.scene);
+    this.defeatSparks = new DefeatSparks(this.scene);
     this.goldSys = new GoldSystem(this.scene);
     this.merchant = new MerchantSystem(this.scene);
     this.hud = new Hud(
@@ -366,6 +390,7 @@ export class Game {
       (card) => this.applyUpgrade(card),
       () => this.resumeRun(),
       () => this.quitToMenu(),
+      () => this.startNewRunFromDefeat(),
       (settings) => this.updateSettings(settings),
       () => this.playUiConfirm(),
       async (feedback) => {
@@ -378,6 +403,7 @@ export class Game {
     void this.audio.preloadEnabled();
     if (DEV_TOOLS.auditionKeys) this.installAuditionKeys();
     if (DEV_TOOLS.bossLab) this.installBossLab();
+    if (DEV_TOOLS.fatalHitKey) this.installFatalHitKey();
     this.hud.syncSettings(this.settings);
     applyWindowSettings(this.settings);
     this.input.setBindings(this.settings.bindings);
@@ -663,6 +689,20 @@ export class Game {
     });
   }
 
+  /** Dev harness (DEV_TOOLS.fatalHitKey): K applies a guaranteed lethal hit
+   *  through the real damage funnel, so the defeat beat can be measured on
+   *  demand instead of waited for. Armor/shield/dodge still apply — pressing it
+   *  behind a shield charge burns the charge, which is exactly the behavior the
+   *  acceptance checklist wants to confirm. */
+  private installFatalHitKey(): void {
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'KeyK' || e.repeat || this.state !== 'playing') return;
+      e.preventDefault();
+      this.player.clearInvulnerability();
+      this.damagePlayer(this.player.maxHp * 100);
+    });
+  }
+
   private playUiConfirm(): void {
     void this.audio.activateFromUserGesture().then(() => {
       this.audio.emit({ id: 'ui-confirm' });
@@ -838,11 +878,14 @@ export class Game {
     // Duck the run music under any in-game modal overlay — the same treatment
     // pause already gave it, now for level-up/chest/shop/game-over too. Menu and
     // loading keep their own music handling (setMenu), so they're excluded.
+    // 'defeat-transition' is deliberately ABSENT: the duck would fight the exact
+    // music fade the defeat beat schedules, and its ramp would win.
     this.audio.setPaused(
       this.state === 'paused' || this.state === 'levelup' || this.state === 'levelup-intro' ||
       this.state === 'chest' || this.state === 'shop' || this.state === 'ended',
     );
     if (this.state === 'loading') this.tickLoading();
+    else if (this.state === 'defeat-transition') this.tickDefeatTransition(rawDt);
     else if (this.state === 'playing') {
       telemetry.samplePerformance(rawDt, this.enemies.activeCount);
       // Hitstop: the world is frozen, but the frame still renders and the
@@ -892,6 +935,10 @@ export class Game {
 
   private pauseFromBlur(): void {
     if (this.state === 'playing') this.pauseRun();
+    // Losing focus mid-defeat drops every held key silently (PlayerInput clears
+    // on blur), which would otherwise look like a release and arm the gate. Drop
+    // the gate instead, so returning to the window requires a real fresh press.
+    if (this.state === 'defeat-transition' && this.defeat) disarmDefeatGate(this.defeat);
   }
 
   private pauseRun(): void {
@@ -911,6 +958,9 @@ export class Game {
   }
 
   private quitToMenu(): void {
+    // 'defeat-transition' and 'ended' are absent on purpose: those runs were
+    // already terminally persisted, so logging an abandonment would double-count
+    // one run as both finished and quit.
     const abandonedStates: readonly GameState[] = [
       'playing',
       'paused',
@@ -936,6 +986,7 @@ export class Game {
     this.currentUpgradeOffer = [];
     this.resetRunWorld();
     this.state = 'menu';
+    this.hud.hideEnd();
     this.hud.showPause(false);
     this.hud.updateTotemIndicator(false, 0, 0, 0);
     this.hud.updateMerchantIndicator(false, 0, 0, 0, 0);
@@ -979,6 +1030,9 @@ export class Game {
   }
 
   private resetRunWorld(): void {
+    // First: stale defeat presentation state (materials, sparks, overlay,
+    // action guard) must not survive into the next run or the menu.
+    this.endDefeatPresentation();
     this.progression.reset();
     this.player.reset();
     this.enemies.reset();
@@ -1277,6 +1331,9 @@ export class Game {
       // Impact pop in the shot's own color — the hit on YOU is seen too.
       (x, z, color) => this.burst.spawn(x, z, color, 4),
     );
+    // A projectile just killed the player: the defeat latch already fired, and
+    // nothing below (pickups, interactions, level-ups) may run on a dead run.
+    if (this.state !== 'playing') return;
 
     this.orbs.update(dt, px, pz, this.stats.pickupRange, (value) => {
       const gainedXp = Math.round(value * this.stats.xpGain);
@@ -1301,6 +1358,9 @@ export class Game {
     this.burst.update(dt);
 
     this.resolvePlayerContact();
+    // Contact damage is the usual killer. Same rule as above: the HUD refresh,
+    // indicators and the level-up check below belong to a live run only.
+    if (this.state !== 'playing') return;
 
     this.player.setShieldCharges(this.shieldCur);
     this.hud.updateBars(
@@ -1315,8 +1375,10 @@ export class Game {
     this.updateTotemIndicator();
     this.updateMerchantIndicator();
 
+    // Safety net for any future death source outside the damage funnel.
+    // Idempotent: the funnel normally latched this several statements ago.
     if (this.player.isDead) {
-      this.endRun('defeat');
+      this.beginDefeatTransition();
       return;
     }
     this.maybeShowLevelUp();
@@ -1710,8 +1772,15 @@ export class Game {
 
     const amount = applyArmor(rawDamage, this.stats.armor);
     this.runDamageTaken += amount;
-    this.audio.emit({ id: 'player-hit', priority: 3 });
     this.player.takeHit(amount);
+    // Lethality is read from the ACTUAL post-armor result, never inferred from
+    // raw damage — and the audio branches on it, because a hit cannot be both
+    // an ordinary clang and the sound of the chassis going down.
+    if (this.player.isDead) {
+      this.beginDefeatTransition();
+      return;
+    }
+    this.audio.emit({ id: 'player-hit', priority: 3 });
     this.shakeAmp = Math.max(this.shakeAmp, VISUAL.screenShake.hitAmp);
     this.hud.flashHp();
 
@@ -2312,12 +2381,41 @@ export class Game {
   }
 
   private endRun(outcome: RunOutcome): void {
-    if (this.runFinalized) return;
-    this.runFinalized = true;
+    const summary = this.finalizeRun(outcome);
+    if (!summary) return;
     this.state = 'ended';
     this.audio.emit({ id: outcome === 'defeat' ? 'run-defeat' : 'run-victory', priority: 5 });
     this.audio.stopLoop('foundation-run-loop');
     this.audio.setPaused(true);
+    this.hud.showEnd(
+      outcome,
+      this.currentMap,
+      this.progression.level,
+      this.progression.kills,
+      this.elapsedS,
+      this.boss.bossesDefeated,
+      this.weaponLevels,
+      this.weaponBranches,
+      this.weaponDamage,
+      this.coreLevels,
+      this.modCounts,
+      summary.earnedContracts,
+    );
+  }
+
+  /**
+   * Durable end-of-run side effects, separated from the reveal.
+   *
+   * This runs SYNCHRONOUSLY at the fatal instant, never at the end of an
+   * animation: a player who alt-F4s during the death beat must still find the
+   * run in their history. Returns null when the run was already finalized, which
+   * is what makes repeated collision callbacks, skips and action clicks safe.
+   */
+  private finalizeRun(
+    outcome: RunOutcome,
+  ): { record: RunRecordV1; earnedContracts: EarnedContract[] } | null {
+    if (this.runFinalized) return null;
+    this.runFinalized = true;
     this.hud.updateTotemIndicator(false, 0, 0, 0);
     this.hud.updateMerchantIndicator(false, 0, 0, 0, 0);
     this.hud.showInteractPrompt(null, this.interactLabel());
@@ -2369,19 +2467,185 @@ export class Game {
     recordRunInLifetime(record);
     saveProfile();
     const earnedContracts = settleContracts();
-    this.hud.showEnd(
-      outcome,
-      this.currentMap,
-      this.progression.level,
-      this.progression.kills,
-      this.elapsedS,
-      this.boss.bossesDefeated,
-      this.weaponLevels,
-      this.weaponBranches,
-      this.weaponDamage,
-      this.coreLevels,
-      this.modCounts,
-      earnedContracts,
+    return { record, earnedContracts };
+  }
+
+  /**
+   * Fatal hit accepted. Records the run immediately, freezes the battle, and
+   * hands the screen to the defeat presenter.
+   *
+   * Idempotent by way of `runFinalized`: contact overlap, several attackers in
+   * one frame and repeated callbacks all collapse into one transition.
+   */
+  private beginDefeatTransition(): void {
+    const summary = this.finalizeRun('defeat');
+    if (!summary) return;
+    this.defeatSummary = summary;
+    this.defeat = createDefeatState();
+    this.defeatSparkCarry = 0;
+    this.state = 'defeat-transition';
+
+    // Pending gameplay UI dies with the run: an unclaimed level-up is not
+    // auto-picked, it simply never opens. What was already earned is in the
+    // record above.
+    this.pendingLevelUps = 0;
+    this.currentUpgradeOffer = [];
+    this.hud.hideLevelUpIntro();
+    this.levelUpIntroRemainingS = 0;
+    this.hud.showSummonPrompt(false, this.interactLabel());
+
+    // Fatal audio: the dedicated cue REPLACES player-hit (one physical hit, one
+    // audio path), sustained weapon loops stop now rather than on the next
+    // playing-state update, and the music gets its exact measured fade instead
+    // of the pause duck, which only lowers it.
+    this.audio.emit({ id: 'player-fatal', priority: 5 });
+    this.audio.setSfxLoopsSuspended(true);
+    this.audio.fadeOutLoop('foundation-run-loop', DEFEAT_TRANSITION.musicFadeS);
+
+    // One bounded impulse, replacing (not stacking with) the ordinary hit shake.
+    this.shakeAmp = DEFEAT_TRANSITION.fatalShakeAmp;
+
+    this.player.beginDefeatPresentation();
+    // A confirm already held when the hit landed must not skip anything, so the
+    // pending edges are dropped and the controller's gate arms only on release.
+    this.input.clearTransientPresses();
+    this.hud.armDefeatSkipSurface();
+  }
+
+  /**
+   * Presentation-only tick. Runs on clamped RAW frame time because the world is
+   * frozen: nothing here may touch run time, gameplay counters or telemetry.
+   */
+  private tickDefeatTransition(rawDt: number): void {
+    const defeat = this.defeat;
+    if (!defeat) return;
+    const dt = Math.min(rawDt, 0.05);
+
+    // A skip needs the live Interact binding or the gamepad confirm, and only
+    // as a FRESH press — the same read feeds the release gate.
+    const confirmHeld =
+      this.input.isActionDown('interact') ||
+      this.settings.bindings.gamepad.interact.some((index) => this.input.isGamepadDown(index)) ||
+      this.hud.isDefeatPointerHeld();
+    // Pointer is read unconditionally so its edge is consumed either way and
+    // cannot survive into the next frame as a stale press.
+    const pointerSkip = this.hud.consumeDefeatPointerSkip();
+    const confirmPressed = this.input.consumeActionPress('interact') || pointerSkip;
+
+    const commands = advanceDefeat(defeat, dt, DEFEAT_TRANSITION, { confirmPressed, confirmHeld });
+
+    const pressure = overloadPressure(defeat, DEFEAT_TRANSITION);
+    if (defeat.elapsedS >= DEFEAT_TRANSITION.fatalHitstopS && !defeat.titleRevealed) {
+      this.tickOverloadSparks(dt, pressure);
+    }
+    if (!defeat.titleRevealed) {
+      this.player.tickDefeatPresentation(defeat.elapsedS, pressure);
+    }
+    this.defeatSparks.update(dt);
+
+    if (commands.revealTitle) {
+      // The chassis blows out and powers down as the title lands.
+      const bounds = this.player.defeatChassisBounds;
+      const colors = DEFEAT_TRANSITION.overload.flashColors;
+      for (let i = 0; i < colors.length; i++) {
+        this.defeatSparks.emit(
+          this.player.position.x,
+          this.player.position.z,
+          bounds.halfWidth,
+          bounds.height,
+          colors[i] ?? 0xffffff,
+          Math.round(DEFEAT_TRANSITION.overload.blowoutSparks / colors.length),
+        );
+      }
+      this.player.powerDownForDefeat();
+      this.hud.showDefeatBeat();
+      // The sting belongs to the TITLE, not to the physical contact frame.
+      this.audio.emit({ id: 'run-defeat', priority: 5 });
+    }
+
+    if (commands.revealSummary && this.defeatSummary) {
+      this.hud.showEnd(
+        'defeat',
+        // The map comes from the RECORD, not from a live getter: it is the map
+        // that was actually persisted, and it keeps this whole tick free of
+        // `currentMap`, which only exists on the multi-map branch.
+        this.defeatSummary.record.map,
+        this.progression.level,
+        this.progression.kills,
+        this.elapsedS,
+        this.boss.bossesDefeated,
+        this.weaponLevels,
+        this.weaponBranches,
+        this.weaponDamage,
+        this.coreLevels,
+        this.modCounts,
+        this.defeatSummary.earnedContracts,
+        false, // actions stay disabled until the release gate arms
+      );
+      // The catcher's job is over: from here the buttons own the pointer.
+      this.hud.disarmDefeatSkipSurface();
+    }
+
+    // Actions become live only once they are visible AND the gate is armed, so
+    // the press that skipped can never also select one.
+    if (defeat.summaryRevealed) {
+      const accepting = actionsAcceptInput(defeat);
+      this.hud.setEndActionsEnabled(accepting);
+      if (accepting && defeat.phase === 'ready' && !this.defeatActionsFocused) {
+        this.defeatActionsFocused = true;
+        this.hud.focusPrimaryEndAction();
+      }
+    }
+  }
+
+  /** Voxel cubes venting from the chassis volume, back-loaded across the
+   *  overload so the beat builds towards the blowout. */
+  private tickOverloadSparks(dt: number, pressure: number): void {
+    const cfg = DEFEAT_TRANSITION.overload;
+    const bounds = this.player.defeatChassisBounds;
+    this.defeatSparkCarry += cfg.sparksPerS * Math.pow(pressure, cfg.rampPower) * dt;
+    const count = Math.floor(this.defeatSparkCarry);
+    if (count <= 0) return;
+    this.defeatSparkCarry -= count;
+    const colors = cfg.flashColors;
+    this.defeatSparks.emit(
+      this.player.position.x,
+      this.player.position.z,
+      bounds.halfWidth,
+      bounds.height,
+      colors[Math.floor(Math.random() * colors.length)] ?? 0xffffff,
+      count,
     );
   }
+
+  /** Defeat action: abandon the dead run and enter the normal selection flow.
+   *  Never reuses the finished run and never advances a map. */
+  private startNewRunFromDefeat(): void {
+    this.endDefeatPresentation();
+    this.currentRunId = null;
+    this.currentUpgradeOffer = [];
+    this.resetRunWorld();
+    this.state = 'menu';
+    this.hud.hideGold();
+    this.audio.reset();
+    void this.audio.preloadEnabled();
+    this.audio.setMenu(true);
+    this.hud.showCharacterSelect();
+    this.clock.getDelta();
+  }
+
+  /** Tears the defeat presenter down. Safe when no defeat ran. */
+  private endDefeatPresentation(): void {
+    this.defeat = null;
+    this.defeatSummary = null;
+    this.defeatSparkCarry = 0;
+    this.defeatActionsFocused = false;
+    this.defeatSparks.reset();
+    this.player.resetDefeatPresentation();
+    this.hud.hideEnd();
+    this.hud.disarmDefeatSkipSurface();
+    this.hud.resetEndActions();
+  }
+
+  private defeatActionsFocused = false;
 }

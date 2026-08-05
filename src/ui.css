@@ -627,6 +627,90 @@
 #end-title {
   color: #ffd24a;
 }
+#end-subtitle {
+  margin: -6px 0 2px;
+  color: #c9d2de;
+  letter-spacing: 1px;
+}
+#end-subtitle.hidden {
+  display: none;
+}
+/* Two terminal actions on one row. They are the last thing on the screen, so
+   the row keeps the gap the rest of the overlay uses rather than stacking. */
+#end-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+#end-primary-button {
+  border-color: #4a5a6d;
+  color: #ffd24a;
+}
+#end-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+/* Invisible click/touch catcher for the defeat beat. Below the overlay layer
+   (z-index 10) so it can never sit over the results screen even if a bug left
+   it visible. */
+#defeat-skip-surface {
+  position: fixed;
+  inset: 0;
+  z-index: 9;
+  background: transparent;
+  cursor: default;
+}
+#defeat-skip-surface.hidden {
+  display: none;
+}
+/* Defeat title beat: same arcade-banner grammar as AWAKENS/DESTROYED (pixel
+   type between hazard stripes, no scrim) so the frozen battle stays visible
+   behind it. Amber, not the banner's red — red already means "boss" here. */
+#defeat-beat {
+  position: absolute;
+  top: 34%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  pointer-events: none;
+  opacity: 0;
+}
+#defeat-beat.hidden {
+  display: none;
+}
+#defeat-beat.play {
+  animation: defeat-beat-in 0.28s steps(9) forwards;
+}
+#defeat-beat-title {
+  font-family: var(--pixel-font);
+  font-size: 30px;
+  color: #ffffff;
+  text-shadow: 0 3px 0 rgba(0, 0, 0, 0.85), 0 0 22px rgba(255, 196, 77, 0.65);
+  letter-spacing: 3px;
+  padding: 8px 30px 2px;
+  text-align: center;
+  white-space: nowrap;
+}
+#defeat-beat-subtitle {
+  font-family: var(--pixel-font);
+  font-size: 12px;
+  color: #ffc44d;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.8);
+  letter-spacing: 2px;
+  padding: 0 30px 8px;
+  text-align: center;
+  white-space: nowrap;
+}
+@keyframes defeat-beat-in {
+  0% { opacity: 0; transform: translateX(-50%) scale(0.72); }
+  60% { opacity: 1; transform: translateX(-50%) scale(1.05); }
+  100% { opacity: 1; transform: translateX(-50%) scale(1); }
+}
 #end-stats {
   display: flex;
   align-items: center;

@@ -47,6 +47,7 @@ export const DEV_TOOLS: {
   auditionKeys: boolean;
   bossLab: boolean;
   startingMapSelector: boolean;
+  fatalHitKey: boolean;
 } = {
   /** Main-menu "Unlocks" panel. Holds three actions: unlock every
    *  weapon/core/mod and open all sockets directly; settle every contract
@@ -63,6 +64,12 @@ export const DEV_TOOLS: {
   /** Starting-map selector shown with the weapon draft. Direct Map 2 starts
    *  are partial-sector development runs, never fabricated full-arc clears. */
   startingMapSelector: false,
+  /** K mid-run: apply a guaranteed lethal hit through the REAL damage funnel.
+   *  The defeat beat is otherwise only reachable by dying for real, which makes
+   *  measuring its phases, audio and freeze rules a matter of luck. It goes
+   *  through damagePlayer on purpose — a harness that bypassed the funnel would
+   *  verify a path players never take. */
+  fatalHitKey: false,
 };
 
 /** Renderer-side audio tuning. All voice, cooldown and fade values are config-owned. */
@@ -71,7 +78,7 @@ export const AUDIO = {
    *  when the manifest ships an asset for it, so anything audible in a release
    *  is a deliberate choice rather than a leftover. */
   validation: {
-    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'foundation-music', 'menu-music'] as readonly string[],
+    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'player-fatal', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'foundation-music', 'menu-music'] as readonly string[],
   },
   /** Release-owned variant choices. Dev audition pins still override these;
    * events absent here keep their normal random rotation. */
@@ -670,6 +677,58 @@ export const VISUAL = {
     rotateHz: 0.16,
   },
 };
+
+/** Staged defeat beat: the lethal hit no longer opens the results overlay on
+ *  the same frame. Every magnitude of the sequence lives HERE — game.ts, hud.ts,
+ *  player.ts, particles.ts and the CSS all read these, so the controller and the
+ *  presentation can never drift apart.
+ *
+ *  Timings are absolute seconds measured from the ACCEPTED fatal hit, not from
+ *  each other, so a dropped frame cannot slide the reveals apart. */
+export const DEFEAT_TRANSITION = {
+  /** Frozen impact on the fatal frame — the beat that says "that one killed you". */
+  fatalHitstopS: 0.1,
+  /** Chassis-overload animation, from the end of the hitstop to the title. */
+  overloadS: 0.65,
+  /** SYSTEM OVERLOAD + subtitle appear. `run-defeat` is emitted HERE, not on
+   *  the contact frame: it is a presentation sting, not the physical hit. */
+  titleRevealS: 0.75,
+  /** Full results content and the enabled/focused actions. */
+  summaryRevealS: 1.2,
+  /** Earliest a fresh, debounced confirm may complete the presentation. */
+  skipUnlockS: 0.55,
+  /** Explicit run-music fade. Deliberately NOT the pause duck, which only
+   *  lowers the music and would leave it audible under the sequence. */
+  musicFadeS: 0.45,
+  /** Single fatal camera impulse. Replaces the ordinary hit shake (0.22) and
+   *  sits just under the boss-kill impulse (0.55) so death reads as the
+   *  heaviest hit the player takes without becoming a boss-scale event. */
+  fatalShakeAmp: 0.5,
+  overload: {
+    /** Electrical strobe over the chassis. ~12 Hz is fast enough to read as
+     *  arcing current and slow enough that individual flashes are visible. */
+    strobeHz: 12,
+    /** Cycled per strobe step. Amber is the industrial-toy accent, white the
+     *  hot core, cyan the player's own electrical language (shield plates,
+     *  player marker) — the same three colours the character already owns. */
+    flashColors: [0xffc44d, 0xffffff, 0x7ee0ff],
+    /** Voxel sparks. Capacity is a hard cap for the dedicated pool; the beat
+     *  must not compete with a 400+ swarm frozen behind it. */
+    sparkCapacity: 96,
+    /** Cubes emitted per second, ramped by overload pressure (see rampPower). */
+    sparksPerS: 90,
+    /** Pressure curve across the overload: >1 back-loads the emission so the
+     *  chassis builds towards the blowout instead of firing evenly. */
+    rampPower: 2,
+    sparkCubeSize: 0.14,
+    sparkUpwardSpeed: 7.5,
+    sparkHorizontalSpeed: 3.4,
+    sparkGravity: 16,
+    sparkLifeS: 0.75,
+    /** Final blowout at the title handoff, when the body powers down. */
+    blowoutSparks: 34,
+  },
+} as const;
 
 export type EnemyBehavior = 'chase' | 'roller' | 'gunner' | 'flyer' | 'charger';
 
