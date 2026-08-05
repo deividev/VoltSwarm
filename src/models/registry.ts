@@ -521,8 +521,8 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   // (730 px), which is what icon-voxelizer needs since it aligns rows by height
   // fraction.
   //
-  // Registered as the Field Engineer's live player model. It remains an art
-  // candidate until multi-angle and 400+ swarm verification are approved.
+  // Registered as the Field Engineer's live player model and definitively
+  // approved in-game after multi-angle and 400+ swarm verification.
   'field-engineer': {
     kind: 'player',
     ref: 'assets/2d/ref-field-engineer-front-v1.png',

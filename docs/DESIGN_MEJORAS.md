@@ -248,7 +248,7 @@ Una silueta no define un personaje jugable. Cada personaje futuro debe tener las
 | Pasiva o regla signature | Interactúa con sistemas reales (armas, cores, mods, economía o movimiento), no un bonus plano aislado. |
 | Tradeoff significativo | Aporta una razón para elegirlo y otra para no hacerlo; debe sobrevivir playtest de balance. |
 
-El primer personaje jugable es **Field Engineer**, evolución reconocible del jugador actual. Su gameplay y magnitudes están implementados; el modelo runtime v1 superó la validación técnica, pero las referencias visuales continúan como candidate hasta que exista aprobación final explícita del usuario. Los demás personajes siguen sin nombre, cifras ni pasivas comprometidas.
+The first playable character is **Field Engineer**, a recognizable evolution of the previous player model. Its gameplay, balance values, runtime model v1, and in-game visual result are definitively approved. The source sheets remain conversion and provenance inputs for the shipped model, not pending art approval. The remaining characters still have no committed names, values, or passives.
 
 ### ✅ Personaje inicial — Field Engineer
 
@@ -257,7 +257,7 @@ El primer personaje jugable es **Field Engineer**, evolución reconocible del ju
 - **Elección temprana:** Bolt Cannon conserva sus odds normales. Si aparece naturalmente, su tarjeta muestra `Recommended`; no se garantiza ni equipa por obligación.
 - **Identidad:** supervivencia por HP/Armor y relación con Cores, NUNCA por movilidad. Cumple la regla de doblar un sistema existente en vez de añadir un stat plano como única identidad.
 - **Visual:** casco de seguridad naranja grande, visor oscuro, cuerpo hueso/charcoal, mochila-taller unida, herramienta asimétrica en hombro derecho, refuerzos en antebrazos/botas, columna de energía cian y exactamente tres alojamientos grandes de Core conectados con cables gruesos. La lectura cenital debe ser casco + hombro herramienta + mochila.
-- **Estado:** sistema jugable, selección, persistencia y UI implementados. Modelo runtime v1 técnicamente validado: preview 0°/90°/180°/270°, marcha trasera y gate 400+ superados (431–440 enemigos, 118.87 FPS medios, bucket mínimo 92.41 FPS, p99 8.5 ms, 0 errores de página y 431/431 enemigos en movimiento). Las referencias de `art/concept/field-engineer/` siguen candidate v1 porque no consta aprobación visual final explícita del usuario.
+- **Status:** gameplay, selection, persistence, and UI are implemented. Runtime model v1 is definitively approved in-game after the 0°/90°/180°/270° preview, rear-view locomotion check, and 400+ swarm gate (431–440 enemies, 118.87 average FPS, 92.41 minimum bucket, 8.5 ms p99, 0 page errors, and 431/431 enemies moving). Files under `art/concept/field-engineer/` remain conversion and provenance sources, not pending shipped-art candidates.
 
 ### Decisiones cerradas 2026-07-30 (detalle y medición en `DISENO_FRENESI.md` §4)
 

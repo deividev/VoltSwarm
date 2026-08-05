@@ -4,9 +4,9 @@ Este documento separa lo implementado de las hipótesis futuras. Field Engineer 
 
 ## Estado rápido
 
-| Candidato | Rol | Gameplay | Arte | Runtime |
+| Character | Role | Gameplay | Art | Runtime |
 |---|---|---|---|---|
-| Field Engineer | Personaje inicial perdonador | Implementado | Runtime v1 técnicamente validado; aprobación visual final no registrada | Jugable |
+| Field Engineer | Forgiving starting character | Implemented | Runtime v1 definitively approved in-game | Playable |
 
 ## Field Engineer
 
@@ -27,7 +27,7 @@ Debe ser una evolución reconocible del jugador actual y cargar con las primeras
 - `src/characters.ts` es el registry data-driven y usa IDs estables; `field-engineer` está desbloqueado por defecto.
 - Flujo: Play → selección de personaje → draft de arma → loading → run. El menú Characters reutiliza el mismo registry.
 - `PROFILE.unlockedCharacters` persiste IDs y deja el seam listo para recompensas de Contracts, sin crear contratos ni umbrales todavía.
-- La selección, la ficha y el modelo v1 están integrados en runtime. El cuerpo usa extrusión de perfil medido con lateral `side-depth` sin mochila; `backPaintRef` pinta la carcasa existente y una geometría procedural dedicada aporta el volumen trasero real de la mochila. La verificación multiángulo, la marcha vista desde atrás y la validación con el enjambre de 400+ enemigos están superadas; no consta aprobación visual final explícita del usuario.
+- Selection, character details, and model v1 are integrated at runtime. The body uses measured-profile extrusion with a pack-free `side-depth` sheet; `backPaintRef` paints the existing shell, while dedicated procedural geometry restores the pack's rear volume. Multi-angle inspection, rear-view locomotion, and the 400+ enemy swarm gate passed, and the runtime model is definitively approved in-game.
 
 ## Brief visual v1
 
@@ -49,7 +49,7 @@ La mochila contiene exactamente **3 alojamientos grandes de Core**, conectados m
 
 ### Referencias existentes
 
-Todo el set vive en `art/concept/field-engineer/` y está versionado como **candidate v1 para revisión**:
+The complete source set lives in `art/concept/field-engineer/` as versioned **conversion and provenance input for the approved runtime model**:
 
 | Archivo | Uso |
 |---|---|
@@ -61,7 +61,7 @@ Todo el set vive en `art/concept/field-engineer/` y está versionado como **cand
 | `field-engineer-side-flat-v1.png` | Fuente lateral prioritaria para perfil. |
 | `field-engineer-back-flat-v1.png` | Fuente trasera prioritaria para pintura y alojamientos. |
 
-Estas imágenes siguen siendo **candidate v1**; la implementación jugable no las convierte automáticamente en arte final aprobado.
+These images remain source material for reconstruction and provenance. Approval applies to the in-game runtime result; the sheets are not pending shipped-art candidates.
 
 ## Validación técnica del modelo runtime v1
 
@@ -69,7 +69,7 @@ Estas imágenes siguen siendo **candidate v1**; la implementación jugable no la
 2. La marcha vista desde atrás confirmó que el cuerpo conserva los huecos de brazos/piernas y que la mochila procedural sigue el rig sin inflar el frente.
 3. El modelo conserva cuerpo contiguo, mochila unida y exactamente tres alojamientos visibles.
 4. El gate de enjambre pasó con 431–440 enemigos: 118.87 FPS medios, bucket mínimo 92.41 FPS, p99 8.5 ms, 0 errores de página y 431/431 enemigos en movimiento.
-5. Resultado: modelo runtime v1 técnicamente validado. Sigue siendo candidate visual porque no consta aprobación final explícita del usuario.
+5. Result: runtime model v1 is technically validated and definitively approved in-game.
 
 ## Fuera de alcance actual
 
