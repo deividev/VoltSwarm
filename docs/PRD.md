@@ -222,7 +222,7 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 ## Fuera de alcance actual
 - Multiplayer/co-op: no implementado ni anunciado; solo existe el gate interno de viabilidad de `docs/MULTIPLAYER_FEASIBILITY.md`. Local/Remote Play persistiría solo en el save host/local; la progresión por cuenta de invitados no está prometida. Native online solo podría persistir cuentas propias tras validación host-authoritative.
 - Dedicated servers: fuera de alcance.
-- Meta-progresión entre runs, moneda, mapas múltiples y evolución de armas: post-validación. **Field Engineer** ya es el personaje inicial jugable; los otros dos personajes de lanzamiento siguen fuera de alcance y sin diseño comprometido. Su modelo runtime v1 está técnicamente validado, pero permanece como candidate visual hasta que exista aprobación final explícita del usuario (`DISENO_PERSONAJES.md`).
+- Meta-progresión entre runs, moneda, mapas múltiples y evolución de armas: post-validación. **Field Engineer** is the playable starting character, and its runtime model v1 is definitively approved in-game. The other two launch characters remain out of scope with no committed designs (`DISENO_PERSONAJES.md`).
 
 ### Personajes — Field Engineer
 
@@ -238,7 +238,7 @@ Todo personaje nuevo exige `modelKey` validado y frontal/lateral/trasera planas 
 - `PROFILE.unlockedCharacters` persiste IDs y Contracts admite rewards `character`; todavía no existen contratos ni umbrales de personajes.
 - El menú **Characters** y la selección previa al arma usan el mismo roster y una frontal ortográfica 2D aprobada (`ref-field-engineer-front-v1.png`). El detalle mantiene filas e iconos propios por stat, Field Repair es config-backed, Bolt Cannon sigue siendo solo **Recommended Weapon** y el tradeoff declara `-5% Damage`. El estado `Unlocked` vive solo bajo el retrato y no se duplica en el detalle; un personaje bloqueado sí añade allí el requisito de Contract con candado y barra segmentada. El preview 3D permanece dormido y no es visible; los atributos `data-character-*` no cambian.
 - Boss Lab conserva el `characterId` registrado y reconstruye primero ese baseline antes de reproducir Cores; la reproducción no atraviesa el trigger de gameplay de Field Repair.
-- El modelo runtime v1 usa perfil lateral medido sin mochila más volumen procedural trasero dedicado. `backPaintRef` solo pinta la carcasa existente. La validación técnica superó el preview 0°/90°/180°/270°, la marcha vista desde atrás y el gate de 400+ (431–440 enemigos, 118.87 FPS medios, bucket mínimo 92.41 FPS, p99 8.5 ms, 0 errores de página y 431/431 enemigos en movimiento). No consta aprobación visual final explícita del usuario, por lo que sigue siendo candidate visual.
+- The runtime model v1 uses a measured pack-free side profile plus dedicated procedural rear volume; `backPaintRef` only paints the existing shell. It is definitively approved in-game after the 0°/90°/180°/270° preview, rear-view locomotion check, and 400+ gate (431–440 enemies, 118.87 average FPS, 92.41 minimum bucket, 8.5 ms p99, 0 page errors, and 431/431 enemies moving). Its source sheets remain conversion and provenance inputs, not pending shipped-art approval.
 
 ## Orden de implementación
 Ficha+pool → orbes XP → dificultad → separación → damage numbers → elites → roller/gunner → colisiones props → tuning → armas nuevas → draft → tótem+bosses → volador → verificación completa (FPS 100+ enemigos, run jugable de punta a punta).
