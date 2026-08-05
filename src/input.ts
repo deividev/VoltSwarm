@@ -151,6 +151,23 @@ export class PlayerInput {
     return { x, y };
   }
 
+  /** Whether a SPECIFIC gamepad button is currently held. Pairs with
+   *  isActionDown for release gates that must span both devices. */
+  isGamepadDown(index: number): boolean {
+    return this.padButtons[index] === true;
+  }
+
+  /** Drops every pending edge without consuming it as an action.
+   *
+   *  Used when a state change must not inherit the presses that led into it —
+   *  the confirm that was held when the player died cannot be allowed to
+   *  register on the defeat screen. Held state is untouched on purpose: the
+   *  release gate is what observes it going up. */
+  clearTransientPresses(): void {
+    this.pressedOnce.clear();
+    this.padButtonsOnce = [];
+  }
+
   /** Edge-triggered press of a SPECIFIC gamepad button (menu navigation). */
   consumeGamepadPress(index: number): boolean {
     if (this.padButtonsOnce[index] !== true) return false;

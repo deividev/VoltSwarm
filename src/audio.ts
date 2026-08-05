@@ -3,7 +3,7 @@ import type { GameSettings } from './settings';
 
 export type AudioEventId =
   | 'ui-confirm' | 'ui-back' | 'panel-open' | 'run-start' | 'menu-enter'
-  | 'pause' | 'resume' | 'weapon-activation' | 'player-hit' | 'shield-block'
+  | 'pause' | 'resume' | 'weapon-activation' | 'player-hit' | 'player-fatal' | 'shield-block'
   | 'bolt-cannon-fire' | 'pulse-fire' | 'blades-spin' | 'blades-loop' | 'blades-hit' | 'welder-beam' | 'press-slam'
   | 'tire-launch' | 'oil-drop' | 'acid-throw' | 'acid-loop' | 'turbine-launch' | 'turbine-loop' | 'ricochet-throw' | 'dismantler-swipe'
   | 'enemy-death' | 'xp-pickup' | 'gold-pickup' | 'levelup-intro' | 'levelup-open' | 'levelup-pick'
@@ -168,6 +168,28 @@ export class AudioDirector {
     if (this.context && !muted) {
       voice.gain.gain.setTargetAtTime(volume, this.context.currentTime, AUDIO.fades.defaultS);
     }
+  }
+  /**
+   * Fades a keyed loop to TRUE silence in exactly `fadeS`, then stops it.
+   *
+   * Deliberately separate from stopLoop: stopVoice uses setTargetAtTime, whose
+   * argument is a time CONSTANT, so a 0.45s "fade" there is still at ~37% gain
+   * after 0.45s. The defeat beat has a measured duration requirement, so it gets
+   * a linear ramp that actually lands on zero — and every other loop keeps the
+   * cheap exponential stop it already had.
+   */
+  fadeOutLoop(key: string, fadeS: number): void {
+    const voice = this.keyed.get(key);
+    if (!voice) return;
+    if (!this.context) return;
+    const at = this.context.currentTime;
+    try {
+      voice.gain.gain.cancelScheduledValues(at);
+      voice.gain.gain.setValueAtTime(voice.gain.gain.value, at);
+      voice.gain.gain.linearRampToValueAtTime(0, at + fadeS);
+      voice.source.stop(at + fadeS);
+    } catch { /* one-shot already ended */ }
+    if (this.keyed.get(key) === voice) this.keyed.delete(key);
   }
   stopLoop(key: string): void {
     const voice = this.keyed.get(key);

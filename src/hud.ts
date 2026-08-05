@@ -329,6 +329,8 @@ export class Hud {
   private readonly upgradeCards: HTMLElement;
   private readonly endOverlay: HTMLElement;
   private readonly endTitle: HTMLElement;
+  private readonly endSubtitle: HTMLElement;
+  private readonly endActions: HTMLElement;
   private readonly endStats: HTMLElement;
   private readonly endRunBuild: HTMLElement;
   private readonly endDamageList: HTMLElement;
@@ -364,6 +366,9 @@ export class Hud {
     private readonly onUpgradeChosen: (card: UpgradeCard) => void,
     private readonly onResume: () => void,
     private readonly onQuitToMenu: () => void,
+    /** Defeat screen primary action: drop the dead run and enter the Demo's
+     *  normal character/start-weapon flow. Never reuses the finished run. */
+    private readonly onPlayAgain: () => void,
     private readonly onSettingsChanged: (settings: GameSettings) => void,
     private readonly onUiConfirm: () => void,
     private readonly onFeedbackSubmit: (feedback: StructuredFeedback) => Promise<boolean>,
@@ -387,6 +392,16 @@ export class Hud {
         <div id="event-banner" class="hidden">
           <div class="banner-stripe"></div>
           <div id="event-banner-text"></div>
+          <div class="banner-stripe"></div>
+        </div>
+        <!-- Defeat title beat. Its own transparent layer, NOT the results
+             overlay: that one carries an 82% scrim which would bury the frozen
+             battle exactly when the sequence still wants it visible. Lives
+             inside #hud so it disappears with the HUD when the summary opens. -->
+        <div id="defeat-beat" class="hidden">
+          <div class="banner-stripe"></div>
+          <div id="defeat-beat-title">SYSTEM OVERLOAD</div>
+          <div id="defeat-beat-subtitle">Chassis integrity lost</div>
           <div class="banner-stripe"></div>
         </div>
         <div id="totem-indicator" class="hidden"><span class="arrow">▲</span><span class="label">TOTEM</span></div>
@@ -483,8 +498,14 @@ export class Hud {
            a chest reel has landed (CSS :has() gates) — lives outside both
            overlays so either one can reveal it. -->
       <div id="stat-sheet"></div>
+      <!-- Skip surface for the defeat beat. A full-viewport catcher is safe here
+           precisely because it only exists BEFORE the summary: there is nothing
+           on screen it could steal a click from. It is removed the moment the
+           actions appear, so it can never swallow a press meant for a button. -->
+      <div id="defeat-skip-surface" class="hidden" aria-hidden="true"></div>
       <div id="end-overlay" class="overlay hidden">
         <h1 id="end-title"></h1>
+        <p id="end-subtitle" class="stats-line hidden"></p>
         <p id="end-stats" class="stats-line"></p>
         <div id="end-contracts" class="hidden"></div>
         <div id="end-run-summary">
@@ -533,9 +554,14 @@ export class Hud {
           <button id="feedback-submit" type="button" disabled>Submit Feedback</button>
           <p id="feedback-status" role="status"></p>
         </section>
+        <!-- The primary action carries a BRANCH-NEUTRAL id: the Demo calls it
+             Play Again, the full game calls it New Run. Keeping the id stable
+             means the handler, the focus logic, the gamepad nav and the runtime
+             check are all shared code — only this label differs. -->
         <div id="end-actions">
-          ${wishlistAvailable ? '<button id="end-wishlist-button" class="wishlist-button">Wishlist Full Game</button>' : ''}
+          <button id="end-primary-button">Play Again</button>
           <button id="restart-button">Main Menu</button>
+          ${wishlistAvailable ? '<button id="end-wishlist-button" class="wishlist-button">Wishlist Full Game</button>' : ''}
         </div>
       </div>
       <div id="pause-overlay" class="overlay hidden">
@@ -669,6 +695,8 @@ export class Hud {
     this.upgradeCards = mustGet('upgrade-cards');
     this.endOverlay = mustGet('end-overlay');
     this.endTitle = mustGet('end-title');
+    this.endSubtitle = mustGet('end-subtitle');
+    this.endActions = mustGet('end-actions');
     this.endStats = mustGet('end-stats');
     this.endRunBuild = mustGet('end-run-build-content');
     this.endDamageList = mustGet('end-damage-list');
@@ -728,8 +756,28 @@ export class Hud {
     for (const id of ['wishlist-button', 'end-wishlist-button']) {
       document.getElementById(id)?.addEventListener('click', () => void openFullGameStore());
     }
+    {
+      const surface = mustGet('defeat-skip-surface');
+      surface.addEventListener('pointerdown', () => {
+        this.defeatPointerHeld = true;
+        this.defeatPointerSkip = true;
+      });
+      // Listened on the window, not the surface: a press released outside it
+      // would otherwise leave the gate believing the button is still down.
+      window.addEventListener('pointerup', () => { this.defeatPointerHeld = false; });
+      window.addEventListener('pointercancel', () => { this.defeatPointerHeld = false; });
+    }
+    mustGet('end-primary-button').addEventListener('click', () => {
+      if (this.endActionAccepted) return;
+      this.endActionAccepted = true;
+      this.hideEnd();
+      this.onPlayAgain();
+    });
     mustGet('restart-button').addEventListener('click', () => {
+      if (this.endActionAccepted) return;
+      this.endActionAccepted = true;
       this.endOverlay.classList.add('hidden');
+      this.hideDefeatBeat();
       // Resets the run world AND the game state back to 'menu' (so the 3D stops
       // rendering behind the menu view); onQuitToMenu re-shows the main menu.
       this.onQuitToMenu();
@@ -923,6 +971,13 @@ export class Hud {
   /** Landing screen: title + Play. Runs always start (and end) here. */
   showMainMenu(): void {
     mustGet('menu-overlay').classList.remove('hidden');
+  }
+
+  /** The normal start flow, entered without passing through the main menu.
+   *  Same seam the Play button uses, so New Run cannot drift from it. */
+  showCharacterSelect(): void {
+    mustGet('menu-overlay').classList.add('hidden');
+    this.showCharacterSelection();
   }
 
   /** Loading view shown while the world builds + warms up (game.ts drives it). */
@@ -1852,6 +1907,85 @@ export class Hud {
   /** Big arcade event banner (boss awakens, scrapper arrives): PS2P center
    *  text framed by hazard stripes, ~1.8s in-hold-out. Replaces toasts for
    *  headline moments; toasts stay for minor pickups. */
+  /** Arms the pointer/touch skip surface for the defeat beat and clears any
+   *  press left over from the run (a mouse button held when you died must not
+   *  count — same release rule the keyboard and pad follow). */
+  armDefeatSkipSurface(): void {
+    this.defeatPointerSkip = false;
+    this.defeatPointerHeld = false;
+    mustGet('defeat-skip-surface').classList.remove('hidden');
+  }
+
+  disarmDefeatSkipSurface(): void {
+    this.defeatPointerSkip = false;
+    this.defeatPointerHeld = false;
+    mustGet('defeat-skip-surface').classList.add('hidden');
+  }
+
+  /** True once per intentional press on the transition surface. */
+  consumeDefeatPointerSkip(): boolean {
+    const hit = this.defeatPointerSkip;
+    this.defeatPointerSkip = false;
+    return hit;
+  }
+
+  /** Feeds the controller's release gate from the pointer device. */
+  isDefeatPointerHeld(): boolean {
+    return this.defeatPointerHeld;
+  }
+
+  private defeatPointerSkip = false;
+  private defeatPointerHeld = false;
+
+  /** Title beat of the defeat sequence: SYSTEM OVERLOAD over the frozen battle,
+   *  on its own transparent layer so the fatal context stays readable until the
+   *  results overlay takes the screen. */
+  showDefeatBeat(): void {
+    const el = mustGet('defeat-beat');
+    el.classList.remove('hidden', 'play');
+    void el.offsetWidth; // restart the entry animation on a repeated run
+    el.classList.add('play');
+  }
+
+  hideDefeatBeat(): void {
+    const el = mustGet('defeat-beat');
+    el.classList.add('hidden');
+    el.classList.remove('play');
+  }
+
+  /** Enables/disables BOTH end actions at once. Disabled is the real gate:
+   *  clicks do nothing and menuNavItems already skips disabled buttons, so a
+   *  gamepad cannot reach them either. */
+  setEndActionsEnabled(enabled: boolean): void {
+    for (const button of this.endActions.querySelectorAll('button')) {
+      button.disabled = !enabled;
+    }
+  }
+
+  /** Keyboard/gamepad entry point for the results screen. */
+  focusPrimaryEndAction(): void {
+    const primary = this.endActions.querySelector<HTMLButtonElement>('button:not([disabled])');
+    primary?.focus({ preventScroll: true });
+  }
+
+  /** Full teardown of the end screen, used by both actions and by run reset so
+   *  a stale overlay can never survive into the next run. */
+  hideEnd(): void {
+    this.endOverlay.classList.add('hidden');
+    this.hideDefeatBeat();
+  }
+
+  /** Re-arms the one-shot action guard. Called when a new run is built, so the
+   *  next defeat can accept an action again. */
+  resetEndActions(): void {
+    this.endActionAccepted = false;
+    this.setEndActionsEnabled(true);
+  }
+
+  /** Terminal-action guard: a double click or a repeated gamepad edge cannot
+   *  run New Run and Main Menu, or the same one twice. */
+  private endActionAccepted = false;
+
   banner(message: string): void {
     const el = mustGet('event-banner');
     mustGet('event-banner-text').textContent = message;
@@ -2426,9 +2560,16 @@ export class Hud {
     coreLevels: CoreLevels,
     modCounts: ModCounts,
     earnedContracts: EarnedContract[] = [],
+    /** Defeat stages its reveal, so the actions arrive disabled and the defeat
+     *  controller enables them once its release gate is armed. */
+    actionsEnabled = true,
   ): void {
     this.resetFeedback();
     this.endTitle.textContent = RUN_OUTCOME_TITLES[outcome];
+    const defeated = outcome === 'defeat';
+    this.endSubtitle.textContent = defeated ? 'Chassis integrity lost' : '';
+    this.endSubtitle.classList.toggle('hidden', !defeated);
+    this.setEndActionsEnabled(actionsEnabled);
     this.renderEarnedContracts(earnedContracts);
     const m = Math.floor(survivedS / 60);
     const s = Math.floor(survivedS % 60);
@@ -2444,7 +2585,12 @@ export class Hud {
       separator,
       `<span class="end-kills"><img class="ui-glyph" src="${SKULL_ICON}" alt="" /><span>${kills} kills</span></span>`,
       separator,
-      `<span>${m}:${s.toString().padStart(2, '0')} survived</span>`,
+      // Defeat states the run clock as an instrument reading, not as a boast:
+      // "survived" is the wrong register for the screen that says the chassis
+      // is gone. Other outcomes keep their existing wording.
+      defeated
+        ? `<span>Operational Time ${m}:${s.toString().padStart(2, '0')}</span>`
+        : `<span>${m}:${s.toString().padStart(2, '0')} survived</span>`,
       bossPart,
     ].join('');
     const ownedWeapons = (Object.keys(weaponLevels) as WeaponId[])

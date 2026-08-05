@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ARENA_HALF_SIZE, BARRIER_CELL, PLAYER, VISUAL } from './config';
+import { ARENA_HALF_SIZE, BARRIER_CELL, DEFEAT_TRANSITION, PLAYER, VISUAL } from './config';
 import type { PlayerInput } from './input';
 import type { Obstacle } from './world';
 import { buildGridGeometry } from './models/voxel-builder';
@@ -38,6 +38,19 @@ export class Player {
   private readonly markerTicks: THREE.Mesh[] = [];
   private markerPulse = 0;
   private requestedModelKey = 'player';
+  /** Defeat presentation state. The body is MERGED geometry (one mesh for the
+   *  whole voxel model), so the overload is a temporary material/visibility
+   *  treatment over whatever renderables exist — never a per-voxel teardown. */
+  private defeatActive = false;
+  private defeatLit = false;
+  private readonly defeatOriginalMaterials = new Map<
+    THREE.Mesh,
+    THREE.Material | THREE.Material[]
+  >();
+  private readonly defeatFlashMaterials: THREE.MeshBasicMaterial[] = [];
+  /** Cached ONCE at defeat entry: spark origins read this instead of walking
+   *  the geometry every frame. */
+  private defeatBounds = { halfWidth: PLAYER.radius, height: 2 };
 
   constructor(scene: THREE.Scene) {
     this.mesh = new THREE.Group();
@@ -228,10 +241,14 @@ export class Player {
     if (!def) return;
     try {
       const geometry = buildGridGeometry(await buildModelGrid(modelKey), def.voxelSize);
-      if (modelKey !== this.requestedModelKey) {
+      // A stale request OR a dead run: swapping the body mid-defeat would leave
+      // the new mesh outside the saved-material map, so the overload treatment
+      // could never be restored. The next run rebuilds it from reset().
+      if (modelKey !== this.requestedModelKey || this.defeatActive) {
         geometry.dispose();
         return;
       }
+
       // Voxel models face +Z; the player rig faces -Z (see visor placement).
       geometry.rotateY(Math.PI);
       const voxelMesh = new THREE.Mesh(geometry, litMaterial({ vertexColors: true }));
@@ -339,8 +356,121 @@ export class Player {
     return this.invulnTimer > 0;
   }
 
+  /** Drops the post-hit grace window. Used only by the release-gated fatal-hit
+   *  harness, so a test press lands on the frame it was made instead of being
+   *  swallowed by invulnerability left over from the hit before it. */
+  clearInvulnerability(): void {
+    this.invulnTimer = 0;
+  }
+
+  /** Fatal hit: freeze the chassis where it died and capture what the overload
+   *  needs. Called once, synchronously, on the frame HP reached zero. */
+  beginDefeatPresentation(): void {
+    if (this.defeatActive) return;
+    this.defeatActive = true;
+    this.defeatLit = false;
+    // The invuln blink toggles mesh.visible from update(), which no longer runs.
+    // Force the body visible so the overload has something to light up.
+    this.mesh.visible = true;
+    this.mesh.position.copy(this.position);
+    this.mesh.position.y = 0;
+    this.mesh.rotation.z = 0;
+
+    this.defeatOriginalMaterials.clear();
+    this.mesh.traverse((child) => {
+      const candidate = child as THREE.Mesh;
+      if (candidate.isMesh && candidate.material) {
+        this.defeatOriginalMaterials.set(candidate, candidate.material);
+      }
+    });
+
+    if (this.defeatFlashMaterials.length === 0) {
+      for (const color of DEFEAT_TRANSITION.overload.flashColors) {
+        this.defeatFlashMaterials.push(new THREE.MeshBasicMaterial({ color }));
+      }
+    }
+
+    // One readback, never per frame. Falls back to the collision radius if the
+    // body is empty (async model not yet swapped in and primitives removed).
+    const box = new THREE.Box3().setFromObject(this.mesh);
+    if (box.isEmpty()) {
+      this.defeatBounds = { halfWidth: PLAYER.radius, height: 2 };
+    } else {
+      const size = box.getSize(new THREE.Vector3());
+      this.defeatBounds = {
+        halfWidth: Math.max(0.2, Math.max(size.x, size.z) * 0.5),
+        height: Math.max(0.5, size.y),
+      };
+    }
+  }
+
+  /** Chassis volume the defeat sparks vent from. */
+  get defeatChassisBounds(): { halfWidth: number; height: number } {
+    return this.defeatBounds;
+  }
+
+  /**
+   * Electrical overload strobe. `pressure` (0→1) widens the lit duty cycle, so
+   * the chassis starts arcing and ends almost solid light — the build-up is in
+   * the DUTY, not in the colour, which keeps it readable against the frozen
+   * battle behind it.
+   */
+  tickDefeatPresentation(elapsedS: number, pressure: number): void {
+    if (!this.defeatActive || this.defeatOriginalMaterials.size === 0) return;
+    const cfg = DEFEAT_TRANSITION.overload;
+    let lit: boolean;
+    let colorIndex: number;
+    if (elapsedS < DEFEAT_TRANSITION.fatalHitstopS) {
+      // Hitstop: a single hot core, held. No strobe yet — the impact reads as
+      // one solid flash, and the arcing only starts once the body is failing.
+      lit = true;
+      colorIndex = 1;
+    } else {
+      const step = Math.floor(elapsedS * cfg.strobeHz);
+      const phase = elapsedS * cfg.strobeHz - step;
+      lit = phase < 0.35 + 0.5 * clamp01(pressure);
+      colorIndex = step % this.defeatFlashMaterials.length;
+    }
+    const flash = this.defeatFlashMaterials[colorIndex];
+    if (lit === this.defeatLit && !lit) return;
+    this.defeatLit = lit;
+    for (const [mesh, original] of this.defeatOriginalMaterials) {
+      mesh.material = lit && flash ? flash : original;
+    }
+  }
+
+  /** Title handoff: the chassis is gone. The shield plates, ground marker and
+   *  blob shadow go with it — leaving any of them alive implies a body that is
+   *  still standing there. */
+  powerDownForDefeat(): void {
+    if (!this.defeatActive) return;
+    for (const [mesh, original] of this.defeatOriginalMaterials) {
+      mesh.material = original;
+    }
+    this.defeatLit = false;
+    this.mesh.visible = false;
+    for (const plate of this.shieldPlates) plate.visible = false;
+    if (this.markerGroup) this.markerGroup.visible = false;
+    if (this.shadow) this.shadow.visible = false;
+  }
+
+  /** Undoes every temporary defeat treatment. Safe to call when no defeat ran. */
+  resetDefeatPresentation(): void {
+    for (const [mesh, original] of this.defeatOriginalMaterials) {
+      mesh.material = original;
+    }
+    this.defeatOriginalMaterials.clear();
+    this.defeatActive = false;
+    this.defeatLit = false;
+    this.defeatBounds = { halfWidth: PLAYER.radius, height: 2 };
+    this.mesh.visible = true;
+    if (this.markerGroup) this.markerGroup.visible = true;
+    if (this.shadow) this.shadow.visible = true;
+  }
+
   /** Fresh-run state: clears leftover invulnerability from the previous run. */
   reset(): void {
+    this.resetDefeatPresentation();
     this.maxHp = PLAYER.maxHp;
     this.hp = PLAYER.maxHp;
     this.moveSpeed = PLAYER.moveSpeed;
@@ -373,4 +503,9 @@ export class Player {
   get isDead(): boolean {
     return this.hp <= 0;
   }
+}
+
+function clamp01(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return value < 0 ? 0 : value > 1 ? 1 : value;
 }
