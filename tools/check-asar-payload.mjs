@@ -126,7 +126,56 @@ export function inspectAsar(archive) {
     });
   }
 
+  const missing = findDanglingReferences(files, haystack);
+  if (missing.length > 0) {
+    problems.push({
+      rule: 'dangling-reference',
+      detail: 'Shipped code asks for these paths but they are NOT in the archive, so they '
+        + 'will 404 at runtime. The dev server reads straight from public/, so this breaks '
+        + 'ONLY in the packaged build. Almost always a `!` pattern in build.files that now '
+        + 'excludes an asset the game started using again -- drop that pattern.',
+      files: missing,
+    });
+  }
+
   return { files, problems };
+}
+
+/** The reverse of `unreferenced-asset`: a path the shipped code loads that no
+ *  longer ships. The asset roots are derived from the archive itself (assets/,
+ *  fonts/, ...) instead of being hardcoded, so a new top-level asset directory
+ *  is covered the day it appears.
+ *
+ *  Only asset extensions are scanned on purpose. A missing JSON manifest breaks
+ *  the game loudly on the first run; a missing PNG is the silent case worth
+ *  guarding. It also keeps AUDIO.paths.finalManifest -- dead config naming a
+ *  deliberately unshipped manifest -- from raising a false alarm. */
+function findDanglingReferences(files, haystack) {
+  const shipped = new Set(files.map((f) => f.path));
+  const roots = new Set();
+  for (const file of files) {
+    const [top, second] = file.path.split('/');
+    if (top === 'dist' && second && second.includes('.') === false) roots.add(second);
+  }
+  if (roots.size === 0) return [];
+
+  // Longest extension first, plus a trailing boundary: otherwise `woff` matches
+  // the prefix of a real `press-start-2p.woff2` and invents a missing file.
+  const extensions = [...ASSET_EXTENSIONS]
+    .map((e) => e.slice(1))
+    .sort((a, b) => b.length - a.length)
+    .join('|');
+  const pattern = new RegExp(
+    `(?:${[...roots].join('|')})/[A-Za-z0-9_\\-./]+?\\.(?:${extensions})(?![A-Za-z0-9])`,
+    'gi',
+  );
+
+  const missing = new Map();
+  for (const match of haystack.matchAll(pattern)) {
+    const path = `dist/${match[0].replace(/^\/+/, '')}`;
+    if (!shipped.has(path)) missing.set(path, { path, size: 0 });
+  }
+  return [...missing.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
 
 function report({ files, problems }, archive) {
