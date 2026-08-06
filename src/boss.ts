@@ -15,6 +15,19 @@ import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
 import { findClearSpot, findRandomClearSpot, type Obstacle } from './world';
 
+/** The voxel size the portal's surrounding primitives — beam, warning ring,
+ *  placeholder pillar — were authored against. Their literals below are all
+ *  relative to a gate built at this size. */
+const PORTAL_AUTHORED_VOXEL_SIZE = 0.12;
+
+/** How much the portal model has grown since those primitives were authored.
+ *  BOSS.totemColliderRadius covers the same coupling on the physics side; it
+ *  stays in config because it is a gameplay number, not a visual one. */
+function portalScale(): number {
+  const size = VOXEL_MODELS['portal']?.voxelSize;
+  return typeof size === 'number' && size > 0 ? size / PORTAL_AUTHORED_VOXEL_SIZE : 1;
+}
+
 // A totem spawns somewhere far away at run start. Touching it summons one
 // random boss. The boss lives inside the enemy pool (so every weapon hits it);
 // this system only drives its special attacks on top of the base behavior.
@@ -72,21 +85,27 @@ export class BossSystem {
   };
 
   constructor(scene: THREE.Scene) {
+    // Everything drawn around the gate follows the gate. Derived from the model
+    // rather than retyped, because growing the portal from 0.12 to 0.16 left
+    // the beam and the warning ring at their old size — the landmark got wider
+    // while its own light column stayed thin, which reads as a mismatch rather
+    // than a bigger portal. Change voxelSize alone and this tracks it.
+    const scale = portalScale();
     this.totem = new THREE.Group();
     this.totemBody = new THREE.Group();
     const pillar = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.5, 0.8, 2.4, 6),
+      new THREE.CylinderGeometry(0.5 * scale, 0.8 * scale, 2.4 * scale, 6),
       litMaterial({ color: 0x232830 }),
     );
-    pillar.position.y = 1.2;
+    pillar.position.y = 1.2 * scale;
     const skull = new THREE.Mesh(
-      new THREE.OctahedronGeometry(0.7, 0),
+      new THREE.OctahedronGeometry(0.7 * scale, 0),
       new THREE.MeshBasicMaterial({ color: 0xff3355 }),
     );
-    skull.position.y = 3;
+    skull.position.y = 3 * scale;
     this.totemBody.add(pillar, skull);
     this.beam = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.45, 0.45, 18, 8, 1, true),
+      new THREE.CylinderGeometry(0.45 * scale, 0.45 * scale, 18 * scale, 8, 1, true),
       new THREE.MeshBasicMaterial({
         color: 0xff3355,
         transparent: true,
@@ -96,11 +115,13 @@ export class BossSystem {
         side: THREE.DoubleSide,
       }),
     );
-    this.beam.position.y = 9;
+    this.beam.position.y = 9 * scale;
     // Summon telegraph (2026-07-11): a red warning ring that pulses outward
     // from the portal base while the boss assembles — danger you can SEE
     // growing before it lands (boss red = the exclusive danger language).
-    const warnGeometry = new THREE.RingGeometry(0.85, 1.0, 32);
+    // Its base radius scales too: the ring starts at the gate's footprint, and
+    // a wider gate with the old ring reads as the ring starting inside it.
+    const warnGeometry = new THREE.RingGeometry(0.85 * scale, 1.0 * scale, 32);
     warnGeometry.rotateX(-Math.PI / 2);
     this.warnRing = new THREE.Mesh(
       warnGeometry,
