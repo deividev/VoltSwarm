@@ -47,6 +47,7 @@ export const DEV_TOOLS: {
   auditionKeys: boolean;
   bossLab: boolean;
   fatalHitKey: boolean;
+  shortMaps: boolean;
 } = {
   /** Main-menu "Unlocks" panel. Holds three actions: unlock every
    *  weapon/core/mod and open all sockets directly; settle every contract
@@ -66,7 +67,19 @@ export const DEV_TOOLS: {
    *  through damagePlayer on purpose — a harness that bypassed the funnel would
    *  verify a path players never take. */
   fatalHitKey: false,
+  /** VALIDATION RIG — shortens the run to SHORT_RUN_DURATION_S so a whole arc
+   *  (walk to the portal, kill the boss, read the ending) can be checked in
+   *  minutes instead of ten.
+   *
+   *  It is a guarded flag rather than an edited constant on purpose: an edited
+   *  constant is invisible and ships. check-release-flags.mjs fails the build
+   *  while this is true, so `npm run package` physically cannot produce a
+   *  four-minute release. Turn it off when the validation pass is done. */
+  shortMaps: true,
 };
+
+/** Run length while DEV_TOOLS.shortMaps is on. Inert otherwise. */
+export const SHORT_RUN_DURATION_S = 4 * 60;
 
 /** Renderer-side audio tuning. All voice, cooldown and fade values are config-owned. */
 export const AUDIO = {
@@ -169,7 +182,7 @@ export const SPAWN_PLACEMENT = {
   spiralStep: 1.25,
 };
 
-export const RUN_DURATION_S = 10 * 60;
+export const RUN_DURATION_S = DEV_TOOLS.shortMaps ? SHORT_RUN_DURATION_S : 10 * 60;
 
 /** Map-1 tactical prop: shipping-container chokepoints. Each gate is a pair
  *  of containers forming a wall with an opening — a subtle funnel; user

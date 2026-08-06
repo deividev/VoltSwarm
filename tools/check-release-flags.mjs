@@ -24,6 +24,7 @@ const GUARDED = [
   { block: 'DEV_TOOLS', key: 'auditionKeys', why: 'the F2-F9 SFX audition hotkeys would ship to players' },
   { block: 'DEV_TOOLS', key: 'bossLab', why: 'the B/N boss-lab hotkeys would let players skip to minute 8 with a loaded build' },
   { block: 'DEV_TOOLS', key: 'fatalHitKey', why: 'the K instant-death hotkey would let players end a run on demand' },
+  { block: 'DEV_TOOLS', key: 'shortMaps', why: 'the validation rig would ship a four-minute run instead of the real ten' },
   { block: 'RECORDING', key: 'enabled', why: 'the level-up draft is rigged for capture' },
   { block: 'RECORDING', key: 'forceGreenChests', why: 'chest tiers are rigged for capture' },
   { block: 'RECORDING', key: 'forceOrbSiphonReward', why: 'the chest reward is rigged for capture' },
