@@ -1930,7 +1930,10 @@ export const BOSS = {
   /** Radius of the summon zone; inside it the Interact prompt shows.
    *  The key itself is the rebindable 'interact' action (settings). */
   totemActivateRadius: 4.5,
-  totemColliderRadius: 2.3,
+  /** Tracks the portal model's voxelSize (registry.ts). Scaled with it on
+   *  2026-08-06 (2.3 -> 3.1) so the player still stops at the slab's face
+   *  instead of walking into the widened visual. */
+  totemColliderRadius: 3.1,
   respawnRetryS: 1,
   /** Delay between pressing the summon key and the boss appearing (the totem
    *  spins up as the telegraph), and the minimum distance from the player at

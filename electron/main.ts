@@ -5,6 +5,7 @@ import { TelemetryClient } from './telemetry/client';
 import { hasTelemetryConsent, persistTelemetryConsent } from './telemetry/consent';
 import { isPlaytestEligible, TELEMETRY_CONFIG } from './telemetry/config';
 import { completePlaytestReset, isPlaytestResetRequired, preparePlaytestReset } from './playtest-reset';
+import { readSaveOrQuarantine, writeFileAtomic } from './safe-save';
 
 let mainWindow: BrowserWindow | null = null;
 let telemetryClient: TelemetryClient | null = null;
@@ -48,6 +49,7 @@ function profileFile(): string {
 function runHistoryFile(): string {
   return path.join(app.getPath('userData'), 'run-history.json');
 }
+
 
 /** The display the game opens on, in physical pixels plus its DIP scale.
  *  Electron reports display size in DIP, so the resolution a player recognises
@@ -312,7 +314,7 @@ void app.whenReady().then(() => {
 
   ipcMain.on('settings:save', (event, data: string) => {
     try {
-      fs.writeFileSync(settingsFile(), data, 'utf8');
+      writeFileAtomic(settingsFile(), data);
       event.returnValue = true;
     } catch {
       event.returnValue = false;
@@ -320,16 +322,12 @@ void app.whenReady().then(() => {
   });
 
   ipcMain.on('profile:load', (event) => {
-    try {
-      event.returnValue = fs.readFileSync(profileFile(), 'utf8');
-    } catch {
-      event.returnValue = null;
-    }
+    event.returnValue = readSaveOrQuarantine(profileFile());
   });
 
   ipcMain.on('profile:save', (event, data: string) => {
     try {
-      fs.writeFileSync(profileFile(), data, 'utf8');
+      writeFileAtomic(profileFile(), data);
       event.returnValue = true;
     } catch {
       event.returnValue = false;
@@ -337,16 +335,12 @@ void app.whenReady().then(() => {
   });
 
   ipcMain.on('run-history:load', (event) => {
-    try {
-      event.returnValue = fs.readFileSync(runHistoryFile(), 'utf8');
-    } catch {
-      event.returnValue = null;
-    }
+    event.returnValue = readSaveOrQuarantine(runHistoryFile());
   });
 
   ipcMain.on('run-history:save', (event, data: string) => {
     try {
-      fs.writeFileSync(runHistoryFile(), data, 'utf8');
+      writeFileAtomic(runHistoryFile(), data);
       event.returnValue = true;
     } catch {
       event.returnValue = false;
