@@ -404,7 +404,11 @@ export class Hud {
           <div id="defeat-beat-subtitle">Chassis integrity lost</div>
           <div class="banner-stripe"></div>
         </div>
-        <div id="totem-indicator" class="hidden"><span class="arrow">▲</span><span class="label">TOTEM</span></div>
+        <!-- Label says BOSS, not TOTEM: 6 recorded human runs summoned zero
+             bosses while this arrow was on screen pointing straight at the
+             portal. "Totem" names our prop; "BOSS" names the reason to walk
+             there, and it is the word every player in the genre already knows. -->
+        <div id="totem-indicator" class="hidden"><span class="arrow">▲</span><span class="label">BOSS</span></div>
         <div id="merchant-indicator" class="hidden"><span class="arrow">▲</span><span class="label">SHOP</span></div>
         <div id="gold-counter" class="hidden"><img class="ui-glyph" src="${COIN_ICON}" alt="" /><span id="gold-amount">0</span></div>
         <div id="buff-row"></div>

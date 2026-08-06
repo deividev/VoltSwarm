@@ -22,7 +22,15 @@ function packageAtVersion(version) {
   };
 }
 
-function loadSettingsModule({ electronSettings = null, localStorageSettings = null } = {}) {
+function loadSettingsModule({
+  electronSettings = null,
+  localStorageSettings = null,
+  // settings.ts derives the resolution list from the real display, so the fake
+  // window needs a screen. 1080p keeps 1600x900 a legal choice for the
+  // persistence case below.
+  screen = { width: 1920, height: 1080 },
+  devicePixelRatio = 1,
+} = {}) {
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'settings.ts'), 'utf8');
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -38,6 +46,8 @@ function loadSettingsModule({ electronSettings = null, localStorageSettings = nu
     window: {
       electronAPI: electronSettings === null ? undefined : { loadSettings: () => electronSettings },
       localStorage,
+      screen,
+      devicePixelRatio,
     },
   });
   return module.exports;
@@ -76,12 +86,24 @@ test('first launch defaults to fullscreen in native and renderer settings', () =
     initialWindowSettingsStart,
     initialWindowSettingsEnd,
   );
-  assert.match(initialWindowSettings, /catch \{\s*return \{ fullscreen: true, width: 1280, height: 720 \};\s*}/);
-  assert.match(initialWindowSettings, /fullscreen: settings\.displayMode === 'fullscreen'/);
+  // No settings file: the fallback opens fullscreen. The size is no longer a
+  // literal 1280x720 — it is derived from the display the game was launched on
+  // (0.13.7-demo), so the contract asserted here is the fullscreen flag and the
+  // absence of a hardcoded size, not the old exact string.
+  assert.match(initialWindowSettings, /const fallback = \{\s*fullscreen: true,/);
+  assert.match(initialWindowSettings, /catch \{\s*return fallback;\s*}/);
+  assert.doesNotMatch(initialWindowSettings, /width: 1280, height: 720/);
+  // Only an explicit 'windowed' opts out; a missing or legacy value stays
+  // fullscreen. This is stricter than the old `=== 'fullscreen'` test.
+  assert.match(initialWindowSettings, /fullscreen: settings\.displayMode !== 'windowed'/);
 
-  const { DEFAULT_SETTINGS, loadSettings } = loadSettingsModule();
-  assert.equal(DEFAULT_SETTINGS.displayMode, 'fullscreen');
+  const { defaultSettingsForDisplay, loadSettings, resolutionId } = loadSettingsModule();
+  const display = { width: 1920, height: 1080, scaleFactor: 1 };
+  assert.equal(defaultSettingsForDisplay(display).displayMode, 'fullscreen');
+  // The default resolution is the player's own screen, never a fixed 720p.
+  assert.equal(defaultSettingsForDisplay(display).resolution, resolutionId(1920, 1080));
   assert.equal(loadSettings().displayMode, 'fullscreen');
+  assert.equal(loadSettings().resolution, resolutionId(1920, 1080));
 });
 
 test('persisted display modes remain authoritative after startup', () => {

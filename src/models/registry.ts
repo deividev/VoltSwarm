@@ -987,9 +987,11 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
     sideProfileRef: 'assets/2d/prop-portal-side-v1.png',
     backPaintRef: 'assets/2d/prop-portal-front-v1.png',
     targetWidth: 30,
-    // Landmark scale (2026-07-09 user call): ~3.6u wide / ~4.5u tall — the
-    // boss door should dwarf the player and read across the arena.
-    voxelSize: 0.12,
+    // Landmark scale (2026-07-09 user call): the boss door should dwarf the
+    // player and read across the arena. Raised 0.12 -> 0.16 on 2026-08-06
+    // (~3.6u wide/4.5u tall -> ~4.8u/6.0u) because zero of six recorded human
+    // runs ever walked to it. BOSS.totemColliderRadius scales with this.
+    voxelSize: 0.16,
     bodyColor: DARK,
     palette: [DARK, PORTAL_STEEL, PORTAL_RED, PORTAL_RED_DEEP, BONE],
     frontOnly: [],
