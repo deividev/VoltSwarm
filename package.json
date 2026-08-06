@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.13.1-demo",
+  "version": "0.13.2-demo",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -62,7 +62,7 @@
     "vite": "^5.4.10"
   },
   "build": {
-    "buildVersion": "0.13.1.0",
+    "buildVersion": "0.13.2.0",
     "appId": "com.davidseco.voltswarm.demo",
     "productName": "Voltswarm Demo",
     "directories": {
@@ -72,8 +72,24 @@
       "dist/**/*",
       "electron/dist/**/*",
       "package.json",
+      "!node_modules/three/**",
       "!dist/assets/audio/sfx/**",
-      "!node_modules/three/**"
+      "!dist/assets/2d/ref-field-engineer-side-v1.png",
+      "!dist/assets/2d/ref-final-boss-front-v2.png",
+      "!dist/assets/2d/ref-final-boss-side-v2.png",
+      "!dist/assets/2d/ref-final-boss-back-v2.png",
+      "!dist/assets/2d/ref-sparkrunner-front-v5.png",
+      "!dist/assets/2d/ref-sparkrunner-side-v3.png",
+      "!dist/assets/2d/ref-sparkrunner-back-v5.png",
+      "!dist/assets/2d/ref-tesla-titan-side-v1.png",
+      "!dist/assets/2d/ref-tesla-titan-back-v1.png",
+      "!dist/assets/2d/ref-volt-warden-front-v2.png",
+      "!dist/assets/audio/prototypes/merchant-arrival.wav",
+      "!dist/assets/audio/prototypes/player-hit-1.wav",
+      "!dist/assets/audio/prototypes/player-hit-2.wav",
+      "!dist/assets/audio/prototypes/player-hit-b-1.wav",
+      "!dist/assets/audio/prototypes/player-hit-b-2.wav",
+      "!dist/assets/audio/prototypes/run-victory.wav"
     ],
     "win": {
       "icon": "build/icon.ico",
@@ -89,6 +105,7 @@
     },
     "portable": {
       "artifactName": "Voltswarm-Demo-${version}-portable.${ext}"
-    }
+    },
+    "afterPack": "./tools/check-asar-payload.mjs"
   }
 }
