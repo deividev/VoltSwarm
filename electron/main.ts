@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, dialog, ipcMain, shell } from 'electron';
+import { app, BrowserWindow, Menu, dialog, ipcMain, screen, shell } from 'electron';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { TelemetryClient } from './telemetry/client';
@@ -87,7 +87,29 @@ function runHistoryFile(): string {
   return path.join(app.getPath('userData'), 'run-history.json');
 }
 
+/** The display the game opens on, in physical pixels plus its DIP scale.
+ *  Electron reports display size in DIP, so the resolution a player recognises
+ *  as theirs is size × scaleFactor. Safe here: createWindow runs after ready. */
+function primaryDisplay(): { width: number; height: number; scaleFactor: number } {
+  const display = screen.getPrimaryDisplay();
+  const scaleFactor = display.scaleFactor > 0 ? display.scaleFactor : 1;
+  return {
+    width: Math.round(display.size.width * scaleFactor),
+    height: Math.round(display.size.height * scaleFactor),
+    scaleFactor,
+  };
+}
+
 function initialWindowSettings(): { fullscreen: boolean; width: number; height: number } {
+  const display = primaryDisplay();
+  // First launch fills the screen the game was started on, at that screen's own
+  // resolution — never a hardcoded 1280x720, which on a 1440p panel opened a
+  // small window and made the settings picker disagree with what was on screen.
+  const fallback = {
+    fullscreen: true,
+    width: Math.round(display.width / display.scaleFactor),
+    height: Math.round(display.height / display.scaleFactor),
+  };
   try {
     const settings = JSON.parse(fs.readFileSync(settingsFile(), 'utf8')) as {
       displayMode?: string;
@@ -95,12 +117,15 @@ function initialWindowSettings(): { fullscreen: boolean; width: number; height: 
     };
     const match = /^(\d+)x(\d+)$/.exec(settings.resolution ?? '');
     return {
-      fullscreen: settings.displayMode === 'fullscreen',
-      width: match ? Number(match[1]) : 1280,
-      height: match ? Number(match[2]) : 720,
+      // Only an explicit 'windowed' opts out. A missing or legacy value keeps
+      // the first-launch default instead of silently forcing a small window.
+      fullscreen: settings.displayMode !== 'windowed',
+      // Stored sizes are physical pixels; BrowserWindow takes DIP.
+      width: match ? Math.round(Number(match[1]) / display.scaleFactor) : fallback.width,
+      height: match ? Math.round(Number(match[2]) / display.scaleFactor) : fallback.height,
     };
   } catch {
-    return { fullscreen: true, width: 1280, height: 720 };
+    return fallback;
   }
 }
 

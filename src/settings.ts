@@ -48,20 +48,87 @@ export interface GameSettings {
   bindings: ControlBindings;
 }
 
-export const RESOLUTIONS = [
+export interface ResolutionOption {
+  id: string;
+  label: string;
+  width: number;
+  height: number;
+}
+
+export interface DisplayInfo {
+  /** Physical pixels — the number a player recognises as "my resolution". */
+  width: number;
+  height: number;
+  /** CSS-pixel scale. Electron sizes windows in DIP, so a stored physical
+   *  resolution is divided by this before it reaches setContentSize. */
+  scaleFactor: number;
+}
+
+/** Common windowed sizes. This is a catalogue, never the list shown to the
+ *  player: the effective list is always derived from the actual display, so
+ *  the picker can neither offer a window larger than the screen nor hide the
+ *  resolution the game is really running at. */
+const STANDARD_RESOLUTIONS: readonly ResolutionOption[] = [
   { id: '1280x720', label: '1280×720', width: 1280, height: 720 },
   { id: '1600x900', label: '1600×900', width: 1600, height: 900 },
   { id: '1920x1080', label: '1920×1080', width: 1920, height: 1080 },
-] as const;
+  { id: '2560x1440', label: '2560×1440', width: 2560, height: 1440 },
+];
 
-export const DEFAULT_SETTINGS: GameSettings = {
+export function resolutionId(width: number, height: number): string {
+  return `${Math.round(width)}x${Math.round(height)}`;
+}
+
+/** The display the game is currently on, in physical pixels. */
+export function detectDisplay(): DisplayInfo {
+  const scaleFactor = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
+  return {
+    width: Math.round(window.screen.width * scaleFactor),
+    height: Math.round(window.screen.height * scaleFactor),
+    scaleFactor,
+  };
+}
+
+/** Catalogue entries that fit on the screen, plus the native size, ascending.
+ *  The native entry is ALWAYS present — it is the first-launch default, and a
+ *  default the picker cannot represent would silently fall back to something
+ *  else the moment settings are normalized. */
+export function resolutionsForDisplay(display: DisplayInfo): ResolutionOption[] {
+  const nativeId = resolutionId(display.width, display.height);
+  const options = STANDARD_RESOLUTIONS.filter(
+    (item) => item.id !== nativeId && item.width <= display.width && item.height <= display.height,
+  ).map((item) => ({ ...item }));
+  options.push({
+    id: nativeId,
+    label: `${display.width}×${display.height} (Native)`,
+    width: display.width,
+    height: display.height,
+  });
+  return options.sort((a, b) => a.width * a.height - b.width * b.height);
+}
+
+export function resolutionOptions(): ResolutionOption[] {
+  return resolutionsForDisplay(detectDisplay());
+}
+
+/** Everything except resolution, which has no meaningful value until a display
+ *  is known. Fullscreen is the first-launch mode on purpose: a demo should open
+ *  filling the screen it was launched on, not in a small window. */
+const BASE_DEFAULTS: Omit<GameSettings, 'resolution'> = {
   displayMode: 'fullscreen',
-  resolution: '1280x720',
   masterVolume: 0.8,
   musicVolume: 0.7,
   sfxVolume: 1,
   bindings: cloneBindings(DEFAULT_BINDINGS),
 };
+
+export function defaultSettingsForDisplay(display: DisplayInfo): GameSettings {
+  return {
+    ...BASE_DEFAULTS,
+    resolution: resolutionId(display.width, display.height),
+    bindings: cloneBindings(DEFAULT_BINDINGS),
+  };
+}
 
 export function cloneBindings(bindings: ControlBindings): ControlBindings {
   const keyboard = {} as Record<ActionId, string[]>;
@@ -116,12 +183,13 @@ export function gamepadButtonLabel(index: number): string {
 const STORAGE_KEY = 'voltswarm:settings';
 
 export function loadSettings(): GameSettings {
+  const display = detectDisplay();
   const raw = window.electronAPI?.loadSettings() ?? window.localStorage.getItem(STORAGE_KEY);
-  if (!raw) return { ...DEFAULT_SETTINGS };
+  if (!raw) return defaultSettingsForDisplay(display);
   try {
-    return normalizeSettings(JSON.parse(raw) as Partial<GameSettings>);
+    return normalizeSettings(JSON.parse(raw) as Partial<GameSettings>, display);
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return defaultSettingsForDisplay(display);
   }
 }
 
@@ -129,36 +197,46 @@ export function loadSettings(): GameSettings {
  *  they actually change — re-applying on every save made the screen blink
  *  on each auto-applied volume tick (2026-07-13). */
 export function saveSettings(settings: GameSettings): void {
-  const normalized = normalizeSettings(settings);
+  const normalized = normalizeSettings(settings, detectDisplay());
   const raw = JSON.stringify(normalized);
   window.electronAPI?.saveSettings(raw);
   window.localStorage.setItem(STORAGE_KEY, raw);
 }
 
 export function applyWindowSettings(settings: GameSettings): void {
-  const resolution = RESOLUTIONS.find((item) => item.id === settings.resolution) ?? RESOLUTIONS[0];
+  const display = detectDisplay();
+  const native = { width: display.width, height: display.height };
+  const resolution =
+    resolutionsForDisplay(display).find((item) => item.id === settings.resolution) ?? native;
+  // Stored sizes are physical pixels; Electron sizes windows in DIP. On a
+  // scaled display (a 150% laptop) passing the physical number straight through
+  // would ask for a window half again bigger than the screen.
   window.electronAPI?.setWindowMode(
     settings.displayMode,
-    resolution.width,
-    resolution.height,
+    Math.round(resolution.width / display.scaleFactor),
+    Math.round(resolution.height / display.scaleFactor),
   );
 }
 
-function normalizeSettings(value: Partial<GameSettings>): GameSettings {
+export function normalizeSettings(
+  value: Partial<GameSettings>,
+  display: DisplayInfo,
+): GameSettings {
+  const fallback = defaultSettingsForDisplay(display);
+  const options = resolutionsForDisplay(display);
   const resolution =
-    typeof value.resolution === 'string' &&
-    RESOLUTIONS.some((item) => item.id === value.resolution)
+    typeof value.resolution === 'string' && options.some((item) => item.id === value.resolution)
       ? value.resolution
-      : DEFAULT_SETTINGS.resolution;
+      : fallback.resolution;
   return {
     displayMode:
       value.displayMode === 'windowed' || value.displayMode === 'fullscreen'
         ? value.displayMode
-        : DEFAULT_SETTINGS.displayMode,
+        : fallback.displayMode,
     resolution,
-    masterVolume: clamp01(value.masterVolume, DEFAULT_SETTINGS.masterVolume),
-    musicVolume: clamp01(value.musicVolume, DEFAULT_SETTINGS.musicVolume),
-    sfxVolume: clamp01(value.sfxVolume, DEFAULT_SETTINGS.sfxVolume),
+    masterVolume: clamp01(value.masterVolume, fallback.masterVolume),
+    musicVolume: clamp01(value.musicVolume, fallback.musicVolume),
+    sfxVolume: clamp01(value.sfxVolume, fallback.sfxVolume),
     bindings: normalizeBindings(value.bindings),
   };
 }
