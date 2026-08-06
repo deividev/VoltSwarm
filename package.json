@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.13.3",
+  "version": "0.13.4",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -35,7 +35,8 @@
     "audio:generate": "node tools/audio/generate.mjs",
     "audio:validate": "node tools/audio/validate.mjs",
     "audio:foundation-check": "node tools/audio/foundation-check.mjs",
-    "benchmark:audio": "node tools/benchmark-audio-electron.mjs"
+    "benchmark:audio": "node tools/benchmark-audio-electron.mjs",
+    "test:packaged": "node tools/packaged-run-check.mjs"
   },
   "author": "David Seco Diaz",
   "license": "MIT",
