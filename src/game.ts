@@ -41,7 +41,7 @@ import { GoldSystem } from './gold';
 import { MerchantSystem } from './merchant';
 import { MOD_REGISTRY, barrierCellCapacity, barrierCellRegenS, describeMod, isModAtCopyCap, modPrice, rollModOfTier, rollShopStock, tierPrice, type ModCounts, type ModId } from './mods';
 import { DamageNumbers } from './damage-numbers';
-import { BossSystem } from './boss';
+import { BossSystem, type BossBody } from './boss';
 import { AudioDirector, type AudioEventId } from './audio';
 import { DefeatSparks, VoxelBurst } from './particles';
 import {
@@ -172,6 +172,13 @@ export class Game {
   /** Static props plus currently active merchant/chests/totem. Reused every
    *  frame so every mover and every placement query sees the same world. */
   private readonly collisionObstacles: Obstacle[] = [];
+  /** The world list PLUS the live boss body. Only the player walks against
+   *  this one: the swarm keeps steering by collisionObstacles, where the boss
+   *  already has its own wider clear-ring entry. */
+  private readonly playerObstacles: Obstacle[] = [];
+  /** Ram serial of the last boss charge that was billed against the player, so
+   *  one lunge costs one hit however many frames the bodies overlap. */
+  private billedRamSerial = -1;
   /** Meshes from the last placeRandomProps() call, so startRun() can clear
    *  them before generating a fresh layout (user request 2026-07-06: a
    *  different container/barrel layout every playthrough). */
@@ -1036,6 +1043,14 @@ export class Game {
     return this.collisionObstacles;
   }
 
+  /** Refresh refreshCollisionObstacles() first — this reads its result. */
+  private refreshPlayerObstacles(): Obstacle[] {
+    this.playerObstacles.length = 0;
+    for (const obstacle of this.collisionObstacles) this.playerObstacles.push(obstacle);
+    this.boss.appendBodyObstacle(this.playerObstacles, this.enemies);
+    return this.playerObstacles;
+  }
+
   private update(dt: number): void {
     if (this.hitstopCooldownS > 0) this.hitstopCooldownS -= dt;
     if (this.killWindowS > 0) this.killWindowS -= dt;
@@ -1103,7 +1118,10 @@ export class Game {
     const speedMult =
       this.stats.moveSpeed * (this.hasteS > 0 ? PICKUPS.hasteSpeedMultiplier : 1);
     const collisionObstacles = this.refreshCollisionObstacles();
-    this.player.update(dt, this.input, speedMult, collisionObstacles);
+    // A boss body is solid to the player (and only to the player): walking
+    // into one used to put the player INSIDE it, which is how a single ram
+    // billed three contact hits.
+    this.player.update(dt, this.input, speedMult, this.refreshPlayerObstacles());
 
     const px = this.player.position.x;
     const pz = this.player.position.z;
@@ -1876,11 +1894,37 @@ export class Game {
     this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
   }
 
+  /** Throws the player clear of a charging boss, ACROSS its lane rather than
+   *  along it. Shoving them down the charge line would only hand a body moving
+   *  at 22 a player moving at 11 — bulldozed for the rest of the lunge. Sideways
+   *  is the only direction that actually ends the contact.
+   *
+   *  The side chosen is the one the player is already on, so the shove reads as
+   *  being clipped by a shoulder. Dead centre has no such side; it falls back to
+   *  the boss's left, which is arbitrary but never zero. */
+  private flingFromRam(ram: BossBody, px: number, pz: number): void {
+    const leftX = -Math.cos(ram.heading);
+    const leftZ = Math.sin(ram.heading);
+    const lateral = (px - ram.x) * leftX + (pz - ram.z) * leftZ;
+    const side = lateral < 0 ? -1 : 1;
+    this.player.applyKnockback(
+      leftX * side,
+      leftZ * side,
+      BOSS.ramKnockbackForce,
+      BOSS.ramKnockbackDecayPerS,
+    );
+    // The camera carries the impact. Displacement alone reads as sliding; the
+    // jolt is what makes it land as being HIT by something with mass.
+    this.shakeAmp = Math.max(this.shakeAmp, BOSS.ramShakeAmp);
+  }
+
   /** Circle-vs-circle contact between the swarm and the player on the XZ plane. */
   private resolvePlayerContact(): void {
     if (this.phaseS > 0) return; // Phase Chassis: enemies pass right through.
     const px = this.player.position.x;
     const pz = this.player.position.z;
+    const body = this.boss.body(this.enemies);
+    const ram = body?.ramming ? body : null;
     for (let i = 0; i < this.enemies.pool.length; i++) {
       const e = this.enemies.pool[i];
       if (!e || !e.active) continue;
@@ -1900,6 +1944,17 @@ export class Game {
           // The zap is SEEN: cyan spark burst at the stunned toucher (the
           // icon's accent — mod VFX coherence rule).
           this.burst.spawn(e.x, e.z, VISUAL.modVfx.stunBumper.color, VISUAL.modVfx.stunBumper.count);
+          continue;
+        }
+        // A ram is ONE hit and a shove, not a per-i-frame toll. Billed against
+        // the charge's serial rather than a timer, so it holds however long
+        // the bodies stay overlapped — and it suppresses only THIS boss's
+        // contact, leaving the swarm free to keep hurting the player.
+        if (ram && this.boss.isBossType(e.typeIndex)) {
+          if (this.billedRamSerial === ram.ramSerial) continue;
+          this.billedRamSerial = ram.ramSerial;
+          this.damagePlayer(BOSS.contactDamage, i);
+          this.flingFromRam(ram, px, pz);
           continue;
         }
         const base = this.boss.isBossType(e.typeIndex)

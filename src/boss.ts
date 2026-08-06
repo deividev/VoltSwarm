@@ -33,6 +33,22 @@ export interface BossStatus {
   maxHp: number;
 }
 
+/** The live boss's physical presence, for player collision and ram response.
+ *  Reported here rather than read off the pool by the caller because only this
+ *  system knows which pool slot is the boss and what phase its attack is in. */
+export interface BossBody {
+  x: number;
+  z: number;
+  radius: number;
+  /** Direction of travel in radians, as moveChase writes it. */
+  heading: number;
+  /** True only during the Crusher's committed lunge. */
+  ramming: boolean;
+  /** Bumped once per lunge, so a ram can be billed exactly once no matter how
+   *  many frames the bodies overlap. */
+  ramSerial: number;
+}
+
 export class BossSystem {
   private readonly totem: THREE.Group;
   private state: BossState = 'done';
@@ -72,6 +88,17 @@ export class BossSystem {
     radius: BOSS.totemColliderRadius,
     blocksFlyers: true,
   };
+  /** Reused per frame — `body()` runs every frame and must not allocate. */
+  private readonly bossBody: BossBody = {
+    x: 0,
+    z: 0,
+    radius: 0,
+    heading: 0,
+    ramming: false,
+    ramSerial: 0,
+  };
+  private readonly bodyObstacle: Obstacle = { x: 0, z: 0, radius: 0, blocksFlyers: true };
+  private ramSerial = 0;
 
   constructor(scene: THREE.Scene) {
     // Everything drawn around the gate follows the gate. Derived from the model
@@ -151,16 +178,35 @@ export class BossSystem {
     }
   }
 
-  /** Places the totem for a new run and picks the boss it will summon. */
-  startRun(obstacles: Obstacle[] = []): boolean {
-    const spot = findRandomClearSpot(
-      0,
-      0,
-      BOSS.totemDistMin,
-      BOSS.totemDistMax,
+  /** Places the totem and picks the boss it will summon.
+   *
+   *  Centred on the PLAYER, not the map origin. At run start those are the same
+   *  point, so the first portal is unchanged; the difference is every portal
+   *  after a kill, which used to be rolled around the world centre and could
+   *  therefore land across the arena from whoever just earned it. */
+  startRun(obstacles: Obstacle[] = [], playerX = 0, playerZ = 0): boolean {
+    const respawn = this.bossesDefeated > 0;
+    let spot = findRandomClearSpot(
+      playerX,
+      playerZ,
+      respawn ? BOSS.respawnTotemDistMin : BOSS.totemDistMin,
+      respawn ? BOSS.respawnTotemDistMax : BOSS.totemDistMax,
       BOSS.totemColliderRadius,
       obstacles,
     );
+    // Against a wall most of a player-centred ring lies outside the arena. The
+    // origin is always surrounded by floor, so it is the fallback that keeps a
+    // cornered player from stalling the respawn loop entirely.
+    if (!spot) {
+      spot = findRandomClearSpot(
+        0,
+        0,
+        BOSS.totemDistMin,
+        BOSS.totemDistMax,
+        BOSS.totemColliderRadius,
+        obstacles,
+      );
+    }
     if (!spot) return false;
     this.totem.position.set(spot.x, 0, spot.z);
     this.totemObstacle.x = spot.x;
@@ -306,7 +352,7 @@ export class BossSystem {
       // Continuity beat: after a kill, a fresh (tougher) totem rises.
       if (this.respawnTimer > 0) {
         this.respawnTimer -= dt;
-        if (this.respawnTimer <= 0 && !this.startRun(obstacles)) {
+        if (this.respawnTimer <= 0 && !this.startRun(obstacles, px, pz)) {
           this.respawnTimer = BOSS.respawnRetryS;
         }
       }
@@ -369,6 +415,9 @@ export class BossSystem {
           this.chargeTimer = BOSS.crusher.chargeDurationS;
           boss.speed = BOSS.crusher.chargeSpeed;
           boss.chargeState = CHARGE.lunging;
+          // A new ram: the game bills the next connecting hit once against
+          // this serial, however long the bodies stay overlapped.
+          this.ramSerial++;
           break;
         case 'charging':
           this.chargePhase = 'cooldown';
@@ -436,6 +485,34 @@ export class BossSystem {
 
   appendObstacle(target: Obstacle[]): void {
     if (this.totem.visible) target.push(this.totemObstacle);
+  }
+
+  /** The live boss body, or null when none is on the field. */
+  body(enemies: EnemySystem): BossBody | null {
+    if (this.state !== 'active') return null;
+    const boss = enemies.pool[this.bossIndex];
+    if (!boss || !boss.active) return null;
+    this.bossBody.x = boss.x;
+    this.bossBody.z = boss.z;
+    this.bossBody.radius = boss.radius;
+    this.bossBody.heading = boss.heading;
+    this.bossBody.ramming =
+      this.chargePhase === 'charging' && this.bossTypeIndex === BOSS_TYPE_INDEXES[0];
+    this.bossBody.ramSerial = this.ramSerial;
+    return this.bossBody;
+  }
+
+  /** Adds the live boss body to a PLAYER collision list. Deliberately separate
+   *  from appendObstacle: that list also feeds enemy steering, where the boss
+   *  already has its own wider entry (BOSS.clearRadius), and adding the body
+   *  there would quietly change how the swarm paths around it. */
+  appendBodyObstacle(target: Obstacle[], enemies: EnemySystem): void {
+    const body = this.body(enemies);
+    if (!body) return;
+    this.bodyObstacle.x = body.x;
+    this.bodyObstacle.z = body.z;
+    this.bodyObstacle.radius = body.radius;
+    target.push(this.bodyObstacle);
   }
 
   /** For the HUD boss bar; null when no boss is alive. */
