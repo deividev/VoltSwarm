@@ -124,6 +124,7 @@ import { telemetry } from './telemetry';
 import {
   advanceRunFlow,
   completeFinale,
+  markMapBossDefeated,
   createRunFlowState,
   type RunFlowState,
 } from './run-flow';
@@ -1933,6 +1934,8 @@ export class Game {
         );
       }
       this.boss.onBossDefeated();
+      // The kill, not the clock, is what clears this sector (2026-08-06).
+      markMapBossDefeated(this.runFlow);
       if (this.boss.isFinalBossType(death.typeIndex)) {
         const fullArcCompleted = completeFinale(this.runFlow, MAPS);
         this.endRun(fullArcCompleted ? 'run-complete' : 'sector-cleared');

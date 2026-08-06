@@ -9,6 +9,9 @@ export interface RunFlowState {
   totalElapsedS: number;
   sectorsCleared: number;
   finaleStarted: boolean;
+  /** Whether a boss died on the CURRENT map. Reset at every transition, because
+   *  clearing sector 1 must not pay for sector 2. */
+  mapBossDefeated: boolean;
 }
 
 export type RunFlowAction =
@@ -23,7 +26,14 @@ export function createRunFlowState(startMapIndex = 0): RunFlowState {
     totalElapsedS: 0,
     sectorsCleared: 0,
     finaleStarted: false,
+    mapBossDefeated: false,
   };
+}
+
+/** Called when a boss dies. Idempotent: several bosses can fall on one map and
+ *  the sector is cleared either way. */
+export function markMapBossDefeated(state: RunFlowState): void {
+  state.mapBossDefeated = true;
 }
 
 /** Advances both clocks and returns the one structural action owed this frame.
@@ -42,10 +52,16 @@ export function advanceRunFlow(
 
   const nextMapIndex = state.mapIndex + 1;
   if (nextMapIndex < maps.length) {
-    state.sectorsCleared += 1;
+    // The BOSS clears a sector, not the clock (2026-08-06). Surviving the ten
+    // minutes still advances the run — the player is not stopped — but it earns
+    // no sector credit. Before this, every contract behind `complete-runs` was
+    // paid out by waiting, which is why the portal had no pull: zero of six
+    // recorded human runs ever walked to it.
+    if (state.mapBossDefeated) state.sectorsCleared += 1;
     state.mapIndex = nextMapIndex;
     state.mapElapsedS = 0;
     state.finaleStarted = false;
+    state.mapBossDefeated = false;
     return { type: 'transition', nextMapIndex };
   }
 
