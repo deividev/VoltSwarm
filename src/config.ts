@@ -48,6 +48,7 @@ export const DEV_TOOLS: {
   bossLab: boolean;
   startingMapSelector: boolean;
   fatalHitKey: boolean;
+  shortMaps: boolean;
 } = {
   /** Main-menu "Unlocks" panel. Holds three actions: unlock every
    *  weapon/core/mod and open all sockets directly; settle every contract
@@ -70,7 +71,20 @@ export const DEV_TOOLS: {
    *  through damagePlayer on purpose — a harness that bypassed the funnel would
    *  verify a path players never take. */
   fatalHitKey: false,
+  /** VALIDATION RIG — shortens EVERY map to SHORT_RUN_DURATION_S so a whole arc
+   *  (Map 1 boss, transition, Map 2, final boss, ending) can be checked in
+   *  minutes instead of twenty. Both maps, not just Map 1: shortening only the
+   *  first still leaves a ten-minute wall before the finale.
+   *
+   *  It is a guarded flag rather than an edited constant on purpose: an edited
+   *  constant is invisible and ships. check-release-flags.mjs fails the build
+   *  while this is true, so `npm run package` physically cannot produce a
+   *  four-minute release. Turn it off when the validation pass is done. */
+  shortMaps: true,
 };
+
+/** Map length while DEV_TOOLS.shortMaps is on. Inert otherwise. */
+export const SHORT_RUN_DURATION_S = 4 * 60;
 
 /** Renderer-side audio tuning. All voice, cooldown and fade values are config-owned. */
 export const AUDIO = {
@@ -179,7 +193,7 @@ export const MAPS = [
     id: 'scrapyard',
     number: 1,
     title: 'Scrapyard',
-    durationS: 10 * 60,
+    durationS: DEV_TOOLS.shortMaps ? SHORT_RUN_DURATION_S : 10 * 60,
     /** Map 1 owns the full opening difficulty ramp. */
     difficultyOffsetS: 0,
   },
@@ -187,7 +201,7 @@ export const MAPS = [
     id: 'megafactory',
     number: 2,
     title: 'Swarm Foundry',
-    durationS: 10 * 60,
+    durationS: DEV_TOOLS.shortMaps ? SHORT_RUN_DURATION_S : 10 * 60,
     /** Provisional playtest baseline: the foundry starts at minute-zero pressure. */
     difficultyOffsetS: 0,
   },
