@@ -80,7 +80,7 @@ export const DEV_TOOLS: {
    *  constant is invisible and ships. check-release-flags.mjs fails the build
    *  while this is true, so `npm run package` physically cannot produce a
    *  four-minute release. Turn it off when the validation pass is done. */
-  shortMaps: true,
+  shortMaps: false,
 };
 
 /** Map length while DEV_TOOLS.shortMaps is on. Inert otherwise. */
@@ -350,6 +350,14 @@ export const PLAYER = {
    *  0.85 → 0.4 (2026-07-05 playtest: crowds couldn't threaten a full run;
    *  next candidate if still soft: contactDamage). */
   invulnAfterHitS: 0.4,
+  /** Knockback below this speed is drift, not motion, so it is cut dead.
+   *
+   *  The swarm's cutoff is 0.05, which for a body being blown away by a
+   *  vortex is fine — the long tail IS the effect. On the player it is what
+   *  turned a boss ram into "me arrastra en vez de empujarme" (playtest
+   *  2026-08-06): the last half second was a 25cm crawl with no animation on
+   *  it. An impulse has to stop, and be seen stopping. */
+  knockbackStopSpeed: 1.5,
   /** Seconds between passive regen ticks; each tick heals `stats.regen` HP. */
   regenTickS: 5,
   /** Minimum seconds between lifesteal heals. Caps sustain at ~3 HP/s no
@@ -1941,6 +1949,19 @@ export const TIERS = {
 export const BOSS = {
   totemDistMin: 45,
   totemDistMax: 65,
+  /** Where the NEXT portal rises after a kill, measured from the player.
+   *
+   *  45-65 is right for the first one: it is a landmark you spot and choose to
+   *  walk to, and the walk is the commitment. Charging that same toll again is
+   *  pure tax — the discovery beat has already happened, and the run has ten
+   *  minutes total. Combined with respawnDelayS, reaching a second boss was
+   *  costing roughly a twentieth of the run in transit alone, before the fight.
+   *
+   *  Roughly half the distance: ~2-3s of walking at PLAYER.moveSpeed, so the
+   *  next portal is a destination rather than an expedition. Deliberately not
+   *  zero — a portal that lands on top of you is not a place you go. */
+  respawnTotemDistMin: 22,
+  respawnTotemDistMax: 34,
   /** Radius of the summon zone; inside it the Interact prompt shows.
    *  The key itself is the rebindable 'interact' action (settings). */
   totemActivateRadius: 4.5,
@@ -1992,6 +2013,34 @@ export const BOSS = {
    *  original 29 DPS. Touching a boss is still by far the worst thing on the
    *  field — it just stops being instant death. */
   contactDamage: 12,
+  /** How hard a connecting ram flings the player. Decays with
+   *  STATUS.knockbackDecay like every other knockback, so the distance
+   *  travelled is roughly force / decay — 30 / 6 = ~5 units, enough to clear
+   *  the King's body (2.9) plus the player's (0.7) with margin to spare.
+   *
+   *  Context (2026-08-06): the player had NO collision with a boss body at all
+   *  — refreshCollisionObstacles built its list from props, portal, merchant
+   *  and pickups, never from the enemy pool. The King lunges at 22 against a
+   *  player who moves 11, so it simply passed through and kept the player
+   *  inside its volume for the whole 0.9s lunge. At one hit per 0.4s i-frame
+   *  that is up to three hits, 36 HP, with no counterplay.
+   *
+   *  The fling is LATERAL, across the lane, never along it: pushing the player
+   *  down the charge line just leaves them bulldozed by a faster body.
+   *
+   *  30/6 first, and it read as a TOW: same 5 units, but spread over a full
+   *  second, 95% of it done by 0.5s and the rest a crawl. A shove and a tow
+   *  differ by the shape of the curve, not the distance — so the force went up
+   *  and the decay up harder, keeping ~4.3 units while collapsing the whole
+   *  motion into ~0.24s. Its own decay rather than STATUS.knockbackDecay,
+   *  because the swarm wants the opposite curve: bodies blown away should
+   *  float, the player should be struck. */
+  ramKnockbackForce: 70,
+  ramKnockbackDecayPerS: 16,
+  /** A ram is not an ordinary graze. Sits between VISUAL.screenShake.hitAmp
+   *  (0.22) and bossKillAmp (0.55) — the impulse is sold by the camera as much
+   *  as by the displacement. */
+  ramShakeAmp: 0.45,
   /** World units the swarm is pushed out of around a live boss.
    *
    *  The boss fight was unwinnable for a structural reason: weapons pick the
@@ -2053,19 +2102,34 @@ export const BOSS = {
   },
   tesla: {
     speed: 2.4,
-    /** 10 → 7 (2026-07-30 playtest: "sigue estando demasiado lejos").
+    /** 10 → 7 (2026-07-30 playtest: "sigue estando demasiado lejos"), then
+     *  7 → 4.5 (2026-08-06).
      *
-     *  This value was DEAD until today — `moveGunner` read GUNNER.preferredDist
+     *  This value was DEAD until 07-30 — `moveGunner` read GUNNER.preferredDist
      *  for every gunner including the boss, so the Tesla held the grunt's 12
-     *  units. Now it is wired, and 7 puts it inside the reach of the short
-     *  weapons (dismantler 12, welder 14) instead of only the long ones. A
-     *  ranged boss still keeps its distance — it just stops standing where
-     *  half the arsenal cannot answer. */
-    preferredDist: 7,
+     *  units. Wiring it and dropping to 7 put it inside the reach of the short
+     *  weapons (dismantler 12, welder 14) instead of only the long ones.
+     *
+     *  7 was still exactly wrong, for a reason that had nothing to do with
+     *  weapon range: it EQUALS BOSS.clearRadius. The standoff is measured from
+     *  the player and the clear ring is measured from the boss, so a Tesla
+     *  holding 7 parks the player precisely on the ring's edge — the one place
+     *  in the arena where the swarm piles up. Every Tesla fight was fought
+     *  standing on the wall of scrap. 4.5 puts the player 2.5 units inside the
+     *  clear bubble, with the boss as the nearest thing in front of them.
+     *
+     *  Do not raise this back toward clearRadius without moving one of the two:
+     *  whenever they match, the fight is on the wall again. */
+    preferredDist: 4.5,
     /** Only backs off when the player is truly on top of it. Its speed is 2.4
      *  against the player's 11, so retreat was never an escape anyway — this
-     *  just stops it shuffling backwards while being shot. */
-    retreatDist: 4,
+     *  just stops it shuffling backwards while being shot.
+     *
+     *  4 → 3.4 with the standoff drop: the gunner holds still between retreat
+     *  and preferred, and at [4, 4.5] that band is too thin to sit in. 3.4 also
+     *  clears body contact (boss radius 2.5 + player 0.7 = 3.2) by a hair, so
+     *  backing off starts before the player is inside it. */
+    retreatDist: 3.4,
     burstCooldownS: 4,
     burstProjectiles: 12,
     projectileSpeed: 10,

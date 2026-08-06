@@ -446,3 +446,70 @@ También se le activa `sidePaint`: ahora que la hoja lateral tiene detalle real,
 **La altura en el mundo NO cambia**: 76 filas × 0,0263 = 2,00u, lo mismo que medía antes (42 × 0,048). Escala de instancia, hitbox y balance quedan intactos; solo cambia la densidad visual. El `previewScale` sí baja (2.4 → 1.75) porque la torre pasó de 42 a 76 filas y se salía del visor — eso es solo encuadre de revisión.
 
 **Pendiente conocido (pre-existente, no una regresión):** la torre es tan alta que su cabeza queda detrás del HUD a distancia de combate. Ya pasaba con el modelo viejo — la altura en el mundo es idéntica —, pero antes no había arriba nada que perderse. Decisión aplazada a cuando exista la pelea real: dejarlo como lectura de coloso, acortar la torre, o bajar su escala de instancia.
+
+## Peleas de boss — pase de accesibilidad 2026-08-06
+
+Origen: playtest del usuario. *"Sigue siendo muy complicado matar a ambos bosses en 10 min mapa 1 con toda la oleada."* Se atacó desde cuatro ángulos independientes; tres están dentro y el cuarto se probó, se rechazó y se revirtió entero. El problema de fondo que motivaba ese cuarto **sigue abierto** y se documenta al final para poder diseñarlo aparte.
+
+### 1. El cuerpo del boss es sólido para el jugador
+
+**Era un bug, no un ajuste.** `refreshCollisionObstacles()` construía su lista con props estáticos, portal, chatarrero y pickups — **nunca con el pool de enemigos**. El jugador no tenía colisión con ningún boss.
+
+Con `crusher.chargeSpeed = 22` contra `PLAYER.moveSpeed = 11`, el Crusher King simplemente atravesaba al jugador y lo mantenía dentro de su volumen durante los 0,9 s completos del lunge. A un impacto por ventana de `invulnAfterHitS = 0,4`, eso son **hasta 3 golpes de `BOSS.contactDamage = 12` — 36 HP de 100 — sin contrajuego posible**.
+
+Tres piezas:
+
+- **Lista de colisión propia del jugador** (`playerObstacles` = lista del mundo + cuerpo del boss vivo). Deliberadamente separada de `collisionObstacles`, porque esa **también alimenta el steering del enjambre**, donde el boss ya tiene su entrada ancha de `clearRadius`. Meterlo en la compartida habría cambiado en silencio cómo el enjambre rodea al boss.
+- **Una embestida cobra un golpe.** No alargando los i-frames globales, que habrían hecho al jugador inmune también a la oleada durante casi un segundo. El boss lleva un contador `ramSerial` que sube al entrar en `charging`, y el juego apunta cuál ya cobró: da igual cuántos fotogramas estén solapados los cuerpos. **Solo se calla ese boss**; la oleada sigue haciendo daño.
+- **Empujón lateral, cruzando el carril.** Nunca a lo largo de él: empujar al jugador por delante de un cuerpo que va a 22 cuando él va a 11 solo lo convierte en quitanieves. El lado elegido es en el que ya estaba, para que se lea como un roce de hombro; el centro exacto no tiene lado propio y cae al izquierdo del boss.
+
+**Perfil del impulso** (`BOSS.ramKnockbackForce = 70`, `ramKnockbackDecayPerS = 16`, `PLAYER.knockbackStopSpeed = 1,5`, `ramShakeAmp = 0,45`). El primer intento fue 30 con el decaimiento estándar del enjambre (`STATUS.knockbackDecay = 6`) y el usuario lo describió como *"es como que lo arrastras en vez de empujarlo"*. Tenía razón y el número lo confirma: recorría 5 unidades, pero el 95 % en 0,5 s y el resto reptando hasta **1,07 s**. Un empujón y un remolque dejan al jugador en el mismo sitio y **se diferencian en la forma de la curva, no en la distancia**. La misma distancia comprimida en ~0,24 s, con corte en seco por debajo de una velocidad mínima, ya se lee como golpe. El jugador tiene ahora **su propia curva de knockback**, separada de la del enjambre: a un cuerpo arrastrado por un vendaval le queda bien flotar, al jugador hay que golpearlo.
+
+**Pendiente conocido (aceptado, aplazado por el usuario):** durante el empujón el personaje **ni gira ni anima**, porque `moving` en `player.ts` se calcula solo desde el eje del mando. Se desliza rígido. Candidato local y barato. El segundo candidato es que `updateCamera` (`world.ts`) pega la cámara al jugador sin ninguna interpolación, así que la escena entera da un latigazo — pero eso cambia el tacto de todo el juego y no se toca sin petición explícita.
+
+### 2. Distancia de plantado del Tesla Titan: 7 → 4,5
+
+`preferredDist` valía exactamente lo mismo que `BOSS.clearRadius`. **La distancia de plantado se mide desde el jugador y el anillo limpio desde el boss**, así que un Tesla aguantando a 7 dejaba al jugador parado justo en el borde del anillo — el único punto del arena donde la chatarra se amontona. Todas las peleas contra el Tesla se jugaban de pie encima del muro.
+
+A 4,5 el jugador queda 2,5 unidades **dentro** de la burbuja limpia, con el boss como lo más cercano que tiene delante, que es lo que el auto-apuntado necesita. `retreatDist` baja 4 → 3,4 en el mismo movimiento: el gunner se queda quieto **entre** `retreatDist` y `preferredDist`, y una banda de 0,5 es demasiado fina para asentarse. 3,4 además queda justo por encima del contacto de cuerpos (2,5 + 0,7 = 3,2), así que retrocede antes de que el jugador esté dentro de él — lo que ahora importa, porque su cuerpo es sólido.
+
+**Regla que queda escrita en `config.ts`:** no volver a subir `preferredDist` hacia `clearRadius` sin mover uno de los dos. El día que vuelvan a coincidir, la pelea vuelve al muro.
+
+### 3. El portal de respawn nace donde está el jugador
+
+`startRun()` sorteaba la posición alrededor de `(0, 0)` — el centro del mapa — **siempre, incluso para el portal que aparece tras matar a un boss**. En un arena de 180×180 podía salir en la punta opuesta a donde acababa de pelear.
+
+Ahora se sortea alrededor del jugador. **El primer portal no cambia**: al empezar la run el jugador está en el origen, así que origen y jugador son el mismo punto. Lo único que cambia es el portal posterior a cada muerte, que es donde estaba el problema.
+
+Distancias propias para el respawn — `respawnTotemDistMin/Max = 22/34` frente a `45/65`. 45-65 es correcto para el primero: es un hito que se ve de lejos y al que se decide ir, y la caminata **es** el compromiso. Cobrar ese peaje otra vez es impuesto puro, porque el momento de descubrimiento ya ocurrió. Sumado a `respawnDelayS = 25`, llegar a un segundo boss costaba en torno a un veinteavo de la run solo en desplazarse, antes de empezar a pelear — y encima con `respawnHpGrowth = 1,6` esperando al llegar.
+
+Nunca cero: un portal que aparece encima deja de ser un sitio al que se va. Y si el jugador está pegado a una pared, un anillo centrado en él cae casi entero fuera del arena; si la colocación falla se **cae de vuelta al sorteo desde el origen**, que siempre tiene suelo alrededor, para que un jugador acorralado no bloquee el bucle de respawn indefinidamente.
+
+`respawnDelayS = 25` se deja intacto a propósito: es la otra mitad del mismo coste de tiempo, y un cambio numérico por playtest.
+
+### 4. RECHAZADO Y REVERTIDO — pasillo de embestida del Crusher King
+
+Se construyó `shoveOutOfLane`: un corredor por delante del boss durante el lunge que tiraba los cuerpos **de lado**, cruzando el pasillo, para abrirle la cara al jugador. Iba acompañado de eximir al boss del filtro de `rebuildDynamicObstacles` que lo borraba de la lista de esquiva durante toda la embestida.
+
+**Rechazado por el usuario, dos veces, siempre por cómo se VE, nunca por balance:** *"se ve como si se teleportan los enemigos a los lados en vez de apartarlos con el empujón con pura física"*. Revertido entero; `src/enemies.ts` volvió a HEAD sin restos.
+
+Lo que se aprendió por el camino y **conviene no volver a descubrir**:
+
+- **Los empujones de boss se acumulan por fotograma.** El barrido del King corre cada fotograma del lunge y `applyKnockback` **suma**, contra un decaimiento de 6/s. La recurrencia `v = v·0,9 + fuerza` a 60 fps no converge a la fuerza: converge a **diez veces** la fuerza. Un empujón de 34 lanzaba cuerpos a ~340 unidades por segundo. Eso, y no el ajuste, era lo que se veía como teletransporte.
+- **Cambiar a velocidad objetivo tampoco lo salvó.** Se rehízo como "sube la velocidad de salida hasta N, nunca apiles" y se probó a 16 y, por el propio usuario, a 10. Siguió leyéndose mal. Tres valores distintos con el mismo veredicto: **el planteamiento es lo que falla, no el número.**
+- **Un degradado hacia los bordes del pasillo es un error con velocidad objetivo.** La velocidad objetivo cae según el cuerpo se acerca al borde al que intenta llegar — una asíntota que deja cuerpos flotando en la frontera en vez de saliendo.
+- **El bug de acumulación sigue vivo tras la reversión.** El barrido radial (`chargeShoveRadius = 4,5`, `chargeShoveForce = 26`) también corre cada fotograma durante la carga y también se apila: converge a ~260. Es **pre-existente**, el usuario nunca se ha quejado de él por separado, y arreglarlo es su propio cambio aislado — no algo que colar dentro de otro.
+
+### El problema que sigue abierto
+
+Nada de lo anterior resuelve la queja original completa. **El enjambre sigue tapando el acceso al boss**, y esa es la razón estructural por la que dos bosses en diez minutos son duros.
+
+Los hechos medidos que cualquier solución tiene que respetar:
+
+1. **Las armas apuntan al enemigo más cercano**, y la chatarra pegada al boss siempre está más cerca que el boss. `clearRadius` ataca esto por geometría y `HUNTER_WEAPONS` por apuntado.
+2. **El propio anillo construye el muro.** Repeler cuerpos hasta radio 7 levanta una cáscara densa justo donde el jugador tiene que entrar. Ya estaba anotado en `config.ts` desde el pase anterior; subir `clearRadius` a secas mueve el muro más lejos y lo hace más denso.
+3. **El King pierde su anillo en cada embestida.** Toma prestado `CHARGE.lunging` del Rustbrute para heredar el destello del telegrafiado, y con él cae en el filtro de `rebuildDynamicObstacles` pensado para chargeadores pequeños. Durante los 0,9 s del lunge deja de estar en la lista de esquiva y el enjambre camina hacia dentro. Como embiste cada ~7,8 s, el arena se come a sí misma a lo largo de la pelea. **Esto sigue tal cual: la exención se revirtió junto con el pasillo.**
+4. **La embestida del King persigue, no se compromete.** Su `behavior` es `chase`, no `charger`: `moveChase` lo reapunta al jugador cada fotograma, solo que a velocidad 22. A diferencia del Rustbrute — que fija su rumbo en el telegrafiado y por eso se esquiva dando un paso al lado — **no hay nada que esquivar**. Es un cambio de diseño mayor, nunca se ha tocado, y es probable que sea la causa de que la embestida siga sintiéndose injusta aun con el empujón arreglado.
+5. **Restricción de presentación, la más cara de aprender:** cualquier solución que cambie de golpe la velocidad de muchos cuerpos a la vez corre el riesgo de leerse como teletransporte, aunque los números sean correctos. El veredicto del usuario llegó tres veces sobre tres valores distintos.
+
+Cuestiones abiertas para la sesión de diseño: ¿se ataca por densidad (menos cuerpos durante la pelea, vía `spawnDampenEarly/Late`), por geometría (forma del anillo en vez de su radio), por apuntado (`HUNTER_WEAPONS` más agresivo con un boss vivo), por el moveset del King (embestida comprometida al estilo Rustbrute), o por el coste de tiempo (`respawnDelayS`, `respawnHpGrowth`)? Ninguna se ha evaluado todavía.

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ARENA_HALF_SIZE, BARRIER_CELL, DEFEAT_TRANSITION, PLAYER, VISUAL } from './config';
+import { ARENA_HALF_SIZE, BARRIER_CELL, DEFEAT_TRANSITION, PLAYER, STATUS, VISUAL } from './config';
 import type { PlayerInput } from './input';
 import type { Obstacle } from './world';
 import { buildGridGeometry } from './models/voxel-builder';
@@ -24,6 +24,13 @@ export class Player {
   hp = PLAYER.maxHp;
   moveSpeed = PLAYER.moveSpeed;
   private invulnTimer = 0;
+  /** Decaying displacement velocity, the same model the swarm already uses
+   *  (STATUS.knockbackDecay). The player had no way to be pushed by anything
+   *  before this; a boss ram needs one to fling them clear of the lane. */
+  private kbX = 0;
+  private kbZ = 0;
+  /** Per-impulse, because a shove and a gust want opposite curves. */
+  private kbDecay = STATUS.knockbackDecay;
   /** Orbiting cyan plates: one per active shield charge. They live in their
    *  own group (not under the player mesh) so the player's facing rotation
    *  never snaps them around — the ring only follows position and spins. */
@@ -286,6 +293,19 @@ export class Player {
     const speed = this.moveSpeed * speedMultiplier;
     this.position.x += axis.x * speed * dt;
     this.position.z += axis.y * speed * dt;
+    // Knockback rides ON TOP of input rather than replacing it: being flung
+    // out of a boss's lane should not also take the controls away.
+    if (this.kbX !== 0 || this.kbZ !== 0) {
+      this.position.x += this.kbX * dt;
+      this.position.z += this.kbZ * dt;
+      const decay = Math.max(0, 1 - this.kbDecay * dt);
+      this.kbX *= decay;
+      this.kbZ *= decay;
+      if (Math.hypot(this.kbX, this.kbZ) < PLAYER.knockbackStopSpeed) {
+        this.kbX = 0;
+        this.kbZ = 0;
+      }
+    }
     const arenaLimit = ARENA_HALF_SIZE - PLAYER.radius;
     this.position.x = THREE.MathUtils.clamp(this.position.x, -arenaLimit, arenaLimit);
     this.position.z = THREE.MathUtils.clamp(this.position.z, -arenaLimit, arenaLimit);
@@ -353,6 +373,20 @@ export class Player {
 
   get invulnerable(): boolean {
     return this.invulnTimer > 0;
+  }
+
+  /** Flings the player along a unit direction. `force` is an initial velocity
+   *  that decays, so the distance covered is roughly force / decayPerS — and
+   *  the decay alone is what separates a shove from a tow at equal distance. */
+  applyKnockback(
+    dirX: number,
+    dirZ: number,
+    force: number,
+    decayPerS = STATUS.knockbackDecay,
+  ): void {
+    this.kbX += dirX * force;
+    this.kbZ += dirZ * force;
+    this.kbDecay = decayPerS;
   }
 
   /** Drops the post-hit grace window. Used only by the release-gated fatal-hit
@@ -475,6 +509,8 @@ export class Player {
     this.moveSpeed = PLAYER.moveSpeed;
     this.position.set(0, 0, 0);
     this.invulnTimer = 0;
+    this.kbX = 0;
+    this.kbZ = 0;
     this.setShieldCharges(0);
     this.mesh.visible = true;
     this.markerPulse = 0;
@@ -496,6 +532,8 @@ export class Player {
   enterMap(): void {
     this.position.set(0, 0, 0);
     this.invulnTimer = 0;
+    this.kbX = 0;
+    this.kbZ = 0;
     this.mesh.visible = true;
     if (this.markerGroup) this.markerGroup.position.set(0, VISUAL.playerMarker.y, 0);
     if (this.shadow) this.shadow.position.set(0, this.shadow.position.y, 0);
