@@ -33,7 +33,7 @@ import {
   DEFAULT_BINDINGS,
   gamepadButtonLabel,
   keyLabel,
-  RESOLUTIONS,
+  resolutionOptions,
   type ActionId,
   type ControlBindings,
   type GameSettings,
@@ -595,7 +595,7 @@ export class Hud {
               <label class="settings-row">
                 <span>Resolution</span>
                 <select id="settings-resolution">
-                  ${RESOLUTIONS.map((item) => `<option value="${item.id}">${item.label}</option>`).join('')}
+                  ${resolutionOptions().map((item) => `<option value="${item.id}">${item.label}</option>`).join('')}
                 </select>
               </label>
               <label class="settings-row slider-row">

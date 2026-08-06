@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.13.6",
+  "version": "0.13.7",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -19,6 +19,7 @@
     "test:smoke": "node tools/smoke-run.mjs",
     "test:telemetry": "npm run electron:build && node --test tools/telemetry-client.test.cjs",
     "test:version": "node --test tools/version-format.test.cjs",
+    "test:display": "node --test tools/display-settings.test.mjs",
     "test:playtest-reset": "npm run electron:build && node --test tools/playtest-reset.test.cjs",
     "test:map-flow": "node --experimental-strip-types --test tools/map-flow.test.mjs",
     "test:defeat-transition": "node --experimental-strip-types --test tools/defeat-transition.test.mjs",
