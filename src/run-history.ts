@@ -2,12 +2,16 @@ import type { WeaponId } from './config';
 import type { ModCounts } from './mods';
 import type { CoreLevels, WeaponBranchLevels, WeaponLevels, WeaponPower } from './upgrades';
 
-export type RunOutcome = 'defeat' | 'sector-cleared' | 'run-complete';
+export type RunOutcome = 'defeat' | 'survived' | 'sector-cleared' | 'run-complete';
 
 export const RUN_OUTCOME_TITLES: Record<RunOutcome, string> = {
   /** The defeat beat states the failure in the machine's own voice, so the
    *  title is set in caps to match the in-world SYSTEM OVERLOAD banner. */
   defeat: 'SYSTEM OVERLOAD',
+  /** Reached the ten minutes without killing the boss (2026-08-06). Deliberately
+   *  NOT phrased as a failure — the player lasted the whole run. It just is not
+   *  a clear, because the boss is what clears a sector now. */
+  survived: 'Sector Held',
   'sector-cleared': 'Sector Cleared',
   'run-complete': 'Run Complete',
 };
@@ -240,6 +244,7 @@ function isRunRecordV1(value: unknown): value is RunRecordV1 {
     typeof record.endedAt === 'string' &&
     typeof record.buildVersion === 'string' &&
     (record.outcome === 'defeat' ||
+      record.outcome === 'survived' ||
       record.outcome === 'sector-cleared' ||
       record.outcome === 'run-complete') &&
     !!record.map &&

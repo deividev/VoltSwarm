@@ -1047,7 +1047,12 @@ export class Game {
     this.tickAudioBenchmark(dt);
     const remaining = RUN_DURATION_S - this.elapsedS;
     if (remaining <= 0) {
-      this.endRun('sector-cleared');
+      // The BOSS clears the sector, not the clock (2026-08-06). Lasting the ten
+      // minutes is still an ending the player earned — it reads Sector Held —
+      // but the clear belongs to whoever walked to the portal. Before this the
+      // clock handed out the same title either way, which is why zero of six
+      // recorded human runs ever bothered to summon a boss.
+      this.endRun(this.boss.bossesDefeated > 0 ? 'sector-cleared' : 'survived');
       return;
     }
 
