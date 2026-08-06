@@ -23,6 +23,7 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 | Cualquier imagen a generar (icono, logo, HUD) | `docs/PROMPTS_IMAGENES.md` | Regla voxel SIEMPRE explícita en el prompt |
 | Efecto visual / shader / partículas / sonido | `docs/DIRECCION_ARTE.md` (sección VFX) → `docs/REFERENCIAS_VISUALES.md` | Partículas = cubos voxel de paleta · cero gore · validar con 400+ enemigos |
 | Cualquier sonido/SFX/música | `docs/SOUND_EVENT_CATALOG.md` (leyes de estilo + estado por evento) → `docs/MUSIC_PROMPTS.md` (provenance Suno) → `docs/AUDIO_AUTHORING_PIPELINE.md` | 6 leyes 2026-07-18: NADA retro · latencia cero · frecuente=invisible · asimetría disparo/muerte · pirámide de volumen · muerte=VFX de cubos · veredicto SIEMPRE in-game |
+| Trailer, vídeo o captura de marketing | `docs/TRAILER_V1_PLAN.md` (beat sheet, ventana de música medida, checklist de captura) → `docs/MARKETING_PLAN_LAUNCH_2026.md` (calendario de beats) | Se captura DEL build congelado, nunca antes · solo contenido de la variante que se publica · la intro de una cue se arregla recortando, el final NO · nada de Next Fest, fechas ni disponibilidad sin confirmación externa |
 | Multiplayer / co-op | `docs/MULTIPLAYER_FEASIBILITY.md` → `docs/ROADMAP_STEAM.md` | Es un gate GO/NO-GO, no una promesa pública; simulación determinista/observadores antes de modo jugable |
 | Bug visual / orden de dibujado | §"Reglas de render que ya mordieron" en este archivo | Transparente se dibuja SIEMPRE tras opaco · `renderOrder` no se hereda de un Group · medir el material en runtime, no juzgar por captura |
 | Balance (números que se sienten mal) | `docs/ROADMAP_STEAM.md` (¿existe ya el instrumento de medición?) | Un cambio numérico por playtest — no varios a la vez |
@@ -87,6 +88,7 @@ Este checklist es la regla vigente; las notas históricas del estado del proyect
 | `docs/SOUND_EVENT_CATALOG.md` | REESCRITO 2026-07-18: las 6 leyes de estilo de audio + catálogo completo con estado real (12 integrados / 10 hooks mudos / resto Fase 5). Fuente de verdad del audio. |
 | `docs/SOUND_DIRECTION.md` | ⚠️ SUPERSEDED: dirección "juguete industrial" vieja, pendiente de reescritura; ante conflicto manda `SOUND_EVENT_CATALOG.md`. |
 | `docs/MUSIC_PROMPTS.md` | Provenance Suno: prompt ancla "Neon Horizon", criterios de selección, direcciones rechazadas. Toda música rastrea a una entrada aquí. |
+| `docs/TRAILER_V1_PLAN.md` | PLANIFICADO 2026-08-06 (nada capturado ni montado): trailer de 65s del lanzamiento de la Steam Demo — beat sheet, checklist de captura, cue de música, CTA gateado. Regla de orden: se captura DEL build congelado, nunca antes. Registra 4 decisiones abiertas (boss inalcanzable, choque con el beat S5 de octubre, Next Fest sin confirmar). |
 
 **Actualizar, no solo leer**: feature nueva → sección en `PRD.md` · sistema con principio nuevo → `METODO_DISENO.md` · arma/mejora implementada → su estado a ✅ en `DESIGN_MEJORAS.md` · hito cumplido → marcarlo en `ROADMAP_STEAM.md` · nombre/precio/fecha → vive en `ROADMAP_STEAM.md`, no solo en el chat.
 
