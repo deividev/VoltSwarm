@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -60,7 +60,9 @@
     "files": [
       "dist/**/*",
       "electron/dist/**/*",
-      "package.json"
+      "package.json",
+      "!dist/assets/audio/sfx/**",
+      "!node_modules/three/**"
     ],
     "win": {
       "icon": "build/icon.ico",
