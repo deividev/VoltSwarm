@@ -111,8 +111,13 @@ async function main() {
     );
     await page.evaluate(() => document.querySelector('#play-button').click());
 
-    const { confirmOnlyVisibleCharacterIfPresent } = await import('./character-flow.mjs');
-    await confirmOnlyVisibleCharacterIfPresent(page, 5_000);
+    // Branches older than the character-selection step have no such helper.
+    try {
+      const { confirmOnlyVisibleCharacterIfPresent } = await import('./character-flow.mjs');
+      await confirmOnlyVisibleCharacterIfPresent(page, 5_000);
+    } catch (error) {
+      if (error?.code !== 'ERR_MODULE_NOT_FOUND') throw error;
+    }
 
     // The starting-weapon draft blocks the run until a card is taken.
     try {
