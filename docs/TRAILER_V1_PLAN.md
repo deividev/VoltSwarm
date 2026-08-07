@@ -63,8 +63,21 @@ Cold open. No logo, no fade-in, no cinematic. The logo lockup lands at the end.
 **Editing rule:** no shot runs past 2.5 s except the hook and the payoff. The eye
 tires before the ear does.
 
-`Sector Cleared` is the real demo string — `src/run-history.ts:11`
+`Sector Cleared` is the real demo string — `src/run-history.ts`
 (`RUN_OUTCOME_TITLES['sector-cleared']`). It is not invented copy.
+
+**Changed 2026-08-06 — this improves the cut.** The boss now clears the sector,
+not the clock, so `Sector Cleared` MEANS the boss died. Two consequences:
+
+- The 0:39–0:49 boss beat and the 0:49–0:58 payoff are now connected by cause
+  rather than merely adjacent. Kill it, clear it. Cut them as one movement.
+- Surviving ten minutes without the boss gives `Sector Held`, a different title.
+  **The trailer must not show that ending** — it is the lesser outcome and would
+  read as a downbeat close.
+
+The chest beat also moves ~2 s earlier than the table above shows, so the reel
+descends over the music's breakdown and the reveal bursts on its +11.9 dB drop
+(§5). Conform the picture to the take, not the take to the table.
 
 ## 4. Footage checklist
 
@@ -83,7 +96,10 @@ Partially covered by the three raw runs in `art/video/Weekly2_31-07_09-08/`
 3. Level-up draft with all three cards readable.
 4. Five isolated weapon shots, each with enough enemies for the VFX to read.
 5. Full boss arc: portal → spawn → fight → kill.
-6. The 10:00 close landing on `Sector Cleared`.
+6. The close landing on `Sector Cleared`. **This is no longer "wait for 10:00"**
+   — since 2026-08-06 that title requires killing the boss, so shot 6 is captured
+   at the end of the same run as shot 5. Waiting out the clock produces
+   `Sector Held`, which is the wrong ending for the trailer.
 
 **Capture hygiene — verify in the packaged build, not in the source:**
 `VISUAL.showFps=false`, `GOLD.startingGold=0`, every `RECORDING.*` override off,
@@ -184,14 +200,25 @@ the fact is confirmed.** The canonical wishlist destination is Steam App ID
 
 ## 8. Open decisions and risks
 
-**8.1 — The boss is the best footage in the trailer and almost nobody reaches it.**
-Measured: **0 bosses summoned across 6 human runs**, including both runs that
-reached 10:00. The portal is optional and sits 45–65 units out, so nobody looks
-for it. If the trailer sells a boss fight and a Next Fest player finishes ten
-minutes without finding one, the demo contradicts the trailer. Either the portal
-becomes discoverable in the 13 Aug build, or the 0:39–0:49 beat is cut.
-Recommendation: make it discoverable — it also unblocks `First Blood`,
-`Boss Hunter` and with them the only weapon socket.
+**8.1 — RESOLVED 2026-08-06. The boss is now the point of the run.**
+It was measured that **0 bosses were summoned across 6 human runs**, including
+both that reached 10:00 — the portal was optional, sat 45–65 units out, and
+nothing made anyone walk to it. A blind two-judge review of Contracts confirmed
+the same thing from the other side: the retention engine's heaviest rewards sat
+behind content nobody touched.
+
+Three changes shipped, and they change what this trailer can promise:
+
+- The boss now CLEARS the sector; the clock alone does not. `Sector Cleared` is
+  earned, and surviving without the boss gives `Sector Held`.
+- The off-screen indicator reads **BOSS** instead of `TOTEM`.
+- The portal model is ~33% larger, with its beam, ring and collider scaled to it.
+
+**Still open, and it is the one that decides this beat:** the portal DISTANCE
+(`BOSS.totemDistMin/Max`, 45–65) was not changed. Size and naming help it read
+once it is on screen; distance decides whether it ever gets there. The weekend
+playtest is the falsifiable test — if it comes back with 0 bosses again, distance
+is the culprit and the 0:39–0:49 beat is at risk after all.
 
 **8.2 — This trailer is not the S5 marketing beat.**
 `MARKETING_PLAN_LAUNCH_2026.md:295` schedules **S5 `Voltswarm - Gameplay Trailer`

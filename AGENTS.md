@@ -115,7 +115,99 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 
 ---
 
-## Estado operativo actual (2026-08-04) — Steam Demo **0.12.6-demo**
+## Estado operativo actual (2026-08-06) — `codex/demo-map1` **0.13.13-demo**
+
+> ## 🚨 HAY UN RIG DE PRUEBAS ENCENDIDO — LÉELO ANTES DE TOCAR NADA
+>
+> **`DEV_TOOLS.shortMaps = true`. Las runs duran 4 MINUTOS, no 10.** Rig de
+> validación temporal para probar el arco completo rápido. Implicaciones:
+>
+> - **Cualquier medición hecha ahora está distorsionada.** Densidad, oro, nivel,
+>   XP y todos los umbrales de contratos asumen 10 minutos. No calibres nada, no
+>   corras `npm run stats` contra estas runs, y no las trates como datos.
+> - **No se puede empaquetar** mientras esté encendido: `check-release-flags.mjs`
+>   aborta `npm run package` a propósito.
+> - **Revertir = `DEV_TOOLS.shortMaps` a `false`** en `src/config.ts`. Nada más;
+>   `SHORT_RUN_DURATION_S` queda inerte.
+>
+> **Antes del congelado del build hay que revertirlo.**
+
+> ## ⚠️ Trampa de rama compartida (mordió el 2026-08-06)
+>
+> Las tres ramas comparten UNA carpeta y UN `dist/`. Si alguien cambia de rama
+> mientras otro juega, se compila y se juega la rama equivocada **sin ningún
+> aviso**: pasó de verdad — se jugó el bundle de `codex/map-2` creyendo que era
+> la Demo, y apareció un Mapa 2 que esta rama no tiene en su código.
+>
+> **Verificación de 2 segundos antes de fiarse de una sesión de juego:**
+> `grep -l "megafactory" dist/assets/*.js`. En ESTA rama (`codex/demo-map1`) NO
+> debe coincidir — si coincide, estás jugando el bundle del juego completo y lo
+> que veas no vale. En `codex/map-2` es al revés: ahí DEBE coincidir.
+> `git worktree` lo resuelve de raíz (una carpeta por rama); PROPUESTO, no hecho.
+>
+> **Y revalida la rama al RETOMAR trabajo, no solo al empezar.** Esto ya costó un
+> commit en la rama equivocada el 2026-08-06: el árbol se movió entre turnos.
+
+### Cambios del 2026-08-06 (0.13.6-demo → 0.13.13-demo)
+
+- **🔑 REGLA NUEVA: el BOSS despeja el sector, no el reloj.** Antes, llegar a
+  10:00 terminaba la run como `sector-cleared` hicieras lo que hicieras, así que
+  el portal no tenía ningún tirón — **0 de 6 runs humanas invocaron un boss** con
+  la flecha señalándolo todo el rato. En ESTA rama la regla cae en el DESENLACE
+  (no hay `run-flow`): boss muerto → `sector-cleared` (**Sector Cleared**); reloj
+  agotado sin boss → `survived` (**Sector Held**). "Sector Held" NO está redactado
+  como fracaso: el jugador aguantó la run entera, simplemente no la despejó.
+  **Ningún contrato empeora aquí**: `second-wind` en esta rama es `survive` y lee
+  duración, no desenlace. (En `codex/map-2` la misma regla cae sobre el CRÉDITO de
+  sector, y allí sí endurece `second-wind`: exige los dos bosses.)
+- **Portal encontrable:** el indicador dice **BOSS**, no `TOTEM`; el modelo pasa
+  de `voxelSize` 0.12 a 0.16; y su haz, su anillo de aviso y su pilar provisional
+  **derivan del modelo** (`portalScale()` en `boss.ts`), así que agrandar el
+  portal ya nunca deja atrás su propia luz. `BOSS.totemColliderRadius` sigue en
+  config a mano (es física, no visual). **PENDIENTE: la distancia
+  (`totemDistMin/Max` 45-65) no se tocó** — si el playtest vuelve a dar 0 bosses,
+  el problema es ese y no el tamaño.
+- **Guardado a prueba de cortes** (`electron/safe-save.ts`): escritura atómica
+  (temp → fsync → rename) y cargas corruptas movidas a `.corrupt-<ts>` en vez de
+  leerse como "no hay save" y ser machacadas por el siguiente autoguardado. Antes,
+  un corte de luz mientras guardaba borraba en silencio todo el progreso.
+  Cubierto por `test:safe-save`.
+- **Pantalla completa a la resolución del jugador.** El default era el literal
+  `1280x720` contra una lista de tres tamaños 16:9 fijos, así que 1440p/4K/
+  ultrawide no tenían entrada y `normalizeSettings` los empujaba a 720p. Ahora la
+  lista se deriva de la pantalla, el nativo siempre está, y los tamaños se
+  guardan en píxeles físicos divididos por `scaleFactor` antes de Electron (DIP).
+  Cubierto por `test:display`.
+- **`npm test` agregado (102 aserciones, ~7s) + `npm run test:all`.** Había 17
+  scripts `test:*` y ningún agregado, así que cada cambio se comprobaba solo
+  contra el test que uno recordara. **Córrelo antes de cada commit.**
+
+### Juicio de Contratos (2026-08-06, dos jueces ciegos)
+
+**El mecanismo está bien hecho** (colas, escaleras, IDs, settlement idempotente)
+pero **apuntaba mal**: los premios de más peso estaban detrás de un boss que nadie
+peleaba. La regla del sector + el portal encontrable atacan justo eso.
+
+Abierto, NO tocado:
+- `boss-hunter` (5 bosses → socket de arma) es el ÚNICO que da socket de arma.
+  **OJO: `bossesDefeated` es acumulado de CARRERA, no por run** (`profile.ts:150`).
+- `proving-ground` está `latent` aunque su objetivo y su premio funcionan hoy.
+- Umbrales literales `n: 1` en `contracts.ts`; `CONTRACTS.fullRunSectors` y
+  `twoOfAKindCharacters` declarados y jamás leídos.
+- Ningún contrato tira del chatarrero (0-1 compras en 4 de 6 runs).
+- La pantalla de resultados suena en SILENCIO justo donde está el botón de
+  Wishlist. **Se arregla sin música nueva**: la cama de menú ya está precargada.
+
+### Trailer
+
+Plan en `docs/TRAILER_V1_PLAN.md`. Música RESUELTA; no hace falta generar nada
+más. Cerrado por el usuario el 2026-08-06: `DEMO COMPLETE` descartado, feedback de
+fin de sector descartado, accesibilidad fuera de la v1. **El payoff sigue siendo
+`Sector Cleared`, pero ahora significa que el boss murió.**
+
+---
+
+## Estado histórico (2026-08-04) — `codex/map-2` **0.12.6** recording-safe; `main` Playtest **0.10.5-beta**
 
 **REGLA DE VERSIONADO (usuario 2026-07-25, formato visible fijado 2026-08-01): antes de CADA commit se sube `version` en `package.json` según SemVer y se escribe esa versión en el asunto del commit.** No es decorativo: `__APP_VERSION__` conserva el valor SemVer crudo y se estampa en cada registro de run como `buildVersion`; el menú deriva `__APP_DISPLAY_VERSION__` con el número primero y la etiqueta después (por ejemplo, `0.10.2 Beta`). Un commit que cambia comportamiento sin subir versión hace que esos registros mientan.
 
