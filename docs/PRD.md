@@ -569,3 +569,61 @@ Los hechos medidos que cualquier solución tiene que respetar:
 5. **Restricción de presentación, la más cara de aprender:** cualquier solución que cambie de golpe la velocidad de muchos cuerpos a la vez corre el riesgo de leerse como teletransporte, aunque los números sean correctos. El veredicto del usuario llegó tres veces sobre tres valores distintos.
 
 Cuestiones abiertas para la sesión de diseño: ¿se ataca por densidad (menos cuerpos durante la pelea, vía `spawnDampenEarly/Late`), por geometría (forma del anillo en vez de su radio), por apuntado (subir `BOSS_TARGET_BIAS_BASE` mientras haya un boss vivo), por el moveset del King (embestida comprometida al estilo Rustbrute), o por el coste de tiempo (`respawnDelayS`, `respawnHpGrowth`)? Ninguna se ha evaluado todavía.
+
+---
+
+## Crusher King — banquillo y el principio del boss anclado (2026-08-07)
+
+Cierra la sección anterior. **Decisión del usuario: el Crusher King sale de la rotación de invocación en AMBAS ramas; de momento el único boss es el Tesla Titan.** No se borra nada: su tipo, modelo, moveset y números siguen vivos y funciona en el boss lab. Volver a meterlo es añadir `CRUSHER_KING_TYPE_INDEX` a `BOSS_TYPE_INDEXES`.
+
+Este apartado sustituye a `docs/BOSS_KING_MOVESET_PLAN.md`, que se elimina: su propuesta se implementó, se juzgó y quedó superada por el hallazgo de abajo.
+
+### El hallazgo que reencuadra el problema
+
+Se fue a la fuente real de Megabonk (paso 1 de `METODO_DISENO.md`, que prohíbe explícitamente tirar de memoria). Lo relevante, verificado:
+
+- **El portal del boss ya está colocado al empezar la run y se puede activar cuando el jugador quiera.** Es el modelo que queremos.
+- **La oleada normal NO se detiene durante la pelea**; las guías avisan de matar rápido *"para que la arena del boss no se llene"*.
+- **Todo ataque de boss tiene un wind-up visible que da al menos medio segundo de reacción.** Es una ley global, no una decisión por ataque.
+- **Su primer boss (Lil Bark) se queda QUIETO**, y la contrajugada documentada es orbitarlo.
+
+**El principio, que es lo que importa: el enjambre persigue al JUGADOR.** Si el boss está quieto en otro sitio, la chatarra se estira en cola detrás del jugador y nunca se apelmaza sobre el boss. **El hueco para dispararle es una consecuencia de quién se mueve, no algo que el boss tenga que fabricar.**
+
+Nuestro King hacía lo contrario (`behavior: 'chase'`): jugador y enjambre compartían destino, así que el boss llegaba con la oleada puesta. Vista así, **las cuatro soluciones intentadas eran cuatro formas de deshacer un problema que creaba la propia persecución.** Y explica por qué subir la velocidad del boss —propuesta intuitiva— habría ido en dirección contraria: acelera justo el comportamiento que levanta el muro.
+
+Fuentes: [guía de bosses](https://megabonk.org/guides/bosses/) · [timeline de fase](https://megabonk.org/guides/mechanics/timer/) · [ScreenRant](https://screenrant.com/megabonk-boss-guide-locations-how-to-beat/) · [Megabonk Wiki](https://megabonkwiki.net/articles/how-to-beat-every-boss-in-megabonk).
+
+### Qué se probó y por qué está en el banquillo
+
+`ENEMY_TYPES` 'Crusher King' pasa a `speed: 0` — el King se ancla. El usuario lo juzgó **mejor** que la persecución, pero encontró el defecto que motiva el banquillo:
+
+> Si el jugador se aleja lo suficiente, el King se queda allí embistiendo al vacío, y esas embestidas largas terminan pegándolo otra vez a la oleada.
+
+**Es la mitad no terminada de la EMBESTIDA, no del anclaje.** El ancla funciona; lo que falta es que el ram deje de perseguir y de cruzar 20 unidades para acabar encima del jugador. Eso es exactamente lo que hacía la etapa A del trabajo guardado (ver abajo).
+
+El Tesla no tiene ese problema: aguanta una distancia de plantado y dispara, así que nunca comparte destino con el jugador. Por eso es el que se queda.
+
+### Trabajo construido, guardado sin juzgar (`git stash`)
+
+Tres mecánicas se llegaron a construir y se apilaron sobre la misma pelea sin juzgar ninguna por separado. **El usuario cortó por eso**, con razón. Están en un stash con el mensaje `boss: stages A+B + open core`:
+
+- **Etapa A — embestida comprometida + recuperación clavada.** El rumbo se fija al empezar el wind-up, un camino de movimiento comprometido en `EnemySystem` sobreescribe `moveChase`, y una fase `'recover'` deja al boss a velocidad 0 durante `recoverS`. **Es la pieza que le falta al King anclado.**
+- **Etapa B — el pisotón que DESTRUYE chatarra.** `EnemySystem.killWithoutReward`, una vía de muerte deliberadamente separada que nunca pasa por `Game.onEnemyDeath`: sin XP, sin oro, sin crédito de kill, y élites y bosses inmunes. Cierra el exploit de invocar-y-farmear.
+- **Núcleo expuesto durante la recuperación.** `Enemy.exposed`: las armas puntúan un cuerpo expuesto a `-1`, así que **gana por encima de la distancia** en vez de dividirla, más ×1,6 de daño. Atacaba el problema en la capa de apuntado, donde nació.
+
+**Medido al hacerlo:** el pisotón no desinfla la oleada — `updateSpawner` rellena hacia un techo, así que el hueco se recupera en un ciclo o dos. Su coste real no es densidad, es **ingreso**: esas muertes no pagan.
+
+### Ya rechazado — no volver a proponerlo
+
+- **Barrido de pasillo (`shoveOutOfLane`)**: rechazado dos veces, siempre por cómo se VE. Detalle en la sección anterior.
+- **Zona marcada que erupciona (etapa C del plan)**: construida y **rechazada al verla** el 2026-08-07 — *"queda muy raro"*. Diagnóstico estructural: cuatro eventos comparten un fotograma (chatarra estallando, anillo del pisotón, screen shake y un disco naciendo a 7 unidades), y la zona nace **fuera del foco** que la destrucción acaba de robar. No re-proponerla con esa forma.
+
+### Dos medidas que conviene tener delante
+
+- **El boss NO es una esponja.** El King son 2.600 HP a nivel de referencia 24 (escalado `nivel/24`, topes 0,35-1,6). Una run que llega a 600 s reparte entre 21.700 y 102.000 de daño total: el boss es el **2-16 %** de lo que el jugador ya suelta. Nunca fue el tamaño de la barra, sino qué fracción del DPS le aterriza.
+- **Ninguna run grabada en 0.13.x ha llegado a un boss.** Las cinco terminaron en derrota entre 58 y 151 s, nivel 3-6. La restricción que muerde hoy no es el reloj de 10 minutos, es sobrevivir al minuto 2 — dar más tiempo no ayuda a quien muere en 105 s.
+
+### Dos trampas de código encontradas por el camino
+
+- **`BOSS.crusher.speed` y `BOSS.tesla.speed` eran valores MUERTOS.** `boss.ts` lee la velocidad base de `ENEMY_TYPES`. Tunear la clave "obvia" no habría hecho nada — mismo fallo que tuvo `BOSS.tesla.preferredDist` hasta el 2026-07-30. Ambas claves eliminadas.
+- **`BOSS_TYPE_INDEXES[0]` se usaba como identidad.** Dos sitios de `boss.ts` despachaban así, y con un pool sin King ese `[0]` pasa a ser el Tesla: lo habría ejecutado por `updateCrusher` — embistiendo, invocando scraplings y sin disparar una sola ráfaga. Ahora se pregunta por `CRUSHER_KING_TYPE_INDEX` / `TESLA_TITAN_TYPE_INDEX`.

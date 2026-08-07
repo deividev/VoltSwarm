@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import {
   BOSS,
   BOSS_TYPE_INDEXES,
+  CRUSHER_KING_TYPE_INDEX,
+  TESLA_TITAN_TYPE_INDEX,
   ENEMY_TYPES,
   FINAL_BOSS_PROVISIONAL,
   FINAL_BOSS_TYPE_INDEX,
@@ -226,7 +228,8 @@ export class BossSystem {
     this.state = 'idle';
     this.bossIndex = -1;
     this.bossTypeIndex =
-      BOSS_TYPE_INDEXES[Math.floor(Math.random() * BOSS_TYPE_INDEXES.length)] ?? 6;
+      BOSS_TYPE_INDEXES[Math.floor(Math.random() * BOSS_TYPE_INDEXES.length)] ??
+      TESLA_TITAN_TYPE_INDEX;
     this.chargePhase = 'cooldown';
     this.chargeTimer = BOSS.crusher.chargeCooldownS;
     this.minionTimer = BOSS.crusher.minionIntervalS;
@@ -414,7 +417,7 @@ export class BossSystem {
 
     if (this.bossTypeIndex === FINAL_BOSS_TYPE_INDEX) {
       this.updateFinalBossProvisional(dt, boss, px, pz, projectiles, enemies);
-    } else if (this.bossTypeIndex === BOSS_TYPE_INDEXES[0]) {
+    } else if (this.bossTypeIndex === CRUSHER_KING_TYPE_INDEX) {
       this.updateCrusher(dt, boss, enemies, obstacles);
     } else {
       this.updateTesla(dt, boss, px, pz, projectiles, enemies);
@@ -586,7 +589,7 @@ export class BossSystem {
     this.bossBody.radius = boss.radius;
     this.bossBody.heading = boss.heading;
     this.bossBody.ramming =
-      this.chargePhase === 'charging' && this.bossTypeIndex === BOSS_TYPE_INDEXES[0];
+      this.chargePhase === 'charging' && this.bossTypeIndex === CRUSHER_KING_TYPE_INDEX;
     this.bossBody.ramSerial = this.ramSerial;
     return this.bossBody;
   }
