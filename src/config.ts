@@ -884,7 +884,37 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
     name: 'Crusher King',
     behavior: 'chase',
     hp: 2600,
-    speed: 3,
+    /** 3 → 0 (2026-08-07). THE KING HOLDS GROUND. This is the live speed —
+     *  boss.ts reads it from here, not from BOSS.crusher.
+     *
+     *  Taken from how Megabonk structures its first boss: Lil Bark stays put
+     *  and the documented counterplay is to orbit it. That works for a reason
+     *  worth stating, because it is the reason four of our own attempts failed.
+     *  The swarm chases the PLAYER. If the boss stands somewhere else, the
+     *  swarm strings out behind the player and never packs onto the boss — the
+     *  gap you shoot through is a CONSEQUENCE of who moves, not something the
+     *  boss has to manufacture.
+     *
+     *  Chasing produced the opposite: player and swarm heading for the same
+     *  point means the boss arrives wearing the swarm. The clear ring, the
+     *  slam, the lane sweep and the open core were four different ways to undo
+     *  that, and the lane sweep was rejected twice for how the moved bodies
+     *  read. Nothing is moved by force here. Nobody is moved at all.
+     *
+     *  Still not inert: moveChase writes `heading` regardless of speed, so it
+     *  turns to face the player, and the ram (BOSS.crusher.chargeSpeed 22) is
+     *  now its only way to close distance — it repositions by ATTACKING.
+     *
+     *  Known limit of this as a test: the ram still homes, so it ends ~20 units
+     *  along its line, on top of the player, and the swarm packs onto it again
+     *  until the next cycle. That is roughly 1 second in ~7.8; if the principle
+     *  holds for the other 6.8 it holds. If it does not, walking this back is
+     *  one number.
+     *
+     *  Tier language, also from Megabonk: standing still is the FIRST boss's
+     *  verb (Lil Bark), and mobility is what later bosses earn (Bark Vader).
+     *  The Tesla Titan and the Hazard Marshal keep the movement. */
+    speed: 0,
     scale: 4.6,
     radius: 2.9,
     xp: 120,
@@ -908,8 +938,29 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
 ];
 
-/** Pool indexes of the summonable bosses (must match ENEMY_TYPES order). */
-export const BOSS_TYPE_INDEXES = [6, 7];
+/** Boss identities. Named because the summon POOL below is now shorter than the
+ *  cast, so `BOSS_TYPE_INDEXES[0]` no longer means "the Crusher" — it means
+ *  "whatever is first in the pool". Two dispatch sites in boss.ts asked exactly
+ *  that positional question, and with a Crusher-less pool they would have run
+ *  the Tesla through updateCrusher: ramming, summoning scraplings, and never
+ *  firing a single burst. Ask by identity here, never by position. */
+export const CRUSHER_KING_TYPE_INDEX = 6;
+export const TESLA_TITAN_TYPE_INDEX = 7;
+
+/** Pool indexes of the summonable bosses (must match ENEMY_TYPES order).
+ *
+ *  CRUSHER KING BENCHED 2026-08-07 (user's call), Tesla only for now, on BOTH
+ *  branches. The King is not deleted — its type, model, moveset and numbers all
+ *  stay live and it still works in the boss lab; it is only out of the summon
+ *  rotation, so putting it back is adding CRUSHER_KING_TYPE_INDEX to this list.
+ *
+ *  Why: standing it still (ENEMY_TYPES speed 0) fixed the packing problem and
+ *  the user judged it better, but it left a tell nobody wants to ship — kite
+ *  far enough away and the King just sits there ramming empty ground, and those
+ *  long rams end with it glued to the swarm again. That is the unfinished half
+ *  of the ram, not of the anchor. The Tesla holds a standoff and shoots, so it
+ *  never had the problem the King is benched for. */
+export const BOSS_TYPE_INDEXES = [TESLA_TITAN_TYPE_INDEX];
 
 export const ENEMIES = {
   spawnRingMin: 32,
@@ -1989,7 +2040,11 @@ export const BOSS = {
   burstShoveRadius: 6,
   burstShoveForce: 18,
   crusher: {
-    speed: 3,
+    // No `speed` here. It looked like it lived in this block for months and
+    // nothing ever read it — boss.ts takes the base speed straight from
+    // ENEMY_TYPES. Same dead-value trap BOSS.tesla.preferredDist carried until
+    // 2026-07-30, and a duplicate that disagrees with the live one is worse
+    // than no value at all: it silently absorbs the tuning meant for the fight.
     chargeTelegraphS: 0.9,
     chargeSpeed: 22,
     chargeDurationS: 0.9,
@@ -1998,7 +2053,7 @@ export const BOSS = {
     minionCount: 4,
   },
   tesla: {
-    speed: 2.4,
+    // Same dead key removed here; the Tesla's speed is ENEMY_TYPES' too.
     /** 10 → 7 (2026-07-30 playtest: "sigue estando demasiado lejos"), then
      *  7 → 4.5 (2026-08-06).
      *
