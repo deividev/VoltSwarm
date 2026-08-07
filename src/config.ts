@@ -54,7 +54,7 @@ export const DEV_TOOLS: {
    *  through the real payout path (which is what the Contracts screen reads);
    *  and reset progress. Kept as a testing surface now that Contracts have
    *  replaced it as the player-facing progression. */
-  unlockPanel: false,
+  unlockPanel: true,
   /** F2-F9 hotkeys that cycle and preview SFX variants in-game while authoring
    *  audio. Turn back on for the full-catalog audio pass. */
   auditionKeys: false,
