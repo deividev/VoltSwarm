@@ -110,7 +110,113 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 
 ---
 
-## Estado operativo actual (2026-08-04) — `codex/map-2` **0.12.6**
+## Estado operativo actual (2026-08-06) — `codex/map-2` **0.13.13**
+
+> ## 🚨 HAY UN RIG DE PRUEBAS ENCENDIDO — LÉELO ANTES DE TOCAR NADA
+>
+> **`DEV_TOOLS.shortMaps = true`. Las runs duran 4 MINUTOS, no 10.** Rig de
+> validación temporal para probar el arco completo rápido. Implicaciones:
+>
+> - **Cualquier medición hecha ahora está distorsionada.** Densidad, oro, nivel,
+>   XP y todos los umbrales de contratos asumen 10 minutos. No calibres nada, no
+>   corras `npm run stats` contra estas runs, y no las trates como datos.
+> - **No se puede empaquetar** mientras esté encendido: `check-release-flags.mjs`
+>   aborta `npm run package` a propósito.
+> - **Revertir = `DEV_TOOLS.shortMaps` a `false`** en `src/config.ts`. Nada más;
+>   `SHORT_RUN_DURATION_S` queda inerte.
+>
+> **Antes del congelado del build hay que revertirlo.**
+
+> ## ⚠️ Trampa de rama compartida (mordió el 2026-08-06)
+>
+> Las tres ramas comparten UNA carpeta y UN `dist/`. Si alguien cambia de rama
+> mientras otro juega, se compila y se juega la rama equivocada **sin ningún
+> aviso**: pasó de verdad — se jugó el bundle de `codex/map-2` creyendo que era
+> la Demo, y apareció un Mapa 2 que esta rama no tiene en su código.
+>
+> **Verificación de 2 segundos antes de fiarse de una sesión de juego:**
+> `grep -l "megafactory" dist/assets/*.js`. En ESTA rama (`codex/map-2`) DEBE
+> coincidir — si no coincide, el bundle es el de la Demo y lo que ves no vale.
+> En la rama Demo es al revés: si coincide, estás jugando el juego completo.
+> `git worktree` lo resuelve de raíz (una carpeta por rama); PROPUESTO, no hecho.
+>
+> **Y revalida la rama al RETOMAR trabajo, no solo al empezar.** Esto ya costó un
+> commit en la rama equivocada el 2026-08-06: el árbol se movió entre turnos.
+
+### Cambios del 2026-08-06 (0.13.6 → 0.13.13)
+
+- **🔑 REGLA NUEVA: el BOSS despeja el sector, no el reloj.** Antes, llegar a
+  10:00 terminaba la run como `sector-cleared` hicieras lo que hicieras, así que
+  el portal no tenía ningún tirón — **0 de 6 runs humanas invocaron un boss** con
+  la flecha señalándolo todo el rato. En ESTA rama la regla cae en el CRÉDITO:
+  `RunFlowState.mapBossDefeated` gatea `sectorsCleared += 1` y se resetea en cada
+  transición, para que despejar el sector 1 no pague el 2. **La run nunca se
+  corta**: sobrevivir el reloj sigue avanzando al mapa siguiente, solo que sin
+  crédito. (La Demo implementa la misma regla sobre el DESENLACE, porque no tiene
+  `run-flow`: allí sale `Sector Held` en vez de `Sector Cleared`.)
+  **Consecuencia deliberada, cubierta por un test con comentario:** saltarse el
+  boss del Mapa 1 y matar solo al final cierra el último sector pero NO el arco →
+  la run lee `Sector Cleared` en vez de `Run Complete` y los contratos de
+  `complete-runs` no cobran. Completar una run exige ahora los DOS bosses, así que
+  **`second-wind` es más difícil aquí que antes** (antes bastaba el boss final).
+- **Portal encontrable:** el indicador dice **BOSS**, no `TOTEM` (el cambio de
+  más palanca de los tres — "totem" no significa nada, "BOSS" lo entiende todo el
+  mundo); el modelo pasa de `voxelSize` 0.12 a 0.16; y su haz, su anillo de aviso
+  y su pilar provisional **derivan del modelo** (`portalScale()` en `boss.ts`),
+  así que agrandar el portal ya nunca deja atrás su propia luz.
+  `BOSS.totemColliderRadius` sigue en config a mano (es física, no visual) con la
+  dependencia documentada en ambos lados. **PENDIENTE: la distancia
+  (`totemDistMin/Max` 45-65) no se tocó** — si el playtest vuelve a dar 0 bosses,
+  el problema es ese y no el tamaño.
+- **Guardado a prueba de cortes** (`electron/safe-save.ts`): escritura atómica
+  (temp → fsync → rename) para settings, perfil e historial, y las cargas que no
+  parsean se mueven a `.corrupt-<ts>` en vez de leerse como "no hay save" y ser
+  machacadas por el siguiente autoguardado. Antes, un corte de luz mientras
+  guardaba —y guarda al final de CADA run y CADA contrato— borraba en silencio
+  armas, cores, mods, sockets y el ledger entero. Cubierto por `test:safe-save`.
+- **Pantalla completa a la resolución del jugador.** El default era el literal
+  `1280x720` y la lista eran tres tamaños 16:9 fijos, así que un monitor
+  1440p/4K/ultrawide **no tenía ninguna entrada que coincidiera** y
+  `normalizeSettings` lo empujaba de vuelta a 720p. Ahora la lista se deriva de la
+  pantalla y el nativo siempre está. Los tamaños se guardan en píxeles físicos y
+  se dividen por el `scaleFactor` antes de llegar a Electron (que dimensiona en
+  DIP). Cubierto por `test:display`.
+- **`npm test` agregado (102 aserciones, ~7s) + `npm run test:all`.** Había 17
+  scripts `test:*` y ningún agregado, así que cada cambio se comprobaba solo
+  contra el test que uno recordara — así se rompieron dos casos de `test:demo` sin
+  que nadie lo viera. **Córrelo antes de cada commit.**
+
+### Juicio de Contratos (2026-08-06, dos jueces ciegos)
+
+Veredicto: **el mecanismo está bien hecho** (colas, escaleras, IDs, settlement
+idempotente) pero **apuntaba mal**. Hallazgo severo confirmado por los dos: los
+premios de más peso estaban detrás de un boss que nadie peleaba. La regla del
+sector + el portal encontrable atacan justo eso.
+
+Abierto, NO tocado (por si alguien lo retoma):
+- `boss-hunter` (5 bosses → socket de arma) es el ÚNICO que da socket de arma.
+  **OJO: `bossesDefeated` es acumulado de CARRERA, no por run** (`profile.ts:150`).
+  El usuario quiere bajarlo; número sin decidir.
+- `proving-ground` está `latent` aunque su objetivo y su premio funcionan hoy.
+- Umbrales literales `n: 1` en `contracts.ts` (viola "umbrales solo en config"), y
+  `CONTRACTS.fullRunSectors` / `twoOfAKindCharacters` declarados y jamás leídos.
+- Ningún contrato tira del chatarrero, que ya medía 0-1 compras en 4 de 6 runs.
+- La pantalla de resultados suena en SILENCIO (`endRun` para la música y no
+  arranca nada) justo donde está el botón de Wishlist. **Se arregla sin música
+  nueva**: la cama de menú ya está precargada.
+
+### Trailer
+
+Plan completo en `docs/TRAILER_V1_PLAN.md`. Música RESUELTA (fuente elegida y dos
+ventanas cortadas); no hace falta generar nada más. Decisiones cerradas por el
+usuario el 2026-08-06: `DEMO COMPLETE` descartado (las runs se siguen pudiendo
+jugar), feedback de fin de sector descartado, accesibilidad fuera de la v1.
+**El payoff sigue siendo `Sector Cleared`, pero ahora significa que el boss
+murió** — el beat del boss y el del payoff quedan conectados por causa.
+
+---
+
+## Estado histórico (2026-08-04) — `codex/map-2` **0.12.6**
 
 **REGLA DE VERSIONADO UNIVERSAL (usuario 2026-07-25, formato visible fijado 2026-08-01): aplica a Claude, GPT/Codex y cualquier otro agente o herramienta que modifique el repositorio. Antes de CADA commit se sube `version` en `package.json` según SemVer y se escribe esa versión en el asunto del commit.** `__APP_VERSION__` conserva el valor SemVer crudo y se estampa como `buildVersion`; el menú deriva `__APP_DISPLAY_VERSION__` con el número primero y la etiqueta después (por ejemplo, `0.10.2 Beta`). Un commit que cambia comportamiento sin subir versión hace que los registros mientan.
 

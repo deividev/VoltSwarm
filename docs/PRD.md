@@ -8,7 +8,26 @@
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
-## Estado de la arquitectura (actualizado 2026-08-04, v0.12.6)
+## Estado de la arquitectura (actualizado 2026-08-06, v0.13.11-demo)
+
+0. 🔑 **El BOSS despeja el sector, no el reloj** — implementado 2026-08-06, spec en
+   §12. Es la regla que hay que leer antes de tocar el final de una run.
+0b. ✅ **Persistencia a prueba de cortes** — `electron/safe-save.ts`: escritura
+   atómica (temp → fsync → rename) para settings/perfil/historial y cuarentena de
+   saves corruptos en `.corrupt-<ts>`. Antes, un corte de luz mientras guardaba
+   —y guarda al final de CADA run y CADA contrato— borraba en silencio todo el
+   progreso, porque los cargadores leían un JSON truncado como "no hay save".
+   Cubierto por `test:safe-save`.
+0c. ✅ **Arranque a pantalla completa en la resolución del jugador** — el default
+   era el literal `1280x720` contra una lista de tres tamaños 16:9 fijos, así que
+   1440p/4K/ultrawide no tenían entrada y `normalizeSettings` los empujaba a 720p.
+   La lista se deriva ahora de la pantalla, el nativo siempre está presente, y los
+   tamaños se guardan en píxeles físicos divididos por `scaleFactor` antes de
+   llegar a Electron (que dimensiona en DIP). Cubierto por `test:display`.
+0d. ✅ **`npm test` agregado** — había 17 scripts `test:*` y ninguno que los
+   corriera todos, así que cada cambio se validaba solo contra el test que uno
+   recordara. `npm test` (~7 s) antes de cada commit; `npm run test:all` incluye
+   los que arrancan Electron/navegador, antes de congelar un build.
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
@@ -89,6 +108,43 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - **Panel de build** a la izquierda de la pantalla: iconos con las armas (y su nivel) y cada stat que hayas subido, actualizado con cada elección y cofre.
 
 ### 12. Tótem + boss aleatorio
+
+> **🔑 REGLA VIGENTE (2026-08-06): el BOSS despeja el sector, no el reloj.**
+> No la deshagas sin leer esto — un test la protege a propósito.
+>
+> **Por qué existe:** hasta esta fecha, llegar al final del tiempo despejaba el
+> sector hicieras lo que hicieras, así que el portal era un desvío opcional sin
+> recompensa asociada. Medido: **0 bosses invocados en 6 runs humanas**, incluidas
+> las 2 que agotaron el reloj, con la flecha indicadora señalándolo todo el rato.
+> Un juicio de dos jueces ciegos sobre Contratos confirmó lo mismo desde el otro
+> lado: los premios de más peso del motor de retención estaban detrás de contenido
+> que nadie tocaba.
+>
+> **Cómo se implementa, y difiere por rama porque los modelos difieren:**
+> - **`codex/demo-map1`** (sin `run-flow`): la regla cae en el DESENLACE. Boss
+>   muerto → `sector-cleared` (**Sector Cleared**); tiempo agotado sin boss →
+>   `survived` (**Sector Held**). "Sector Held" no está redactado como fracaso:
+>   el jugador aguantó la run entera, simplemente no la despejó.
+> - **`codex/map-2`** (con `run-flow`): la regla cae en el CRÉDITO.
+>   `RunFlowState.mapBossDefeated` gatea `sectorsCleared += 1`, y se resetea en
+>   cada transición para que despejar el sector 1 no pague el 2. La run nunca se
+>   corta: sobrevivir el reloj sigue avanzando al mapa siguiente, solo que sin
+>   crédito.
+>
+> **Consecuencia deliberada en `codex/map-2`:** saltarse el boss del Mapa 1 y matar
+> solo al final cierra el último sector pero NO el arco, así que la run lee
+> `Sector Cleared` en vez de `Run Complete` y los contratos de `complete-runs` no
+> cobran. Completar una run exige ahora los dos bosses. Esto hace `second-wind`
+> **más difícil** en esa rama (antes bastaba el boss final); en la Demo no cambia
+> nada, porque allí `second-wind` es `survive` y lee duración, no desenlace.
+> Cubierto por `tools/map-flow.test.mjs` con un comentario que dice que es
+> intencionado.
+>
+> **Descubribilidad, mismo pase:** el indicador dice **BOSS** (no `TOTEM`), el
+> modelo pasa de `voxelSize` 0.12 a 0.16, y su haz/anillo/pilar derivan del modelo
+> vía `portalScale()` en `boss.ts`. **La DISTANCIA (`BOSS.totemDistMin/Max`,
+> 45-65) NO se tocó** — si un playtest vuelve a dar 0 bosses, el culpable es esa.
+
 - Un tótem con beam distintivo (rojo) spawnea en posición aleatoria lejana al iniciar el run.
 - Al entrar en su zona aparece el prompt "Press E to summon the boss"; el boss SOLO spawnea al pulsar la tecla — nunca por pasar al lado.
 - **Invocación telegrafiada (2026-07-05, feedback de playtest)**: al pulsar E el tótem gira acelerado durante `BOSS.summonDelayS` (2.5 s) y el boss materializa a una distancia mínima del jugador (`BOSS.spawnMinDistFromPlayer`, 14 u, empujado en la dirección jugador→tótem y clampeado al arena) — nunca encima del jugador.
@@ -506,10 +562,10 @@ Nada de lo anterior resuelve la queja original completa. **El enjambre sigue tap
 
 Los hechos medidos que cualquier solución tiene que respetar:
 
-1. **Las armas apuntan al enemigo más cercano**, y la chatarra pegada al boss siempre está más cerca que el boss. `clearRadius` ataca esto por geometría y `HUNTER_WEAPONS` por apuntado.
+1. **Las armas apuntan al enemigo más cercano**, y la chatarra pegada al boss siempre está más cerca que el boss. `clearRadius` ataca esto por geometría y el sesgo de apuntado por la otra vía: `BOSS_TARGET_BIAS = 3` para las tres cazadoras con `range` explícito (bolt, welder, dismantler) y `BOSS_TARGET_BIAS_BASE = 1,5` de suelo para el resto. Es un multiplicador de cercanía aparente, no de alcance real.
 2. **El propio anillo construye el muro.** Repeler cuerpos hasta radio 7 levanta una cáscara densa justo donde el jugador tiene que entrar. Ya estaba anotado en `config.ts` desde el pase anterior; subir `clearRadius` a secas mueve el muro más lejos y lo hace más denso.
 3. **El King pierde su anillo en cada embestida.** Toma prestado `CHARGE.lunging` del Rustbrute para heredar el destello del telegrafiado, y con él cae en el filtro de `rebuildDynamicObstacles` pensado para chargeadores pequeños. Durante los 0,9 s del lunge deja de estar en la lista de esquiva y el enjambre camina hacia dentro. Como embiste cada ~7,8 s, el arena se come a sí misma a lo largo de la pelea. **Esto sigue tal cual: la exención se revirtió junto con el pasillo.**
 4. **La embestida del King persigue, no se compromete.** Su `behavior` es `chase`, no `charger`: `moveChase` lo reapunta al jugador cada fotograma, solo que a velocidad 22. A diferencia del Rustbrute — que fija su rumbo en el telegrafiado y por eso se esquiva dando un paso al lado — **no hay nada que esquivar**. Es un cambio de diseño mayor, nunca se ha tocado, y es probable que sea la causa de que la embestida siga sintiéndose injusta aun con el empujón arreglado.
 5. **Restricción de presentación, la más cara de aprender:** cualquier solución que cambie de golpe la velocidad de muchos cuerpos a la vez corre el riesgo de leerse como teletransporte, aunque los números sean correctos. El veredicto del usuario llegó tres veces sobre tres valores distintos.
 
-Cuestiones abiertas para la sesión de diseño: ¿se ataca por densidad (menos cuerpos durante la pelea, vía `spawnDampenEarly/Late`), por geometría (forma del anillo en vez de su radio), por apuntado (`HUNTER_WEAPONS` más agresivo con un boss vivo), por el moveset del King (embestida comprometida al estilo Rustbrute), o por el coste de tiempo (`respawnDelayS`, `respawnHpGrowth`)? Ninguna se ha evaluado todavía.
+Cuestiones abiertas para la sesión de diseño: ¿se ataca por densidad (menos cuerpos durante la pelea, vía `spawnDampenEarly/Late`), por geometría (forma del anillo en vez de su radio), por apuntado (subir `BOSS_TARGET_BIAS_BASE` mientras haya un boss vivo), por el moveset del King (embestida comprometida al estilo Rustbrute), o por el coste de tiempo (`respawnDelayS`, `respawnHpGrowth`)? Ninguna se ha evaluado todavía.
