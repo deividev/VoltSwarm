@@ -58,10 +58,21 @@ Cold open. No logo, no fade-in, no cinematic. The logo lockup lands at the end.
 | 0:31–0:39 | **Identity** | Chest roulette uncut: vertical reel descending → white flash → tier god-rays → icon bursting to colour. | `SPEND IT OR DIE WITH IT` |
 | 0:39–0:49 | **Escalation** | Telegraphed portal (strobe beam + warning rings) → Crusher King entrance → fight. | `SOMETHING BIGGER IS AWAKE` |
 | 0:49–0:58 | **Payoff** | Maximum density, screen full of dying voxel cubes → cut to the `Sector Cleared` title. | *(the HUD itself)* |
-| 0:58–1:05 | **CTA** | Logo lockup over `art/steam/capsule-bg-v2.png`. | See §7 |
+| 0:58–1:05 | **CTA** | Logo lockup over `art/steam/image/background-clean-master-3840x2160.png`. | See §7 |
 
 **Editing rule:** no shot runs past 2.5 s except the hook and the payoff. The eye
 tires before the ear does.
+
+**CTA art, verified on disk 2026-08-06** (an earlier draft of this plan pointed at
+`art/steam/capsule-bg-v2.png`, which the July cleanup deleted — it does not exist
+anywhere in the repo):
+
+| Use | File |
+|---|---|
+| Background | `art/steam/image/background-clean-master-3840x2160.png` |
+| Mascot head | `art/steam/image/logo-mascot-v3.png` (transparent RGBA) |
+| Wordmark | `art/steam/image/logo-letras-v3.png` (transparent RGBA) |
+| Pre-composed alternative | `art/steam/image/library-logo-1280x720.png` — lockup already assembled; fastest route if the CTA does not need its own animation |
 
 `Sector Cleared` is the real demo string — `src/run-history.ts`
 (`RUN_OUTCOME_TITLES['sector-cleared']`). It is not invented copy.
