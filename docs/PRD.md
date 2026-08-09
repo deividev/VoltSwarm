@@ -23,7 +23,10 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
    1440p/4K/ultrawide no tenían entrada y `normalizeSettings` los empujaba a 720p.
    La lista se deriva ahora de la pantalla, el nativo siempre está presente, y los
    tamaños se guardan en píxeles físicos divididos por `scaleFactor` antes de
-   llegar a Electron (que dimensiona en DIP). Cubierto por `test:display`.
+   llegar a Electron (que dimensiona en DIP). General lo presenta como **Window
+   Resolution**: queda deshabilitado en Fullscreen porque allí manda la resolución
+   nativa, pero conserva la elección y la restaura al volver a Windowed. UI Scale
+   permanece independiente. Cubierto por `test:display`.
 0d. ✅ **Escala de UI accesible** — General ofrece `Auto` (default), `100%`,
    `125%` y `150%`, con auto-apply y persistencia. Auto usa la resolución física:
    100% hasta 1080p, 125% desde 1440p y 150% desde 4K. Se aplica mediante page
@@ -196,7 +199,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - Marca de lanzamiento: **Voltswarm**. La horda robótica puede referirse internamente como **the Volts**.
 - Pausa: `Escape` pausa/reanuda y perder foco pausa automáticamente la run.
 - Menú de pausa: Resume / Settings / Quit to Menu.
-- Settings: display mode, resolución, UI Scale (Auto/100%/125%/150%) y volumen master/music/SFX; persistencia vía Electron y fallback localStorage.
+- Settings: display mode, **Window Resolution** (editable solo en Windowed), UI Scale (Auto/100%/125%/150%) y volumen master/music/SFX; persistencia vía Electron y fallback localStorage.
 - Branding de app: icono voxel placeholder conectado a Electron y al empaquetado Windows. Es **placeholder técnico**, no icono final; se reemplaza después del pase de arte.
 
 ### Menú inicial (Implementado 2026-07-12)

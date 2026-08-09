@@ -600,7 +600,7 @@ export class Hud {
                 </select>
               </label>
               <label class="settings-row">
-                <span>Resolution</span>
+                <span>Window Resolution</span>
                 <select id="settings-resolution">
                   ${resolutionOptions().map((item) => `<option value="${item.id}">${item.label}</option>`).join('')}
                 </select>
@@ -896,8 +896,11 @@ export class Hud {
     // Auto-apply: every settings change commits immediately (no Apply
     // button, user rule 2026-07-13). Selects/sliders on 'change' so sliders
     // save once on release, not per pixel dragged.
+    this.settingsMode.addEventListener('change', () => {
+      this.syncResolutionAvailability();
+      this.applySettingsNow();
+    });
     for (const id of [
-      'settings-mode',
       'settings-resolution',
       'settings-ui-scale',
       'settings-master-volume',
@@ -1294,6 +1297,7 @@ export class Hud {
   syncSettings(settings: GameSettings): void {
     this.settingsMode.value = settings.displayMode;
     this.settingsResolution.value = settings.resolution;
+    this.syncResolutionAvailability();
     this.settingsUiScale.value = settings.uiScale;
     this.masterVolume.value = Math.round(settings.masterVolume * 100).toString();
     this.musicVolume.value = Math.round(settings.musicVolume * 100).toString();
@@ -1307,6 +1311,7 @@ export class Hud {
 
   private openSettings(returnOverlay: 'menu' | 'pause'): void {
     this.settingsReturnOverlay = returnOverlay;
+    this.syncResolutionAvailability();
     mustGet('menu-overlay').classList.add('hidden');
     this.settingsOverlay.classList.remove('hidden');
     this.showSettingsTab('general');
@@ -1336,6 +1341,15 @@ export class Hud {
       sfxVolume: Number(this.sfxVolume.value) / 100,
       bindings: cloneBindings(this.draftBindings),
     };
+  }
+
+  /** Fullscreen always uses the current display's native resolution. Keep the
+   * stored windowed choice intact, but make it clear that it applies only after
+   * switching Display back to Windowed. */
+  private syncResolutionAvailability(): void {
+    const disabled = this.settingsMode.value === 'fullscreen';
+    this.settingsResolution.disabled = disabled;
+    this.settingsResolution.setAttribute('aria-disabled', String(disabled));
   }
 
   private showSettingsTab(tab: 'general' | 'controls'): void {
