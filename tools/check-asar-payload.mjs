@@ -22,7 +22,7 @@
 // no allowlist in this file, so package.json stays the single source of truth
 // for what ships.
 //
-// Usage: automatic via `npm run package`. Standalone:
+// Usage: automatic via `pnpm package`. Standalone:
 //   node tools/check-asar-payload.mjs <path-to-app.asar>
 import asar from '@electron/asar';
 import { existsSync } from 'node:fs';

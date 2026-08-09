@@ -36,7 +36,7 @@ replaced afterwards. That buys the edit ten extra days of slack.
 | Date | Work |
 |---|---|
 | 06–12 Aug | Demo content and balance. Last day gameplay may change. |
-| **13 Aug** | **Freeze the build.** `npm run package` + `check:release-flags` must pass. |
+| **13 Aug** | **Freeze the build.** `pnpm package` + `check:release-flags` must pass. |
 | 14–15 Aug | Targeted capture against the frozen build (§4). |
 | 16–19 Aug | Edit + music. |
 | **20 Aug** | **Submit to review.** Hard ceiling. |
@@ -114,7 +114,7 @@ Partially covered by the three raw runs in `art/video/Weekly2_31-07_09-08/`
 
 **Capture hygiene — verify in the packaged build, not in the source:**
 `VISUAL.showFps=false`, `GOLD.startingGold=0`, every `RECORDING.*` override off,
-`DEV_TOOLS` off. `npm run package` aborts if a dev flag is still on, which is the
+`DEV_TOOLS` off. `pnpm package` aborts if a dev flag is still on, which is the
 check that actually counts.
 
 ## 5. Music — RESOLVED 2026-08-06 (source picked, final in-point open)

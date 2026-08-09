@@ -27,7 +27,7 @@ async function waitForCdp() {
 }
 
 mkdirSync(OUTPUT, { recursive: true });
-run('npm.cmd', ['run', 'package:dir']);
+run('pnpm.cmd', ['run', 'package:dir']);
 if (!existsSync(EXE)) throw new Error(`Missing packaged executable: ${EXE}`);
 // ELECTRON_RUN_AS_NODE (inherited from some tool environments) boots the
 // packaged binary as plain Node, which rejects the Chromium flags below with

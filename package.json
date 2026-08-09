@@ -1,31 +1,33 @@
 {
   "name": "voltswarm",
-  "version": "0.13.17-demo",
+  "version": "0.13.18-demo",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
+    "preinstall": "node tools/check-package-manager.mjs",
     "dev": "vite",
-    "prebuild": "npm run audio:generate",
+    "prebuild": "pnpm run audio:generate",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "electron:build": "tsc -p tsconfig.electron.json && node tools/write-electron-cjs-package.cjs",
-    "electron:start": "npm run build && npm run electron:build && electron .",
-    "package": "npm run check:release-flags && npm run build && npm run electron:build && electron-builder",
-    "package:dir": "npm run check:release-flags && npm run build && npm run electron:build && electron-builder --dir",
+    "electron:start": "pnpm run build && pnpm run electron:build && electron .",
+    "package": "pnpm run check:release-flags && pnpm run build && pnpm run electron:build && electron-builder",
+    "package:dir": "pnpm run check:release-flags && pnpm run build && pnpm run electron:build && electron-builder --dir",
     "check:release-flags": "node tools/check-release-flags.mjs",
-    "test": "npm run electron:build && node --experimental-strip-types --test tools/version-format.test.cjs tools/demo-build.test.cjs tools/safe-save.test.cjs tools/playtest-reset.test.cjs tools/telemetry-client.test.cjs tools/display-settings.test.mjs tools/defeat-transition.test.mjs tools/characters.test.mjs tools/character-preview-state.test.mjs tools/chest-reel.test.mjs tools/audio-selection.test.mjs tools/stat-units.test.mjs",
-    "test:all": "npm test && npm run test:defeat-runtime && npm run test:character-portrait-browser && npm run test:chest-reel-browser && npm run test:smoke",
+    "test": "pnpm run electron:build && node --experimental-strip-types --test tools/version-format.test.cjs tools/demo-build.test.cjs tools/safe-save.test.cjs tools/playtest-reset.test.cjs tools/telemetry-client.test.cjs tools/display-settings.test.mjs tools/defeat-transition.test.mjs tools/characters.test.mjs tools/character-preview-state.test.mjs tools/chest-reel.test.mjs tools/audio-selection.test.mjs tools/stat-units.test.mjs",
+    "test:all": "pnpm test && pnpm run test:defeat-runtime && pnpm run test:character-portrait-browser && pnpm run test:chest-reel-browser && pnpm run test:smoke",
     "test:smoke": "node tools/smoke-run.mjs",
-    "test:telemetry": "npm run electron:build && node --test tools/telemetry-client.test.cjs",
+    "test:telemetry": "pnpm run electron:build && node --test tools/telemetry-client.test.cjs",
     "test:version": "node --test tools/version-format.test.cjs",
     "test:display": "node --test tools/display-settings.test.mjs",
-    "test:safe-save": "npm run electron:build && node --test tools/safe-save.test.cjs",
+    "test:safe-save": "pnpm run electron:build && node --test tools/safe-save.test.cjs",
     "test:defeat-transition": "node --experimental-strip-types --test tools/defeat-transition.test.mjs",
     "test:defeat-runtime": "node tools/defeat-runtime-check.mjs",
     "test:demo": "node --test tools/demo-build.test.cjs tools/version-format.test.cjs",
-    "test:playtest-reset": "npm run electron:build && node --test tools/playtest-reset.test.cjs",
+    "test:playtest-reset": "pnpm run electron:build && node --test tools/playtest-reset.test.cjs",
     "test:characters": "node --test tools/characters.test.mjs",
     "test:character-preview": "node --test tools/character-preview-state.test.mjs",
     "test:character-portrait-browser": "node tools/character-portrait-browser.test.mjs",
@@ -58,6 +60,7 @@
     "three": "^0.169.0"
   },
   "devDependencies": {
+    "@electron/asar": "^3.4.1",
     "@types/node": "^22.19.21",
     "@types/three": "^0.169.0",
     "electron": "^33.0.0",
@@ -66,8 +69,14 @@
     "typescript": "^5.6.3",
     "vite": "^5.4.10"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "electron",
+      "esbuild"
+    ]
+  },
   "build": {
-    "buildVersion": "0.13.17.0",
+    "buildVersion": "0.13.18.0",
     "appId": "com.davidseco.voltswarm.demo",
     "productName": "Voltswarm Demo",
     "directories": {

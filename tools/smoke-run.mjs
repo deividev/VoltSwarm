@@ -112,7 +112,7 @@ function snapshot(page) {
 }
 
 mkdirSync(OUTPUT, { recursive: true });
-run('npm.cmd', ['run', 'electron:build']);
+run('pnpm.cmd', ['run', 'electron:build']);
 
 const electronPath = (await import('electron')).default;
 // Spawned through Node directly rather than `npx`/shell: a shell wrapper on

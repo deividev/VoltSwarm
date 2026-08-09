@@ -1,7 +1,7 @@
 // Plays a real run against the PACKAGED build and fails on any asset the
 // archive is missing.
 //
-// This exists because `npm run test:smoke` cannot answer that question: it
+// This exists because `pnpm test:smoke` cannot answer that question: it
 // drives Electron against the Vite dev server, which serves straight from
 // public/. A smoke run passes even when every asset has been excluded from
 // app.asar. The failure mode this guards is exactly the one that only appears

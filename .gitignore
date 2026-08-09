@@ -1,6 +1,13 @@
 # Dependencies
 node_modules/
 
+# This project is pnpm-only (see tools/check-package-manager.mjs). A tracked npm
+# lockfile alongside a pnpm-installed tree is what once left node_modules with no
+# .bin at all, so the build died on "tsc is not recognized". pnpm-lock.yaml IS
+# tracked; these must never come back.
+package-lock.json
+yarn.lock
+
 # Build outputs
 dist/
 electron/dist/

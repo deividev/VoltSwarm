@@ -95,7 +95,7 @@ Writes `{"type": "commonjs"}` into `electron/dist/package.json` so the compiled 
 main process is treated as CJS while the root project stays ESM. The standard "dual
 package.json boundary" trick — needed in ANY TS+Electron+ESM project.
 
-- Run: automatic via `npm run electron:build` (chained after `tsc -p tsconfig.electron.json`)
+- Run: automatic via `pnpm electron:build` (chained after `tsc -p tsconfig.electron.json`)
 - Deps: Node builtins only. It is `.cjs` on purpose (root is `"type": "module"`).
 
 ---

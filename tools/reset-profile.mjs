@@ -68,7 +68,7 @@ console.log(
 );
 console.log(
   '\nIf progress you expected is still there, it lives in a store this cannot reach:\n' +
-  '  - a browser session (npm run dev) keeps its own localStorage per origin\n' +
+  '  - a browser session (pnpm dev) keeps its own localStorage per origin\n' +
   '  - an Electron run with --user-data-dir keeps its own folder\n' +
-  'Run the game from Electron (npm run electron:start) so it reads these files.',
+  'Run the game from Electron (pnpm electron:start) so it reads these files.',
 );
