@@ -108,6 +108,7 @@ import {
 } from './world';
 import { CONTAINER_PROP } from './config';
 import {
+  applyUiScale,
   applyWindowSettings,
   gamepadButtonLabel,
   keyLabel,
@@ -317,6 +318,17 @@ export class Game {
   private fpsTime = 0;
 
   constructor(container: HTMLElement) {
+    // Page zoom must land before renderer/camera construction: all DOM UI is
+    // born at the selected scale while Three.js world geometry remains intact.
+    applyUiScale(this.settings);
+    // Game owns the renderer for the lifetime of this page, so this listener
+    // shares that lifecycle. Explicit scales never react to monitor changes.
+    const removeDisplayInfoListener = window.electronAPI?.onDisplayInfoChanged?.(() => {
+      if (this.settings.uiScale === 'auto') applyUiScale(this.settings);
+    });
+    if (removeDisplayInfoListener) {
+      window.addEventListener('beforeunload', () => removeDisplayInfoListener(), { once: true });
+    }
     this.renderer = createRenderer(container);
     const world = createScene();
     this.scene = world.scene;
@@ -408,7 +420,12 @@ export class Game {
     window.addEventListener('resize', () => {
       this.camera.aspect = window.innerWidth / window.innerHeight;
       this.camera.updateProjectionMatrix();
+      // Electron page zoom changes devicePixelRatio. Refresh it together with
+      // size or the WebGL canvas is resampled and becomes visibly soft.
+      const pixelRatio = Math.min(window.devicePixelRatio, 1.5);
+      this.renderer.setPixelRatio(pixelRatio);
       this.renderer.setSize(window.innerWidth, window.innerHeight);
+      this.composer?.setPixelRatio(pixelRatio);
       this.composer?.setSize(window.innerWidth, window.innerHeight);
     });
     window.addEventListener('blur', () => this.pauseFromBlur());
@@ -980,9 +997,11 @@ export class Game {
     const displayChanged =
       settings.displayMode !== this.settings.displayMode ||
       settings.resolution !== this.settings.resolution;
+    const uiScaleChanged = settings.uiScale !== this.settings.uiScale;
     this.settings = settings;
     saveSettings(settings);
     if (displayChanged) applyWindowSettings(settings);
+    if (uiScaleChanged) applyUiScale(settings);
     this.input.setBindings(settings.bindings);
     this.hud.syncSettings(settings);
     this.audio.setSettings(settings);

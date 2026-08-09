@@ -36,7 +36,21 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
    La lista se deriva ahora de la pantalla, el nativo siempre está presente, y los
    tamaños se guardan en píxeles físicos divididos por `scaleFactor` antes de
    llegar a Electron (que dimensiona en DIP). Cubierto por `test:display`.
-0d. ✅ **`npm test` agregado** — había 17 scripts `test:*` y ninguno que los
+0d. ✅ **Escala de UI accesible** — General ofrece `Auto` (default), `100%`,
+   `125%` y `150%`, con auto-apply y persistencia. Auto usa la resolución física:
+   100% hasta 1080p, 125% desde 1440p y 150% desde 4K. Se aplica mediante page
+   zoom de Electron a TODO el DOM (HUD, menús, overlays, precios, prompts,
+   indicadores BOSS/SHOP, intro de nivel, números y avisos) sin agrandar geometría
+   3D. La resolución física llega por contextBridge desde Electron para que el
+   propio zoom no contamine la detección vía `devicePixelRatio`; cada resize por
+   zoom refresca también el pixel ratio del renderer para evitar WebGL borroso.
+   La política pura —migración de saves legacy/inválidos, valores permitidos y
+   umbrales de Auto— está cubierta por `test:display`. **Aceptación Electron:**
+   los valores explícitos sobreviven a reinicios; el cambio se ve al instante;
+   Auto se recalcula al mover la ventana entre monitores; las coordenadas
+   world-to-screen siguen alineadas con sus marcadores DOM; el mundo 3D conserva
+   tamaño y proporciones y el WebGL permanece nítido.
+0e. ✅ **`npm test` agregado** — había 17 scripts `test:*` y ninguno que los
    corriera todos, así que cada cambio se validaba solo contra el test que uno
    recordara. `npm test` (~7 s) antes de cada commit; `npm run test:all` incluye
    los que arrancan Electron/navegador, antes de congelar un build.
@@ -193,7 +207,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - Marca de lanzamiento: **Voltswarm**. La horda robótica puede referirse internamente como **the Volts**.
 - Pausa: `Escape` pausa/reanuda y perder foco pausa automáticamente la run.
 - Menú de pausa: Resume / Settings / Quit to Menu.
-- Settings: display mode, resolución, volumen master/music/SFX; persistencia vía Electron y fallback localStorage.
+- Settings: display mode, resolución, UI Scale (Auto/100%/125%/150%) y volumen master/music/SFX; persistencia vía Electron y fallback localStorage.
 - Branding de app: icono voxel placeholder conectado a Electron y al empaquetado Windows. Es **placeholder técnico**, no icono final; se reemplaza después del pase de arte.
 
 ### Menú inicial (Implementado 2026-07-12)

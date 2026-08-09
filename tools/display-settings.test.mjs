@@ -78,3 +78,33 @@ test('an explicit player choice still persists', () => {
   assert.equal(result.resolution, '1280x720');
   assert.equal(result.masterVolume, 0.25);
 });
+
+test('legacy settings without UI scale migrate to Auto', () => {
+  const result = settings.normalizeSettings(
+    { displayMode: 'windowed', resolution: '1280x720' },
+    QHD,
+  );
+  assert.equal(result.uiScale, 'auto');
+});
+
+test('Auto UI scale follows physical display resolution thresholds', () => {
+  assert.equal(settings.resolveUiScale('auto', FHD), 1);
+  assert.equal(settings.resolveUiScale('auto', display(2560, 1439)), 1);
+  assert.equal(settings.resolveUiScale('auto', QHD), 1.25);
+  assert.equal(settings.resolveUiScale('auto', ULTRAWIDE), 1.25);
+  assert.equal(settings.resolveUiScale('auto', display(3840, 2160)), 1.5);
+});
+
+test('valid explicit UI scale values survive normalization and bypass Auto', () => {
+  for (const [value, factor] of [['100', 1], ['125', 1.25], ['150', 1.5]]) {
+    const normalized = settings.normalizeSettings({ uiScale: value }, QHD);
+    assert.equal(normalized.uiScale, value);
+    assert.equal(settings.resolveUiScale(normalized.uiScale, QHD), factor);
+  }
+});
+
+test('malformed UI scale falls back safely to Auto', () => {
+  for (const value of [null, '', '200', 1.25, {}, []]) {
+    assert.equal(settings.normalizeSettings({ uiScale: value }, QHD).uiScale, 'auto');
+  }
+});

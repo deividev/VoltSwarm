@@ -12,6 +12,11 @@ interface Window {
   electronAPI?: {
     loadSettings(): string | null;
     saveSettings(data: string): void;
+    getDisplayInfo?(): { width: number; height: number; scaleFactor: number };
+    setZoomFactor?(factor: number): void;
+    onDisplayInfoChanged?(
+      listener: (display: { width: number; height: number; scaleFactor: number }) => void,
+    ): () => void;
     loadProfile(): string | null;
     saveProfile(data: string): void;
     loadRunHistory(): string | null;

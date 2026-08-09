@@ -1,4 +1,12 @@
 export type DisplayMode = 'windowed' | 'fullscreen';
+export type UiScale = 'auto' | '100' | '125' | '150';
+
+export const UI_SCALE_OPTIONS: readonly { value: UiScale; label: string; factor: number }[] = [
+  { value: 'auto', label: 'Auto', factor: 1 },
+  { value: '100', label: '100%', factor: 1 },
+  { value: '125', label: '125%', factor: 1.25 },
+  { value: '150', label: '150%', factor: 1.5 },
+];
 
 /** Rebindable game actions. Escape (pause/cancel) and the gamepad left
  *  stick (movement) are reserved and never rebindable. */
@@ -42,6 +50,7 @@ export const DEFAULT_BINDINGS: ControlBindings = {
 export interface GameSettings {
   displayMode: DisplayMode;
   resolution: string;
+  uiScale: UiScale;
   masterVolume: number;
   musicVolume: number;
   sfxVolume: number;
@@ -81,6 +90,19 @@ export function resolutionId(width: number, height: number): string {
 
 /** The display the game is currently on, in physical pixels. */
 export function detectDisplay(): DisplayInfo {
+  const native = window.electronAPI?.getDisplayInfo?.();
+  if (
+    native &&
+    Number.isFinite(native.width) && native.width > 0 &&
+    Number.isFinite(native.height) && native.height > 0 &&
+    Number.isFinite(native.scaleFactor) && native.scaleFactor > 0
+  ) {
+    return {
+      width: Math.round(native.width),
+      height: Math.round(native.height),
+      scaleFactor: native.scaleFactor,
+    };
+  }
   const scaleFactor = window.devicePixelRatio > 0 ? window.devicePixelRatio : 1;
   return {
     width: Math.round(window.screen.width * scaleFactor),
@@ -116,6 +138,7 @@ export function resolutionOptions(): ResolutionOption[] {
  *  filling the screen it was launched on, not in a small window. */
 const BASE_DEFAULTS: Omit<GameSettings, 'resolution'> = {
   displayMode: 'fullscreen',
+  uiScale: 'auto',
   masterVolume: 0.8,
   musicVolume: 0.7,
   sfxVolume: 1,
@@ -218,6 +241,24 @@ export function applyWindowSettings(settings: GameSettings): void {
   );
 }
 
+/** Auto follows physical display resolution, never devicePixelRatio: Electron
+ * page zoom changes devicePixelRatio and would otherwise feed back into the
+ * next scale calculation. */
+export function resolveUiScale(uiScale: UiScale, display: DisplayInfo): number {
+  if (uiScale !== 'auto') {
+    return UI_SCALE_OPTIONS.find((option) => option.value === uiScale)?.factor ?? 1;
+  }
+  if (display.height >= 2160) return 1.5;
+  if (display.height >= 1440) return 1.25;
+  return 1;
+}
+
+/** Electron page zoom scales the complete DOM UI while leaving Three.js world
+ * geometry untouched. Browser development keeps the existing 100% page scale. */
+export function applyUiScale(settings: GameSettings): void {
+  window.electronAPI?.setZoomFactor?.(resolveUiScale(settings.uiScale, detectDisplay()));
+}
+
 export function normalizeSettings(
   value: Partial<GameSettings>,
   display: DisplayInfo,
@@ -234,6 +275,11 @@ export function normalizeSettings(
         ? value.displayMode
         : fallback.displayMode,
     resolution,
+    uiScale:
+      typeof value.uiScale === 'string' &&
+      UI_SCALE_OPTIONS.some((option) => option.value === value.uiScale)
+        ? value.uiScale as UiScale
+        : fallback.uiScale,
     masterVolume: clamp01(value.masterVolume, fallback.masterVolume),
     musicVolume: clamp01(value.musicVolume, fallback.musicVolume),
     sfxVolume: clamp01(value.sfxVolume, fallback.sfxVolume),

@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, webFrame } from 'electron';
 
 const LEGACY_PROGRESS_KEYS = [
   'voltswarm:profile',
@@ -15,6 +15,23 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadSettings: (): string | null => ipcRenderer.sendSync('settings:load') as string | null,
   saveSettings: (data: string): void => {
     ipcRenderer.sendSync('settings:save', data);
+  },
+  getDisplayInfo: (): { width: number; height: number; scaleFactor: number } =>
+    ipcRenderer.sendSync('display:get-info') as { width: number; height: number; scaleFactor: number },
+  onDisplayInfoChanged: (
+    listener: (display: { width: number; height: number; scaleFactor: number }) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      display: { width: number; height: number; scaleFactor: number },
+    ): void => listener(display);
+    ipcRenderer.on('display:changed', handler);
+    return () => ipcRenderer.removeListener('display:changed', handler);
+  },
+  setZoomFactor: (factor: number): void => {
+    // Keep the bridge narrow: the renderer may choose only supported product
+    // scales, not arbitrary Chromium zoom levels.
+    webFrame.setZoomFactor([1, 1.25, 1.5].includes(factor) ? factor : 1);
   },
   loadProfile: (): string | null => ipcRenderer.sendSync('profile:load') as string | null,
   saveProfile: (data: string): void => {
