@@ -34,6 +34,8 @@ export interface OpenableChest {
   z: number;
 }
 
+export type ActiveChest = OpenableChest;
+
 export class PickupSystem {
   private readonly slots: PickupSlot[] = [];
   // First crate shows up early so the mechanic is discovered in minute one.
@@ -152,6 +154,23 @@ export class PickupSystem {
       }
     }
     return best;
+  }
+
+  /** Snapshot of every active chest, independent of interaction distance.
+   *  HUD markers consume this; nearestOpenable remains the interaction gate. */
+  activeChests(): ActiveChest[] {
+    const active: ActiveChest[] = [];
+    for (let i = 0; i < this.slots.length; i++) {
+      const slot = this.slots[i];
+      if (!slot?.active) continue;
+      active.push({
+        index: i,
+        tier: slot.tier,
+        x: slot.group.position.x,
+        z: slot.group.position.z,
+      });
+    }
+    return active;
   }
 
   /** Consumes a crate after a successful purchase. */

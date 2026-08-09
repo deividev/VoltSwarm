@@ -62,6 +62,29 @@ test('Overload Trigger derives Epic rarity and economy without changing its beha
   );
 });
 
+test('chest marker presentation leaves the established chest economy intact', () => {
+  assert.equal(config.CHEST.priceMult, 0.5);
+  assert.deepEqual(config.MERCHANT.tierPrices, {
+    gray: 25,
+    green: 45,
+    blue: 80,
+    purple: 140,
+    gold: 240,
+  });
+  assert.equal(config.MERCHANT.priceRampPerMin, 0.12);
+
+  const chestPrice = (tier, elapsedMinutes) =>
+    Math.round(mods.tierPrice(tier, elapsedMinutes, 0) * config.CHEST.priceMult);
+  assert.deepEqual(
+    ['gray', 'green', 'blue', 'purple', 'gold'].map((tier) => chestPrice(tier, 0)),
+    [13, 23, 40, 70, 120],
+  );
+  assert.deepEqual(
+    ['gray', 'green', 'blue', 'purple', 'gold'].map((tier) => chestPrice(tier, 5)),
+    [20, 36, 64, 112, 192],
+  );
+});
+
 test('gold uses only neutral Legendary anticipation before the exact prize', () => {
   const finalMod = mods.modsOfTier('gold')[0];
   const strip = hud.buildChestReelStrip(finalMod, 'gold', 0);
