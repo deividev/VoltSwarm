@@ -500,6 +500,12 @@
   outline: none;
   cursor: pointer;
 }
+.settings-row select:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  border-color: #3c4652;
+  color: #7c8794;
+}
 .settings-row select.pad-select-open {
   border-color: #f2b632;
   min-height: 0;
