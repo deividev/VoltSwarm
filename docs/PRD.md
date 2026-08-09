@@ -38,9 +38,9 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
    Auto se recalcula al mover la ventana entre monitores; las coordenadas
    world-to-screen siguen alineadas con sus marcadores DOM; el mundo 3D conserva
    tamaño y proporciones y el WebGL permanece nítido.
-0e. ✅ **`npm test` agregado** — había 17 scripts `test:*` y ninguno que los
+0e. ✅ **`pnpm test` agregado** — había 17 scripts `test:*` y ninguno que los
    corriera todos, así que cada cambio se validaba solo contra el test que uno
-   recordara. `npm test` (~7 s) antes de cada commit; `npm run test:all` incluye
+   recordara. `pnpm test` (~7 s) antes de cada commit; `pnpm test:all` incluye
    los que arrancan Electron/navegador, antes de congelar un build.
 
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
@@ -274,7 +274,7 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 - **Acciones remapeables** (`ActionId` en `src/settings.ts`): moveUp/Down/Left/Right + **interact** (unificó los 3 `'KeyE'` que vivían en config — cofre/chatarrero/invocación de boss — en UNA acción; el prompt flotante muestra la tecla/botón REAL del binding y cambia según el dispositivo en mano). Escape y Start del mando = pausa, reservados. Los bindings viajan dentro del blob de settings persistido (`normalizeBindings` = migración por campo, saves viejos caen a defaults). **Captura agnóstica de dispositivo**: "PRESS KEY / BUTTON…" — lo próximo pulsado (tecla o botón) se asigna a su dispositivo; una captura por-dispositivo se tragaba pulsaciones del otro. La pestaña muestra el dispositivo activo (mando conectado → botones de pad; si no → teclado), con notificación de esquina "Gamepad detected/disconnected" (en `document.body` fixed — la capa `#hud` se oculta bajo vistas de menú).
 - **Gamepad completo** (`src/input.ts`, `PlayerInput` por acciones con polling por frame): stick izquierdo analógico + d-pad para moverse, botón de interact remapeable, **traductor DirectInput** para mandos no-estándar (DualShock: Cruz/Círculo/Cuadrado reordenados al layout estándar + d-pad decodificado del hat en `axes[9]`; los mandos estándar no pasan por él). **Navegación de menús**: foco visible (`.pad-focus`) sobre botones/cartas/selects/sliders del overlay activo — vertical mueve foco, **horizontal AJUSTA el control enfocado** (cicla selects con wrap, sliders ±5, disparando `change` → auto-apply), aceptar = SOLO el binding de interact del jugador (sin A fijo — una tecla de acción en todo el juego, regla del usuario), B = back/resume/leave/continue contextual. El `<select>` nativo no puede abrirse programáticamente → aceptar sobre él cicla; al mover el foco se hace `blur()` del control nativo (un select con foco DOM comía flechas del teclado en silencio). En el cofre el foco aterriza en Continue (la card de la ruleta es escaparate, excluida de la navegación).
 - **Fixes de plataforma**: el modo ventana/resolución solo se re-aplica cuando ELLOS cambian (re-aplicarlo en cada save parpadeaba la pantalla con cada tick de slider) · **precarga de TODO el arte de UI gated en la pantalla de carga** (`hud.preloadUiAssets()`, idempotente; `tickLoading` no revela hasta warmup 3D + decode de iconos de armas/stats/cartas/mods/retratos/glifos + cáscaras de orbe) — mató el tirón del primer level-up/cofre/tienda · animación de entrada compartida de los paneles de mitad de run (pop 0.32s; los keyframes DEBEN transportar el `translateX(-50%)` de centrado del panel o lo teletransportan).
-- **Empaquetado Electron**: `npm run package` genera instalador NSIS (`-setup.exe`, asistente + desinstalador) Y portable (`-portable.exe`, un archivo para testers) en `release/`; sin firma → SmartScreen "Unknown Publisher" (certificado en Fase 6). **Regla de rutas de assets (mordió 3 veces el mismo día)**: en strings de JS/markup SIEMPRE relativas (`'assets/...'` — `file://` rompe las absolutas y Vite no puede reescribir strings); en CSS `url()` SIEMPRE absolutas (`'/assets/...'` — Vite las reescribe al compilar; las relativas resuelven contra `src/ui.css`). Gamepad API = Chromium nativo, cero cambios en el main process de Electron.
+- **Empaquetado Electron**: `pnpm package` genera instalador NSIS (`-setup.exe`, asistente + desinstalador) Y portable (`-portable.exe`, un archivo para testers) en `release/`; sin firma → SmartScreen "Unknown Publisher" (certificado en Fase 6). **Regla de rutas de assets (mordió 3 veces el mismo día)**: en strings de JS/markup SIEMPRE relativas (`'assets/...'` — `file://` rompe las absolutas y Vite no puede reescribir strings); en CSS `url()` SIEMPRE absolutas (`'/assets/...'` — Vite las reescribe al compilar; las relativas resuelven contra `src/ui.css`). Gamepad API = Chromium nativo, cero cambios en el main process de Electron.
 - Límite conocido v1: las etiquetas de tecla muestran el código físico (layouts no-QWERTY ven la posición) y los botones usan nomenclatura Xbox (A/B/X/Y) también en mandos PlayStation.
 
 ## Fuera de alcance actual
@@ -329,7 +329,7 @@ A level-up screen allows at most one branch for each weapon owner. When both soc
 
 ### Packaged audio swarm evidence (2026-07-17)
 
-Successful local packaged Electron run via `npm run benchmark:audio`: deterministic `audio-swarm-416` (seed 4979220; digest `4979220:240-112-48:0.25:4`), 404 peak / 411 minimum / 411 end active enemies, including normal-HP sacrificial enemies. At 800x600 after 3 s warmup + 10 s rAF sample on Windows 10 / AMD Ryzen 7 3700X / NVIDIA GeForce RTX 2060 (D3D11): 120.10 mean FPS, 119 minimum complete 1 s bucket FPS and 8.5 ms frame-time p99. Actual paths: 9 kills, 7 XP pickups, 14 Gold pickups; audio 47 attempts / 27 accepted, 15 peak voices, 20 cooldown drops, 0 steals/load failures/leaks and 0 active audio voices after cleanup. Evidence: `tmp/perf-audio-output/report.json`. This validates this machine and scenario only, not Steam minimum hardware.
+Successful local packaged Electron run via `pnpm benchmark:audio`: deterministic `audio-swarm-416` (seed 4979220; digest `4979220:240-112-48:0.25:4`), 404 peak / 411 minimum / 411 end active enemies, including normal-HP sacrificial enemies. At 800x600 after 3 s warmup + 10 s rAF sample on Windows 10 / AMD Ryzen 7 3700X / NVIDIA GeForce RTX 2060 (D3D11): 120.10 mean FPS, 119 minimum complete 1 s bucket FPS and 8.5 ms frame-time p99. Actual paths: 9 kills, 7 XP pickups, 14 Gold pickups; audio 47 attempts / 27 accepted, 15 peak voices, 20 cooldown drops, 0 steals/load failures/leaks and 0 active audio voices after cleanup. Evidence: `tmp/perf-audio-output/report.json`. This validates this machine and scenario only, not Steam minimum hardware.
 
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
@@ -372,7 +372,7 @@ Contrato de datos:
 
 La pantalla final incluye feedback explícito y seudónimo sin texto libre: diversión 1–5, dificultad (`too_easy` / `about_right` / `too_hard`) y etiquetas fijas opcionales. Nada se envía hasta pulsar **Submit Feedback**. El endpoint y `X-Client-Token` son identificadores públicos del cliente; secretos HMAC, Cloudflare, D1, Google y cuentas de servicio permanecen fuera del juego.
 
-Verificación focal: `npm run test:telemetry` cubre además cero efectos sin elegibilidad/consentimiento, aislamiento cross-wave y migración legacy; `npm run test:playtest-reset` cubre admisión exacta, kill switch, epoch nullable, consentimiento persistido/versionado/corrupto y confirmación de reset separada.
+Verificación focal: `pnpm test:telemetry` cubre además cero efectos sin elegibilidad/consentimiento, aislamiento cross-wave y migración legacy; `pnpm test:playtest-reset` cubre admisión exacta, kill switch, epoch nullable, consentimiento persistido/versionado/corrupto y confirmación de reset separada.
 
 ### Contratos (`src/contracts.ts`)
 
@@ -398,7 +398,7 @@ Pantalla de Contratos desde el menú (una columna por categoría: Weapons/Cores/
 
 ### Herramientas de desarrollo
 
-`npm run test:smoke` (una run real por arma inicial, perfil aislado), `npm run stats` (percentiles para calibrar umbrales, nunca promedios), `npm run reset:profile` (escribe perfiles vacíos, no los borra: `loadProfile` cae a `localStorage` si falta el archivo y resucitaría el save), `npm run check:release-flags` (hook `prepackage` que aborta el build con cualquier instrumento de dev encendido).
+`pnpm test:smoke` (una run real por arma inicial, perfil aislado), `pnpm stats` (percentiles para calibrar umbrales, nunca promedios), `pnpm reset:profile` (escribe perfiles vacíos, no los borra: `loadProfile` cae a `localStorage` si falta el archivo y resucitaría el save), `pnpm check:release-flags` (hook `prepackage` que aborta el build con cualquier instrumento de dev encendido).
 
 
 ## Pulido visual y de feel — Implementado 2026-07-26 (v0.5.6 → v0.6.2)

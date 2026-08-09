@@ -46,7 +46,7 @@ async function waitFor(url, label) {
  * `--user-data-dir` is NOT enough: Electron calls app.setPath('userData', ...)
  * during startup, so the app writes to its own AppData folder regardless of the
  * Chromium flag — the smoke sweep's isolation trick silently does not apply
- * here. Balance thresholds get calibrated from these records with `npm run
+ * here. Balance thresholds get calibrated from these records with `pnpm
  * stats`, and a bot that stands still and takes a scripted lethal hit is not a
  * player, so its runs must never survive the check.
  */
@@ -78,7 +78,7 @@ if (!/fatalHitKey:\s*true/.test(config)) {
 }
 
 mkdirSync(OUTPUT, { recursive: true });
-run('npm.cmd', ['run', 'electron:build']);
+run('pnpm.cmd', ['run', 'electron:build']);
 
 const electronPath = (await import('electron')).default;
 const vite = spawn(process.execPath, [

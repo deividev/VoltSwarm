@@ -20,16 +20,16 @@ All enemies render through one `THREE.InstancedMesh` per type — verified stabl
 ## Commands
 
 ```
-npm install
-npm run dev            # dev server at http://localhost:5173
-npm run build          # typecheck + production build to dist/
-npm run electron:start # run as a desktop app
-npm run package        # portable Windows build to release/
+pnpm install
+pnpm dev            # dev server at http://localhost:5173
+pnpm build          # typecheck + production build to dist/
+pnpm electron:start # run as a desktop app
+pnpm package        # portable Windows build to release/
 ```
 
 ## Publishing to itch.io
 
-`npm run build`, zip the contents of `dist/`, and upload as an HTML5 game (viewport 1280x720, fullscreen enabled). The build uses relative asset paths, so it works from itch's iframe as-is.
+`pnpm build`, zip the contents of `dist/`, and upload as an HTML5 game (viewport 1280x720, fullscreen enabled). The build uses relative asset paths, so it works from itch's iframe as-is.
 
 ## Tuning
 

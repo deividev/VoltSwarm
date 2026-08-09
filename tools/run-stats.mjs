@@ -7,8 +7,8 @@
 // shape of the curve pick the threshold.
 //
 // Usage:
-//   npm run stats                 read the local profile's run-history.json
-//   npm run stats -- <file.json>  read an explicit export
+//   pnpm stats                 read the local profile's run-history.json
+//   pnpm stats <file.json>     read an explicit export
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import os from 'node:os';
@@ -243,7 +243,7 @@ if (history.length < 20) {
   console.log(
     `\nWARNING: ${history.length} run(s) is too thin to calibrate from. Percentiles need\n` +
     '         a few dozen runs, from the CURRENT balance table, played by a human.\n' +
-    '         Bot sweeps (npm run test:smoke) write to an isolated profile on purpose\n' +
+    '         Bot sweeps (pnpm test:smoke) write to an isolated profile on purpose\n' +
     '         and must never be mixed in: a circle-strafing bot that always takes the\n' +
     '         first card is not a player.',
   );

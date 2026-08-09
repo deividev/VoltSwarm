@@ -300,11 +300,11 @@ Add focused tests for:
 Suggested commands after implementation (not run for this planning-only change):
 
 ```text
-npm run typecheck
+pnpm typecheck
 node --test <new defeat-transition test>
-npm run test:map-flow
-npm run test:audio-selection
-npm run build
+pnpm test:map-flow
+pnpm test:audio-selection
+pnpm build
 ```
 
 Run the repository's other affected checks and release-flag check as appropriate. Execute equivalent checks on both branches after the port.
