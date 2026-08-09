@@ -174,6 +174,12 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 > modelo pasa de `voxelSize` 0.12 a 0.16, y su haz/anillo/pilar derivan del modelo
 > vía `portalScale()` en `boss.ts`. **La DISTANCIA (`BOSS.totemDistMin/Max`,
 > 45-65) NO se tocó** — si un playtest vuelve a dar 0 bosses, el culpable es esa.
+> El HUD mantiene una misión compacta en el extremo derecho de la banda superior,
+> opuesta a oro/kills: sobrevivir hasta agotar el tiempo y derrotar el boss para
+> despejar el sector. La baja del boss queda marcada con `[X]`. Los indicadores
+> off-screen BOSS/SHOP usan triángulos CSS de 28×26 px y labels de 11 px, sin
+> depender de glifos no-ASCII; conservan colores, proyección al borde seguro y el
+> zoom de UI Scale.
 
 - Un tótem con beam distintivo (rojo) spawnea en posición aleatoria lejana al iniciar el run.
 - Al entrar en su zona aparece el prompt "Press E to summon the boss"; el boss SOLO spawnea al pulsar la tecla — nunca por pasar al lado.
@@ -181,7 +187,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - La invocación trae UN boss aleatorio de un pool de 2:
   - **Crusher King**: tanque con embestida telegrafiada y spawn de scraplings.
   - **Tesla Titan**: mantiene distancia y dispara ráfagas radiales de proyectiles.
-- Matar al boss NO termina el run: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida (ciclo farmear → boss → boss más duro hasta el timer). En **`codex/demo-map1`**, la única victoria es sobrevivir los 10 minutos; la pantalla final distingue `SYSTEM OVERLOAD` (muerte), `SECTOR CLEARED` (mapa completado) y deja preparado `RUN COMPLETE` para el último mapa.
+- Matar al boss NO termina el run: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida (ciclo farmear → boss → boss más duro hasta el timer). En **`codex/demo-map1`**, el reloj siempre cierra la run: con al menos un boss derrotado produce `SECTOR CLEARED`; sin boss produce `SECTOR HELD`. No existe transición a otro mapa ni finale en esta variante.
 - Cada final de run persiste un registro local versionado con resultado, mapa, versión del build, fecha, duración, nivel, kills, bosses, build completa y daño real por arma. Son datos crudos —la métrica no se fija todavía— para poder derivar más adelante leaderboards por mapa sin migrar información incompleta.
 - Pase Steam 2026-07-15: el spawn de boss tiene beat de materialización reforzado con burst rojo, núcleo blanco, anillo de impacto y shake dedicado (`VISUAL.bossSummonVfx`) para que el título `AWAKENS` sea capturable.
 - **Histórico/superseded para `codex/map-2`:** el ciclo de tótems y la transición abierta entre mapas fueron placeholders. El arco Mapa 1 → Swarm Foundry → Hazard Marshal ya es jugable; solo su combate autorado final sigue provisional.

@@ -1302,6 +1302,7 @@ export class Game {
       this.progression.xpToNext,
     );
     this.hud.updateTimer(remaining);
+    this.hud.updateMission(this.boss.bossesDefeated > 0);
     this.hud.updateLevel(this.progression.level, this.progression.kills);
     this.hud.updateBoss(this.boss.status(this.enemies));
     this.updateTotemIndicator();

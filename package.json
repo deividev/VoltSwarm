@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.13.20-demo",
+  "version": "0.13.21-demo",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -17,7 +17,7 @@
     "package": "pnpm run check:release-flags && pnpm run build && pnpm run electron:build && electron-builder",
     "package:dir": "pnpm run check:release-flags && pnpm run build && pnpm run electron:build && electron-builder --dir",
     "check:release-flags": "node tools/check-release-flags.mjs",
-    "test": "pnpm run electron:build && node --experimental-strip-types --test tools/version-format.test.cjs tools/demo-build.test.cjs tools/safe-save.test.cjs tools/playtest-reset.test.cjs tools/telemetry-client.test.cjs tools/display-settings.test.mjs tools/defeat-transition.test.mjs tools/characters.test.mjs tools/character-preview-state.test.mjs tools/chest-reel.test.mjs tools/audio-selection.test.mjs tools/stat-units.test.mjs",
+    "test": "pnpm run electron:build && node --experimental-strip-types --test tools/version-format.test.cjs tools/demo-build.test.cjs tools/demo-mission.test.mjs tools/safe-save.test.cjs tools/playtest-reset.test.cjs tools/telemetry-client.test.cjs tools/display-settings.test.mjs tools/defeat-transition.test.mjs tools/characters.test.mjs tools/character-preview-state.test.mjs tools/chest-reel.test.mjs tools/audio-selection.test.mjs tools/stat-units.test.mjs",
     "test:all": "pnpm test && pnpm run test:defeat-runtime && pnpm run test:character-portrait-browser && pnpm run test:chest-reel-browser && pnpm run test:smoke",
     "test:smoke": "node tools/smoke-run.mjs",
     "test:telemetry": "pnpm run electron:build && node --test tools/telemetry-client.test.cjs",
@@ -26,7 +26,8 @@
     "test:safe-save": "pnpm run electron:build && node --test tools/safe-save.test.cjs",
     "test:defeat-transition": "node --experimental-strip-types --test tools/defeat-transition.test.mjs",
     "test:defeat-runtime": "node tools/defeat-runtime-check.mjs",
-    "test:demo": "node --test tools/demo-build.test.cjs tools/version-format.test.cjs",
+    "test:demo": "node --test tools/demo-build.test.cjs tools/demo-mission.test.mjs tools/version-format.test.cjs",
+    "test:demo-mission": "node --test tools/demo-mission.test.mjs",
     "test:playtest-reset": "pnpm run electron:build && node --test tools/playtest-reset.test.cjs",
     "test:characters": "node --test tools/characters.test.mjs",
     "test:character-preview": "node --test tools/character-preview-state.test.mjs",
@@ -76,7 +77,7 @@
     ]
   },
   "build": {
-    "buildVersion": "0.13.20.0",
+    "buildVersion": "0.13.21.0",
     "appId": "com.davidseco.voltswarm.demo",
     "productName": "Voltswarm Demo",
     "directories": {
