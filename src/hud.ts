@@ -399,6 +399,11 @@ export class Hud {
         <div id="xp-bar"><div id="xp-bar-fill"></div><div id="level-badge">LV 1</div></div>
         <div id="timer">10:00</div>
         <div id="kills"><img class="ui-glyph" src="${SKULL_ICON}" alt="" /><span id="kills-amount">0</span></div>
+        <div id="mission" aria-label="Current mission">
+          <div class="mission-title">MISSION:</div>
+          <div id="mission-survive" class="mission-step"><span class="mission-check">[ ]</span><span>Survive until time expires</span></div>
+          <div id="mission-boss" class="mission-step"><span class="mission-check">[ ]</span><span class="mission-copy">Defeat the boss to unlock the next sector</span></div>
+        </div>
         <div id="boss-bar" class="hidden">
           <div id="boss-title"><img id="boss-portrait" alt="" /><div id="boss-name"></div></div>
           <div id="boss-bar-track"><div id="boss-bar-fill"></div><span id="boss-hp-text"></span></div>
@@ -425,8 +430,8 @@ export class Hud {
              bosses while this arrow was on screen pointing straight at the
              portal. "Totem" names our prop; "BOSS" names the reason to walk
              there, and it is the word every player in the genre already knows. -->
-        <div id="totem-indicator" class="hidden"><span class="arrow">▲</span><span class="label">BOSS</span></div>
-        <div id="merchant-indicator" class="hidden"><span class="arrow">▲</span><span class="label">SHOP</span></div>
+        <div id="totem-indicator" class="hidden"><span class="arrow" aria-hidden="true"></span><span class="label">BOSS</span></div>
+        <div id="merchant-indicator" class="hidden"><span class="arrow" aria-hidden="true"></span><span class="label">SHOP</span></div>
         <div id="gold-counter" class="hidden"><img class="ui-glyph" src="${COIN_ICON}" alt="" /><span id="gold-amount">0</span></div>
         <div id="buff-row"></div>
         <div id="hp-bar"><div id="hp-bar-fill"></div><span id="hp-text"></span></div>
@@ -2067,6 +2072,24 @@ export class Hud {
     const m = Math.floor(Math.max(0, remainingS) / 60);
     const s = Math.floor(Math.max(0, remainingS) % 60);
     this.timer.textContent = `${m}:${s.toString().padStart(2, '0')}`;
+  }
+
+  updateMission(mapIndex: number, bossDefeated: boolean, finaleStarted: boolean): void {
+    const survive = mustGet('mission-survive');
+    const boss = mustGet('mission-boss');
+    const setComplete = (step: HTMLElement, complete: boolean): void => {
+      step.classList.toggle('complete', complete);
+      const check = step.querySelector<HTMLElement>('.mission-check');
+      if (check) check.textContent = complete ? '[X]' : '[ ]';
+    };
+    setComplete(survive, finaleStarted);
+    setComplete(boss, bossDefeated);
+    const copy = boss.querySelector<HTMLElement>('.mission-copy');
+    if (copy) {
+      copy.textContent = mapIndex === 0
+        ? 'Defeat the boss to unlock the next sector'
+        : 'Defeat the final boss to complete the run';
+    }
   }
 
   private lastLevel = 0;

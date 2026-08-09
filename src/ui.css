@@ -1747,13 +1747,16 @@ img.ui-glyph {
   display: none;
 }
 #totem-indicator .arrow {
-  font-size: 22px;
-  color: #ff3355;
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-bottom: 26px solid #ff3355;
   text-shadow: 0 0 8px rgba(255, 51, 85, 0.8);
-  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(255, 51, 85, 0.8));
 }
 #totem-indicator .label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 2px;
   color: #ff8095;
@@ -1776,13 +1779,16 @@ img.ui-glyph {
   display: none;
 }
 #merchant-indicator .arrow {
-  font-size: 22px;
-  color: #f2b632;
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-bottom: 26px solid #f2b632;
   text-shadow: 0 0 8px rgba(242, 182, 50, 0.8);
-  line-height: 1;
+  filter: drop-shadow(0 0 6px rgba(242, 182, 50, 0.8));
 }
 #merchant-indicator .label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: 2px;
   color: #ffd97a;
@@ -2141,7 +2147,7 @@ img.ui-glyph {
 #totem-indicator .label,
 #merchant-indicator .label {
   font-family: var(--pixel-font);
-  font-size: 8px;
+  font-size: 11px;
 }
 #version-tag {
   font-family: var(--pixel-font);
@@ -2559,6 +2565,39 @@ img.ui-glyph {
 }
 #kills {
   left: 200px;
+}
+#mission {
+  position: absolute;
+  top: 27px;
+  right: 16px;
+  width: min(390px, 42vw);
+  color: #e8e3d5;
+  font-family: var(--pixel-font);
+  font-size: 8px;
+  line-height: 1.55;
+  text-align: left;
+  text-shadow: 0 2px 2px rgba(0, 0, 0, 0.95), 0 0 4px rgba(0, 0, 0, 0.8);
+  pointer-events: none;
+}
+.mission-title {
+  margin-bottom: 2px;
+  color: #7ee0ff;
+  letter-spacing: 2px;
+}
+.mission-step {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+.mission-check {
+  flex: 0 0 auto;
+  color: #ff8095;
+}
+.mission-step.complete {
+  color: #8da0a8;
+}
+.mission-step.complete .mission-check {
+  color: #7ee0ff;
 }
 #hp-bar {
   top: 52px;

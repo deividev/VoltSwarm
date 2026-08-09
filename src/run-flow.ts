@@ -17,6 +17,7 @@ export interface RunFlowState {
 export type RunFlowAction =
   | { type: 'none' }
   | { type: 'transition'; nextMapIndex: number }
+  | { type: 'end-run'; outcome: 'defeat'; reason: 'boss-required' }
   | { type: 'start-finale' };
 
 export function createRunFlowState(startMapIndex = 0): RunFlowState {
@@ -52,12 +53,15 @@ export function advanceRunFlow(
 
   const nextMapIndex = state.mapIndex + 1;
   if (nextMapIndex < maps.length) {
-    // The BOSS clears a sector, not the clock (2026-08-06). Surviving the ten
-    // minutes still advances the run — the player is not stopped — but it earns
-    // no sector credit. Before this, every contract behind `complete-runs` was
-    // paid out by waiting, which is why the portal had no pull: zero of six
-    // recorded human runs ever walked to it.
-    if (state.mapBossDefeated) state.sectorsCleared += 1;
+    // Map 1's boss is the key to Map 2. Returning a structural action instead
+    // of leaving this decision in Game makes the timeout rule deterministic
+    // and testable without running the renderer.
+    if (!state.mapBossDefeated) {
+      return { type: 'end-run', outcome: 'defeat', reason: 'boss-required' };
+    }
+    // Boss credit and timer survival are both required: one without the other
+    // cannot cross this map boundary.
+    state.sectorsCleared += 1;
     state.mapIndex = nextMapIndex;
     state.mapElapsedS = 0;
     state.finaleStarted = false;

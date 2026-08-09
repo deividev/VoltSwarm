@@ -10,8 +10,8 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 
 ## Estado de la arquitectura (actualizado 2026-08-06, v0.13.11-demo)
 
-0. 🔑 **El BOSS despeja el sector, no el reloj** — implementado 2026-08-06, spec en
-   §12. Es la regla que hay que leer antes de tocar el final de una run.
+0. 🔑 **Mapa 1 exige tiempo Y boss para abrir Mapa 2** — actualizado 2026-08-09,
+   spec en §12. Es la regla que hay que leer antes de tocar el final de una run.
 0b. ✅ **Persistencia a prueba de cortes** — `electron/safe-save.ts`: escritura
    atómica (temp → fsync → rename) para settings/perfil/historial y cuarentena de
    saves corruptos en `.corrupt-<ts>`. Antes, un corte de luz mientras guardaba
@@ -127,7 +127,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 
 ### 12. Tótem + boss aleatorio
 
-> **🔑 REGLA VIGENTE (2026-08-06): el BOSS despeja el sector, no el reloj.**
+> **🔑 REGLA VIGENTE (2026-08-09): Mapa 1 exige tiempo Y boss para abrir Mapa 2.**
 > No la deshagas sin leer esto — un test la protege a propósito.
 >
 > **Por qué existe:** hasta esta fecha, llegar al final del tiempo despejaba el
@@ -143,25 +143,30 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 >   muerto → `sector-cleared` (**Sector Cleared**); tiempo agotado sin boss →
 >   `survived` (**Sector Held**). "Sector Held" no está redactado como fracaso:
 >   el jugador aguantó la run entera, simplemente no la despejó.
-> - **`codex/map-2`** (con `run-flow`): la regla cae en el CRÉDITO.
->   `RunFlowState.mapBossDefeated` gatea `sectorsCleared += 1`, y se resetea en
->   cada transición para que despejar el sector 1 no pague el 2. La run nunca se
->   corta: sobrevivir el reloj sigue avanzando al mapa siguiente, solo que sin
->   crédito.
+> - **`codex/map-2`** (con `run-flow`): la regla cae en el DESBLOQUEO.
+>   `RunFlowState.mapBossDefeated` gatea la transición y `sectorsCleared += 1`.
+>   Si el reloj de Mapa 1 llega a cero sin haber derrotado un boss, `run-flow`
+>   devuelve una acción terminal explícita y la run acaba inmediatamente como
+>   `defeat`: no transiciona, no espera congelada en cero y no otorga crédito.
+>   Si el boss ya cayó, el reloj abre Mapa 2 y acredita el sector 1. El flag se
+>   resetea al cruzar para que el boss de un sector nunca pague el siguiente.
 >
-> **Consecuencia deliberada en `codex/map-2`:** saltarse el boss del Mapa 1 y matar
-> solo al final cierra el último sector pero NO el arco, así que la run lee
-> `Sector Cleared` en vez de `Run Complete` y los contratos de `complete-runs` no
-> cobran. Completar una run exige ahora los dos bosses. Esto hace `second-wind`
-> **más difícil** en esa rama (antes bastaba el boss final); en la Demo no cambia
-> nada, porque allí `second-wind` es `survive` y lee duración, no desenlace.
-> Cubierto por `tools/map-flow.test.mjs` con un comentario que dice que es
-> intencionado.
+> **Consecuencia deliberada en `codex/map-2`:** ya no existe una ruta jugable que
+> salte el boss de Mapa 1 y llegue al finale. Completar el arco exige derrotar el
+> boss de Mapa 1 antes de su timeout y después al Hazard Marshal. Cubierto por
+> `tools/map-flow.test.mjs`, incluido el outcome terminal y la ausencia de
+> transición/crédito cuando falta el primer boss.
 >
 > **Descubribilidad, mismo pase:** el indicador dice **BOSS** (no `TOTEM`), el
 > modelo pasa de `voxelSize` 0.12 a 0.16, y su haz/anillo/pilar derivan del modelo
 > vía `portalScale()` en `boss.ts`. **La DISTANCIA (`BOSS.totemDistMin/Max`,
 > 45-65) NO se tocó** — si un playtest vuelve a dar 0 bosses, el culpable es esa.
+> El HUD mantiene una misión compacta en el extremo derecho de la banda superior,
+> opuesta a oro/kills: sobrevivir hasta agotar el tiempo y derrotar el boss para
+> abrir el siguiente sector. Marca la baja del boss con `[X]`; en Mapa 2 adapta
+> el segundo objetivo al boss final. Los indicadores off-screen BOSS/SHOP usan
+> ahora triángulos CSS de 28×26 px y labels de 11 px, sin depender de glifos
+> no-ASCII; conservan colores, proyección al borde seguro y el zoom de UI Scale.
 
 - Un tótem con beam distintivo (rojo) spawnea en posición aleatoria lejana al iniciar el run.
 - Al entrar en su zona aparece el prompt "Press E to summon the boss"; el boss SOLO spawnea al pulsar la tecla — nunca por pasar al lado.
@@ -169,10 +174,10 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - La invocación trae UN boss aleatorio de un pool de 2:
   - **Crusher King**: tanque con embestida telegrafiada y spawn de scraplings.
   - **Tesla Titan**: mantiene distancia y dispara ráfagas radiales de proyectiles.
-- En el Mapa 1, matar al boss NO termina el sector: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida. Al llegar a 10:00, la run cruza al Mapa 2; el reloj del mapa se reinicia, pero el reloj total y la build continúan.
+- En el Mapa 1, matar al boss NO termina el sector: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida. Al llegar a 10:00, la run cruza al Mapa 2 solo si ya cayó un boss; si no, termina inmediatamente como derrota. Cuando cruza, el reloj del mapa se reinicia, pero el reloj total y la build continúan.
 - Cada final de run persiste un registro local versionado con resultado, mapa donde terminó, versión del build, fecha, duración total, `sectorsCleared`, `mapsReached`, nivel, kills, bosses, build completa y daño real por arma. Son datos crudos para poder separar rendimiento por mapa y distinguir una run completa de una derrota larga sin inferirlo por duración.
 - Pase Steam 2026-07-15: el spawn de boss tiene beat de materialización reforzado con burst rojo, núcleo blanco, anillo de impacto y shake dedicado (`VISUAL.bossSummonVfx`) para que el título `AWAKENS` sea capturable.
-- **Primera versión jugable del arco (2026-08-02, PROVISIONAL):** Mapa 1 durante 10 minutos → transición automática conservando armas, cores, mods, niveles, potencia acumulada, oro, HP actual, descartes y contadores de run → Mapa 2 durante 10 minutos → Hazard Marshal → `RUN COMPLETE` únicamente al derrotarlo. Se limpian solo actores y efectos locales del mapa; el jugador reaparece en el centro seguro.
+- **Primera versión jugable del arco (2026-08-09, PROVISIONAL):** Mapa 1 durante 10 minutos + boss obligatorio → transición conservando armas, cores, mods, niveles, potencia acumulada, oro, HP actual, descartes y contadores de run → Mapa 2 durante 10 minutos → Hazard Marshal → `RUN COMPLETE` únicamente al derrotarlo. Se limpian solo actores y efectos locales del mapa; el jugador reaparece en el centro seguro.
 - Arco estético vigente: fábrica abandonada/desguace → **megafábrica futurista activa**. La antigua ciudad neón/estación orbital no se borra: queda como capa de inspiración o escenario posterior, no como el Mapa 2 de esta primera versión jugable (detalle en `DIRECCION_ARTE.md`).
 - **Selector de mapa inicial (solo desarrollo, 2026-08-02):** `DEV_TOOLS.startingMapSelector` añade Map 1 / Map 2 al draft de arma para probar directamente la megafábrica. Al empezar en Map 2, sus relojes y `sectorsCleared` parten de cero, se aplica su offset de dificultad y no se crean ni el tótem ni los props del scrapyard. Ese final registra `sector-cleared`, `sectorsCleared: 1` y `mapsReached: 2`: es una prueba parcial veraz, no una run completa ni progreso inventado del Mapa 1. Con el flag apagado no se renderiza el selector y todo caller empieza en Map 1; el guard de release bloquea el empaquetado mientras siga encendido.
 - Barra de vida del boss en el HUD.

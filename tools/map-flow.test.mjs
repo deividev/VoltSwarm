@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import {
   BOSS_TYPE_INDEXES,
   ENEMY_TYPES,
@@ -13,20 +14,22 @@ import {
   markMapBossDefeated,
 } from '../src/run-flow.ts';
 
-test('Map 1 transitions without resetting total run progress', () => {
+test('Map 1 transitions only after its boss dies without resetting total run progress', () => {
   const state = createRunFlowState();
   assert.equal(advanceRunFlow(state, MAPS[0].durationS - 1, MAPS).type, 'none');
+  markMapBossDefeated(state);
   assert.deepEqual(advanceRunFlow(state, 1, MAPS), { type: 'transition', nextMapIndex: 1 });
   assert.equal(state.totalElapsedS, MAPS[0].durationS);
   assert.equal(state.mapElapsedS, 0);
 });
 
-test('the clock alone no longer clears a sector', () => {
-  // Rule change 2026-08-06: the BOSS clears a sector. Surviving the ten minutes
-  // still advances the run — the player is never stopped — but earns no credit.
+test('Map 1 timeout without its boss ends the run immediately as a defeat', () => {
   const state = createRunFlowState();
-  advanceRunFlow(state, MAPS[0].durationS, MAPS);
+  const action = advanceRunFlow(state, MAPS[0].durationS, MAPS);
+  assert.deepEqual(action, { type: 'end-run', outcome: 'defeat', reason: 'boss-required' });
   assert.equal(state.sectorsCleared, 0);
+  assert.equal(state.mapIndex, 0);
+  assert.equal(state.mapElapsedS, MAPS[0].durationS);
 });
 
 test('killing the map boss clears the sector', () => {
@@ -60,19 +63,7 @@ test('Map 2 uses the provisional minute-zero pressure baseline', () => {
   assert.equal(map2?.difficultyOffsetS, 0);
 });
 
-test('clearing every sector needs every map boss, not just the finale', () => {
-  // DELIBERATE consequence of the 2026-08-06 rule, recorded here so nobody
-  // "fixes" it later: skipping the Map 1 boss and then killing the final boss
-  // closes the LAST sector but not the arc, so the run reads Sector Cleared
-  // rather than Run Complete, and `complete-runs` contracts stay unpaid.
-  const skipped = createRunFlowState();
-  advanceRunFlow(skipped, MAPS[0].durationS, MAPS);
-  assert.deepEqual(advanceRunFlow(skipped, MAPS[1].durationS, MAPS), { type: 'start-finale' });
-  assert.equal(skipped.sectorsCleared, 0);
-  assert.equal(completeFinale(skipped, MAPS), false);
-  assert.equal(skipped.sectorsCleared, 1);
-
-  // Kill both and the arc completes.
+test('clearing every sector needs the Map 1 boss and the finale', () => {
   const full = createRunFlowState();
   markMapBossDefeated(full);
   advanceRunFlow(full, MAPS[0].durationS, MAPS);
@@ -81,6 +72,30 @@ test('clearing every sector needs every map boss, not just the finale', () => {
   assert.equal(completeFinale(full, MAPS), true);
   assert.equal(full.sectorsCleared, MAPS.length);
   assert.equal(full.mapIndex + 1, 2);
+});
+
+test('Game ends the run on the explicit boss-required timeout action', async () => {
+  const gameSource = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
+  assert.match(
+    gameSource,
+    /if \(flowAction\.type === 'end-run'\) \{\s*this\.endRun\(flowAction\.outcome\);\s*return;/,
+  );
+});
+
+test('persistent mission and enlarged ASCII-safe edge markers stay wired into the HUD', async () => {
+  const [hudSource, cssSource] = await Promise.all([
+    readFile(new URL('../src/hud.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/ui.css', import.meta.url), 'utf8'),
+  ]);
+  assert.match(hudSource, /id="mission" aria-label="Current mission"/);
+  assert.match(hudSource, /Survive until time expires/);
+  assert.match(hudSource, /Defeat the boss to unlock the next sector/);
+  assert.match(hudSource, /updateMission\(mapIndex: number, bossDefeated: boolean, finaleStarted: boolean\)/);
+  assert.doesNotMatch(hudSource, /<span class="arrow">[^<]+<\/span>/);
+  assert.match(cssSource, /#mission \{[\s\S]*right: 16px;[\s\S]*width: min\(390px, 42vw\);/);
+  assert.match(cssSource, /#totem-indicator \.arrow \{[\s\S]*border-bottom: 26px solid #ff3355;/);
+  assert.match(cssSource, /#merchant-indicator \.arrow \{[\s\S]*border-bottom: 26px solid #f2b632;/);
+  assert.match(cssSource, /#totem-indicator \.label,[\s\S]*font-size: 11px;/);
 });
 
 test('Direct Map 2 start records one cleared sector without fabricating Map 1', () => {

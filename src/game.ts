@@ -1195,6 +1195,10 @@ export class Game {
       this.transitionToMap(flowAction.nextMapIndex);
       return;
     }
+    if (flowAction.type === 'end-run') {
+      this.endRun(flowAction.outcome);
+      return;
+    }
     if (flowAction.type === 'start-finale') this.startFinale();
     const activeMap = MAPS[this.runFlow.mapIndex] ?? MAPS[0];
     const remaining = Math.max(0, activeMap.durationS - this.runFlow.mapElapsedS);
@@ -1411,6 +1415,11 @@ export class Game {
       this.progression.xpToNext,
     );
     this.hud.updateTimer(remaining);
+    this.hud.updateMission(
+      this.runFlow.mapIndex,
+      this.runFlow.mapBossDefeated,
+      this.runFlow.finaleStarted,
+    );
     this.hud.updateLevel(this.progression.level, this.progression.kills);
     this.hud.updateBoss(this.boss.status(this.enemies));
     this.updateTotemIndicator();
