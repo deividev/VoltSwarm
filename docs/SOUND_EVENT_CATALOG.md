@@ -9,6 +9,10 @@ industrial-toy material catalog and its six-prototype gate are SUPERSEDED.
 > judged IN-GAME over the music bed. Two knobs per sound: `normalize(peak)` in the
 > generator + `emit({volume})` at the call site. Target = the loudness pyramid
 > (law 5). Current effective-level map lives in memory `sfx-volume-balance-review`.
+> **Baseline bus correction 2026-08-09:** the complete SFX bus now carries a
+> config-owned `0.85` trim, keeping priority weapon cues above the music without
+> letting the aggregate effects bed dominate it. The per-event in-game pass is
+> still pending; this global correction does not pretend to replace it.
 
 ## Style foundation (settled in the 2026-07-18 session — laws, not suggestions)
 

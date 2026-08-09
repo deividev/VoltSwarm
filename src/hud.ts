@@ -930,8 +930,9 @@ export class Hud {
     });
     mustGet('quit-run-button').addEventListener('click', () => this.onQuitToMenu());
     // Auto-apply: every settings change commits immediately (no Apply
-    // button, user rule 2026-07-13). Selects/sliders on 'change' so sliders
-    // save once on release, not per pixel dragged.
+    // button, user rule 2026-07-13). Selects and gamepad-adjusted sliders
+    // commit on change; pointer-adjusted volume sliders also commit on input so
+    // the audible mix follows the handle while it moves.
     this.settingsMode.addEventListener('change', () => {
       this.syncResolutionAvailability();
       this.applySettingsNow();
@@ -945,11 +946,12 @@ export class Hud {
     ]) {
       mustGet(id).addEventListener('change', () => this.applySettingsNow());
     }
-    // Live value readout while dragging (the row commits on 'change' above).
+    // Live readout and live audio preview while dragging.
     for (const id of ['settings-master-volume', 'settings-music-volume', 'settings-sfx-volume']) {
       const slider = mustGet(id) as HTMLInputElement;
       slider.addEventListener('input', () => {
         mustGet(`${id}-value`).textContent = slider.value;
+        this.applySettingsNow();
       });
     }
     mustGet('settings-back-button').addEventListener('click', () => this.closeSettings());
