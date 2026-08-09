@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { createServer } from 'vite';
 
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
-const { selectAudioVariantIndex } = await server.ssrLoadModule('/src/audio.ts');
+const { audioBusGains, selectAudioVariantIndex } = await server.ssrLoadModule('/src/audio.ts');
 const { AUDIO } = await server.ssrLoadModule('/src/config.ts');
 const manifest = JSON.parse(await readFile(
   new URL('../public/assets/audio/prototypes/manifest.json', import.meta.url),
@@ -39,4 +39,13 @@ test('variant selection is bounds-safe for malformed pins and empty manifests', 
   assert.equal(selectAudioVariantIndex(3, -1, 0, 0), 2);
   assert.equal(selectAudioVariantIndex(3, undefined, 9, 0), 0);
   assert.equal(selectAudioVariantIndex(0, 0, 0, 0), null);
+});
+
+test('menu music obeys the Music Volume setting and SFX uses the calibrated bus trim', () => {
+  const full = audioBusGains({ masterVolume: 0.8, musicVolume: 1, sfxVolume: 1 }, false, true);
+  const muted = audioBusGains({ masterVolume: 0.8, musicVolume: 0, sfxVolume: 1 }, false, true);
+
+  assert.equal(full.music, AUDIO.fades.menuMusicGain);
+  assert.equal(muted.music, 0);
+  assert.equal(full.sfx, AUDIO.mix.sfxBusGain);
 });

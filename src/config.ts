@@ -110,6 +110,10 @@ export const AUDIO = {
     'blades-hit': 0.09,
   },
   fades: { defaultS: 0.04, pauseDuckS: 0.12, pauseMusicGain: 0.22, menuMusicGain: 0.45 },
+  /** Mix-wide calibration sits below the player-facing sliders. The SFX trim
+   *  leaves priority weapon cues slightly above the run bed without letting
+   *  the complete effects bus overpower it. */
+  mix: { sfxBusGain: 0.85 },
   /** World-positioned zone loops (acid pool sizzle): the game attenuates the
    *  loop volume by the player's distance to the NEAREST active zone, so it
    *  fades out as the player walks away. Base is the level at distance 0. */

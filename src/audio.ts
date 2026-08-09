@@ -19,6 +19,21 @@ type Voice = { source: AudioBufferSourceNode; gain: GainNode; bus: 'sfx' | 'musi
 type ManifestAsset = { runtime: { path: string; format: 'ogg' | 'wav' } };
 type Manifest = { events?: Partial<Record<AudioEventId, ManifestAsset[]>> };
 
+export function audioBusGains(
+  settings: Pick<GameSettings, 'masterVolume' | 'musicVolume' | 'sfxVolume'>,
+  paused: boolean,
+  menu: boolean,
+): AudioBusGains {
+  const musicMultiplier =
+    (paused ? AUDIO.fades.pauseMusicGain : 1) *
+    (menu ? AUDIO.fades.menuMusicGain : 1);
+  return {
+    master: settings.masterVolume,
+    sfx: settings.sfxVolume * AUDIO.mix.sfxBusGain,
+    music: settings.musicVolume * musicMultiplier,
+  };
+}
+
 export function selectAudioVariantIndex(
   entryCount: number,
   pinnedIndex: number | undefined,
@@ -206,8 +221,7 @@ export class AudioDirector {
   diagnostics(): AudioDiagnostics { return { activeVoices: this.voices.size, peakActiveVoices: this.peakActiveVoices, drops: this.drops, steals: this.steals, loadFailures: this.loadFailures, leakedVoices: this.leaks, attempts: this.attempts, accepted: this.accepted, contextState: this.context?.state ?? 'unavailable' }; }
   resetDiagnostics(): void { this.drops = 0; this.steals = 0; this.loadFailures = 0; this.leaks = 0; this.attempts = 0; this.accepted = 0; this.peakActiveVoices = this.voices.size; }
   debugBusGains(): AudioBusGains {
-    const musicMultiplier = (this.paused ? AUDIO.fades.pauseMusicGain : 1) * (this.menu ? AUDIO.fades.menuMusicGain : 1);
-    return { master: this.settings.masterVolume, sfx: this.settings.sfxVolume, music: this.settings.musicVolume * musicMultiplier };
+    return audioBusGains(this.settings, this.paused, this.menu);
   }
   /** Pin an event to a fixed variant index (audition determinism). */
   debugPinVariant(id: AudioEventId, index: number): void {
@@ -238,10 +252,10 @@ export class AudioDirector {
   private applyGains(fadeS: number = AUDIO.fades.defaultS): void {
     if (!this.context || !this.master || !this.sfx || !this.music) return;
     const at = this.context.currentTime;
-    const musicMultiplier = (this.paused ? AUDIO.fades.pauseMusicGain : 1) * (this.menu ? AUDIO.fades.menuMusicGain : 1);
-    this.master.gain.setTargetAtTime(this.settings.masterVolume, at, fadeS);
-    this.sfx.gain.setTargetAtTime(this.settings.sfxVolume, at, fadeS);
-    this.music.gain.setTargetAtTime(this.settings.musicVolume * musicMultiplier, at, fadeS);
+    const gains = audioBusGains(this.settings, this.paused, this.menu);
+    this.master.gain.setTargetAtTime(gains.master, at, fadeS);
+    this.sfx.gain.setTargetAtTime(gains.sfx, at, fadeS);
+    this.music.gain.setTargetAtTime(gains.music, at, fadeS);
   }
   private async play(event: AudioEvent, token: number): Promise<void> {
     // Duplicate keyed loops must be rejected before any cap admission can evict a voice.
