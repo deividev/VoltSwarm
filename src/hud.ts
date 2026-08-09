@@ -34,9 +34,11 @@ import {
   gamepadButtonLabel,
   keyLabel,
   resolutionOptions,
+  UI_SCALE_OPTIONS,
   type ActionId,
   type ControlBindings,
   type GameSettings,
+  type UiScale,
 } from './settings';
 import type { PlayerInput } from './input';
 import { RUN_OUTCOME_TITLES, type RunMapRef, type RunOutcome } from './run-history';
@@ -351,6 +353,7 @@ export class Hud {
   private gamepadActive = false;
   private readonly settingsMode: HTMLSelectElement;
   private readonly settingsResolution: HTMLSelectElement;
+  private readonly settingsUiScale: HTMLSelectElement;
   private readonly masterVolume: HTMLInputElement;
   private readonly musicVolume: HTMLInputElement;
   private readonly sfxVolume: HTMLInputElement;
@@ -602,6 +605,12 @@ export class Hud {
                   ${resolutionOptions().map((item) => `<option value="${item.id}">${item.label}</option>`).join('')}
                 </select>
               </label>
+              <label class="settings-row">
+                <span>UI Scale</span>
+                <select id="settings-ui-scale">
+                  ${UI_SCALE_OPTIONS.map((option) => `<option value="${option.value}">${option.label}</option>`).join('')}
+                </select>
+              </label>
               <label class="settings-row slider-row">
                 <span>Master Volume</span>
                 <span class="slider-group">
@@ -715,6 +724,7 @@ export class Hud {
     this.settingsOverlay = mustGet('settings-overlay');
     this.settingsMode = mustGet('settings-mode') as HTMLSelectElement;
     this.settingsResolution = mustGet('settings-resolution') as HTMLSelectElement;
+    this.settingsUiScale = mustGet('settings-ui-scale') as HTMLSelectElement;
     this.masterVolume = mustGet('settings-master-volume') as HTMLInputElement;
     this.musicVolume = mustGet('settings-music-volume') as HTMLInputElement;
     this.sfxVolume = mustGet('settings-sfx-volume') as HTMLInputElement;
@@ -889,6 +899,7 @@ export class Hud {
     for (const id of [
       'settings-mode',
       'settings-resolution',
+      'settings-ui-scale',
       'settings-master-volume',
       'settings-music-volume',
       'settings-sfx-volume',
@@ -1283,6 +1294,7 @@ export class Hud {
   syncSettings(settings: GameSettings): void {
     this.settingsMode.value = settings.displayMode;
     this.settingsResolution.value = settings.resolution;
+    this.settingsUiScale.value = settings.uiScale;
     this.masterVolume.value = Math.round(settings.masterVolume * 100).toString();
     this.musicVolume.value = Math.round(settings.musicVolume * 100).toString();
     this.sfxVolume.value = Math.round(settings.sfxVolume * 100).toString();
@@ -1318,6 +1330,7 @@ export class Hud {
     return {
       displayMode: this.settingsMode.value === 'fullscreen' ? 'fullscreen' : 'windowed',
       resolution: this.settingsResolution.value,
+      uiScale: this.settingsUiScale.value as UiScale,
       masterVolume: Number(this.masterVolume.value) / 100,
       musicVolume: Number(this.musicVolume.value) / 100,
       sfxVolume: Number(this.sfxVolume.value) / 100,

@@ -64,6 +64,29 @@ function primaryDisplay(): { width: number; height: number; scaleFactor: number 
   };
 }
 
+/** Native display metrics are immune to renderer page zoom. Prefer the display
+ * containing the game window so moving the window between monitors updates
+ * Auto UI Scale and resolution normalization correctly. */
+interface NativeDisplayInfo {
+  id: number;
+  width: number;
+  height: number;
+  scaleFactor: number;
+}
+
+function currentDisplay(): NativeDisplayInfo {
+  const display = mainWindow
+    ? screen.getDisplayMatching(mainWindow.getBounds())
+    : screen.getPrimaryDisplay();
+  const scaleFactor = display.scaleFactor > 0 ? display.scaleFactor : 1;
+  return {
+    id: display.id,
+    width: Math.round(display.size.width * scaleFactor),
+    height: Math.round(display.size.height * scaleFactor),
+    scaleFactor,
+  };
+}
+
 function initialWindowSettings(): { fullscreen: boolean; width: number; height: number } {
   const display = primaryDisplay();
   // First launch fills the screen the game was started on, at that screen's own
@@ -151,6 +174,26 @@ function createWindow(): void {
     },
   });
 
+  // A window can cross onto a monitor with different physical metrics without
+  // changing its own dimensions. Notify only when display identity or metrics
+  // really changed so renderer zoom cannot create a move/resize feedback loop.
+  const initialDisplay = currentDisplay();
+  let displaySignature = `${initialDisplay.id}:${initialDisplay.width}x${initialDisplay.height}:${initialDisplay.scaleFactor}`;
+  const notifyDisplayChange = (): void => {
+    if (!mainWindow) return;
+    const display = currentDisplay();
+    const nextSignature = `${display.id}:${display.width}x${display.height}:${display.scaleFactor}`;
+    if (nextSignature === displaySignature) return;
+    displaySignature = nextSignature;
+    mainWindow.webContents.send('display:changed', {
+      width: display.width,
+      height: display.height,
+      scaleFactor: display.scaleFactor,
+    });
+  };
+  mainWindow.on('move', notifyDisplayChange);
+  screen.on('display-metrics-changed', notifyDisplayChange);
+
   if (!benchmarkMode) mainWindow.once('ready-to-show', () => mainWindow?.show());
 
   // A paid app must never die silently: offer a relaunch on renderer crash.
@@ -180,6 +223,7 @@ function createWindow(): void {
   }
 
   mainWindow.on('closed', () => {
+    screen.removeListener('display-metrics-changed', notifyDisplayChange);
     mainWindow = null;
   });
 }
@@ -319,6 +363,11 @@ void app.whenReady().then(() => {
     } catch {
       event.returnValue = false;
     }
+  });
+
+  ipcMain.on('display:get-info', (event) => {
+    const { width, height, scaleFactor } = currentDisplay();
+    event.returnValue = { width, height, scaleFactor };
   });
 
   ipcMain.on('profile:load', (event) => {
