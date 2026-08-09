@@ -94,7 +94,7 @@ const WEAPON_LOOP_SFX: Partial<Record<WeaponId, { id: AudioEventId; volume: numb
 const WEAPON_HIT_SFX: Partial<Record<WeaponId, AudioEventId>> = {
   blades: 'blades-hit',
 };
-import { Hud, coinHtml } from './hud';
+import { Hud, coinHtml, type ChestMarkerView } from './hud';
 import {
   createRenderer,
   createScene,
@@ -897,6 +897,7 @@ export class Game {
       if (this.composer) this.composer.render();
       else this.renderer.render(this.scene, this.camera);
     }
+    this.updateChestMarkers();
 
     if (VISUAL.showFps) {
       this.fpsFrames++;
@@ -1033,6 +1034,7 @@ export class Game {
     this.burst.reset();
     this.goldSys.reset();
     this.merchant.reset();
+    this.hud.clearChestMarkers();
     this.levelUpIntroRemainingS = 0;
     this.hud.hideLevelUpIntro();
   }
@@ -1394,12 +1396,45 @@ export class Game {
   }
 
   /** Projects a world point to screen pixels (for prompts pinned to objects). */
-  private worldToScreen(x: number, y: number, z: number): { x: number; y: number } {
+  private worldToScreen(x: number, y: number, z: number): { x: number; y: number; visible: boolean } {
     tmpProject.set(x, y, z).project(this.camera);
     return {
       x: (tmpProject.x * 0.5 + 0.5) * window.innerWidth,
       y: (-tmpProject.y * 0.5 + 0.5) * window.innerHeight,
+      visible:
+        tmpProject.x >= -1 && tmpProject.x <= 1 &&
+        tmpProject.y >= -1 && tmpProject.y <= 1 &&
+        tmpProject.z >= -1 && tmpProject.z <= 1,
     };
+  }
+
+  /** Price/state labels stay pinned to every on-screen chest at any distance.
+   *  This is presentation only: nearestOpenable remains the purchase gate. */
+  private updateChestMarkers(): void {
+    const show =
+      this.state === 'playing' || this.state === 'paused' ||
+      this.state === 'levelup-intro' || this.state === 'levelup' ||
+      this.state === 'chest' || this.state === 'shop';
+    if (!show) {
+      this.hud.clearChestMarkers();
+      return;
+    }
+
+    const markers: ChestMarkerView[] = [];
+    for (const chest of this.pickups.activeChests()) {
+      const screen = this.worldToScreen(chest.x, 2.1, chest.z);
+      if (!screen.visible) continue;
+      const price = this.chestPrice(chest.tier);
+      markers.push({
+        index: chest.index,
+        tier: chest.tier,
+        price,
+        affordable: this.gold >= price,
+        x: screen.x,
+        y: screen.y,
+      });
+    }
+    this.hud.updateChestMarkers(markers);
   }
 
   /** One Interact press resolves whichever interactable the player is
@@ -2382,6 +2417,7 @@ export class Game {
     this.hud.updateTotemIndicator(false, 0, 0, 0);
     this.hud.updateMerchantIndicator(false, 0, 0, 0, 0);
     this.hud.showInteractPrompt(null, this.interactLabel());
+    this.hud.clearChestMarkers();
     const runId = this.currentRunId ?? createRunId();
     this.currentRunId = runId;
     const record = saveRunRecord({

@@ -51,6 +51,86 @@ try {
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
   await page.waitForFunction(() => window.__voltswarm?.hud && document.querySelector('#chest-reel'));
 
+  const markerInitial = await page.evaluate(() => {
+    const markerNodes = [...document.querySelectorAll('.chest-marker')];
+    window.__chestMarkerOne = markerNodes[1];
+    window.__chestMarkerFour = markerNodes[4];
+    window.__voltswarm.hud.updateChestMarkers([
+      { index: 1, tier: 'green', price: 23, affordable: true, x: 320, y: 410 },
+      { index: 4, tier: 'purple', price: 70, affordable: false, x: 910, y: 530 },
+    ]);
+    return {
+      count: markerNodes.length,
+      visible: markerNodes.filter((node) => !node.classList.contains('hidden')).length,
+      onePriceText: markerNodes[1].querySelector('.chest-marker-price-amount').textContent,
+      oneClass: markerNodes[1].className,
+      onePrice: markerNodes[1].dataset.price,
+      oneState: markerNodes[1].dataset.state,
+      oneTransform: markerNodes[1].style.transform,
+      oneOnlyIconAndPrice: markerNodes[1].childElementCount === 2
+        && markerNodes[1].children[0].matches('img.ui-glyph')
+        && markerNodes[1].children[1].matches('.chest-marker-price-amount'),
+      oneIconIsScrap: markerNodes[1].querySelector('img.ui-glyph').getAttribute('src') === 'assets/2d/icon-ui-coin-v2.png',
+      oneHasNoTierOrStatus: !markerNodes[1].dataset.tier
+        && !markerNodes[1].querySelector('.chest-marker-tier, .chest-marker-status, .rarity-tag'),
+      oneHasNoCardChrome: getComputedStyle(markerNodes[1]).backgroundColor === 'rgba(0, 0, 0, 0)'
+        && getComputedStyle(markerNodes[1]).borderTopWidth === '0px',
+      oneColor: getComputedStyle(markerNodes[1]).color,
+      fourPriceText: markerNodes[4].querySelector('.chest-marker-price-amount').textContent,
+      fourClass: markerNodes[4].className,
+      fourState: markerNodes[4].dataset.state,
+      fourColor: getComputedStyle(markerNodes[4]).color,
+    };
+  });
+  assert.deepEqual(markerInitial, {
+    count: 6,
+    visible: 2,
+    onePriceText: '23',
+    oneClass: 'chest-marker affordable',
+    onePrice: '23',
+    oneState: 'affordable',
+    oneTransform: 'translate(320px, 410px) translate(-50%, -100%)',
+    oneOnlyIconAndPrice: true,
+    oneIconIsScrap: true,
+    oneHasNoTierOrStatus: true,
+    oneHasNoCardChrome: true,
+    oneColor: 'rgb(122, 240, 138)',
+    fourPriceText: '70',
+    fourClass: 'chest-marker unaffordable',
+    fourState: 'unaffordable',
+    fourColor: 'rgb(255, 130, 146)',
+  });
+
+  assert.deepEqual(await page.evaluate(() => {
+    window.__voltswarm.hud.updateChestMarkers([
+      { index: 1, tier: 'green', price: 23, affordable: false, x: 360, y: 440 },
+    ]);
+    const markerNodes = [...document.querySelectorAll('.chest-marker')];
+    const result = {
+      reusedOne: markerNodes[1] === window.__chestMarkerOne,
+      reusedFour: markerNodes[4] === window.__chestMarkerFour,
+      visible: markerNodes.filter((node) => !node.classList.contains('hidden')).length,
+      onePriceText: markerNodes[1].querySelector('.chest-marker-price-amount').textContent,
+      oneState: markerNodes[1].dataset.state,
+      oneColor: getComputedStyle(markerNodes[1]).color,
+      oneTransform: markerNodes[1].style.transform,
+      fourHidden: markerNodes[4].classList.contains('hidden'),
+    };
+    window.__voltswarm.hud.clearChestMarkers();
+    result.cleared = markerNodes.every((node) => node.classList.contains('hidden'));
+    return result;
+  }), {
+    reusedOne: true,
+    reusedFour: true,
+    visible: 1,
+    onePriceText: '23',
+    oneState: 'unaffordable',
+    oneColor: 'rgb(255, 130, 146)',
+    oneTransform: 'translate(360px, 440px) translate(-50%, -100%)',
+    fourHidden: true,
+    cleared: true,
+  });
+
   for (const [tier, finalMod] of CASES) {
     const before = await page.evaluate(({ tier, finalMod }) => {
       window.__chestLandedCount = 0;

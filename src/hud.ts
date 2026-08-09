@@ -1,4 +1,4 @@
-import { PROFILE, DEV_TOOLS, MENU_NAVIGATION, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, type WeaponId } from './config';
+import { PROFILE, DEV_TOOLS, MENU_NAVIGATION, PICKUPS, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, type WeaponId } from './config';
 import { LIFETIME, resetProfile, saveProfile } from './profile';
 import {
   ACTIVE_CONTRACTS,
@@ -58,6 +58,20 @@ const RARITY_LABEL: Record<string, string> = {
 export type ChestReelCell =
   | { kind: 'mod'; id: ModId }
   | { kind: 'anticipation'; tier: Rarity; variant: number };
+
+export interface ChestMarkerView {
+  index: number;
+  tier: Rarity;
+  price: number;
+  affordable: boolean;
+  x: number;
+  y: number;
+}
+
+interface ChestMarkerSlot {
+  root: HTMLElement;
+  priceAmount: HTMLElement;
+}
 
 /** Build the deterministic reel sequence while keeping the rolled prize last. */
 export function buildChestReelStrip(
@@ -323,6 +337,7 @@ export class Hud {
   private readonly timer: HTMLElement;
   private readonly levelBadge: HTMLElement;
   private readonly fpsCounter: HTMLElement;
+  private readonly chestMarkers: ChestMarkerSlot[] = [];
 
   private readonly startOverlay: HTMLElement;
   private readonly draftCards: HTMLElement;
@@ -391,6 +406,7 @@ export class Hud {
           <div id="boss-bar-track"><div id="boss-bar-fill"></div><span id="boss-hp-text"></span></div>
         </div>
         <div id="summon-prompt" class="hidden"></div>
+        <div id="chest-markers" aria-label="Active chests"></div>
         <div id="interact-prompt" class="hidden"></div>
         <div id="event-banner" class="hidden">
           <div class="banner-stripe"></div>
@@ -724,6 +740,21 @@ export class Hud {
     this.masterVolume = mustGet('settings-master-volume') as HTMLInputElement;
     this.musicVolume = mustGet('settings-music-volume') as HTMLInputElement;
     this.sfxVolume = mustGet('settings-sfx-volume') as HTMLInputElement;
+
+    const chestMarkerLayer = mustGet('chest-markers');
+    for (let index = 0; index < PICKUPS.maxActive; index++) {
+      const marker = document.createElement('div');
+      marker.className = 'chest-marker hidden';
+      marker.dataset['chestIndex'] = `${index}`;
+      marker.innerHTML =
+        `<img class="ui-glyph" src="${COIN_ICON}" alt="" />` +
+        '<span class="chest-marker-price-amount"></span>';
+      chestMarkerLayer.appendChild(marker);
+      this.chestMarkers.push({
+        root: marker,
+        priceAmount: marker.querySelector<HTMLElement>('.chest-marker-price-amount')!,
+      });
+    }
 
     // Universal click feedback (user rule 2026-07-18): ANY interactive element
     // clicked anywhere — menus, shop, level-up cards, settings, unlocks —
@@ -2365,6 +2396,26 @@ export class Hud {
       prompt.style.transform = `translate(${x.toFixed(0)}px, ${y.toFixed(0)}px) translate(-50%, -100%)`;
     }
     prompt.classList.remove('hidden');
+  }
+
+  /** Reconciles fixed chest-marker slots without recreating DOM each frame. */
+  updateChestMarkers(markers: readonly ChestMarkerView[]): void {
+    for (const slot of this.chestMarkers) slot.root.classList.add('hidden');
+    for (const marker of markers) {
+      const slot = this.chestMarkers[marker.index];
+      if (!slot) continue;
+      const state = marker.affordable ? 'affordable' : 'unaffordable';
+      slot.root.className = `chest-marker ${state}`;
+      slot.root.dataset['price'] = `${marker.price}`;
+      slot.root.dataset['state'] = state;
+      slot.root.style.transform =
+        `translate(${marker.x.toFixed(0)}px, ${marker.y.toFixed(0)}px) translate(-50%, -100%)`;
+      slot.priceAmount.textContent = `${marker.price}`;
+    }
+  }
+
+  clearChestMarkers(): void {
+    for (const slot of this.chestMarkers) slot.root.classList.add('hidden');
   }
 
   /** Prompt shown while standing in the totem's summon zone. */

@@ -1713,6 +1713,41 @@ img.ui-glyph {
   display: none;
 }
 
+/* Every on-screen chest carries only its scrap icon and live price.
+   Fixed slots are projected from the world; off-screen chests create no arrows. */
+#chest-markers {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+.chest-marker {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  line-height: 1;
+  white-space: nowrap;
+  text-shadow: 0 2px 3px #000, 0 0 4px #000;
+  will-change: transform;
+}
+.chest-marker.hidden {
+  display: none;
+}
+.chest-marker img.ui-glyph {
+  width: 17px;
+  height: 17px;
+}
+.chest-marker.affordable {
+  color: #7af08a;
+}
+.chest-marker.unaffordable {
+  color: #ff8292;
+}
+
 /* Chest/merchant interaction prompt: amber "friendly" twin of the totem's. */
 #interact-prompt {
   position: absolute;
@@ -1728,6 +1763,7 @@ img.ui-glyph {
   border: 2px solid #f2b632;
   border-radius: 6px;
   padding: 10px 22px;
+  z-index: 3;
 }
 #interact-prompt.hidden {
   display: none;
