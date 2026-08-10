@@ -1,4 +1,4 @@
-import { PROFILE, DEV_TOOLS, MENU_NAVIGATION, PICKUPS, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, type WeaponId } from './config';
+import { PROFILE, DEV_TOOLS, MENU_NAVIGATION, PICKUPS, PLAYER, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, regenHpPerMinute, type WeaponId } from './config';
 import { LIFETIME, resetProfile, saveProfile } from './profile';
 import {
   ACTIVE_CONTRACTS,
@@ -188,7 +188,10 @@ const BUFF_INFO: Record<TimedBuffId, { icon: string; label: string }> = {
   overload: { icon: 'assets/2d/icon-stat-attack-speed.png', label: 'OVERLOAD' },
 };
 
-const STAT_ICON_IMAGES: Partial<Record<keyof PlayerStats, string>> = {
+type StatKey = keyof PlayerStats | 'maxHp';
+
+const STAT_ICON_IMAGES: Partial<Record<StatKey, string>> = {
+  maxHp: 'assets/2d/icon-card-max-hp.png',
   damage: 'assets/2d/icon-stat-damage.png',
   attackSpeed: 'assets/2d/icon-stat-attack-speed.png',
   critChance: 'assets/2d/icon-stat-crit.png',
@@ -210,7 +213,7 @@ const STAT_ICON_IMAGES: Partial<Record<keyof PlayerStats, string>> = {
   cursedDifficulty: 'assets/2d/icon-stat-cursed.png',
 };
 
-function statIconHtml(key: keyof PlayerStats, emoji: string): string {
+function statIconHtml(key: StatKey, emoji: string): string {
   const image = STAT_ICON_IMAGES[key];
   return image
     ? `<img class="build-icon build-icon-img" src="${image}" alt="" />`
@@ -299,7 +302,7 @@ function rigCoreIconSrc(id: string): string | undefined {
 // absolute value. Every stat is always listed so the player can compare
 // their sheet before and after each upgrade choice.
 interface StatRow {
-  key: keyof PlayerStats;
+  key: StatKey;
   icon: string;
   label: string;
   format(value: number): string;
@@ -310,6 +313,7 @@ const asPct = (value: number): string => `${Math.round(value * 100)}%`;
 const asPoints = (value: number): string => `${Math.round(value)}`;
 
 const STAT_ROWS: StatRow[] = [
+  { key: 'maxHp', icon: '❤️', label: 'Max HP', format: asPoints },
   { key: 'damage', icon: '💥', label: 'Damage', format: asMult },
   { key: 'attackSpeed', icon: '⚡', label: 'Atk Speed', format: asMult },
   { key: 'critChance', icon: '🎯', label: 'Crit', format: asPct },
@@ -321,7 +325,7 @@ const STAT_ROWS: StatRow[] = [
   { key: 'projectileSpeed', icon: '🚀', label: 'Proj Speed', format: asMult },
   { key: 'area', icon: '⭕', label: 'Area', format: asMult },
   { key: 'armor', icon: '🛡️', label: 'Armor', format: asPct },
-  { key: 'regen', icon: '❤️', label: 'Regen', format: (v) => `${asPoints(v)}/5s` },
+  { key: 'regen', icon: '❤️', label: 'Regen', format: (v) => `${asPoints(regenHpPerMinute(v))} HP/min` },
   { key: 'evasion', icon: '👻', label: 'Evasion', format: asPoints },
   { key: 'thorns', icon: '🌵', label: 'Thorns', format: asPoints },
   { key: 'lifesteal', icon: '🩸', label: 'Lifesteal', format: (v) => `${asPoints(v)}%` },
@@ -2112,6 +2116,7 @@ export class Hud {
     items: ModCounts = {},
     cores: CoreLevels = {},
     weaponBranches?: WeaponBranchLevels,
+    maxHp = PLAYER.maxHp,
   ): void {
     const panel = mustGet('build-panel');
     panel.innerHTML = '';
@@ -2194,8 +2199,9 @@ export class Hud {
     const sheet = mustGet('stat-sheet');
     sheet.innerHTML = '<div class="panel-header">STATS</div>';
     for (const def of STAT_ROWS) {
-      const value = stats[def.key];
-      const raised = Math.abs(value - base[def.key]) >= 0.001;
+      const value = def.key === 'maxHp' ? maxHp : stats[def.key];
+      const baseline = def.key === 'maxHp' ? PLAYER.maxHp : base[def.key];
+      const raised = Math.abs(value - baseline) >= 0.001;
       const row = document.createElement('div');
       row.className = 'build-row';
       row.innerHTML = `${statIconHtml(def.key, def.icon)}<span>${def.label}</span><span class="build-value${raised ? ' raised' : ''}">${def.format(value)}</span>`;

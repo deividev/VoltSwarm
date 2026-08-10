@@ -1,4 +1,4 @@
-import { PROFILE, DRAFT_FALLBACK, CORE_BALANCE, CORE_TIER_MAGNITUDES, MAX_WEAPON_LEVEL, RECORDING, TIERS, WEAPON_INFO, WEAPON_UPGRADE_TIER_SCALE, describeWeaponBranch, isBranchWeapon, isWeaponAvailable, weaponBranchEntries, xpForLevel, type BranchWeaponId, type WeaponBranchId, type WeaponBranchLevels, type WeaponId } from './config';
+import { PROFILE, DRAFT_FALLBACK, CORE_BALANCE, CORE_TIER_MAGNITUDES, MAX_WEAPON_LEVEL, PLAYER, RECORDING, TIERS, WEAPON_INFO, WEAPON_UPGRADE_TIER_SCALE, describeWeaponBranch, isBranchWeapon, isWeaponAvailable, regenHpPerMinute, weaponBranchEntries, xpForLevel, type BranchWeaponId, type WeaponBranchId, type WeaponBranchLevels, type WeaponId } from './config';
 import type { PlayerStats } from './stats';
 import type { Player } from './player';
 
@@ -188,7 +188,7 @@ export const STAT_CARDS: StatCardDef[] = [
     id: 'regen',
     title: 'Nanobot Swarm',
     magnitudes: CORE_TIER_MAGNITUDES.regen,
-    describe: (v) => `+${v} HP Regen per tick`,
+    describe: (v) => `+${regenHpPerMinute(v)} HP Regen/min`,
     apply: (s, _p, v) => {
       s.regen += v;
     },
@@ -197,10 +197,9 @@ export const STAT_CARDS: StatCardDef[] = [
     id: 'max-hp',
     title: 'Hull Plates',
     magnitudes: CORE_TIER_MAGNITUDES['max-hp'],
-    describe: (v) => `+${v} Max HP (and heal ${v})`,
+    describe: (v) => `+${v} Max HP`,
     apply: (_s, p, v) => {
       p.maxHp += v;
-      p.hp = Math.min(p.maxHp, p.hp + v);
     },
   },
   {
@@ -225,7 +224,7 @@ export const STAT_CARDS: StatCardDef[] = [
     id: 'lifesteal',
     title: 'Leech Coil',
     magnitudes: CORE_TIER_MAGNITUDES.lifesteal,
-    describe: (v) => `+${v}% Lifesteal (chance to steal 1 HP per hit)`,
+    describe: (v) => `+${v}% Lifesteal (chance to restore ${PLAYER.lifestealHealHp} HP on hit; ${PLAYER.lifestealCooldownS}s global cooldown)`,
     apply: (s, _p, v) => {
       s.lifesteal = Math.min(
         CORE_BALANCE.probabilityCaps.lifestealPercent,

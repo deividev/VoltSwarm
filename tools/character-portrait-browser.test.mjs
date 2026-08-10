@@ -14,7 +14,7 @@ const EXPECTED_STATS = [
   ['crit-chance', 'Crit Chance', 'assets/2d/icon-stat-crit.png', '5%'],
   ['crit-damage', 'Crit Damage', 'assets/2d/icon-stat-crit-damage.png', '+50%'],
   ['luck', 'Luck', 'assets/2d/icon-stat-luck.png', '0%'],
-  ['regen', 'Regen', 'assets/2d/icon-stat-regen.png', '0/5s'],
+  ['regen', 'Regen', 'assets/2d/icon-stat-regen.png', '0 HP/min'],
 ];
 const CHROME_PATHS = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',

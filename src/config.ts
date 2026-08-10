@@ -307,15 +307,22 @@ export const PLAYER = {
   knockbackStopSpeed: 1.5,
   /** Seconds between passive regen ticks; each tick heals `stats.regen` HP. */
   regenTickS: 5,
-  /** Minimum seconds between lifesteal heals. Caps sustain at ~3 HP/s no
+  /** HP restored by a successful Lifesteal roll. */
+  lifestealHealHp: 1,
+  /** Minimum seconds between lifesteal heals. Caps sustain at 1 HP/s no
    *  matter how many enemies an AoE weapon hits per second — without this,
    *  lifesteal builds outheal contact damage inside the swarm. */
-  lifestealCooldownS: 0.35,
+  lifestealCooldownS: 1,
   /** Walk-cycle micro-animation (Crossy Road-style hop): bob + body rock. */
   walkBobHz: 3.2,
   walkBobAmplitude: 0.09,
   walkRockAmplitude: 0.06,
 };
+
+/** Converts the config-owned Regen tick value to the player-facing HP/min unit. */
+export function regenHpPerMinute(regenPerTick: number): number {
+  return (regenPerTick * 60) / PLAYER.regenTickS;
+}
 
 /** Shared menu-navigation tuning. Kept out of HUD code so keyboard and
  * gamepad traversal use the same deliberate scroll step. */
@@ -1418,11 +1425,11 @@ export const CORE_TIER_MAGNITUDES = {
   'projectile-speed': [0.1, 0.14, 0.18, 0.3, 0.42],
   area: [0.08, 0.11, 0.14, 0.22, 0.3],
   armor: [0.08, 0.11, 0.15, 0.25, 0.35],
-  regen: [1, 2, 3, 4, 6],
+  regen: [1, 2, 3, 4, 5],
   'max-hp': [15, 20, 25, 45, 65],
   evasion: [8, 11, 14, 22, 30],
   thorns: [6, 9, 12, 20, 28],
-  lifesteal: [3, 4, 6, 10, 14],
+  lifesteal: [2, 3, 4, 7, 10],
   duration: [0.1, 0.13, 0.16, 0.25, 0.35],
   luck: [0.04, 0.08, 0.1, 0.14, 0.2],
   cursed: [0.06, 0.08, 0.1, 0.14, 0.2],

@@ -1,4 +1,4 @@
-import { CHARACTER_BALANCE, PLAYER, type WeaponId } from './config';
+import { CHARACTER_BALANCE, PLAYER, regenHpPerMinute, type WeaponId } from './config';
 import { defaultStats, type PlayerStats } from './stats';
 
 export const DEFAULT_CHARACTER_ID = 'field-engineer' as const;
@@ -141,7 +141,7 @@ export function characterStatRows(character: CharacterDef): CharacterStatRow[] {
     { id: 'crit-chance', label: 'Crit Chance', value: asPercent(character.stats.critChance), icon: 'assets/2d/icon-stat-crit.png' },
     { id: 'crit-damage', label: 'Crit Damage', value: `+${asPercent(character.stats.critDamage)}`, icon: 'assets/2d/icon-stat-crit-damage.png' },
     { id: 'luck', label: 'Luck', value: asPercent(character.stats.luck), icon: 'assets/2d/icon-stat-luck.png' },
-    { id: 'regen', label: 'Regen', value: `${character.stats.regen}/${PLAYER.regenTickS}s`, icon: 'assets/2d/icon-stat-regen.png' },
+    { id: 'regen', label: 'Regen', value: `${regenHpPerMinute(character.stats.regen)} HP/min`, icon: 'assets/2d/icon-stat-regen.png' },
   ];
 }
 
