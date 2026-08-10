@@ -80,6 +80,23 @@ test('Boss Hunter unlocks weapon slot 3 and cannot exceed the design cap', () =>
   }
 });
 
+test('Map 1 boss pool and Foreman include Crusher King and Tesla Titan', () => {
+  assert.deepEqual(config.BOSS_TYPE_INDEXES, [
+    config.CRUSHER_KING_TYPE_INDEX,
+    config.TESLA_TITAN_TYPE_INDEX,
+  ]);
+  assert.deepEqual(config.BOSS_TYPE_INDEXES.map((index) => config.ENEMY_TYPES[index]?.name), [
+    'Crusher King',
+    'Tesla Titan',
+  ]);
+  assert.equal(config.ENEMY_TYPES[config.CRUSHER_KING_TYPE_INDEX]?.behavior, 'chase');
+  assert.equal(config.ENEMY_TYPES[config.CRUSHER_KING_TYPE_INDEX]?.speed, 3);
+
+  const foreman = contracts.ALL_CONTRACTS.find((contract) => contract.id === 'foreman');
+  assert.ok(foreman);
+  assert.deepEqual(foreman.objective, { type: 'boss-kinds', n: 2 });
+});
+
 test('socket HUD derives three weapon pips from PROFILE rather than a fixed count', async () => {
   const hudSource = await readFile(new URL('../src/hud.ts', import.meta.url), 'utf8');
   assert.match(hudSource, /Array\.from\(\{ length: PROFILE\.maxWeaponSockets \}/);
