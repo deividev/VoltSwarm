@@ -32,17 +32,35 @@ for (const tier of ['gray', 'green', 'blue', 'purple', 'gold']) {
   });
 }
 
-test('blue and purple pools contain exactly three intrinsic-tier mods', () => {
+test('blue and purple pools contain their exact intrinsic-tier mods', () => {
   assert.deepEqual(mods.modsOfTier('blue'), [
     'barrier-cell',
     'chain-relay',
     'piston-stompers',
   ]);
   assert.deepEqual(mods.modsOfTier('purple'), [
+    'orb-siphon',
     'overload-trigger',
     'phase-chassis',
     'foremans-whistle',
   ]);
+});
+
+test('Orb Siphon is Epic and can be awarded by chests only once per run', () => {
+  const siphon = mods.MOD_REGISTRY['orb-siphon'];
+  assert.equal(siphon.tier, 'purple');
+  assert.equal(mods.modPrice('orb-siphon', 0, 0), config.MERCHANT.tierPrices.purple);
+  assert.equal(mods.isModEligibleForChest('orb-siphon', 0), true);
+  assert.equal(mods.isModEligibleForChest('orb-siphon', 1), false);
+  assert.equal(mods.isModEligibleForChest('orb-siphon', 3), false);
+  assert.notEqual(
+    mods.rollModOfTier('purple', (id) =>
+      mods.isModEligibleForChest(id, id === 'orb-siphon' ? 1 : 0)),
+    'orb-siphon',
+  );
+  assert.equal(mods.isModAtCopyCap('orb-siphon', 1), false, 'merchant stacking stays unchanged');
+  assert.equal(config.RECORDING.chestTesting.forceGreenChests, false);
+  assert.equal(config.RECORDING.chestTesting.forceOrbSiphonReward, false);
 });
 
 test('Overload Trigger derives Epic rarity and economy without changing its behavior contract', () => {

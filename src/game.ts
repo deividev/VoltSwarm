@@ -40,7 +40,7 @@ import { PickupSystem } from './pickups';
 import { XpOrbSystem } from './xp-orbs';
 import { GoldSystem } from './gold';
 import { MerchantSystem } from './merchant';
-import { MOD_REGISTRY, barrierCellCapacity, barrierCellRegenS, describeMod, isModAtCopyCap, modPrice, rollModOfTier, rollShopStock, tierPrice, type ModCounts, type ModId } from './mods';
+import { MOD_REGISTRY, barrierCellCapacity, barrierCellRegenS, describeMod, isModAtCopyCap, isModEligibleForChest, modPrice, rollModOfTier, rollShopStock, tierPrice, type ModCounts, type ModId } from './mods';
 import { DamageNumbers } from './damage-numbers';
 import { BossSystem, type BossBody } from './boss';
 import { AudioDirector, type AudioEventId } from './audio';
@@ -1613,13 +1613,17 @@ export class Game {
     this.burst.spawn(chestX, chestZ, VISUAL.chestVfx.hotColor, VISUAL.chestVfx.hotCount);
     this.shakeAmp = Math.max(this.shakeAmp, VISUAL.chestVfx.shakeAmp);
 
-    const mod: ModId = RECORDING.chestTesting.forceOrbSiphonReward
+    const ownedSiphonCopies = this.modCounts['orb-siphon'] ?? 0;
+    const forceOrbSiphon =
+      RECORDING.chestTesting.forceOrbSiphonReward &&
+      isModEligibleForChest('orb-siphon', ownedSiphonCopies);
+    const mod: ModId = forceOrbSiphon
       ? 'orb-siphon'
       : rollModOfTier(
           tier,
           (id) =>
             (id !== 'repair' || this.player.hp < this.player.maxHp) &&
-            !isModAtCopyCap(id, this.modCounts[id] ?? 0),
+            isModEligibleForChest(id, this.modCounts[id] ?? 0),
         );
     telemetry.choice('chest_purchase', {
       tier,
@@ -1632,7 +1636,6 @@ export class Game {
     // Orb Siphon: the chest vacuums the map's XP before the reel spins. A first
     // copy won by this chest counts immediately, so its defining effect cannot
     // miss the very chest that awarded it.
-    const ownedSiphonCopies = this.modCounts['orb-siphon'] ?? 0;
     const siphonCopies = ownedSiphonCopies + (mod === 'orb-siphon' ? 1 : 0);
     if (siphonCopies > 0) {
       // Two-layer signal: the chest cracks open, then the player's magnet field

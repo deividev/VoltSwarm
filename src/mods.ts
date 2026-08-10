@@ -120,7 +120,7 @@ export const MOD_REGISTRY: Record<ModId, ModInfo> = {
     image: 'assets/2d/icon-mod-coolant-burst.png',
   },
   'orb-siphon': {
-    tier: 'green',
+    tier: 'purple',
     kind: 'permanent',
     label: 'Orb Siphon',
     description: 'Opening a chest pulls every XP orb on the map to you.',
@@ -282,6 +282,12 @@ export function barrierCellRegenS(copies: number): number {
 /** Barrier Cell has a finite two-stage curve, so its cap is never sold again. */
 export function isModAtCopyCap(id: ModId, copies: number): boolean {
   return id === 'barrier-cell' && copies >= MODS.barrierCell.maxCopies;
+}
+
+/** Chest-only marginal-value filter. Orb Siphon can still be sold by the
+ *  merchant, but a chest never spends its reward on a duplicate copy. */
+export function isModEligibleForChest(id: ModId, copies: number): boolean {
+  return !isModAtCopyCap(id, copies) && (id !== 'orb-siphon' || copies === 0);
 }
 
 /** Cumulative wording keeps chest, shop and final-build UI truthful per copy. */
