@@ -44,10 +44,46 @@ test('Field Engineer has the exact approved run profile', () => {
   assert.equal(engineer.stats.regen, balance.regen);
   assert.equal(engineer.stats.luck, balance.luck);
   assert.match(engineer.signature.description, new RegExp(`${balance.fieldRepairFraction * 100}%`));
-  assert.equal(config.PROFILE.weaponSockets, 1);
+  assert.equal(config.PROFILE.weaponSockets, 2);
   assert.equal(config.PROFILE.coreSockets, 2);
-  assert.equal(config.PROFILE.maxWeaponSockets, 2);
+  assert.equal(config.PROFILE.maxWeaponSockets, 3);
   assert.equal(config.PROFILE.maxCoreSockets, 4);
+});
+
+test('weapon socket migration raises old saves and preserves Boss Hunter payout', () => {
+  assert.equal(profile.normalizeWeaponSockets(1, 2, 3, false), 2);
+  assert.equal(profile.normalizeWeaponSockets(2, 2, 3, false), 2);
+  assert.equal(profile.normalizeWeaponSockets(2, 2, 3, true), 3);
+  assert.equal(profile.normalizeWeaponSockets(99, 2, 3, false), 3);
+  assert.equal(profile.normalizeWeaponSockets('invalid', 2, 3, false), 2);
+});
+
+test('Boss Hunter unlocks weapon slot 3 and cannot exceed the design cap', () => {
+  const bossHunter = contracts.ALL_CONTRACTS.find((contract) => contract.id === 'boss-hunter');
+  assert.ok(bossHunter);
+  assert.deepEqual(bossHunter.reward, { kind: 'socket', slot: 'weapon' });
+  assert.equal(bossHunter.objective.n, config.CONTRACTS.bossHunterKills);
+
+  const originalSockets = config.PROFILE.weaponSockets;
+  try {
+    config.PROFILE.weaponSockets = 2;
+    assert.deepEqual(contracts.grantReward(bossHunter.reward), {
+      kind: 'socket',
+      slot: 'weapon',
+      index: 3,
+    });
+    assert.equal(config.PROFILE.weaponSockets, 3);
+    contracts.grantReward(bossHunter.reward);
+    assert.equal(config.PROFILE.weaponSockets, 3);
+  } finally {
+    config.PROFILE.weaponSockets = originalSockets;
+  }
+});
+
+test('socket HUD derives three weapon pips from PROFILE rather than a fixed count', async () => {
+  const hudSource = await readFile(new URL('../src/hud.ts', import.meta.url), 'utf8');
+  assert.match(hudSource, /Array\.from\(\{ length: PROFILE\.maxWeaponSockets \}/);
+  assert.match(hudSource, /for \(let i = PROFILE\.weaponSockets; i < PROFILE\.maxWeaponSockets; i\+\+\)/);
 });
 
 test('character stat rows derive baselines and format percentage ratings', () => {

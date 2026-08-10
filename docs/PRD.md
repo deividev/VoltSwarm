@@ -309,7 +309,7 @@ Antes de integrar un personaje nuevo, verificar TODO este checklist:
 
 - `src/characters.ts` define un registry data-driven con ID estable, copy derivada de `CHARACTER_BALANCE`, `modelKey`, perfil base, signature, arma recomendada y metadata de unlock.
 - Flujo de nueva run: **Play → Character Selection → Starting Weapon Draft → Loading → Run**. La selección es una `menu-view`, no un `GameState` nuevo; exige Confirm y soporta teclado/gamepad.
-- Field Engineer (`field-engineer`) está desbloqueado por defecto: 110 HP, Armor rating 5%, Damage ×0.95, Move Speed 11, Attack Speed ×1, crítico 5%/+50%, Luck/Regen 0 y los sockets globales sin cambios (1/2 iniciales, 2/4 máximos).
+- Field Engineer (`field-engineer`) está desbloqueado por defecto: 110 HP, Armor rating 5%, Damage ×0.95, Move Speed 11, Attack Speed ×1, crítico 5%/+50%, Luck/Regen 0 y los sockets globales sin cambios propios (2 armas/2 cores iniciales, 3 armas/4 cores máximos).
 - **Field Repair** cura 6% del HP máximo después de instalar o subir tier de un Core durante gameplay. Clampea a máximo, no hace overheal y no se ejecuta en load, replay, Boss Lab o reconstrucción.
 - Bolt Cannon no se garantiza ni cambia las odds: si entra naturalmente en el draft, solo muestra `Recommended`.
 - `PROFILE.unlockedCharacters` persiste IDs y Contracts admite rewards `character`; todavía no existen contratos ni umbrales de personajes.
@@ -355,6 +355,8 @@ Reglas que no se rompen:
 
 - **`PROFILE` se muta EN SU SITIO, nunca se reemplaza.** Todo consumidor de gating (pool del draft, draft inicial, sockets, pool de mods) tiene una referencia viva; reemplazar el objeto los desconecta a todos en silencio. `loadProfile()` corre en `main.ts` ANTES de construir `Game`.
 - **Los techos de diseño (`maxWeaponSockets`/`maxCoreSockets`) NO se persisten**: son constantes de balance, así que subirlos alcanza a saves existentes.
+- **Estado implementado para el playtest:** el perfil empieza con **2 sockets de arma** y tiene un techo de **3**. **Boss Hunter** abre el tercero con un umbral provisional de 5 bosses; los saves antiguos se elevan al nuevo mínimo y, si ya habían completado el contrato, conservan el premio migrando directamente a 3.
+- **Dirección futura, todavía no implementada:** se podrá llegar a **4 sockets de arma** solo después de ampliar suficientemente el roster de armas seleccionables para que equipar cuatro no elimine decisiones significativas de build. Antes de esa expansión deben rediseñarse los requisitos y contratos tanto del socket 3 como del futuro socket 4; el requisito actual de cinco bosses de Boss Hunter sirve únicamente para este playtest y no constituye el diseño final.
 - Las listas de desbloqueo se **mergean sobre los defaults** y se filtran contra los registries reales: promover un ítem a desbloqueado-por-defecto llega a jugadores existentes, y un save editado a mano no puede inyectar un id fantasma.
 
 `LIFETIME` es el ledger monótono de carrera (runs, runs completas, sectores limpiados, máximo de mapas alcanzados, kills, mejores marcas, bosses y tipos de boss, daño por arma, runs por arma inicial, oro, cofres por tier, compras, hazañas de estilo). Vive aparte del historial **porque el historial se corta en 250 runs** y un contrato de "10.000 kills acumuladas" perdería terreno al envejecer las runs. Es idempotente por id de run, así que rellenar retroactivamente nunca infla totales.
