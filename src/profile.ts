@@ -233,7 +233,14 @@ export function resetProfile(): void {
 
 function applyProfile(value: Partial<ProfileSave>): void {
   normalizeCharacterUnlocks(value.unlockedCharacters);
-  PROFILE.weaponSockets = clampSockets(value.weaponSockets, DEFAULTS.weaponSockets, PROFILE.maxWeaponSockets);
+  const bossHunterCompleted = Array.isArray(value.lifetime?.completedContracts)
+    && value.lifetime.completedContracts.includes('boss-hunter');
+  PROFILE.weaponSockets = normalizeWeaponSockets(
+    value.weaponSockets,
+    DEFAULTS.weaponSockets,
+    PROFILE.maxWeaponSockets,
+    bossHunterCompleted,
+  );
   PROFILE.coreSockets = clampSockets(value.coreSockets, DEFAULTS.coreSockets, PROFILE.maxCoreSockets);
   PROFILE.levelupDiscards = clampSockets(value.levelupDiscards, DEFAULTS.levelupDiscards, 99);
   PROFILE.unlockedWeapons = mergeUnlocks(DEFAULTS.unlockedWeapons, value.unlockedWeapons, VALID_WEAPONS) as WeaponId[];
@@ -325,4 +332,17 @@ function rewardMap(value: unknown): Record<string, Reward> {
 function clampSockets(value: unknown, fallback: number, max: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
   return Math.min(max, Math.max(fallback, Math.floor(value)));
+}
+
+/** Migrates the raised fresh-profile floor without making existing Boss Hunter
+ * winners re-earn its socket. Old saves recorded slot 2; under the new 2 -> 3
+ * progression that same completed contract must imply slot 3. */
+export function normalizeWeaponSockets(
+  saved: unknown,
+  defaultSockets: number,
+  maxSockets: number,
+  bossHunterCompleted: boolean,
+): number {
+  const earnedFloor = Math.min(maxSockets, defaultSockets + (bossHunterCompleted ? 1 : 0));
+  return clampSockets(saved, earnedFloor, maxSockets);
 }

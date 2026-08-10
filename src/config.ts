@@ -1425,7 +1425,7 @@ export const BOSS_TARGET_BIAS = 3;
  *  Hunters-only was wrong as shipped, and a playtest found it immediately: the
  *  run had Turbine and Ricochet, so the fix did nothing and the boss stayed
  *  untouchable. That matters more than it sounds, because killing a boss is a
- *  MANDATORY progression gate — the only weapon socket sits behind it. A
+ *  MANDATORY progression gate — the only additional weapon socket sits behind it. A
  *  required gate must never depend on drafting one of three specific weapons.
  *
  *  So the floor is mild: any build can chip a boss down, a hunter build does
@@ -1747,12 +1747,12 @@ export const CHARACTER_BALANCE = {
 export const PROFILE = {
   /** Stable character ids. Contracts may append future characters. */
   unlockedCharacters: ['field-engineer'] as string[],
-  /** Weapon sockets: 1 default, +1 via contract (max 2). */
-  weaponSockets: 1,
+  /** Weapon sockets: 2 default, +1 via contract (max 3). */
+  weaponSockets: 2,
   /** Core sockets: 2 default, +2 via contracts (max 4). */
   coreSockets: 2,
   /** Design ceilings — the HUD shows the gap as locked sockets. */
-  maxWeaponSockets: 2,
+  maxWeaponSockets: 3,
   maxCoreSockets: 4,
   /** Level-up discards per run: skip a draft without picking (2026-07-10).
    *  Lives in PROFILE because contracts may raise it later — the ceiling and
