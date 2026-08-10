@@ -1760,9 +1760,9 @@ export const RECORDING = {
     coreIds: ['attack-speed', 'projectile-count'] as const,
   },
   chestTesting: {
-    /** Force green chests to test Orb Siphon without RNG. Keep false outside tests. */
+    /** Legacy name: force chests to Orb Siphon's intrinsic tier. Keep false outside tests. */
     forceGreenChests: false,
-    /** Every opened chest grants Orb Siphon for XP-vacuum testing. Keep false outside tests. */
+    /** The next eligible chest grants Orb Siphon for XP-vacuum testing. Keep false outside tests. */
     forceOrbSiphonReward: false,
   },
 };

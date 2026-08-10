@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { CHEST, PICKUPS, RECORDING } from './config';
 import { litMaterial } from './toon';
 import { rollRarity, type Rarity } from './upgrades';
-import { resolveChestTier, TIER_COLORS } from './mods';
+import { MOD_REGISTRY, resolveChestTier, TIER_COLORS } from './mods';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
 import { findClearSpot, findRandomClearSpot, type Obstacle } from './world';
@@ -32,6 +32,18 @@ export interface OpenableChest {
   /** World position, for the floating interact prompt. */
   x: number;
   z: number;
+}
+
+/** Resolves the chest tier at spawn so both Orb Siphon capture overrides keep
+ *  beam, marker price, reel and forced reward on the Mod's intrinsic tier. */
+export function resolveSpawnedChestTier(luck: number): Rarity {
+  if (
+    RECORDING.chestTesting.forceGreenChests ||
+    RECORDING.chestTesting.forceOrbSiphonReward
+  ) {
+    return MOD_REGISTRY['orb-siphon'].tier;
+  }
+  return resolveChestTier(rollRarity(luck));
 }
 
 export type ActiveChest = OpenableChest;
@@ -211,7 +223,7 @@ export class PickupSystem {
     // Cap the rolled tier to one that has unlocked mods, so the beam/price a
     // player reads always matches the reward they'll get (no gold chest paying
     // out a purple mod). Self-heals as contracts unlock higher tiers.
-    slot.tier = RECORDING.chestTesting.forceGreenChests ? 'green' : resolveChestTier(rollRarity(luck));
+    slot.tier = resolveSpawnedChestTier(luck);
     const color = TIER_COLORS[slot.tier];
     slot.crateMat.color.setHex(color); // primitive fallback tint
     slot.beamMat.color.setHex(color); // the tier light — readable at distance

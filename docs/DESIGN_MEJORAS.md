@@ -188,7 +188,7 @@ La base Megabonk que adoptamos: items = categoría separada del draft, obtenida 
 - **Un único pool, dos puertas**: la **ruleta del cofre** lo tira gratis (pesada por tier) y el **chatarrero** lo vende por **oro in-run** (dropean los kills), apareciendo periódicamente cerca del jugador con 2-3 mods.
 - Dos naturalezas dentro del pool: **consumibles** (efecto al momento, re-obtenibles siempre) y **permanentes** (comportamientos que duran el run).
 - **Los stats permanentes del draft son Cores**; los Mods no entran en sockets. Excepcion intencional: Barrier Cell modifica la defensa como comportamiento de Mod y se obtiene solo por cofre/chatarrero.
-- **Copias sanas por Mod**: los permanentes escalan con su suelo/tope propio. Barrier Cell tiene cap duro de 10 copias: 1-6 suman carga hasta 6; 7-10 reducen recarga de 8s a 4s; al cap se filtra de cofre y chatarrero.
+- **Copias sanas por Mod**: los permanentes escalan con su suelo/tope propio. Barrier Cell tiene cap duro de 10 copias: 1-6 suman carga hasta 6; 7-10 reducen recarga de 8s a 4s; al cap se filtra de cofre y chatarrero. Orb Siphon es una excepción por puerta: tras obtenerlo una vez, deja de ser candidato de cofre durante esa run, aunque el chatarrero conserva su comportamiento de copias existente.
 - El tier fija precio en el chatarrero y peso en la ruleta. Reparto: 12 default / 5 por contrato.
 
 | Mod | Tier | Efecto (in-game, EN) | Stack por copia | Icono | Origen |
@@ -203,7 +203,7 @@ La base Megabonk que adoptamos: items = categoría separada del draft, obtenida 
 | Detonator Rig | 🟢 Verde | Every 25 kills, the next kill explodes in an AoE | −5 kills (mín. 10) | Caja detonadora con émbolo | Default |
 | Barrier Cell | Blue Azul | Blocks a full hit; copies 1-6 add charges to 6, copies 7-10 reduce recharge 8s to 4s | +1 charge, then -1s recharge; cap 10 copies | Reuses `icon-stat-shield-v2.png` | Default |
 | Coolant Burst | 🟢 Verde | When a shield charge breaks, coolant freezes nearby enemies 2s | +radio | Bidón cian agrietado | Contrato |
-| Orb Siphon | 🟢 Verde | Opening a chest pulls every XP orb on the map to you | +2s haste por cofre | Cofre + chorro de orbes azules | Default |
+| Orb Siphon | 🟣 Morado | Opening a chest pulls every XP orb on the map to you | +2s haste por copia adicional comprada; máximo 1 premio de cofre por run | Cofre + chorro de orbes azules | Default |
 | Chain Relay | 🔵 Azul | Critical hits arc lightning to up to 3 nearby enemies | +1 salto | Relé industrial + arco bifurcado | Contrato |
 | Piston Stompers | 🔵 Azul | Every 12 steps, stomp: AoE damage scaling with Move Speed | −2 pasos (mín. 6) | Bota con suela de pistón | Default |
 | Overload Trigger | 🟣 Morado | Elite and boss kills overcharge you: +100% attack speed 5s | +2s | Interruptor industrial rojo en ON | Contrato |
