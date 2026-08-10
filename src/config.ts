@@ -2092,7 +2092,6 @@ export const CONTRACTS = {
   /** Signature milestones, hand-authored for the moments a player remembers. */
   firstBossKill: 1,
   fullRunSeconds: 595,
-  bossHunterKills: 5,
   fullLoadoutLevel: 25,
   /** One full run landed 625; this is meant to need a strong build, not a miracle. */
   overkillKillsInRun: 800,
