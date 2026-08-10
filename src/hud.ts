@@ -1,4 +1,4 @@
-import { PROFILE, DEV_TOOLS, MAPS, MENU_NAVIGATION, PICKUPS, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, type MapId, type WeaponId } from './config';
+import { PROFILE, PLAYER, SECONDS_PER_MINUTE, DEV_TOOLS, MAPS, MENU_NAVIGATION, PICKUPS, WEAPON_INFO, availableWeaponIds, describeWeaponBranches, type MapId, type WeaponId } from './config';
 import { LIFETIME, resetProfile, saveProfile } from './profile';
 import {
   ACTIVE_CONTRACTS,
@@ -321,7 +321,7 @@ const STAT_ROWS: StatRow[] = [
   { key: 'projectileSpeed', icon: '🚀', label: 'Proj Speed', format: asMult },
   { key: 'area', icon: '⭕', label: 'Area', format: asMult },
   { key: 'armor', icon: '🛡️', label: 'Armor', format: asPct },
-  { key: 'regen', icon: '❤️', label: 'Regen', format: (v) => `${asPoints(v)}/5s` },
+  { key: 'regen', icon: '❤️', label: 'Regen', format: (v) => `${asPoints((v * SECONDS_PER_MINUTE) / PLAYER.regenTickS)} HP/min` },
   { key: 'evasion', icon: '👻', label: 'Evasion', format: asPoints },
   { key: 'thorns', icon: '🌵', label: 'Thorns', format: asPoints },
   { key: 'lifesteal', icon: '🩸', label: 'Lifesteal', format: (v) => `${asPoints(v)}%` },
@@ -2118,11 +2118,12 @@ export class Hud {
 
   /** Build UI, split in two: the always-on left panel shows owned weapons
    *  with levels (the build caps at 2, so it stays tiny in-run), and the
-   *  FULL 20-stat sheet renders into #stat-sheet inside the level-up
+   *  FULL 21-stat sheet renders into #stat-sheet inside the level-up
    *  overlay, where the player actually compares values against the offered
    *  cards. Raised stats highlight in gold. */
   updateBuild(
     stats: PlayerStats,
+    maxHp: number,
     weapons: WeaponLevels,
     items: ModCounts = {},
     cores: CoreLevels = {},
@@ -2203,11 +2204,16 @@ export class Hud {
     }
 
     // Full stat sheet lives inside the level-up overlay (right side), not in
-    // the always-on panel: 20 stat rows overflowed the screen in-run
+    // the always-on panel: 21 stat rows overflowed the screen in-run
     // (2026-07-08 user report), and the moment the sheet actually matters is
     // while comparing upgrade cards.
     const sheet = mustGet('stat-sheet');
     sheet.innerHTML = '<div class="panel-header">STATS</div>';
+    const maxHpRaised = Math.abs(maxHp - PLAYER.maxHp) >= 0.001;
+    const maxHpRow = document.createElement('div');
+    maxHpRow.className = 'build-row';
+    maxHpRow.innerHTML = `<img class="build-icon build-icon-img" src="${CARD_ICON_IMAGES['max-hp']}" alt="" /><span>Max HP</span><span class="build-value${maxHpRaised ? ' raised' : ''}">${asPoints(maxHp)}</span>`;
+    sheet.appendChild(maxHpRow);
     for (const def of STAT_ROWS) {
       const value = stats[def.key];
       const raised = Math.abs(value - base[def.key]) >= 0.001;

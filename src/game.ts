@@ -589,7 +589,7 @@ export class Game {
     this.prevPx = this.player.position.x;
     this.prevPz = this.player.position.z;
     this.hud.updateGold(this.gold);
-    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
     // state → 'playing' and the clock reset happen at the reveal (tickLoading),
     // after the warmup frames render behind the loading screen.
   }
@@ -663,6 +663,7 @@ export class Game {
     this.runFlow.mapElapsedS = this.elapsedS;
     this.hud.updateBuild(
       this.stats,
+      this.player.maxHp,
       this.weaponLevels,
       this.modCounts,
       this.coreLevels,
@@ -757,7 +758,7 @@ export class Game {
       const enemy = this.enemies.pool[spawned];
       if (enemy) enemy.speed = 0;
     }
-    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
     this.state = 'playing';
     this.audio.resetDiagnostics();
     this.benchmarkActive = true;
@@ -873,7 +874,7 @@ export class Game {
         'gameplay',
       );
     }
-    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
     // First copy = a socket just filled → stronger pop than a plain level-up.
     const weaponId = weaponIdFromUpgradeCard(card.id);
     const installed = weaponId
@@ -1121,7 +1122,7 @@ export class Game {
       sectorsCleared: this.runFlow.sectorsCleared,
     });
     this.hud.banner(`MAP ${nextMap.number}: ${nextMap.title.toUpperCase()}`);
-    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
   }
 
   private startFinale(): void {
@@ -2072,7 +2073,7 @@ export class Game {
       default:
         this.hud.toast(`${MOD_REGISTRY[id].label} installed!`);
     }
-    this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
   }
 
   /** Throws the player clear of a charging boss, ACROSS its lane rather than
@@ -2463,7 +2464,7 @@ export class Game {
         this.merchant.stock.splice(index, 1);
         this.applyMod(entry.id);
         // Refresh the RIG so the bought mod shows, then flash its tile.
-        this.hud.updateBuild(this.stats, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+        this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
         this.hud.flashBuildRow(entry.id);
         this.renderShop();
       },

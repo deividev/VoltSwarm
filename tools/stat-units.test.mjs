@@ -130,3 +130,51 @@ test('Armor and Luck Core magnitudes cannot regress to 100x point units', () => 
     [0, 0, 45, 35, 20],
   );
 });
+
+test('Hull Plates raises only Max HP and never advertises or grants an immediate heal', () => {
+  const hullPlates = upgrades.STAT_CARDS.find((card) => card.id === 'max-hp');
+  assert.ok(hullPlates);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES['max-hp'], [15, 20, 25, 45, 65]);
+
+  for (const value of hullPlates.magnitudes) {
+    const description = hullPlates.describe(value);
+    assert.equal(description, `+${value} Max HP permanently`);
+    assert.doesNotMatch(description, /heal/i);
+  }
+
+  const player = { maxHp: 100, hp: 37 };
+  hullPlates.apply(stats.defaultStats(), player, hullPlates.magnitudes[0]);
+  assert.equal(player.maxHp, 115);
+  assert.equal(player.hp, 37);
+});
+
+test('Nanobot Swarm uses the increasing five-tier regen values and names its config-derived HP per minute', () => {
+  const nanobotSwarm = upgrades.STAT_CARDS.find((card) => card.id === 'regen');
+  assert.ok(nanobotSwarm);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [1, 2, 3, 4, 5]);
+  assert.deepEqual(nanobotSwarm.magnitudes, [1, 2, 3, 4, 5]);
+  assert.equal(config.PLAYER.regenTickS, 5);
+  assert.equal(config.SECONDS_PER_MINUTE, 60);
+  const hpPerMinute = nanobotSwarm.magnitudes.map(
+    (value) => (value * config.SECONDS_PER_MINUTE) / config.PLAYER.regenTickS,
+  );
+  assert.deepEqual(hpPerMinute, [12, 24, 36, 48, 60]);
+  for (const [index, value] of nanobotSwarm.magnitudes.entries()) {
+    assert.equal(nanobotSwarm.describe(value), `+${hpPerMinute[index]} HP/min`);
+  }
+});
+
+test('Leech Coil uses the reduced five-tier chance values and retains its global cooldown', async () => {
+  const leechCoil = upgrades.STAT_CARDS.find((card) => card.id === 'lifesteal');
+  assert.ok(leechCoil);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.lifesteal, [2, 3, 4, 7, 10]);
+  assert.deepEqual(leechCoil.magnitudes, [2, 3, 4, 7, 10]);
+  assert.equal(config.PLAYER.lifestealCooldownS, 1);
+  assert.equal(
+    leechCoil.describe(leechCoil.magnitudes[0]),
+    `+2% Lifesteal (2% chance on hit to heal 1 HP; ${config.PLAYER.lifestealCooldownS}s global cooldown)`,
+  );
+
+  const gameSource = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
+  assert.match(gameSource, /this\.lifestealCooldown\s*=\s*PLAYER\.lifestealCooldownS;/);
+});

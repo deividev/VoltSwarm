@@ -110,7 +110,10 @@ test('character stat rows derive baselines and format percentage ratings', () =>
   assert.equal(rows.Luck.icon, 'assets/2d/icon-stat-luck.png');
   assert.equal(rows.Regen.icon, 'assets/2d/icon-stat-regen.png');
   assert.equal(rows.Luck.value, `${Math.round(engineer.stats.luck * 100)}%`);
-  assert.equal(rows.Regen.value, `${engineer.stats.regen}/${config.PLAYER.regenTickS}s`);
+  assert.equal(
+    rows.Regen.value,
+    `${(engineer.stats.regen * config.SECONDS_PER_MINUTE) / config.PLAYER.regenTickS} HP/min`,
+  );
   assert.equal(characters.characterStatRows(engineer).length, 9);
   assert.equal(engineer.signature.badge, `${config.CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction * 100}% MAX HP / CORE UPGRADE`);
 });

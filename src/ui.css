@@ -1413,8 +1413,8 @@ body:has(:is(#levelup-overlay, #chest-overlay, #shop-overlay, #pause-overlay):no
 /* The inventory sections (Weapons / Cores / Mods) are always visible now
    (2026-07-11 rework) — the left panel is a permanent framed inventory,
    in-run and inside every overlay. */
-/* Full 20-stat sheet, right side of the level-up overlay. Slightly more
-   compact rows than the weapon panel (28px chips) so all 20 fit a 1080p
+/* Full 21-stat sheet, right side of the level-up overlay. Slightly more
+   compact rows than the weapon panel (28px chips) so all 21 fit a 1080p
    window with room to spare; scrolls only as a last resort on tiny windows. */
 #stat-sheet {
   position: fixed;

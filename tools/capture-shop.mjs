@@ -69,7 +69,7 @@ try {
     g.weaponLevels = { bolt: 3, pulse: 1 };
     g.coreLevels = { damage: 2, 'move-speed': 1 };
     g.modCounts = { 'stun-bumper': 1, 'detonator-rig': 1, 'piston-stompers': 2, 'foremans-whistle': 1 };
-    g.hud.updateBuild(g.stats, g.weaponLevels, g.modCounts, g.coreLevels);
+    g.hud.updateBuild(g.stats, g.player.maxHp, g.weaponLevels, g.modCounts, g.coreLevels);
   });
   await new Promise((r) => setTimeout(r, 400));
   await page.screenshot({ path: 'assets/preview/inventory-inrun.png' });
