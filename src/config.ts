@@ -2196,7 +2196,6 @@ export const CONTRACTS = {
   firstBossKill: 1,
   /** A complete run is structural now: both sectors, never elapsed time alone. */
   fullRunSectors: MAPS.length,
-  bossHunterKills: 5,
   fullLoadoutLevel: 25,
   /** One full run landed 625; this is meant to need a strong build, not a miracle. */
   overkillKillsInRun: 800,

@@ -1,4 +1,4 @@
-import { CONTRACTS, ENEMY_TYPES, PROFILE, WEAPON_INFO, type WeaponId } from './config';
+import { BOSS_TYPE_INDEXES, CONTRACTS, ENEMY_TYPES, PROFILE, WEAPON_INFO, type WeaponId } from './config';
 import { CORE_TITLES } from './upgrades';
 import { MOD_REGISTRY, refreshUnlockedMods, type ModId } from './mods';
 import { LIFETIME, saveProfile, type LifetimeStats } from './profile';
@@ -28,6 +28,8 @@ export type Objective =
   | { type: 'reach-level'; n: number }
   | { type: 'survive'; seconds: number }
   | { type: 'defeat-bosses'; n: number }
+  /** Every listed boss TYPE, not an arbitrary number of distinct boss kinds. */
+  | { type: 'defeat-boss-types'; requiredTypes: readonly string[] }
   /** Distinct boss KINDS, not a count of kills. */
   | { type: 'boss-kinds'; n: number }
   | { type: 'weapons-mastered'; n: number }
@@ -86,6 +88,13 @@ export const CORE_QUEUE: string[] = [
 
 export const MOD_QUEUE: ModId[] = ['coolant-burst' as ModId, 'chain-relay' as ModId];
 
+/** Boss type identifiers are persisted by name in LIFETIME.bossTypesDefeated. */
+const MAP_1_BOSS_TYPE_IDS = [...new Set(BOSS_TYPE_INDEXES.map((index) => {
+  const type = ENEMY_TYPES[index];
+  if (!type) throw new Error(`Map 1 boss index ${index} is missing from ENEMY_TYPES.`);
+  return type.name;
+}))];
+
 const SIGNATURE: Contract[] = [
   {
     id: 'first-blood', title: 'First Blood',
@@ -101,8 +110,8 @@ const SIGNATURE: Contract[] = [
   },
   {
     id: 'boss-hunter', title: 'Boss Hunter',
-    description: 'Defeat five bosses.',
-    objective: { type: 'defeat-bosses', n: CONTRACTS.bossHunterKills },
+    description: 'Defeat every Map 1 boss.',
+    objective: { type: 'defeat-boss-types', requiredTypes: MAP_1_BOSS_TYPE_IDS },
     reward: { kind: 'socket', slot: 'weapon' },
   },
   {
@@ -217,6 +226,13 @@ export function progressOf(objective: Objective, stats: LifetimeStats = LIFETIME
     case 'reach-level': return { current: stats.bestLevel, target: objective.n };
     case 'survive': return { current: stats.bestDurationS, target: objective.seconds };
     case 'defeat-bosses': return { current: stats.bossesDefeated, target: objective.n };
+    case 'defeat-boss-types': {
+      const defeatedTypes = new Set(stats.bossTypesDefeated);
+      return {
+        current: objective.requiredTypes.filter((type) => defeatedTypes.has(type)).length,
+        target: objective.requiredTypes.length,
+      };
+    }
     case 'boss-kinds': return { current: stats.bossTypesDefeated.length, target: objective.n };
     case 'minimal-run': return { current: stats.bestMinimalRunS, target: objective.seconds };
     case 'minimal-sectors': return { current: stats.bestMinimalSectors, target: objective.n };
