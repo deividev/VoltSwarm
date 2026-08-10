@@ -597,9 +597,11 @@ Cuestiones abiertas para la sesión de diseño: ¿se ataca por densidad (menos c
 
 ---
 
-## Crusher King — banquillo y el principio del boss anclado (2026-08-07)
+## Crusher King — reactivado con su comportamiento móvil anterior (2026-08-10)
 
-Cierra la sección anterior. **Decisión del usuario: el Crusher King sale de la rotación de invocación en AMBAS ramas; de momento el único boss es el Tesla Titan.** No se borra nada: su tipo, modelo, moveset y números siguen vivos y funciona en el boss lab. Volver a meterlo es añadir `CRUSHER_KING_TYPE_INDEX` a `BOSS_TYPE_INDEXES`.
+**Estado actual:** el Crusher King vuelve a la rotación normal de invocación de Mapa 1 en AMBAS ramas para el siguiente playtest, junto al Tesla Titan. Recupera exactamente su comportamiento móvil anterior: `behavior: 'chase'` y `speed: 3`. El experimento posterior que lo anclaba con velocidad 0 queda revertido y no describe el comportamiento vigente.
+
+> **HISTÓRICO / SUPERSEDED:** el resto de este apartado conserva el razonamiento y los resultados del experimento anclado. Ninguna mención posterior a velocidad 0, boss quieto o embestida al vacío describe el estado activo.
 
 Este apartado sustituye a `docs/BOSS_KING_MOVESET_PLAN.md`, que se elimina: su propuesta se implementó, se juzgó y quedó superada por el hallazgo de abajo.
 
@@ -618,7 +620,7 @@ Nuestro King hacía lo contrario (`behavior: 'chase'`): jugador y enjambre compa
 
 Fuentes: [guía de bosses](https://megabonk.org/guides/bosses/) · [timeline de fase](https://megabonk.org/guides/mechanics/timer/) · [ScreenRant](https://screenrant.com/megabonk-boss-guide-locations-how-to-beat/) · [Megabonk Wiki](https://megabonkwiki.net/articles/how-to-beat-every-boss-in-megabonk).
 
-### Qué se probó y por qué está en el banquillo
+### Experimento histórico superado: anclaje y banquillo
 
 `ENEMY_TYPES` 'Crusher King' pasa a `speed: 0` — el King se ancla. El usuario lo juzgó **mejor** que la persecución, pero encontró el defecto que motiva el banquillo:
 
@@ -626,7 +628,7 @@ Fuentes: [guía de bosses](https://megabonk.org/guides/bosses/) · [timeline de 
 
 **Es la mitad no terminada de la EMBESTIDA, no del anclaje.** El ancla funciona; lo que falta es que el ram deje de perseguir y de cruzar 20 unidades para acabar encima del jugador. Eso es exactamente lo que hacía la etapa A del trabajo guardado (ver abajo).
 
-El Tesla no tiene ese problema: aguanta una distancia de plantado y dispara, así que nunca comparte destino con el jugador. Por eso es el que se queda.
+El Tesla no tiene ese problema: aguanta una distancia de plantado y dispara, así que nunca comparte destino con el jugador. Por eso sigue siendo la referencia estable mientras se mide de nuevo al King.
 
 ### Trabajo construido, guardado sin juzgar (`git stash`)
 

@@ -80,6 +80,16 @@ test('Boss Hunter unlocks weapon slot 3 and cannot exceed the design cap', () =>
   }
 });
 
+test('Foreman tracks every boss kind in the full-game roster', () => {
+  const foreman = contracts.ALL_CONTRACTS.find((contract) => contract.id === 'foreman');
+  assert.ok(foreman);
+  assert.deepEqual(foreman.objective, {
+    type: 'boss-kinds',
+    n: config.ENEMY_TYPES.filter((type) => type.isBoss).length,
+  });
+  assert.equal(foreman.objective.n, 3);
+});
+
 test('socket HUD derives three weapon pips from PROFILE rather than a fixed count', async () => {
   const hudSource = await readFile(new URL('../src/hud.ts', import.meta.url), 'utf8');
   assert.match(hudSource, /Array\.from\(\{ length: PROFILE\.maxWeaponSockets \}/);

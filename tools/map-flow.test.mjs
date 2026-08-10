@@ -3,9 +3,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import {
   BOSS_TYPE_INDEXES,
+  CRUSHER_KING_TYPE_INDEX,
   ENEMY_TYPES,
   FINAL_BOSS_TYPE_INDEX,
   MAPS,
+  TESLA_TITAN_TYPE_INDEX,
 } from '../src/config.ts';
 import {
   advanceRunFlow,
@@ -121,5 +123,16 @@ test('Hazard Marshal has one instanced slot and is excluded from Map 1 boss draw
   assert.equal(hazard?.modelKey, 'final-boss');
   assert.equal(hazard?.capacity, 1);
   assert.equal(hazard?.isBoss, true);
+  assert.equal(BOSS_TYPE_INDEXES.includes(FINAL_BOSS_TYPE_INDEX), false);
+});
+
+test('Map 1 summon pool contains Crusher King and Tesla Titan only', () => {
+  assert.deepEqual(BOSS_TYPE_INDEXES, [CRUSHER_KING_TYPE_INDEX, TESLA_TITAN_TYPE_INDEX]);
+  assert.deepEqual(BOSS_TYPE_INDEXES.map((index) => ENEMY_TYPES[index]?.name), [
+    'Crusher King',
+    'Tesla Titan',
+  ]);
+  assert.equal(ENEMY_TYPES[CRUSHER_KING_TYPE_INDEX]?.behavior, 'chase');
+  assert.equal(ENEMY_TYPES[CRUSHER_KING_TYPE_INDEX]?.speed, 3);
   assert.equal(BOSS_TYPE_INDEXES.includes(FINAL_BOSS_TYPE_INDEX), false);
 });
