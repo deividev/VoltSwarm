@@ -21,8 +21,8 @@ test('Hull Plates keeps its Max HP tiers but has no immediate heal or healing co
 });
 
 test('Nanobot Swarm and the stat sheet state config-derived HP per minute', async () => {
-  assert.deepEqual(CORE_TIER_MAGNITUDES.regen, [1, 2, 3, 4, 5]);
-  assert.equal(PLAYER.regenTickS, 5);
+  assert.deepEqual(CORE_TIER_MAGNITUDES.regen, [0.5, 1, 1.5, 2, 2.5]);
+  assert.equal(PLAYER.regenTickS, 10);
   assert.equal(SECONDS_PER_MINUTE, 60);
   const [nanobotSwarm, hudSource] = await Promise.all([
     coreCardBlock('regen'),

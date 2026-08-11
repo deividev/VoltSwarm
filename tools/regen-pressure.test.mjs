@@ -59,7 +59,7 @@ test('Regen HP/min reports recovery against representative real incoming-damage 
   const rustbrute = byName('Rustbrute');
   const regenRates = CORE_TIER_MAGNITUDES.regen.map(regenHpPerMinute);
 
-  assert.deepEqual(regenRates, [12, 24, 36, 48, 60]);
+  assert.deepEqual(regenRates, [3, 6, 9, 12, 15]);
   for (let tier = 1; tier < regenRates.length; tier++) {
     assert.ok(regenRates[tier] > regenRates[tier - 1], `Regen tier ${tier + 1} must exceed tier ${tier}`);
   }
@@ -119,7 +119,7 @@ test('Regen HP/min reports recovery against representative real incoming-damage 
     `Spawner: opening ${opening.waveSize} per ${opening.intervalS.toFixed(2)}s / cap ${opening.maxActive}; Gunner arrival ${gunnerArrival.waveSize} per ${gunnerArrival.intervalS.toFixed(2)}s / cap ${gunnerArrival.maxActive}; Rustbrute arrival HP multiplier ${rustbruteArrival.hpMultiplier.toFixed(2)}.`,
   ].join('\n'));
 
-  assert.equal(recoverySeconds(PLAYER.contactDamage, regenRates[0]), 40);
-  assert.equal(recoverySeconds(PLAYER.contactDamage, regenRates[4]), 8);
-  assert.equal(recoverySeconds(GUNNER.projectileDamage, regenRates[4]), 10);
+  assert.equal(recoverySeconds(PLAYER.contactDamage, regenRates[0]), 160);
+  assert.equal(recoverySeconds(PLAYER.contactDamage, regenRates[4]), 32);
+  assert.equal(recoverySeconds(GUNNER.projectileDamage, regenRates[4]), 40);
 });
