@@ -1446,7 +1446,7 @@ export const CORE_TIER_MAGNITUDES = {
   'projectile-speed': [0.1, 0.14, 0.18, 0.3, 0.42],
   area: [0.08, 0.11, 0.14, 0.22, 0.3],
   armor: [0.08, 0.11, 0.15, 0.25, 0.35],
-  regen: [0.5, 1, 1.5, 2, 2.5],
+  regen: [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6],
   'max-hp': [15, 20, 25, 45, 65],
   evasion: [8, 11, 14, 22, 30],
   thorns: [6, 9, 12, 20, 28],
@@ -1730,7 +1730,7 @@ export const CHARACTER_BALANCE = {
     armor: 0.05,
     regen: 0,
     luck: 0,
-    fieldRepairFraction: 0.06,
+    fieldRepairFraction: 0.01,
   },
 } as const;
 

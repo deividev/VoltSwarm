@@ -130,3 +130,13 @@ test('Armor and Luck Core magnitudes cannot regress to 100x point units', () => 
     [0, 0, 45, 35, 20],
   );
 });
+
+test('Nanobot Swarm keeps its 10-second config values aligned with HP per minute copy', () => {
+  const nanobotSwarm = upgrades.STAT_CARDS.find((card) => card.id === 'regen');
+  const perTick = [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6];
+  assert.ok(nanobotSwarm);
+  assert.equal(config.PLAYER.regenTickS, 10);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, perTick);
+  assert.deepEqual(nanobotSwarm.magnitudes, perTick);
+  assert.deepEqual(perTick.map(config.regenHpPerMinute), [1, 2, 3, 4, 5]);
+});

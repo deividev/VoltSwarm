@@ -24,12 +24,12 @@ test('Sustain Core tiers and player-facing values are config-derived', () => {
   const lifesteal = card('lifesteal');
 
   assert.equal(config.PLAYER.regenTickS, 10);
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [0.5, 1, 1.5, 2, 2.5]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
   assert.deepEqual(
     config.CORE_TIER_MAGNITUDES.regen.map(config.regenHpPerMinute),
-    [3, 6, 9, 12, 15],
+    [1, 2, 3, 4, 5],
   );
-  assert.equal(regen.describe(config.CORE_TIER_MAGNITUDES.regen[0]), '+3 HP Regen/min');
+  assert.equal(regen.describe(config.CORE_TIER_MAGNITUDES.regen[0]), '+1 HP Regen/min');
 
   assert.equal(config.PLAYER.lifestealHealHp, 1);
   assert.equal(config.PLAYER.lifestealCooldownS, 1);
@@ -59,7 +59,23 @@ test('Hull Plates changes only maximum HP, never the current HP directly', () =>
   assert.equal(hullPlates.describe(magnitude), `+${magnitude} Max HP`);
 });
 
+test('gameplay Field Repair excludes Hull Plates while other Core upgrades still qualify', async () => {
+  const source = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
+  const start = source.indexOf('private applyUpgrade(card: UpgradeCard)');
+  const end = source.indexOf('\n  private frame()', start);
+  assert.ok(start >= 0 && end > start, 'applyUpgrade gameplay seam must exist');
+  const applyUpgrade = source.slice(start, end);
+
+  assert.match(
+    applyUpgrade,
+    /if \(\s*coreLevelBefore !== null\s*&& card\.id !== 'max-hp'\s*&& \(this\.coreLevels\[card\.id\] \?\? 0\) > coreLevelBefore\s*\) \{\s*this\.player\.hp = fieldRepairHp\(/,
+  );
+});
+
 test('The runtime uses config-owned sustain values and feeds live Max HP into the stats sheet', async () => {
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen.map(config.regenHpPerMinute), [1, 2, 3, 4, 5]);
+  assert.equal(config.PLAYER.regenTickS, 10);
   const [gameSource, hudSource] = await Promise.all([
     readFile(new URL('../src/game.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/hud.ts', import.meta.url), 'utf8'),

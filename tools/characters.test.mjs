@@ -127,9 +127,9 @@ test('registered run characters survive profile lock changes', () => {
   assert.equal(characters.registeredCharacterId('unknown-character'), characters.DEFAULT_CHARACTER_ID);
 });
 
-test('Field Repair heals after a gameplay Core change, clamps, and ignores rebuild paths', () => {
-  assert.equal(characters.fieldRepairHp('field-engineer', 40, 110, 'gameplay'), 46.6);
-  assert.equal(characters.fieldRepairHp('field-engineer', 108, 110, 'gameplay'), 110);
+test('Field Repair heals 1% after an eligible gameplay Core change, clamps, and ignores rebuild paths', () => {
+  assert.equal(characters.fieldRepairHp('field-engineer', 40, 110, 'gameplay'), 41.1);
+  assert.equal(characters.fieldRepairHp('field-engineer', 109.5, 110, 'gameplay'), 110);
   for (const context of ['load', 'replay', 'boss-lab', 'rebuild']) {
     assert.equal(characters.fieldRepairHp('field-engineer', 40, 110, context), 40);
   }

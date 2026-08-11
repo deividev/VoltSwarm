@@ -22,7 +22,8 @@ test('Regen remains below continuous unmitigated contact pressure', async (t) =>
   assert.match(gameSource, /const amount = applyArmor\(rawDamage, this\.stats\.armor\)/);
   assert.match(gameSource, /PLAYER\.contactDamage \* \(e\.elite \? ELITES\.scaleMultiplier : 1\)/);
   assert.match(gameSource, /this\.regenTimer >= PLAYER\.regenTickS/);
-  assert.deepEqual(regenPerMinute, [3, 6, 9, 12, 15]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
+  assert.deepEqual(regenPerMinute, [1, 2, 3, 4, 5]);
   assert.equal(damagePerContact, config.PLAYER.contactDamage);
   assert.equal(contactDps, config.PLAYER.contactDamage / config.PLAYER.invulnAfterHitS);
   assert.ok(

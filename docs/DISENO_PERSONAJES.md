@@ -17,7 +17,7 @@ Debe ser una evolución reconocible del jugador actual y cargar con las primeras
 | Pieza | Candidato para validar |
 |---|---|
 | Perfil | 110 HP, Armor rating 5%, daño ×0.95, velocidad 11; Attack Speed ×1, crítico 5%/+50%, Luck y Regen 0. |
-| Signature | **Field Repair**: instalar o subir de tier un Core durante gameplay cura 6% de HP máximo después de aplicar el Core, con clamp y sin overheal. No dispara al cargar/reproducir/reconstruir builds ni en Boss Lab. |
+| Signature | **Field Repair**: instalar o subir de tier cualquier Core excepto Hull Plates durante gameplay cura 1% de HP máximo después de aplicar el Core, con clamp y sin overheal. No dispara al cargar/reproducir/reconstruir builds ni en Boss Lab. |
 | Draft inicial | Bolt Cannon conserva las mismas odds y solo recibe la etiqueta `Recommended` cuando aparece naturalmente. Nunca se garantiza ni equipa por fuerza. |
 | Regla de movilidad | Ninguna ventaja exclusiva. El personaje sobrevive por HP/Armor y la signature de Cores. |
 | Tradeoff | Menor daño base a cambio de margen defensivo; magnitudes fijadas para la primera versión jugable y sujetas a recalibración con percentiles. |
