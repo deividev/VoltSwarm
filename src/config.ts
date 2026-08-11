@@ -1450,7 +1450,7 @@ export const CORE_TIER_MAGNITUDES = {
   'max-hp': [15, 20, 25, 45, 65],
   evasion: [8, 11, 14, 22, 30],
   thorns: [6, 9, 12, 20, 28],
-  lifesteal: [2, 3, 4, 7, 10],
+  lifesteal: [0.1, 0.5, 1, 1.5, 2],
   duration: [0.1, 0.13, 0.16, 0.25, 0.35],
   luck: [0.04, 0.08, 0.1, 0.14, 0.2],
   cursed: [0.06, 0.08, 0.1, 0.14, 0.2],

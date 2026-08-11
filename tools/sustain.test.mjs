@@ -7,6 +7,7 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 const config = await server.ssrLoadModule('/src/config.ts');
 const stats = await server.ssrLoadModule('/src/stats.ts');
 const upgrades = await server.ssrLoadModule('/src/upgrades.ts');
+const hud = await server.ssrLoadModule('/src/hud.ts');
 
 after(async () => {
   await server.close();
@@ -32,10 +33,17 @@ test('Sustain Core tiers and player-facing values are config-derived', () => {
 
   assert.equal(config.PLAYER.lifestealHealHp, 1);
   assert.equal(config.PLAYER.lifestealCooldownS, 1);
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.lifesteal, [2, 3, 4, 7, 10]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.lifesteal, [0.1, 0.5, 1, 1.5, 2]);
   assert.equal(
     lifesteal.describe(config.CORE_TIER_MAGNITUDES.lifesteal[0]),
-    '+2% Lifesteal (chance to restore 1 HP on hit; 1s global cooldown)',
+    '+0.1% Lifesteal (chance to restore 1 HP on hit; 1s global cooldown)',
+  );
+});
+
+test('Lifesteal stat formatting preserves fractional percentage points without trailing zeros', () => {
+  assert.deepEqual(
+    config.CORE_TIER_MAGNITUDES.lifesteal.map(hud.formatPercentPoints),
+    ['0.1%', '0.5%', '1%', '1.5%', '2%'],
   );
 });
 
@@ -59,6 +67,7 @@ test('The runtime uses config-owned sustain values and feeds live Max HP into th
 
   assert.match(gameSource, /this\.regenTimer >= PLAYER\.regenTickS/);
   assert.match(gameSource, /this\.player\.hp = Math\.min\(this\.player\.maxHp, this\.player\.hp \+ this\.stats\.regen\)/);
+  assert.match(gameSource, /Math\.random\(\) < this\.stats\.lifesteal \/ 100/);
   assert.match(gameSource, /this\.player\.hp = Math\.min\(this\.player\.maxHp, this\.player\.hp \+ PLAYER\.lifestealHealHp\)/);
   assert.match(gameSource, /this\.lifestealCooldown = PLAYER\.lifestealCooldownS/);
   assert.match(gameSource, /this\.hud\.updateBuild\(this\.stats, this\.weaponLevels, this\.modCounts, this\.coreLevels, this\.weaponBranches, this\.player\.maxHp\)/);

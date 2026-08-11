@@ -311,6 +311,7 @@ interface StatRow {
 const asMult = (value: number): string => `x${value.toFixed(2).replace(/0$/, '')}`;
 const asPct = (value: number): string => `${Math.round(value * 100)}%`;
 const asPoints = (value: number): string => `${Math.round(value)}`;
+export const formatPercentPoints = (value: number): string => `${Number(value.toFixed(2))}%`;
 
 const STAT_ROWS: StatRow[] = [
   { key: 'maxHp', icon: '❤️', label: 'Max HP', format: asPoints },
@@ -328,7 +329,7 @@ const STAT_ROWS: StatRow[] = [
   { key: 'regen', icon: '❤️', label: 'Regen', format: (v) => `${asPoints(regenHpPerMinute(v))} HP/min` },
   { key: 'evasion', icon: '👻', label: 'Evasion', format: asPoints },
   { key: 'thorns', icon: '🌵', label: 'Thorns', format: asPoints },
-  { key: 'lifesteal', icon: '🩸', label: 'Lifesteal', format: (v) => `${asPoints(v)}%` },
+  { key: 'lifesteal', icon: '🩸', label: 'Lifesteal', format: formatPercentPoints },
   { key: 'duration', icon: '⏳', label: 'Duration', format: asMult },
   { key: 'luck', icon: '🍀', label: 'Luck', format: asPct },
   { key: 'xpGain', icon: '📖', label: 'XP Gain', format: asMult },
