@@ -52,7 +52,7 @@ export const CHARACTER_REGISTRY: Readonly<Record<CharacterId, CharacterDef>> = {
   [DEFAULT_CHARACTER_ID]: {
     id: DEFAULT_CHARACTER_ID,
     name: 'Field Engineer',
-    shortDescription: 'A forgiving chassis that turns Core upgrades into repairs.',
+    shortDescription: 'A forgiving chassis that turns Core upgrades into small repairs.',
     portrait: 'assets/2d/ref-field-engineer-front-v1.png',
     modelKey: 'field-engineer',
     maxHp: CHARACTER_BALANCE.fieldEngineer.maxHp,
@@ -60,10 +60,10 @@ export const CHARACTER_REGISTRY: Readonly<Record<CharacterId, CharacterDef>> = {
     stats: fieldEngineerStats(),
     signature: {
       name: 'Field Repair',
-      description: `Installing or upgrading a Core restores ${asPercent(CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction)} of maximum HP.`,
+      description: `Installing or upgrading a Core restores ${asPercent(CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction)} of maximum HP, except Hull Plates.`,
       badge: `${asPercent(CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction)} MAX HP / CORE UPGRADE`,
     },
-    tradeoff: `More durability and repair access, but ${asPercent(BASE_STATS.damage - CHARACTER_BALANCE.fieldEngineer.damage)} less damage.`,
+    tradeoff: `More durability and minor repair access, but ${asPercent(BASE_STATS.damage - CHARACTER_BALANCE.fieldEngineer.damage)} less damage.`,
     recommendedWeapon: 'bolt',
     unlock: { kind: 'default' },
   },
@@ -160,7 +160,7 @@ export function labelWeaponOptions<T extends WeaponId>(
 
 export type SignatureTriggerContext = 'gameplay' | 'load' | 'replay' | 'boss-lab' | 'rebuild';
 
-/** Pure Field Repair rule. Call only after the Core has been applied. */
+/** Pure Field Repair rule. Call only after an eligible Core has been applied. */
 export function fieldRepairHp(
   characterId: CharacterId,
   hp: number,

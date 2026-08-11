@@ -20,8 +20,21 @@ test('Hull Plates keeps its Max HP tiers but has no immediate heal or healing co
   assert.doesNotMatch(hullPlates, /p\.hp|heal/i);
 });
 
+test('gameplay Field Repair excludes Hull Plates while other Core upgrades still qualify', async () => {
+  const source = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
+  const start = source.indexOf('private applyUpgrade(card: UpgradeCard)');
+  const end = source.indexOf('\n  private frame()', start);
+  assert.ok(start >= 0 && end > start, 'applyUpgrade gameplay seam must exist');
+  const applyUpgrade = source.slice(start, end);
+
+  assert.match(
+    applyUpgrade,
+    /if \(\s*coreLevelBefore !== null\s*&& card\.id !== 'max-hp'\s*&& \(this\.coreLevels\[card\.id\] \?\? 0\) > coreLevelBefore\s*\) \{\s*this\.player\.hp = fieldRepairHp\(/,
+  );
+});
+
 test('Nanobot Swarm and the stat sheet state config-derived HP per minute', async () => {
-  assert.deepEqual(CORE_TIER_MAGNITUDES.regen, [0.5, 1, 1.5, 2, 2.5]);
+  assert.deepEqual(CORE_TIER_MAGNITUDES.regen, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
   assert.equal(PLAYER.regenTickS, 10);
   assert.equal(SECONDS_PER_MINUTE, 60);
   const [nanobotSwarm, hudSource] = await Promise.all([

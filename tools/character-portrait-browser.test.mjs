@@ -14,7 +14,7 @@ const EXPECTED_STATS = [
   ['crit-chance', 'Crit Chance', 'assets/2d/icon-stat-crit.png', '5%'],
   ['crit-damage', 'Crit Damage', 'assets/2d/icon-stat-crit-damage.png', '+50%'],
   ['luck', 'Luck', 'assets/2d/icon-stat-luck.png', '0%'],
-  ['regen', 'Regen', 'assets/2d/icon-stat-regen.png', '0/5s'],
+  ['regen', 'Regen', 'assets/2d/icon-stat-regen.png', '0 HP/min'],
 ];
 const CHROME_PATHS = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -376,7 +376,7 @@ try {
   assert.equal(selectorState.selected, 'true');
   assert.equal(selectorState.status, 'Unlocked');
   assert.equal(selectorState.header, 'Field Engineer');
-  assert.equal(selectorState.description, 'A forgiving chassis that turns Core upgrades into repairs.');
+  assert.equal(selectorState.description, 'A forgiving chassis that turns Core upgrades into small repairs.');
   assert.deepEqual(selectorState.stats, EXPECTED_STATS);
   assert.deepEqual(selectorState.modules, [
     {
@@ -384,7 +384,7 @@ try {
       icon: 'assets/2d/icon-item-repair.png',
       label: 'Signature',
       title: 'Field Repair',
-      badge: '6% MAX HP / CORE UPGRADE',
+      badge: '1% MAX HP / CORE UPGRADE',
     },
     {
       id: 'recommended-weapon',

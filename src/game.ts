@@ -866,7 +866,11 @@ export class Game {
         },
       },
     );
-    if (coreLevelBefore !== null && (this.coreLevels[card.id] ?? 0) > coreLevelBefore) {
+    if (
+      coreLevelBefore !== null
+      && card.id !== 'max-hp'
+      && (this.coreLevels[card.id] ?? 0) > coreLevelBefore
+    ) {
       this.player.hp = fieldRepairHp(
         this.currentCharacterId,
         this.player.hp,

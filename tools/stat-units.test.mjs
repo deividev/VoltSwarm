@@ -152,14 +152,14 @@ test('Hull Plates raises only Max HP and never advertises or grants an immediate
 test('Nanobot Swarm uses the increasing five-tier regen values and names its config-derived HP per minute', () => {
   const nanobotSwarm = upgrades.STAT_CARDS.find((card) => card.id === 'regen');
   assert.ok(nanobotSwarm);
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [0.5, 1, 1.5, 2, 2.5]);
-  assert.deepEqual(nanobotSwarm.magnitudes, [0.5, 1, 1.5, 2, 2.5]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
+  assert.deepEqual(nanobotSwarm.magnitudes, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
   assert.equal(config.PLAYER.regenTickS, 10);
   assert.equal(config.SECONDS_PER_MINUTE, 60);
   const hpPerMinute = nanobotSwarm.magnitudes.map(
     (value) => (value * config.SECONDS_PER_MINUTE) / config.PLAYER.regenTickS,
   );
-  assert.deepEqual(hpPerMinute, [3, 6, 9, 12, 15]);
+  assert.deepEqual(hpPerMinute, [1, 2, 3, 4, 5]);
   for (const [index, value] of nanobotSwarm.magnitudes.entries()) {
     assert.equal(nanobotSwarm.describe(value), `+${hpPerMinute[index]} HP/min`);
   }
