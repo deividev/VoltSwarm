@@ -798,6 +798,7 @@ export interface EnemyTypeDef {
 export const ENEMY_TYPES: EnemyTypeDef[] = [
   {
     name: 'Voltling',
+    modelKey: 'voltling',
     behavior: 'chase',
     hp: 15,
     speed: 5.5,
@@ -812,6 +813,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Sparkrunner',
+    modelKey: 'sparkrunner',
     behavior: 'chase',
     /** 2.3x a same-moment Voltling — fourth rung of the arrival ladder. */
     hp: 35,
@@ -846,6 +848,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Rustbrute',
+    modelKey: 'rustbrute',
     /** 2026-07-30: 'chase' → 'charger'. See RUSTBRUTE for the reasoning. */
     behavior: 'charger',
     /** 96 → 68 (4.5x a same-moment Voltling) — sixth and last rung.
@@ -873,6 +876,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Roller',
+    modelKey: 'roller',
     behavior: 'roller',
     /** 1.8x a same-moment Voltling — third rung of the arrival ladder. */
     hp: 27,
@@ -893,6 +897,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   // knockback walls and flyers ignore separation — the counters to CC builds.
   {
     name: 'Gunner',
+    modelKey: 'gunner',
     behavior: 'gunner',
     /** 3.2x a same-moment Voltling — fifth rung. Durability is the right axis
      *  for a ranged type: it keeps its distance, so a fragile one just dies to
@@ -918,6 +923,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Drone',
+    modelKey: 'drone',
     behavior: 'flyer',
     /** 1.4x a same-moment Voltling — second rung. Barely tougher than the
      *  baseline on purpose: it arrives early and its lesson is POSITIONAL, not
@@ -951,6 +957,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   // 1.8 x 1.35 = 2.43) so the visual hierarchy is never ambiguous.
   {
     name: 'Crusher King',
+    modelKey: 'crusher-king',
     isBoss: true,
     behavior: 'chase',
     hp: 2600,
@@ -968,6 +975,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Tesla Titan',
+    modelKey: 'tesla-titan',
     isBoss: true,
     behavior: 'gunner',
     hp: 2200,
