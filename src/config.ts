@@ -306,7 +306,7 @@ export const PLAYER = {
    *  it. An impulse has to stop, and be seen stopping. */
   knockbackStopSpeed: 1.5,
   /** Seconds between passive regen ticks; each tick heals `stats.regen` HP. */
-  regenTickS: 5,
+  regenTickS: 10,
   /** HP restored by a successful Lifesteal roll. */
   lifestealHealHp: 1,
   /** Minimum seconds between lifesteal heals. Caps sustain at 1 HP/s no
@@ -1446,7 +1446,7 @@ export const CORE_TIER_MAGNITUDES = {
   'projectile-speed': [0.1, 0.14, 0.18, 0.3, 0.42],
   area: [0.08, 0.11, 0.14, 0.22, 0.3],
   armor: [0.08, 0.11, 0.15, 0.25, 0.35],
-  regen: [1, 2, 3, 4, 5],
+  regen: [0.5, 1, 1.5, 2, 2.5],
   'max-hp': [15, 20, 25, 45, 65],
   evasion: [8, 11, 14, 22, 30],
   thorns: [6, 9, 12, 20, 28],

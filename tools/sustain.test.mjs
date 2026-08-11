@@ -23,13 +23,13 @@ test('Sustain Core tiers and player-facing values are config-derived', () => {
   const regen = card('regen');
   const lifesteal = card('lifesteal');
 
-  assert.equal(config.PLAYER.regenTickS, 5);
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [1, 2, 3, 4, 5]);
+  assert.equal(config.PLAYER.regenTickS, 10);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [0.5, 1, 1.5, 2, 2.5]);
   assert.deepEqual(
     config.CORE_TIER_MAGNITUDES.regen.map(config.regenHpPerMinute),
-    [12, 24, 36, 48, 60],
+    [3, 6, 9, 12, 15],
   );
-  assert.equal(regen.describe(config.CORE_TIER_MAGNITUDES.regen[0]), '+12 HP Regen/min');
+  assert.equal(regen.describe(config.CORE_TIER_MAGNITUDES.regen[0]), '+3 HP Regen/min');
 
   assert.equal(config.PLAYER.lifestealHealHp, 1);
   assert.equal(config.PLAYER.lifestealCooldownS, 1);
