@@ -56,7 +56,7 @@ test('stat sheet reads the live Max HP total after Hull Plates updates the playe
 });
 
 test('Leech Coil uses the reduced chance tiers while retaining its global cooldown', async () => {
-  assert.deepEqual(CORE_TIER_MAGNITUDES.lifesteal, [2, 3, 4, 7, 10]);
+  assert.deepEqual(CORE_TIER_MAGNITUDES.lifesteal, [0.1, 0.5, 1, 1.5, 2]);
   assert.equal(PLAYER.lifestealCooldownS, 1);
 
   const [leechCoil, gameSource] = await Promise.all([
@@ -64,5 +64,6 @@ test('Leech Coil uses the reduced chance tiers while retaining its global cooldo
     readFile(new URL('../src/game.ts', import.meta.url), 'utf8'),
   ]);
   assert.match(leechCoil, /\$\{v\}% chance on hit to heal 1 HP; \$\{PLAYER\.lifestealCooldownS\}s global cooldown/);
+  assert.match(gameSource, /this\.player\.hp\s*=\s*Math\.min\(this\.player\.maxHp, this\.player\.hp \+ 1\);/);
   assert.match(gameSource, /this\.lifestealCooldown\s*=\s*PLAYER\.lifestealCooldownS;/);
 });
