@@ -121,7 +121,7 @@ export function buildChestReelStrip(
 /** Boss bar mini-portraits: the flat reference sheets double as face art. */
 const BOSS_PORTRAITS: Record<string, string> = {
   'crusher king': 'assets/2d/ref-crusher-king-front-v2.png',
-  'tesla titan': 'assets/2d/ref-tesla-titan-front.png',
+  'tesla titan': 'assets/2d/ref-tesla-titan-front-v2.png',
   'volt warden': 'assets/2d/ref-volt-warden-front.png',
 };
 

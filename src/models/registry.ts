@@ -641,7 +641,7 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
     sideProfileRef: 'assets/2d/ref-crusher-king-side-v1.png',
     backPaintRef: 'assets/2d/ref-crusher-king-back-v1.png',
     // Sized to the primitive boss rig (~1.9u tall) because the instance
-    // scale (BOSS 4.6x) multiplies on top. Gold is a full material (crown
+    // scale (Crusher 3.1x) multiplies on top. Gold is a full material (crown
     // spikes are silhouette), not a front-only glow; crest logic off so the
     // crown keeps its gold through the depth.
     targetWidth: 41,
