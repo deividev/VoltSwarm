@@ -710,8 +710,6 @@ export type EnemyBehavior = 'chase' | 'roller' | 'gunner' | 'flyer' | 'charger';
 
 export interface EnemyTypeDef {
   name: string;
-  /** Explicit source-approved model registry key for this enemy type. */
-  modelKey?: string;
   behavior: EnemyBehavior;
   hp: number;
   speed: number;
@@ -742,7 +740,6 @@ export interface EnemyTypeDef {
 export const ENEMY_TYPES: EnemyTypeDef[] = [
   {
     name: 'Voltling',
-    modelKey: 'voltling',
     behavior: 'chase',
     hp: 15,
     speed: 5.5,
@@ -757,7 +754,6 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Sparkrunner',
-    modelKey: 'sparkrunner',
     behavior: 'chase',
     /** 2.3x a same-moment Voltling — fourth rung of the arrival ladder. */
     hp: 35,
@@ -792,7 +788,6 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Rustbrute',
-    modelKey: 'rustbrute',
     /** 2026-07-30: 'chase' → 'charger'. See RUSTBRUTE for the reasoning. */
     behavior: 'charger',
     /** 96 → 68 (4.5x a same-moment Voltling) — sixth and last rung.
@@ -820,7 +815,6 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Roller',
-    modelKey: 'roller',
     behavior: 'roller',
     /** 1.8x a same-moment Voltling — third rung of the arrival ladder. */
     hp: 27,
@@ -838,10 +832,9 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
     capacity: 40,
   },
   // Gunners and drones carry the late-game pressure: projectiles ignore
-  // knockback walls and flyers ignore separation — the counters to CC builds.
+  // knockback walls and flyers approach with a distinct elevated silhouette.
   {
     name: 'Gunner',
-    modelKey: 'gunner',
     behavior: 'gunner',
     /** 3.2x a same-moment Voltling — fifth rung. Durability is the right axis
      *  for a ranged type: it keeps its distance, so a fragile one just dies to
@@ -867,7 +860,6 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Drone',
-    modelKey: 'drone',
     behavior: 'flyer',
     /** 1.4x a same-moment Voltling — second rung. Barely tougher than the
      *  baseline on purpose: it arrives early and its lesson is POSITIONAL, not
@@ -882,10 +874,9 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
     radius: 0.6,
     xp: 2,
     color: 0xff9de2,
-    /** SECOND arrival (2026-07-30, user's order). A flyer ignores separation
-     *  and props, so it comes over the crowd from a direction nothing else
-     *  can — the earliest lesson that hugging scenery does not save you, and
-     *  it teaches that before anything can actually catch the player. */
+    /** SECOND arrival (2026-07-30, user's order). Its elevated silhouette is
+     *  the earliest positional lesson, before anything can catch the player;
+     *  it still shares enemy and map-obstacle collision with the whole swarm. */
     unlockAtS: 75,
     /** 4 → 3 (2026-07-30 playtest: too many drones arriving at once to read).
      *  Ties the Roller rather than sitting above it — the ladder only needs to
@@ -901,15 +892,14 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   // 1.8 x 1.35 = 2.43) so the visual hierarchy is never ambiguous.
   {
     name: 'Crusher King',
-    modelKey: 'crusher-king',
     behavior: 'chase',
     hp: 2600,
     /** Restored 0 → 3 for the 2026-08-10 playtest. This is the live speed —
      *  boss.ts reads it from here, not from BOSS.crusher. Together with
      *  behavior `chase`, it restores the King's historical mobile behavior. */
     speed: 3,
-    scale: 4.6,
-    radius: 2.9,
+    scale: 3.1,
+    radius: 2.6,
     xp: 120,
     color: 0xff4433,
     unlockAtS: Infinity,
@@ -918,7 +908,6 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   },
   {
     name: 'Tesla Titan',
-    modelKey: 'tesla-titan',
     behavior: 'gunner',
     hp: 2200,
     speed: 2.4,
@@ -968,12 +957,24 @@ export const ENEMIES = {
   hpRampPerMinute: 0.3,
   /** Spatial-grid cell size for the separation pass. */
   separationCellSize: 2.6,
+  /** Exact-overlap recovery uses this epsilon and stable angular stride. */
+  coincidentSeparationEpsilon: 0.0001,
+  coincidentSeparationAngleStep: 2.399963229728653,
+  bossContact: {
+    /** Head-on CCD keeps routing momentum without producing a radial snap. */
+    headOnTangentFraction: 0.35,
+    headOnTangentMax: 0.75,
+  },
   obstacleAvoidance: {
     lookAhead: 5,
     clearance: 0.45,
     steerStrength: 1.65,
     bossLookAheadMultiplier: 1.55,
     resolvePasses: 2,
+    /** Side selection ignores centreline noise below this magnitude. */
+    sideChoiceEpsilon: 0.001,
+    /** Baseline tangent contribution before proximity and urgency. */
+    minimumSteerWeight: 0.35,
   },
   /** Concurrent-enemy cap at difficulty 0 and 1: waves pause while the field
    *  is saturated, so early builds are never drowned by sheer population.

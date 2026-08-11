@@ -59,6 +59,18 @@ test('package embeds the complete Map 1 demo contract', () => {
   assert.deepEqual(pkg.voltswarmBuild.allowedMaps, ['scrapyard']);
 });
 
+test('Demo package excludes the Map 2 Hazard Marshal reference sheets', () => {
+  const excludedAssets = new Set(pkg.build.files.filter((entry) => entry.startsWith('!dist/assets/2d/')));
+  assert.deepEqual(
+    [
+      'ref-hazard-marshal-front-v1.png',
+      'ref-hazard-marshal-side-v1.png',
+      'ref-hazard-marshal-back-v1.png',
+    ].map((name) => excludedAssets.has(`!dist/assets/2d/${name}`)),
+    [true, true, true],
+  );
+});
+
 test('packaged metadata preserves the complete runtime identity without electron-builder config', () => {
   const packagedPackage = {
     version: pkg.version,

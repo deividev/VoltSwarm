@@ -37,6 +37,9 @@ export interface Enemy {
   gen: number;
   x: number;
   z: number;
+  /** Position at the start of the current movement frame, for relative CCD. */
+  prevX: number;
+  prevZ: number;
   hp: number;
   maxHp: number;
   speed: number;
@@ -68,6 +71,13 @@ export interface Enemy {
   dotWeaponId: WeaponId | null;
   kbX: number;
   kbZ: number;
+  /** Obstacle whose avoidance side is currently locked. */
+  avoidanceObstacle: Obstacle | null;
+  /** Stable tangent side for `avoidanceObstacle`: -1 right, +1 left. */
+  avoidanceSide: number;
+  /** Stable identity behind a reused dynamic-obstacle slot. */
+  avoidanceSourceEnemy: Enemy | null;
+  avoidanceSourceGeneration: number;
 }
 
 export interface DeathInfo {
@@ -140,6 +150,8 @@ export class EnemySystem {
   /** Reused across frames so the dynamic-obstacle pass allocates nothing. */
   private readonly dynamicObstacles: EnemyObstacle[] = [];
   private readonly combinedObstacles: EnemyObstacle[] = [];
+  /** Reused active-boss set for the O(N) hard-separation pass. */
+  private readonly activeBosses: Enemy[] = [];
 
   private readonly meshes: THREE.InstancedMesh[] = [];
   private readonly eliteAura: THREE.InstancedMesh;
@@ -266,6 +278,8 @@ export class EnemySystem {
           gen: 0,
           x: 0,
           z: 0,
+          prevX: 0,
+          prevZ: 0,
           hp: 0,
           maxHp: 0,
           speed: 0,
@@ -288,6 +302,10 @@ export class EnemySystem {
           dotWeaponId: null,
           kbX: 0,
           kbZ: 0,
+          avoidanceObstacle: null,
+          avoidanceSide: 0,
+          avoidanceSourceEnemy: null,
+          avoidanceSourceGeneration: -1,
         });
       }
       mesh.instanceMatrix.needsUpdate = true;
@@ -344,6 +362,8 @@ export class EnemySystem {
 
     for (const e of this.pool) {
       if (!e.active) continue;
+      e.prevX = e.x;
+      e.prevZ = e.z;
       const type = ENEMY_TYPES[e.typeIndex];
       if (!type) continue;
 
@@ -435,8 +455,9 @@ export class EnemySystem {
       }
     }
 
-    this.separate();
     this.resolveObstacles(obstacles);
+    this.separate();
+    this.resolveBossSeparation();
     this.writeTransforms(elapsedS);
   }
 
@@ -447,6 +468,12 @@ export class EnemySystem {
     pz: number,
     obstacles: Obstacle[],
   ): void {
+    if (BOSS_TYPE_INDEXES.includes(e.typeIndex) && e.chargeState === CHARGE.lunging) {
+      e.x += Math.sin(e.heading) * e.speed * dt;
+      e.z += Math.cos(e.heading) * e.speed * dt;
+      return;
+    }
+
     let dx = px - e.x;
     let dz = pz - e.z;
     const dist = Math.hypot(dx, dz);
@@ -588,15 +615,14 @@ export class EnemySystem {
     }
   }
 
-  /** Spatial-hash separation so the swarm spreads instead of stacking.
-   *  Flyers are exempt — they come in over the crowd. */
+  /** Spatial-hash separation so every enemy body spreads instead of stacking,
+   *  including mixed flyer/ground pairs. */
   private separate(): void {
     this.grid.clear();
     const cell = ENEMIES.separationCellSize;
     for (let i = 0; i < this.pool.length; i++) {
       const e = this.pool[i];
       if (!e || !e.active) continue;
-      if (ENEMY_TYPES[e.typeIndex]?.behavior === 'flyer') continue;
       const key = gridKey(Math.floor(e.x / cell), Math.floor(e.z / cell));
       const bucket = this.grid.get(key);
       if (bucket) bucket.push(i);
@@ -625,35 +651,144 @@ export class EnemySystem {
     const a = this.pool[i];
     const b = this.pool[j];
     if (!a || !b) return;
+    const aBoss = BOSS_TYPE_INDEXES.includes(a.typeIndex);
+    const bBoss = BOSS_TYPE_INDEXES.includes(b.typeIndex);
+    // Boss trajectories are authoritative. CCD below handles every boss pair.
+    if (aBoss || bBoss) return;
     const minDist = a.radius + b.radius;
     let dx = b.x - a.x;
     let dz = b.z - a.z;
     const dSq = dx * dx + dz * dz;
-    if (dSq >= minDist * minDist || dSq < 0.0001) return;
-    const dist = Math.sqrt(dSq);
-    const push = (minDist - dist) * 0.5;
-    dx /= dist;
-    dz /= dist;
-    a.x -= dx * push;
-    a.z -= dz * push;
-    b.x += dx * push;
-    b.z += dz * push;
+    if (dSq >= minDist * minDist) return;
+    let dist = Math.sqrt(dSq);
+    if (dist < ENEMIES.coincidentSeparationEpsilon) {
+      const angle = ((i + 1) * (j + 1) * ENEMIES.coincidentSeparationAngleStep) % (Math.PI * 2);
+      dx = Math.cos(angle);
+      dz = Math.sin(angle);
+      dist = 0;
+    } else {
+      dx /= dist;
+      dz /= dist;
+    }
+    const overlap = minDist - dist;
+    if (aBoss) {
+      b.x += dx * overlap;
+      b.z += dz * overlap;
+    } else if (bBoss) {
+      a.x -= dx * overlap;
+      a.z -= dz * overlap;
+    } else {
+      const push = overlap * 0.5;
+      a.x -= dx * push;
+      a.z -= dz * push;
+      b.x += dx * push;
+      b.z += dz * push;
+    }
+  }
+
+  /** Allocation-free relative swept-circle boss collision. Boss count is
+   *  capacity-bounded; only normal enemies move and clearRadius is not used. */
+  private resolveBossSeparation(): void {
+    this.activeBosses.length = 0;
+    for (const e of this.pool) {
+      if (e.active && BOSS_TYPE_INDEXES.includes(e.typeIndex)) this.activeBosses.push(e);
+    }
+    if (this.activeBosses.length === 0) return;
+
+    for (let i = 0; i < this.pool.length; i++) {
+      const e = this.pool[i];
+      if (!e?.active || BOSS_TYPE_INDEXES.includes(e.typeIndex)) continue;
+      for (let bossIndex = 0; bossIndex < this.activeBosses.length; bossIndex++) {
+        const boss = this.activeBosses[bossIndex];
+        if (!boss) continue;
+        const contactRadius = boss.radius + e.radius;
+        const contactRadiusSq = contactRadius * contactRadius;
+        const epsilonSq = ENEMIES.coincidentSeparationEpsilon ** 2;
+        const startX = e.prevX - boss.prevX;
+        const startZ = e.prevZ - boss.prevZ;
+        const relativeMoveX = (e.x - e.prevX) - (boss.x - boss.prevX);
+        const relativeMoveZ = (e.z - e.prevZ) - (boss.z - boss.prevZ);
+        const startDistanceSq = startX * startX + startZ * startZ;
+        const relativeMoveSq = relativeMoveX * relativeMoveX + relativeMoveZ * relativeMoveZ;
+        let toi = -1;
+        let normalX = 0;
+        let normalZ = 0;
+        if (startDistanceSq < contactRadiusSq) {
+          toi = 0;
+          if (startDistanceSq > epsilonSq) {
+            const inverseStartDistance = 1 / Math.sqrt(startDistanceSq);
+            normalX = startX * inverseStartDistance;
+            normalZ = startZ * inverseStartDistance;
+          } else if (relativeMoveSq > epsilonSq) {
+            const inverseMove = 1 / Math.sqrt(relativeMoveSq);
+            normalX = -relativeMoveX * inverseMove;
+            normalZ = -relativeMoveZ * inverseMove;
+          } else {
+            const angle = ((i + 1) * (bossIndex + 1) * ENEMIES.coincidentSeparationAngleStep) % (Math.PI * 2);
+            normalX = Math.cos(angle);
+            normalZ = Math.sin(angle);
+          }
+        } else if (relativeMoveSq > epsilonSq) {
+          const halfB = startX * relativeMoveX + startZ * relativeMoveZ;
+          const c = startDistanceSq - contactRadiusSq;
+          const discriminant = halfB * halfB - relativeMoveSq * c;
+          if (discriminant >= 0) {
+            const candidate = (-halfB - Math.sqrt(discriminant)) / relativeMoveSq;
+            if (candidate >= 0 && candidate <= 1) {
+              toi = candidate;
+              normalX = startX + relativeMoveX * toi;
+              normalZ = startZ + relativeMoveZ * toi;
+              const inverseContactDistance = 1 / Math.hypot(normalX, normalZ);
+              normalX *= inverseContactDistance;
+              normalZ *= inverseContactDistance;
+            }
+          }
+        }
+        if (toi < 0) continue;
+        const remainingX = relativeMoveX * (1 - toi);
+        const remainingZ = relativeMoveZ * (1 - toi);
+        const radialRemainder = remainingX * normalX + remainingZ * normalZ;
+        let tangentX = remainingX - normalX * radialRemainder;
+        let tangentZ = remainingZ - normalZ * radialRemainder;
+        const tangentSq = tangentX * tangentX + tangentZ * tangentZ;
+        if (tangentSq <= epsilonSq && relativeMoveSq > epsilonSq) {
+          const side = e.avoidanceSide !== 0 ? e.avoidanceSide : (e.slot + e.gen + boss.slot + boss.gen) % 2 === 0 ? 1 : -1;
+          const redirected = Math.min(Math.sqrt(remainingX * remainingX + remainingZ * remainingZ) * ENEMIES.bossContact.headOnTangentFraction, ENEMIES.bossContact.headOnTangentMax);
+          tangentX = -normalZ * side * redirected;
+          tangentZ = normalX * side * redirected;
+        }
+        const arenaLimit = ARENA_HALF_SIZE - e.radius;
+        let nextX = THREE.MathUtils.clamp(boss.x + normalX * contactRadius + tangentX, -arenaLimit, arenaLimit);
+        let nextZ = THREE.MathUtils.clamp(boss.z + normalZ * contactRadius + tangentZ, -arenaLimit, arenaLimit);
+        const clampedX = nextX - boss.x;
+        const clampedZ = nextZ - boss.z;
+        if (clampedX * clampedX + clampedZ * clampedZ < contactRadiusSq) {
+          const centreDistance = Math.hypot(boss.x, boss.z);
+          if (centreDistance > ENEMIES.coincidentSeparationEpsilon) {
+            normalX = -boss.x / centreDistance;
+            normalZ = -boss.z / centreDistance;
+          }
+          nextX = THREE.MathUtils.clamp(boss.x + normalX * contactRadius, -arenaLimit, arenaLimit);
+          nextZ = THREE.MathUtils.clamp(boss.z + normalZ * contactRadius, -arenaLimit, arenaLimit);
+        }
+        e.x = nextX;
+        e.z = nextZ;
+      }
+    }
   }
 
   private resolveObstacles(obstacles: Obstacle[]): void {
     for (const e of this.pool) {
       if (!e.active) continue;
-      const isFlyer = ENEMY_TYPES[e.typeIndex]?.behavior === 'flyer';
       for (let pass = 0; pass < ENEMIES.obstacleAvoidance.resolvePasses; pass++) {
         for (const o of obstacles) {
-          if (isFlyer && !o.blocksFlyers) continue;
           const minDist = o.radius + e.radius;
           let dx = e.x - o.x;
           let dz = e.z - o.z;
           const dSq = dx * dx + dz * dz;
           if (dSq >= minDist * minDist) continue;
-          if (dSq < 0.0001) {
-            const angle = (e.slot * 2.399963229728653) % (Math.PI * 2);
+          if (dSq < ENEMIES.coincidentSeparationEpsilon ** 2) {
+            const angle = (e.slot * ENEMIES.coincidentSeparationAngleStep) % (Math.PI * 2);
             dx = Math.cos(angle);
             dz = Math.sin(angle);
           } else {
@@ -852,6 +987,8 @@ export class EnemySystem {
     e.active = true;
     e.x = spot.x;
     e.z = spot.z;
+    e.prevX = spot.x;
+    e.prevZ = spot.z;
     e.elite = elite;
     // Elite HP ramps with run time: a flat 6x at the 90s gate is a wall, not a
     // fight. Reaches the full multiplier by ELITES.hpFullAtS.
@@ -887,6 +1024,10 @@ export class EnemySystem {
     e.dotWeaponId = null;
     e.kbX = 0;
     e.kbZ = 0;
+    e.avoidanceObstacle = null;
+    e.avoidanceSide = 0;
+    e.avoidanceSourceEnemy = null;
+    e.avoidanceSourceGeneration = -1;
     this.activeCount++;
     this.meshes[typeIndex]?.setColorAt(e.slot, elite ? ELITE_TINT : BASE_TINT);
     return index;
@@ -1021,7 +1162,7 @@ export class EnemySystem {
       if (!e.active) continue;
       const isBoss = BOSS_TYPE_INDEXES.includes(e.typeIndex);
       if (!isBoss && !ENEMY_TYPES[e.typeIndex]?.blocksOthers) continue;
-      if (e.chargeState === CHARGE.lunging) continue;
+      if (!isBoss && e.chargeState === CHARGE.lunging) continue;
       const entry = (this.dynamicObstacles[slot] ??= { x: 0, z: 0, radius: 0 });
       entry.x = e.x;
       entry.z = e.z;
@@ -1042,24 +1183,39 @@ export class EnemySystem {
     desiredZ: number,
     obstacles: EnemyObstacle[],
   ): { x: number; z: number } {
-    const isFlyer = ENEMY_TYPES[e.typeIndex]?.behavior === 'flyer';
     const cfg = ENEMIES.obstacleAvoidance;
     const bossMultiplier = BOSS_TYPE_INDEXES.includes(e.typeIndex)
       ? cfg.bossLookAheadMultiplier
       : 1;
     const lookAhead = cfg.lookAhead * bossMultiplier + e.radius;
-    let steerX = desiredX;
-    let steerZ = desiredZ;
+    let chosen: EnemyObstacle | null = null;
+    let chosenForward = Infinity;
+    let chosenHorizon = lookAhead;
+    let chosenLateralSide = 0;
+    let lockedSeen = false;
 
     for (const obstacle of obstacles) {
       // A heavy must not steer around ITSELF — it sits at its own centre, so
       // without this it would permanently swerve away from its own position.
       if (obstacle.sourceEnemy === e) continue;
-      if (isFlyer && !obstacle.blocksFlyers) continue;
+      const source = obstacle.sourceEnemy ?? null;
+      const isLockedObstacle = obstacle === e.avoidanceObstacle
+        && source === e.avoidanceSourceEnemy
+        && (source === null || source.gen === e.avoidanceSourceGeneration);
+      if (obstacle === e.avoidanceObstacle && !isLockedObstacle) {
+        e.avoidanceObstacle = null;
+        e.avoidanceSide = 0;
+        e.avoidanceSourceEnemy = null;
+        e.avoidanceSourceGeneration = -1;
+      }
+      if (isLockedObstacle) lockedSeen = true;
       const relX = obstacle.x - e.x;
       const relZ = obstacle.z - e.z;
       const forward = relX * desiredX + relZ * desiredZ;
-      if (forward <= 0 || forward > lookAhead) continue;
+      // Large boss clearance volumes must be anticipated before their centres
+      // enter the base horizon; obstacle radius extends the leading edge.
+      const obstacleHorizon = lookAhead + obstacle.radius;
+      if (forward <= 0 || forward > obstacleHorizon) continue;
 
       const lateralX = relX - desiredX * forward;
       const lateralZ = relZ - desiredZ * forward;
@@ -1067,19 +1223,44 @@ export class EnemySystem {
       const clearance = obstacle.radius + e.radius + cfg.clearance;
       if (lateralSq >= clearance * clearance) continue;
 
-      const leftX = -desiredZ;
-      const leftZ = desiredX;
-      const lateralSide = relX * leftX + relZ * leftZ;
-      const side = Math.abs(lateralSide) > 0.001
-        ? lateralSide > 0 ? -1 : 1
-        : e.slot % 2 === 0 ? 1 : -1;
-      const proximity = 1 - Math.sqrt(lateralSq) / clearance;
-      const urgency = 1 - forward / lookAhead;
-      const strength = cfg.steerStrength * (0.35 + proximity + urgency);
-      steerX += leftX * side * strength;
-      steerZ += leftZ * side * strength;
+      if (isLockedObstacle || forward < chosenForward) {
+        const leftX = -desiredZ;
+        const leftZ = desiredX;
+        chosen = obstacle;
+        chosenForward = forward;
+        chosenHorizon = obstacleHorizon;
+        chosenLateralSide = relX * leftX + relZ * leftZ;
+        if (isLockedObstacle) break;
+      }
     }
 
+    if (!lockedSeen && e.avoidanceObstacle) {
+      e.avoidanceObstacle = null;
+      e.avoidanceSide = 0;
+      e.avoidanceSourceEnemy = null;
+      e.avoidanceSourceGeneration = -1;
+    }
+    if (!chosen) return { x: desiredX, z: desiredZ };
+    if (chosen !== e.avoidanceObstacle) {
+      e.avoidanceObstacle = chosen;
+      e.avoidanceSourceEnemy = chosen.sourceEnemy ?? null;
+      e.avoidanceSourceGeneration = chosen.sourceEnemy?.gen ?? -1;
+      e.avoidanceSide = Math.abs(chosenLateralSide) > cfg.sideChoiceEpsilon
+        ? chosenLateralSide > 0 ? -1 : 1
+        : e.slot % 2 === 0 ? 1 : -1;
+    }
+    const relX = chosen.x - e.x;
+    const relZ = chosen.z - e.z;
+    const lateralX = relX - desiredX * chosenForward;
+    const lateralZ = relZ - desiredZ * chosenForward;
+    const clearance = chosen.radius + e.radius + cfg.clearance;
+    const proximity = 1 - Math.hypot(lateralX, lateralZ) / clearance;
+    const urgency = 1 - chosenForward / chosenHorizon;
+    const strength = cfg.steerStrength * (cfg.minimumSteerWeight + proximity + urgency);
+    const leftX = -desiredZ;
+    const leftZ = desiredX;
+    const steerX = desiredX + leftX * e.avoidanceSide * strength;
+    const steerZ = desiredZ + leftZ * e.avoidanceSide * strength;
     const length = Math.hypot(steerX, steerZ) || 1;
     return { x: steerX / length, z: steerZ / length };
   }

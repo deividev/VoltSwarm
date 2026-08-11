@@ -216,7 +216,7 @@ Sujetos por personaje — **ELENCO COMPLETO 2026-07-05** (todos con ref aprobada
 - **Gunner** ✅ (`ref-gunner-front.png`): squat turret, big forward cannon with protruding red muzzle ring (`raisedColors`) — green #7dd94a / dark / red #ff5533 / amber
 - **Drone** ✅ (`ref-drone-front.png`): flat wide flyer, THIN rotor blade band (deep rotor caps the roof in dark — camera looks down at flyers), amber eye — pink #ff9de2 / dark / amber
 - **Crusher King (boss)** ✅ (`ref-crusher-king-front-v2.png`): brute king, gold crown (full material, NOT frontOnly — silhouette), gold glare visor, toothed jaw, huge fists — red / dark / gold #f2b632
-- **Tesla Titan (boss)** ✅ (`ref-tesla-titan-front.png`): tall coil tower, three wrapped bright-cyan ring slabs (bloom emissives), amber visor, orb tip, anchored base — cyan #2ee6de / #7ee0ff / dark / amber
+- **Tesla Titan (boss)** ✅ (`ref-tesla-titan-front-v2.png`, `ref-tesla-titan-side-v2.png`, `ref-tesla-titan-back-v2.png`): tall coil tower, three wrapped bright-cyan ring slabs (bloom emissives), amber visor, orb tip, anchored base — cyan #2ee6de / #7ee0ff / dark / amber
 - **Volt Warden (diseño histórico/futuro)** (`ref-volt-warden-front-v2.png`): chibi helmet-head boss, goggle visor, grilles, cyan core, shoulder pads, hover skirt — yellow / dark / cyan. No es el boss final vigente.
 - **Jugador** ✅ (`ref-player-front-v3.png`): scavenger hero, head ~1/3 naranja #ff8c33 con visor oscuro #1c2a38, cuerpo blanco hueso #e8e3d5, mochila de herramientas (two-tone `armorColors`)
 

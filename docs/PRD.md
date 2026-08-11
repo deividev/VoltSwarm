@@ -204,7 +204,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - Portal, Scrapper y cofres aportan colliders dinámicos al mismo conjunto que usa jugador, enemigos y búsquedas de spawn. Dejan de ser atravesables mientras están activos.
 - Los cofres activos reservan una separación mínima configurable entre centros (`CHEST.minSpawnSeparation`), también en las recompensas múltiples de boss.
 - Enemigos y bosses combinan steering tangencial anticipado con varias pasadas de resolución de colisión; los casos de centro exacto ya no se ignoran. Los spawns de enemigos también respetan arena y obstáculos.
-- El layout del scrapyard reduce densidad y amplía carriles: gates de contenedores más abiertos y separados, y menos bidones con mayor separación. El hueco útil ya supera el diámetro del Crusher King.
+- El layout del scrapyard de la demo reduce densidad y amplía carriles: gates de contenedores más abiertos y separados, y menos bidones con mayor separación. El hueco físico medido es ~7,01u; el Crusher King reducido mide 5,2u de diámetro, deja ~1,81u de holgura dura total y conserva ~0,91u de corredor de steering al incluir el clearance.
 - Los spawns regulares de oleada vuelven a muestrear dentro del anillo real alrededor del jugador; ya no se clampa un candidato exterior hacia el borde, evitando apariciones repentinas junto al jugador cuando este está cerca del límite.
 
 ### 15. Combate con oclusión y feedback de recursos — implementado 2026-07-17

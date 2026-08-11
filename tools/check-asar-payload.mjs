@@ -31,6 +31,15 @@ import { basename, extname, join, posix, sep } from 'node:path';
 /** Directories and files allowed at the top level of the archive. */
 const ALLOWED_ROOTS = new Set(['dist', 'electron', 'package.json']);
 
+/** Map 2-only Hazard Marshal reference sheets. The Demo shares the full-game
+ * registry source, so its compiled code can still name these paths; its
+ * package must never retain the images themselves. */
+const DEMO_FORBIDDEN_ASSET_PATHS = new Set([
+  'dist/assets/2d/ref-hazard-marshal-front-v1.png',
+  'dist/assets/2d/ref-hazard-marshal-side-v1.png',
+  'dist/assets/2d/ref-hazard-marshal-back-v1.png',
+]);
+
 /** Binary payload that has to justify its presence by being referenced. */
 const ASSET_EXTENSIONS = new Set([
   '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico',
@@ -106,6 +115,15 @@ export function inspectAsar(archive) {
     });
   }
 
+  const demoBoundaryLeaks = files.filter((file) => DEMO_FORBIDDEN_ASSET_PATHS.has(file.path));
+  if (demoBoundaryLeaks.length > 0) {
+    problems.push({
+      rule: 'demo-content-boundary',
+      detail: 'Map 2-only Hazard Marshal reference sheets must never ship in the Map 1 Demo.',
+      files: demoBoundaryLeaks,
+    });
+  }
+
   // Everything the shipped app can read a path out of.
   let haystack = '';
   for (const file of files) {
@@ -126,7 +144,8 @@ export function inspectAsar(archive) {
     });
   }
 
-  const missing = findDanglingReferences(files, haystack);
+  const missing = findDanglingReferences(files, haystack)
+    .filter((file) => !DEMO_FORBIDDEN_ASSET_PATHS.has(file.path));
   if (missing.length > 0) {
     problems.push({
       rule: 'dangling-reference',
