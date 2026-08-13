@@ -139,7 +139,30 @@ test('latent copy is truthful to current non-character objectives', () => {
 test('Contracts HUD renders objective copy through textContent', () => {
   const hudSource = readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8');
   assert.match(hudSource, /description\.textContent = describeObjective\(row\.contract\.objective\)/);
+  assert.match(hudSource, /title\.textContent = playerFacingContractTitle\(row\.contract, resolved\)/);
   assert.doesNotMatch(hudSource, /contract-desc[^\n]*contract\.description/);
+  assert.doesNotMatch(hudSource, /contract-title[^\n]*contract\.title/);
+});
+
+test('every rendered title pairs its objective-aligned challenge with the exact concrete reward', () => {
+  const previews = contracts.previewContractRewards();
+  for (const contract of contracts.ACTIVE_CONTRACTS) {
+    const resolved = previews[contract.id];
+    if (resolved === null || resolved === undefined) continue;
+    assert.equal(
+      contracts.playerFacingContractTitle(contract, resolved),
+      `${contract.title} — ${contracts.rewardName(resolved)}`,
+      contract.id,
+    );
+  }
+
+  const levelMilestone = contracts.ALL_CONTRACTS.find(({ id }) => id === 'full-loadout');
+  const latentCompletion = contracts.ALL_CONTRACTS.find(({ id }) => id === 'two-of-a-kind');
+  assert.equal(levelMilestone.title, 'Level Milestone');
+  assert.equal(levelMilestone.objective.type, 'reach-level');
+  assert.equal(latentCompletion.title, 'Run Completion');
+  assert.equal(latentCompletion.objective.type, 'complete-runs');
+  assert.equal(contracts.ALL_CONTRACTS.some(({ title }) => ['Full Loadout', 'Two of a Kind'].includes(title)), false);
 });
 
 test('canonical preview matches simultaneous settlement despite progress sorting', () => {
@@ -152,6 +175,20 @@ test('canonical preview matches simultaneous settlement despite progress sorting
   assert.deepEqual(preview['scrap-quota-1'], { kind: 'core', id: 'crit-chance' });
   assert.deepEqual(preview['veteran-1'], { kind: 'core', id: 'crit-damage' });
   assert.deepEqual(preview['veteran-2'], { kind: 'core', id: 'duration' });
+  assert.equal(
+    contracts.playerFacingContractTitle(
+      contracts.ALL_CONTRACTS.find(({ id }) => id === 'scrap-quota-1'),
+      preview['scrap-quota-1'],
+    ),
+    'Scrap Quota I — Targeting Chip',
+  );
+  assert.equal(
+    contracts.playerFacingContractTitle(
+      contracts.ALL_CONTRACTS.find(({ id }) => id === 'veteran-1'),
+      preview['veteran-1'],
+    ),
+    'Veteran I — Piercing Rounds',
+  );
   const settled = Object.fromEntries(contracts.settleContracts().map(({ contract, granted }) => [contract.id, granted]));
   for (const id of ['scrap-quota-1', 'veteran-1', 'veteran-2']) assert.deepEqual(settled[id], preview[id]);
 });

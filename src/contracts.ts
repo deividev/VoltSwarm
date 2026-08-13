@@ -165,7 +165,7 @@ const SIGNATURE: Contract[] = [
     reward: { kind: 'socket', slot: 'weapon' },
   }),
   defineContract({
-    id: 'full-loadout', title: 'Full Loadout',
+    id: 'full-loadout', title: 'Level Milestone',
     objective: { type: 'reach-level', n: CONTRACTS.fullLoadoutLevel },
     reward: { kind: 'socket', slot: 'core' },
   }),
@@ -199,7 +199,7 @@ const SIGNATURE: Contract[] = [
     reward: { kind: 'mod', id: 'magnetron-heart' as ModId },
   }),
   defineContract({
-    id: 'two-of-a-kind', title: 'Two of a Kind',
+    id: 'two-of-a-kind', title: 'Run Completion',
     objective: { type: 'complete-runs', n: 1 },
     reward: { kind: 'next-core' },
     latent: 'Characters are not implemented.',
@@ -539,6 +539,12 @@ function resolveRewardAgainst(reward: Reward, claimed: Set<string>, profile: Rew
     default:
       return reward;
   }
+}
+
+/** Player-facing contract names always pair the objective-aligned challenge
+ * name with the exact concrete reward resolved for this row. */
+export function playerFacingContractTitle(contract: Contract, resolvedReward: Reward | null): string {
+  return `${contract.title} — ${rewardName(resolvedReward)}`;
 }
 
 export function resolveReward(reward: Reward, claimed: Set<string>): Reward | null {

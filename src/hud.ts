@@ -7,6 +7,7 @@ import {
   devCompleteAllContracts,
   progressOf,
   previewContractRewards,
+  playerFacingContractTitle,
   rewardCategory,
   rewardName,
   type Contract,
@@ -1272,7 +1273,7 @@ export class Hud {
       `<div class="contract-icon">${rewardIconHtml(resolved, row.done)}</div>` +
       '<div class="contract-body">' +
         '<div class="contract-head">' +
-          `<span class="contract-title">${row.contract.title}</span>` +
+          '<span class="contract-title"></span>' +
           `<span class="contract-count">${row.done ? 'COMPLETE' : `${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}`}</span>` +
         '</div>' +
         '<div class="contract-desc"></div>' +
@@ -1281,6 +1282,8 @@ export class Hud {
       '</div>';
     const description = item.querySelector<HTMLElement>('.contract-desc');
     if (description) description.textContent = describeObjective(row.contract.objective);
+    const title = item.querySelector<HTMLElement>('.contract-title');
+    if (title) title.textContent = playerFacingContractTitle(row.contract, resolved);
     return item;
   }
 
