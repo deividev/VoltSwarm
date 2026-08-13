@@ -7,7 +7,6 @@ import {
   devCompleteAllContracts,
   progressOf,
   previewContractRewards,
-  playerFacingContractTitle,
   rewardCategory,
   rewardName,
   type Contract,
@@ -56,6 +55,29 @@ const RARITY_LABEL: Record<string, string> = {
   purple: 'Epic',
   gold: 'Legendary',
 };
+
+type ContractViewCategory = 'all' | RewardCategory;
+type ContractViewStatus = 'active' | 'completed';
+
+interface ContractViewRow {
+  contract: Contract;
+  current: number;
+  target: number;
+  done: boolean;
+  asTime: boolean;
+  ratio: number;
+  resolved: Reward | null;
+}
+
+const CONTRACT_CATEGORIES: ReadonlyArray<{ key: ContractViewCategory; label: string }> = [
+  { key: 'all', label: 'All' },
+  { key: 'character', label: 'Characters' },
+  { key: 'weapon', label: 'Weapons' },
+  { key: 'core', label: 'Cores' },
+  { key: 'mod', label: 'Mods' },
+  { key: 'socket', label: 'Sockets' },
+  { key: 'other', label: 'Perks' },
+];
 
 export type ChestReelCell =
   | { kind: 'mod'; id: ModId }
@@ -380,6 +402,9 @@ export class Hud {
   private feedbackDifficulty: FeedbackDifficulty | null = null;
   private readonly feedbackReasons = new Set<FeedbackReason>();
   private selectedCharacterId: CharacterId = DEFAULT_CHARACTER_ID;
+  private contractCategory: ContractViewCategory = 'all';
+  private contractStatus: ContractViewStatus = 'active';
+  private selectedContractId: string | null = null;
 
   constructor(
     root: HTMLElement,
@@ -475,9 +500,16 @@ export class Hud {
       </div>
       <div id="contracts-overlay" class="overlay menu-view hidden">
         <div id="contracts-panel" class="overlay-panel">
-          <div class="panel-header">Contracts</div>
+          <div class="contracts-header">
+            <div class="panel-header">Contracts</div>
+            <div id="contracts-status-filters" class="contracts-status-control" role="group" aria-label="Contract status"></div>
+          </div>
           <p class="overlay-panel-sub" id="contracts-summary"></p>
-          <div id="contracts-columns"></div>
+          <div id="contracts-category-filters" class="contracts-category-tabs" role="tablist" aria-label="Contract category"></div>
+          <div id="contracts-browser">
+            <div id="contracts-list" role="tabpanel" aria-label="Contracts"></div>
+            <article id="contract-detail" aria-live="polite"></article>
+          </div>
           <div id="contracts-actions">
             <button id="contracts-back-button">Back</button>
           </div>
@@ -880,13 +912,19 @@ export class Hud {
     });
     mustGet('contracts-button').addEventListener('click', () => {
       mustGet('menu-overlay').classList.add('hidden');
+      this.contractCategory = 'all';
+      this.contractStatus = 'active';
+      this.selectedContractId = null;
       this.renderContracts();
       mustGet('contracts-overlay').classList.remove('hidden');
+      queueMicrotask(() => mustGet('contracts-status-filters').querySelector<HTMLButtonElement>('[data-contract-status="active"]')?.focus());
     });
     mustGet('contracts-back-button').addEventListener('click', () => {
       mustGet('contracts-overlay').classList.add('hidden');
       mustGet('menu-overlay').classList.remove('hidden');
+      mustGet('contracts-button').focus();
     });
+    mustGet('contracts-overlay').addEventListener('keydown', (event) => this.handleContractsKeyDown(event));
     if (DEV_TOOLS.unlockPanel) {
       mustGet('unlocks-button').addEventListener('click', () => {
         mustGet('menu-overlay').classList.add('hidden');
@@ -1173,13 +1211,11 @@ export class Hud {
     }
   }
 
-  /** The goal-setting surface: what is left, and how close it is. Sorted by
-   *  how near completion each one is, so the top of the list is always the
-   *  answer to "what should I chase this run". Completed ones sink to the
-   *  bottom as a record rather than disappearing. */
+  /** Master-detail goal browser. Pending dry queue rungs stay hidden, while
+   *  previews retain the canonical settlement order supplied by contracts.ts. */
   private renderContracts(): void {
     const rewardPreviews = previewContractRewards();
-    const rows = ACTIVE_CONTRACTS.map((contract) => {
+    const rows: ContractViewRow[] = ACTIVE_CONTRACTS.map((contract) => {
       const { current, target } = progressOf(contract.objective);
       // "Done" means SETTLED, not merely "objective met". Settling declines a
       // spare ladder rung whose queue has run dry, so treating the objective as
@@ -1194,97 +1230,142 @@ export class Hud {
         ratio: target > 0 ? current / target : 0,
         resolved: rewardPreviews[contract.id] ?? null,
       };
-    }).sort((a, b) => (a.done === b.done ? b.ratio - a.ratio : a.done ? 1 : -1));
+    }).sort((a, b) => b.ratio - a.ratio);
 
-    const host = mustGet('contracts-columns');
-    host.innerHTML = '';
+    // A spare ladder rung with nothing left in its queue is not offered. A
+    // settled legacy row remains visible even if its attribution is missing.
+    const visibleRows = rows.filter((row) => row.done || row.resolved !== null);
+    const completedCount = visibleRows.filter((row) => row.done).length;
+    mustGet('contracts-summary').textContent =
+      `${visibleRows.length - completedCount} active / ${completedCount} completed — select a contract for full details`;
 
-    const SECTIONS: { key: RewardCategory; title: string }[] = [
-      { key: 'character', title: 'Characters' },
-      { key: 'weapon', title: 'Weapons' },
-      { key: 'core', title: 'Cores' },
-      { key: 'mod', title: 'Mods' },
-      { key: 'socket', title: 'Sockets' },
-      { key: 'other', title: 'Perks' },
-    ];
+    const categoryHost = mustGet('contracts-category-filters');
+    categoryHost.innerHTML = '';
+    for (const category of CONTRACT_CATEGORIES) {
+      const count = visibleRows.filter((row) =>
+        (category.key === 'all' || rewardCategory(row.contract.reward) === category.key),
+      ).length;
+      if (category.key === 'character' && count === 0) continue;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'contracts-filter contracts-category-tab';
+      button.id = `contracts-category-${category.key}`;
+      button.dataset.contractCategory = category.key;
+      button.setAttribute('role', 'tab');
+      button.setAttribute('aria-controls', 'contracts-list');
+      button.setAttribute('aria-selected', `${this.contractCategory === category.key}`);
+      button.tabIndex = this.contractCategory === category.key ? 0 : -1;
+      button.innerHTML = `<span class="contracts-filter-label">${category.label}</span><span class="contracts-filter-count">${count}</span>`;
+      button.addEventListener('click', () => {
+        this.contractCategory = category.key;
+        this.renderContracts();
+        mustGet('contracts-category-filters').querySelector<HTMLButtonElement>(`[data-contract-category="${category.key}"]`)?.focus();
+      });
+      categoryHost.appendChild(button);
+    }
+    mustGet('contracts-list').setAttribute('aria-labelledby', `contracts-category-${this.contractCategory}`);
 
-    let totalShown = 0;
-    let totalDone = 0;
-
-    for (const section of SECTIONS) {
-      const inSection = rows.filter((r) => rewardCategory(r.contract.reward) === section.key);
-      if (inSection.length === 0) continue;
-
-      const group = document.createElement('section');
-      group.className = 'contract-group';
-      const head = document.createElement('div');
-      head.className = 'contract-group-head';
-      group.appendChild(head);
-
-      // Attribution is already frozen in canonical settlement order, so this
-      // progress-sorted presentation cannot change which reward a row promises.
-      let shown = 0;
-      let done = 0;
-      for (const row of inSection) {
-        const element = this.contractRow(row);
-        // A spare ladder rung with nothing left in its queue is not offered:
-        // advertising a contract that cannot pay is worse than hiding it until
-        // new content fills the slot.
-        if (!element) continue;
-        group.appendChild(element);
-        shown++;
-        if (row.done) done++;
-      }
-      if (shown === 0) continue;
-      // Counted after filtering so the header cannot promise rows that are not
-      // on screen.
-      head.innerHTML =
-        `<span>${section.title}</span>` +
-        `<span class="contract-group-count">${done}/${shown}</span>`;
-      totalShown += shown;
-      totalDone += done;
-
-      // One column per category. Each column is a single, complete list, which
-      // is easier to scan than sections stacked inside shared columns — and the
-      // whole grid scrolls as one, so a long category does not trap its own
-      // scrollbar. Empty categories get no column at all.
-      const column = document.createElement('div');
-      column.className = 'contracts-column';
-      column.appendChild(group);
-      host.appendChild(column);
+    const statusHost = mustGet('contracts-status-filters');
+    statusHost.innerHTML = '';
+    for (const status of ['active', 'completed'] as const) {
+      const count = visibleRows.filter((row) => row.done === (status === 'completed')).length;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'contracts-filter contracts-status-filter contracts-status-segment';
+      button.dataset.contractStatus = status;
+      button.setAttribute('aria-controls', 'contracts-list');
+      button.setAttribute('aria-pressed', `${this.contractStatus === status}`);
+      button.disabled = status === 'completed' && count === 0;
+      button.innerHTML = `<span class="contracts-filter-label">${status === 'active' ? 'Active' : 'Completed'}</span><span class="contracts-filter-count">${count}</span>`;
+      button.addEventListener('click', () => {
+        this.contractStatus = status;
+        this.renderContracts();
+        mustGet('contracts-status-filters').querySelector<HTMLButtonElement>(`[data-contract-status="${status}"]`)?.focus();
+      });
+      statusHost.appendChild(button);
     }
 
-    mustGet('contracts-summary').textContent = `${totalDone} of ${totalShown} complete`;
+    const filteredRows = visibleRows.filter((row) =>
+      row.done === (this.contractStatus === 'completed') &&
+      (this.contractCategory === 'all' || rewardCategory(row.contract.reward) === this.contractCategory),
+    );
+    const selected = filteredRows.find((row) => row.contract.id === this.selectedContractId) ?? filteredRows[0] ?? null;
+    this.selectedContractId = selected?.contract.id ?? null;
+
+    const list = mustGet('contracts-list');
+    list.innerHTML = '';
+    if (filteredRows.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'contracts-empty';
+      empty.textContent = this.contractStatus === 'active'
+        ? 'No active contracts in this category.'
+        : 'No completed contracts in this category yet.';
+      list.appendChild(empty);
+    } else {
+      for (const row of filteredRows) list.appendChild(this.contractRow(row));
+    }
+    this.renderContractDetail(selected);
   }
 
-  private contractRow(
-    row: { contract: Contract; current: number; target: number; done: boolean; asTime: boolean; resolved: Reward | null },
-  ): HTMLElement | null {
-    // A settled contract shows what it actually gave; a pending one shows what
-    // it would give. Contracts settled before grantedRewards existed fall back
-    // to the declared reward.
-    const resolved = row.resolved;
-    if (!row.done && resolved === null) return null;
-
-    const item = document.createElement('div');
+  private contractRow(row: ContractViewRow): HTMLButtonElement {
+    const item = document.createElement('button');
+    item.type = 'button';
     item.className = `contract-row${row.done ? ' done' : ''}`;
+    item.dataset.contractId = row.contract.id;
+    item.setAttribute('aria-controls', 'contract-detail');
+    item.setAttribute('aria-current', `${row.contract.id === this.selectedContractId}`);
+    item.setAttribute('aria-label', `${row.contract.title}, ${fmtProgress(row.current, row.asTime)} of ${fmtProgress(row.target, row.asTime)}, ${row.done ? 'completed' : 'active'}`);
 
     item.innerHTML =
-      `<div class="contract-icon">${rewardIconHtml(resolved, row.done)}</div>` +
+      `<div class="contract-icon">${rewardIconHtml(row.resolved, row.done)}</div>` +
       '<div class="contract-body">' +
         '<div class="contract-head">' +
           '<span class="contract-title"></span>' +
-          `<span class="contract-count">${row.done ? 'COMPLETE' : `${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}`}</span>` +
+          `<span class="contract-count">${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}${row.done ? ' COMPLETE' : ''}</span>` +
         '</div>' +
-        '<div class="contract-desc"></div>' +
-        segmentedContractBarHtml(row.current, row.target) +
-        `<div class="contract-reward">${rewardLabelHtml(row.contract.reward, resolved, row.done)}</div>` +
+        segmentedContractBarHtml(row.current, row.target, `${row.contract.title} progress`) +
       '</div>';
-    const description = item.querySelector<HTMLElement>('.contract-desc');
-    if (description) description.textContent = describeObjective(row.contract.objective);
     const title = item.querySelector<HTMLElement>('.contract-title');
-    if (title) title.textContent = playerFacingContractTitle(row.contract, resolved);
+    if (title) title.textContent = row.contract.title;
+    item.addEventListener('click', () => {
+      this.selectedContractId = row.contract.id;
+      for (const button of mustGet('contracts-list').querySelectorAll<HTMLButtonElement>('.contract-row')) {
+        button.setAttribute('aria-current', `${button.dataset.contractId === this.selectedContractId}`);
+      }
+      this.renderContractDetail(row);
+    });
     return item;
+  }
+
+  private renderContractDetail(row: ContractViewRow | null): void {
+    const detail = mustGet('contract-detail');
+    detail.innerHTML = '';
+    if (!row) {
+      detail.className = 'contract-detail contract-detail-empty';
+      detail.textContent = 'Choose another category or status to browse its contracts.';
+      return;
+    }
+
+    detail.className = `contract-detail${row.done ? ' done' : ''}`;
+    const category = CONTRACT_CATEGORIES.find(({ key }) => key === rewardCategory(row.contract.reward))?.label ?? 'Reward';
+    detail.innerHTML =
+      '<div class="contract-detail-hero">' +
+        `<div class="contract-detail-icon">${rewardIconHtml(row.resolved, row.done)}</div>` +
+        '<div class="contract-detail-heading">' +
+          `<div class="contract-detail-meta">${category} / ${row.done ? 'COMPLETED' : 'ACTIVE'}</div>` +
+          '<h2 class="contract-detail-title"></h2>' +
+        '</div>' +
+      '</div>' +
+      '<p class="contract-detail-objective"></p>' +
+      '<div class="contract-detail-progress">' +
+        `<strong>${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}${row.done ? ' - SETTLED' : ''}</strong>` +
+        segmentedContractBarHtml(row.current, row.target, `${row.contract.title} progress`) +
+      '</div>' +
+      `<div class="contract-detail-reward"><span>${row.done ? 'OWNED' : 'REWARD'}</span>${rewardLabelHtml(row.contract.reward, row.resolved, row.done)}</div>`;
+    const title = detail.querySelector<HTMLElement>('.contract-detail-title');
+    if (title) title.textContent = row.contract.title;
+    const objective = detail.querySelector<HTMLElement>('.contract-detail-objective');
+    if (objective) objective.textContent = describeObjective(row.contract.objective);
   }
 
   /** The payout beat. Rendered only when something was earned: an empty
@@ -1640,8 +1721,8 @@ export class Hud {
     } else if (horizontal !== 0 && vertical === 0) {
       vertical = horizontal;
     }
-    if (vertical !== 0 && current?.matches('[data-character-detail-scroll]') && this.scrollCharacterDetail(current, vertical)) {
-      // Keep focus in the detail pane until the requested direction reaches
+    if (vertical !== 0 && current?.matches('[data-character-section-scroll]') && this.scrollCharacterSection(current, vertical)) {
+      // Keep focus in the Characters section until the requested direction reaches
       // its boundary. The next press then resumes ordinary menu traversal.
     } else if (vertical !== 0) {
       this.padNavIndex = (this.padNavIndex + vertical + items.length) % items.length;
@@ -1729,9 +1810,9 @@ export class Hud {
   }
 
   private menuNavItems(container: HTMLElement): HTMLElement[] {
-    return Array.from(
+    const items = Array.from(
       container.querySelectorAll<HTMLElement>(
-        'button, select, input[type="range"], .upgrade-card:not(#chest-card), .unlock-row, [data-character-detail-scroll]',
+        'button, select, input[type="range"], .upgrade-card:not(#chest-card), .unlock-row, [data-character-section-scroll]',
       ),
     ).filter(
       (el) =>
@@ -1739,13 +1820,64 @@ export class Hud {
         !el.classList.contains('hidden') &&
         !(el as HTMLButtonElement).disabled,
     );
+    // The scroll owner wraps the roster buttons in DOM order, but it is a
+    // deliberate navigation stop after those buttons, not before them.
+    const sectionIndex = items.findIndex((item) => item.matches('[data-character-section-scroll]'));
+    if (sectionIndex >= 0) {
+      const section = items[sectionIndex];
+      items.splice(sectionIndex, 1);
+      let insertionIndex = 0;
+      for (let index = 0; index < items.length; index++) {
+        if (items[index]?.matches('[data-character-id]')) insertionIndex = index + 1;
+      }
+      if (section) items.splice(insertionIndex, 0, section);
+    }
+    return items;
   }
 
-  private scrollCharacterDetail(detail: HTMLElement, direction: number): boolean {
-    const before = detail.scrollTop;
-    const max = Math.max(0, detail.scrollHeight - detail.clientHeight);
-    detail.scrollTop = Math.min(max, Math.max(0, before + direction * MENU_NAVIGATION.characterDetailScrollPx));
-    return detail.scrollTop !== before;
+  private handleContractsKeyDown(event: KeyboardEvent): void {
+    const overlay = mustGet('contracts-overlay');
+    if (overlay.classList.contains('hidden') || !(event.target instanceof HTMLButtonElement)) return;
+    const current = event.target;
+    let selector = '';
+    let direction = 0;
+    if (current.matches('.contracts-filter')) {
+      if (event.key === 'ArrowRight' || event.key === 'ArrowDown') direction = 1;
+      else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') direction = -1;
+      selector = current.matches('.contracts-status-filter')
+        ? '#contracts-status-filters .contracts-filter'
+        : '#contracts-category-filters .contracts-filter';
+    } else if (current.matches('.contract-row')) {
+      if (event.key === 'ArrowDown') direction = 1;
+      else if (event.key === 'ArrowUp') direction = -1;
+      selector = '#contracts-list .contract-row';
+    }
+    if (!selector || direction === 0) return;
+
+    const items = Array.from(overlay.querySelectorAll<HTMLButtonElement>(selector)).filter((button) => !button.disabled);
+    const currentIndex = items.indexOf(current);
+    if (currentIndex < 0 || items.length < 2) return;
+    event.preventDefault();
+    const nextIndex = (currentIndex + direction + items.length) % items.length;
+    if (selector.includes('contract-row')) {
+      items[nextIndex]?.focus({ preventScroll: true });
+      items[nextIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+      return;
+    }
+    const identity = items[nextIndex]?.dataset.contractCategory ?? items[nextIndex]?.dataset.contractStatus;
+    items[nextIndex]?.click();
+    const updated = Array.from(overlay.querySelectorAll<HTMLButtonElement>(selector)).find((button) =>
+      button.dataset.contractCategory === identity || button.dataset.contractStatus === identity,
+    );
+    updated?.focus({ preventScroll: true });
+    updated?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+  private scrollCharacterSection(section: HTMLElement, direction: number): boolean {
+    const before = section.scrollTop;
+    const max = Math.max(0, section.scrollHeight - section.clientHeight);
+    section.scrollTop = Math.min(max, Math.max(0, before + direction * MENU_NAVIGATION.characterSectionScrollPx));
+    return section.scrollTop !== before;
   }
 
   private handleCharacterDetailKeyDown(event: KeyboardEvent): void {
@@ -1755,7 +1887,7 @@ export class Hud {
     const container = target.closest<HTMLElement>('#character-select-overlay, #characters-overlay');
     if (!container || container.classList.contains('hidden')) return;
 
-    if (target.matches('[data-character-detail-scroll]') && this.scrollCharacterDetail(target, direction)) {
+    if (target.matches('[data-character-section-scroll]') && this.scrollCharacterSection(target, direction)) {
       event.preventDefault();
       return;
     }
@@ -1767,7 +1899,7 @@ export class Hud {
     if (index < 0 || !next) return;
     // Arrow navigation is scoped to entering or leaving the scroll region;
     // ordinary buttons keep their existing keyboard behavior elsewhere.
-    if (!target.matches('[data-character-detail-scroll]') && !next.matches('[data-character-detail-scroll]')) return;
+    if (!target.matches('[data-character-section-scroll]') && !next.matches('[data-character-section-scroll]')) return;
     event.preventDefault();
     this.padNavContainer = container;
     this.padNavIndex = nextIndex;
@@ -1788,13 +1920,13 @@ export class Hud {
     const characters = Object.values(CHARACTER_REGISTRY);
     const selected = CHARACTER_REGISTRY[this.selectedCharacterId] ?? CHARACTER_REGISTRY[DEFAULT_CHARACTER_ID];
     const selectedUnlocked = PROFILE.unlockedCharacters.includes(selected.id);
-    host.innerHTML = '<div class="character-grid"></div><div class="character-detail"></div>';
+    host.innerHTML = '<div class="character-grid"></div><article class="character-detail"></article>';
     const grid = host.querySelector<HTMLElement>('.character-grid')!;
     const detail = host.querySelector<HTMLElement>('.character-detail')!;
-    detail.tabIndex = 0;
-    detail.dataset.characterDetailScroll = 'true';
-    detail.setAttribute('role', 'region');
-    detail.setAttribute('aria-label', `${selected.name} character details`);
+    host.tabIndex = 0;
+    host.dataset.characterSectionScroll = 'true';
+    host.setAttribute('role', 'region');
+    host.setAttribute('aria-label', `${selected.name} character profile`);
 
     for (const character of characters) {
       const unlocked = PROFILE.unlockedCharacters.includes(character.id);
@@ -1829,20 +1961,29 @@ export class Hud {
     const recommendedWeapon = WEAPON_INFO[selected.recommendedWeapon];
     const recommendedWeaponIcon = WEAPON_ICON_IMAGES[selected.recommendedWeapon];
     detail.innerHTML = `
-      <header class="character-detail-header">
-        <span>Character Profile</span>
-        <h2>${selected.name}</h2>
-        <p>${selected.shortDescription}</p>
-      </header>
-      <div class="character-stat-grid">
+      <section class="character-identity">
+        <div class="character-portrait-stage">${this.characterPortraitHtml(selected, true)}</div>
+        <header class="character-detail-header">
+          <span>Character Profile</span>
+          <h2>${selected.name}</h2>
+          <p>${selected.shortDescription}</p>
+          <span class="character-profile-status ${selectedUnlocked ? 'unlocked' : 'locked'}">${selectedUnlocked ? 'Unlocked' : 'Locked'}</span>
+        </header>
+      </section>
+      <section class="character-stat-sheet" aria-label="Character stats">
+        <div class="character-column-heading">Stat Sheet</div>
+        <div class="character-stat-grid">
         ${statRows.map((row) => `
           <div class="character-stat-row build-row" data-character-stat="${row.id}">
             <img class="build-icon build-icon-img" src="${row.icon}" alt="" />
             <span>${row.label}</span>
             <strong class="build-value">${row.value}</strong>
           </div>`).join('')}
-      </div>
-      <div class="character-module-grid">
+        </div>
+      </section>
+      <section class="character-rules" aria-label="Character rules">
+        <div class="character-column-heading">Rules</div>
+        <div class="character-module-grid">
         <section class="character-module signature" data-character-module="signature">
           ${rigTileHtml({ src: 'assets/2d/icon-item-repair.png', label: selected.signature.name, cls: 'character-module-tile' })}
           <div class="character-module-copy">
@@ -1868,8 +2009,9 @@ export class Hud {
             <p>${selected.tradeoff}</p>
           </div>
         </section>
-      </div>
-      ${this.characterUnlockHtml(selected, selectedUnlocked)}
+          ${this.characterUnlockHtml(selected, selectedUnlocked)}
+        </div>
+      </section>
     `;
     if (selectable) {
       const confirm = mustGet('character-confirm-button') as HTMLButtonElement;
@@ -2829,7 +2971,12 @@ function selectSingleFeedbackButton(containerId: string, selected: HTMLButtonEle
 function rewardIconHtml(reward: Reward | null, done: boolean): string {
   if (!reward) return '';
   switch (reward.kind) {
-    case 'character': return '<span class="reward-icon-text">FE</span>';
+    case 'character': {
+      const character = CHARACTER_REGISTRY[reward.id];
+      return character?.portrait
+        ? `<img class="card-icon" src="${character.portrait}" alt="" />`
+        : `<span class="reward-icon-text">${character?.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() ?? '??'}</span>`;
+    }
     case 'weapon': return cardIconHtml(`weapon-${reward.id}`);
     case 'core': return cardIconHtml(reward.id);
     case 'mod': {

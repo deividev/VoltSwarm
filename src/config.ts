@@ -380,7 +380,7 @@ export const PLAYER = {
 /** Shared menu-navigation tuning. Kept out of HUD code so keyboard and
  * gamepad traversal use the same deliberate scroll step. */
 export const MENU_NAVIGATION = {
-  characterDetailScrollPx: 180,
+  characterSectionScrollPx: 180,
 };
 
 /** Instrumentation for the frenzy work: is the player ever actually trapped?

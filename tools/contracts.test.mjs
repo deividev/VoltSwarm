@@ -136,12 +136,65 @@ test('latent copy is truthful to current non-character objectives', () => {
   }
 });
 
-test('Contracts HUD renders objective copy through textContent', () => {
+test('Contracts HUD exposes an accessible master-detail browser without changing settlement semantics', () => {
   const hudSource = readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8');
-  assert.match(hudSource, /description\.textContent = describeObjective\(row\.contract\.objective\)/);
-  assert.match(hudSource, /title\.textContent = playerFacingContractTitle\(row\.contract, resolved\)/);
+  const cssSource = readFileSync(new URL('../src/ui.css', import.meta.url), 'utf8');
+  assert.match(hudSource, /id="contracts-category-filters" class="contracts-category-tabs" role="tablist" aria-label="Contract category"/);
+  assert.match(hudSource, /id="contracts-status-filters" class="contracts-status-control" role="group" aria-label="Contract status"/);
+  assert.match(hudSource, /id="contracts-list" role="tabpanel" aria-label="Contracts"/);
+  assert.match(hudSource, /id="contract-detail" aria-live="polite"/);
+  assert.match(hudSource, /private contractStatus: ContractViewStatus = 'active'/);
+  assert.match(hudSource, /mustGet\('contracts-button'\)\.addEventListener\('click', \(\) => \{[\s\S]*?this\.contractCategory = 'all';\s*this\.contractStatus = 'active';\s*this\.selectedContractId = null;\s*this\.renderContracts\(\);/);
+  const categoryCountBlock = hudSource.match(/for \(const category of CONTRACT_CATEGORIES\) \{([\s\S]*?)const button = document\.createElement\('button'\);/)?.[1];
+  assert.ok(categoryCountBlock);
+  assert.match(categoryCountBlock, /category\.key === 'all' \|\| rewardCategory\(row\.contract\.reward\) === category\.key/);
+  assert.doesNotMatch(categoryCountBlock, /contractStatus|row\.done/);
+  const categoryRenderBlock = hudSource.match(/for \(const category of CONTRACT_CATEGORIES\) \{[\s\S]*?categoryHost\.appendChild\(button\);\s*\}/)?.[0];
+  assert.ok(categoryRenderBlock);
+  assert.match(categoryRenderBlock, /button\.className = 'contracts-filter contracts-category-tab'/);
+  assert.match(categoryRenderBlock, /button\.setAttribute\('role', 'tab'\)/);
+  assert.match(categoryRenderBlock, /button\.setAttribute\('aria-selected'/);
+  assert.doesNotMatch(categoryRenderBlock, /aria-pressed/);
+  assert.match(categoryRenderBlock, /contracts-filter-label/);
+  assert.match(categoryRenderBlock, /contracts-filter-count/);
+  const statusRenderBlock = hudSource.match(/for \(const status of \['active', 'completed'\] as const\) \{[\s\S]*?statusHost\.appendChild\(button\);\s*\}/)?.[0];
+  assert.ok(statusRenderBlock);
+  assert.match(statusRenderBlock, /button\.className = 'contracts-filter contracts-status-filter contracts-status-segment'/);
+  assert.match(statusRenderBlock, /button\.setAttribute\('aria-pressed'/);
+  assert.match(statusRenderBlock, /button\.disabled = status === 'completed' && count === 0/);
+  assert.match(statusRenderBlock, /contracts-filter-label/);
+  assert.match(statusRenderBlock, /contracts-filter-count/);
+  assert.match(hudSource, /category\.key === 'character' && count === 0/);
+  assert.match(hudSource, /case 'character':[\s\S]*CHARACTER_REGISTRY\[reward\.id\][\s\S]*character\?\.portrait/);
+  assert.match(hudSource, /queueMicrotask\([\s\S]*data-contract-status="active"/);
+  assert.match(hudSource, /mustGet\('contracts-button'\)\.focus\(\)/);
+  assert.match(hudSource, /querySelectorAll<HTMLButtonElement>\(selector\)\)\.filter\(\(button\) => !button\.disabled\)/);
+  assert.match(hudSource, /LIFETIME\.completedContracts\.includes\(contract\.id\)/);
+  assert.match(hudSource, /row\.done \|\| row\.resolved !== null/);
+  assert.match(hudSource, /filteredRows\.find\(\(row\) => row\.contract\.id === this\.selectedContractId\) \?\? filteredRows\[0\]/);
+  assert.match(hudSource, /document\.createElement\('button'\)/);
+  assert.match(hudSource, /setAttribute\('aria-pressed'/);
+  assert.match(hudSource, /setAttribute\('aria-current'/);
+  assert.match(hudSource, /objective\.textContent = describeObjective\(row\.contract\.objective\)/);
   assert.doesNotMatch(hudSource, /contract-desc[^\n]*contract\.description/);
-  assert.doesNotMatch(hudSource, /contract-title[^\n]*contract\.title/);
+  assert.match(cssSource, /\.contract-row\.done\s*\{[^}]*opacity:\s*1/s);
+  assert.match(cssSource, /#contracts-panel\s*\{[^}]*height:\s*min\(720px,\s*calc\(100vh - 48px\)\)[^}]*min-height:\s*0[^}]*overflow:\s*hidden/s);
+  assert.doesNotMatch(cssSource, /#contracts-panel\s*\{[^}]*min-height:\s*min\(720px,\s*calc\(100vh - 48px\)\)/s);
+  assert.match(cssSource, /\.contracts-status-control\s*\{[^}]*display:\s*flex[^}]*flex:\s*0 0 270px[^}]*overflow:\s*hidden[^}]*border:\s*2px solid/s);
+  assert.match(cssSource, /\.overlay \.contracts-status-segment\s*\{[^}]*flex:\s*1 1 50%[^}]*border-left:\s*1px solid[^}]*border-radius:\s*0/s);
+  assert.match(cssSource, /\.overlay \.contracts-status-segment:disabled\s*\{[^}]*cursor:\s*default[^}]*opacity:\s*0\.38/s);
+  assert.match(cssSource, /\.contracts-category-tabs\s*\{[^}]*overflow-x:\s*auto[^}]*border-bottom:\s*1px solid/s);
+  assert.match(cssSource, /\.overlay \.contracts-category-tab\s*\{[^}]*border:\s*0[^}]*background:\s*transparent[^}]*box-shadow:\s*none/s);
+  assert.match(cssSource, /\.overlay \.contracts-category-tab\[aria-selected="true"\]::after\s*\{[^}]*background:\s*#3fa9f5/s);
+  assert.doesNotMatch(cssSource, /\.contracts-filter\[aria-pressed="true"\]/);
+  assert.match(cssSource, /#contracts-browser\s*\{[^}]*min-width:\s*0[^}]*min-height:\s*0[^}]*flex:\s*1 1 0[^}]*overflow:\s*hidden[^}]*width:\s*100%/s);
+  assert.match(cssSource, /#contracts-list\s*\{[^}]*min-width:\s*0[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s);
+  assert.match(cssSource, /\.contract-detail\s*\{[^}]*min-width:\s*0[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s);
+  assert.match(cssSource, /\.contract-row\s*\{[^}]*height:\s*62px[^}]*box-sizing:\s*border-box/s);
+  assert.match(cssSource, /\.contract-row:focus-visible,[^}]*outline:\s*2px solid #f4f8ff/s);
+  assert.match(cssSource, /\.contracts-filter-count\s*\{[^}]*font-size:\s*8px/s);
+  assert.match(cssSource, /@media \(max-width: 900px\)[\s\S]*#contracts-browser\s*\{[^}]*flex-direction:\s*column/);
+  assert.doesNotMatch(cssSource, /@media \(max-width: 900px\)[\s\S]*#contracts-panel\s*\{[^}]*overflow-y:\s*auto/);
 });
 
 test('every rendered title pairs its objective-aligned challenge with the exact concrete reward', () => {

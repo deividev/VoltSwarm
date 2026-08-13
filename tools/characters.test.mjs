@@ -177,7 +177,7 @@ test('Bolt recommendation labels presentation without mutating draft membership 
   assert.deepEqual(pool, before);
 });
 
-test('character actions stay inside a viewport-bounded panel with internal scrolling', async () => {
+test('character actions stay fixed outside the single section scroll owner', async () => {
   const [hudSource, cssSource, configSource] = await Promise.all([
     readFile(new URL('../src/hud.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/ui.css', import.meta.url), 'utf8'),
@@ -191,11 +191,16 @@ test('character actions stay inside a viewport-bounded panel with internal scrol
   assert.match(hudSource, /dataset\.characterId\s*=\s*character\.id/);
   assert.match(hudSource, /dataset\.characterUnlocked/);
   assert.match(cssSource, /\.character-screen\s*\{[\s\S]*position:\s*static;[\s\S]*height:\s*min\(820px, calc\(100dvh - 32px\)\);[\s\S]*overflow:\s*hidden;/);
-  assert.match(cssSource, /\.character-layout\s*\{[\s\S]*flex:\s*1 1 auto;[\s\S]*min-height:\s*0;[\s\S]*overflow:\s*hidden;/);
+  assert.match(cssSource, /\.character-layout\s*\{[\s\S]*flex:\s*1 1 auto;[\s\S]*overflow-x:\s*hidden;[\s\S]*overflow-y:\s*auto;/);
+  assert.match(cssSource, /\.character-grid\s*\{[\s\S]*flex-wrap:\s*wrap;[\s\S]*overflow:\s*visible;/);
+  assert.match(cssSource, /\.character-card\s*\{[\s\S]*min-width:\s*300px;[\s\S]*min-height:\s*80px;[\s\S]*overflow:\s*visible;/);
+  assert.match(cssSource, /\.character-card > strong\s*\{[\s\S]*overflow:\s*visible;[\s\S]*white-space:\s*normal;[\s\S]*overflow-wrap:\s*anywhere;/);
+  assert.match(cssSource, /\.character-detail\s*\{[\s\S]*grid-template-columns:[^;]*0\.95fr[^;]*1fr[^;]*1\.15fr[\s\S]*overflow:\s*visible;[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/);
   assert.match(cssSource, /\.character-actions\s*\{[\s\S]*flex:\s*0 0 auto;/);
-  assert.match(configSource, /MENU_NAVIGATION\s*=\s*\{[\s\S]*characterDetailScrollPx:\s*\d+/);
-  assert.match(hudSource, /detail\.dataset\.characterDetailScroll\s*=\s*'true'/);
-  assert.match(hudSource, /MENU_NAVIGATION\.characterDetailScrollPx/);
+  assert.match(configSource, /MENU_NAVIGATION\s*=\s*\{[\s\S]*characterSectionScrollPx:\s*\d+/);
+  assert.match(hudSource, /host\.dataset\.characterSectionScroll\s*=\s*'true'/);
+  assert.match(hudSource, /MENU_NAVIGATION\.characterSectionScrollPx/);
+  assert.doesNotMatch(hudSource, /data-character-detail-scroll|characterDetailScrollPx/);
 });
 
 test('automation chooses the explicit unlocked default from a scalable roster', () => {
@@ -293,8 +298,9 @@ test('both character rosters reuse the approved front model reference without mo
   assert.match(hudSource, /lockIcon\.alt\s*=\s*''/);
   assert.match(hudSource, /status\.append\(unlocked \? 'Unlocked' : 'Locked'\)/);
   assert.doesNotMatch(hudSource, /status\.innerHTML/);
-  assert.match(cssSource, /\.character-stat-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(2/);
-  assert.match(cssSource, /@media \(max-width:\s*760px\)[\s\S]*\.character-stat-grid,[\s\S]*grid-template-columns:\s*1fr/);
+  assert.match(cssSource, /\.character-stat-grid\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
+  assert.match(cssSource, /@media \(max-width:\s*899px\)[\s\S]*\.character-detail[^}]*repeat\(2/);
+  assert.match(cssSource, /@media \(max-width:\s*559px\)[\s\S]*\.character-detail[^}]*minmax\(0, 1fr\)/);
   assert.equal(characters.CHARACTER_REGISTRY['field-engineer'].modelKey, 'field-engineer');
   assert.equal(
     characters.CHARACTER_REGISTRY['field-engineer'].portrait,

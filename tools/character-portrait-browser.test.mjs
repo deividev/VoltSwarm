@@ -106,6 +106,8 @@ try {
       statusIcon: card?.querySelector('.character-card-status img')?.getAttribute('src') ?? null,
       header: detail?.querySelector('h2')?.textContent?.trim(),
       description: detail?.querySelector('.character-detail-header p')?.textContent?.trim(),
+      profileStatus: detail?.querySelector('.character-profile-status')?.textContent?.trim(),
+      largePortrait: detail?.querySelector('.character-portrait.large')?.getAttribute('src'),
       stats: [...(detail?.querySelectorAll('.character-stat-row') ?? [])].map((row) => [
         row.getAttribute('data-character-stat'),
         row.querySelector(':scope > span')?.textContent?.trim(),
@@ -122,12 +124,62 @@ try {
       unlockFooter: detail?.querySelector('.character-unlock-footer')?.className ?? null,
       canvases: document.querySelectorAll('.character-model-canvas').length,
       webglContexts: window.__characterPortraitWebglContexts,
+      sectionOverflow: root ? getComputedStyle(root).overflowY : null,
       gridOverflow: root ? getComputedStyle(root.querySelector('.character-grid')).overflowY : null,
       detailOverflow: detail ? getComputedStyle(detail).overflowY : null,
     };
   };
-  const exerciseDetailNavigation = async (rootSelector, expectedExitId) => {
-    const detailSelector = `${rootSelector} [data-character-detail-scroll]`;
+  const assertCurrentContentFits = async (rootSelector, actionSelector, width, height) => {
+    await page.setViewport({ width, height, deviceScaleFactor: 1 });
+    const geometry = await page.$eval(rootSelector, (section, actionSelector) => {
+      const detail = section.querySelector('.character-detail');
+      const grid = section.querySelector('.character-grid');
+      const card = section.querySelector('[data-character-id="field-engineer"]');
+      const name = card?.querySelector(':scope > strong');
+      const action = document.querySelector(actionSelector);
+      const actionRect = action?.getBoundingClientRect();
+      const cardRect = card?.getBoundingClientRect();
+      const nameRect = name?.getBoundingClientRect();
+      return {
+        verticalRange: section.scrollHeight - section.clientHeight,
+        horizontalRange: section.scrollWidth - section.clientWidth,
+        columns: detail ? getComputedStyle(detail).gridTemplateColumns.split(' ').length : 0,
+        sectionOverflow: getComputedStyle(section).overflowY,
+        gridOverflow: grid ? getComputedStyle(grid).overflowY : null,
+        detailOverflow: detail ? getComputedStyle(detail).overflowY : null,
+        actionsOutsideSection: action ? !section.contains(action) : false,
+        actionsVisible: Boolean(actionRect && actionRect.top >= 0 && actionRect.bottom <= innerHeight),
+        nameText: name?.textContent?.trim(),
+        nameFullyVisible: Boolean(
+          cardRect && nameRect &&
+          nameRect.left >= cardRect.left &&
+          nameRect.right <= cardRect.right &&
+          nameRect.top >= cardRect.top &&
+          nameRect.bottom <= cardRect.bottom &&
+          name.scrollWidth <= name.clientWidth &&
+          name.scrollHeight <= name.clientHeight,
+        ),
+        nameWhiteSpace: name ? getComputedStyle(name).whiteSpace : null,
+        nameOverflow: name ? getComputedStyle(name).overflow : null,
+      };
+    }, actionSelector);
+    assert.deepEqual(geometry, {
+      verticalRange: 0,
+      horizontalRange: 0,
+      columns: 3,
+      sectionOverflow: 'auto',
+      gridOverflow: 'visible',
+      detailOverflow: 'visible',
+      actionsOutsideSection: true,
+      actionsVisible: true,
+      nameText: 'Field Engineer',
+      nameFullyVisible: true,
+      nameWhiteSpace: 'normal',
+      nameOverflow: 'visible',
+    });
+  };
+  const exerciseSectionNavigation = async (rootSelector, expectedExitId) => {
+    const detailSelector = `${rootSelector}[data-character-section-scroll]`;
     const accessibility = await page.$eval(detailSelector, (detail) => ({
       tabIndex: detail.tabIndex,
       role: detail.getAttribute('role'),
@@ -137,7 +189,7 @@ try {
     assert.deepEqual(accessibility, {
       tabIndex: 0,
       role: 'region',
-      label: 'Field Engineer character details',
+      label: 'Field Engineer character profile',
       clipped: true,
     });
 
@@ -169,10 +221,7 @@ try {
       const after = await page.$eval(detailSelector, (detail) => detail.scrollTop);
       if (step === 0) firstDelta = after - before;
       const activeId = await page.evaluate(() => document.activeElement?.id ?? '');
-      if (activeId) {
-        assert.equal(activeId, expectedExitId);
-        break;
-      }
+      if (activeId === expectedExitId) break;
     }
     assert.ok(firstDelta > 0, `${rootSelector} must scroll on the first vertical step`);
     assert.deepEqual(seen, { recommended: true, tradeoff: true });
@@ -181,12 +230,12 @@ try {
     // the detail pane. At the upper boundary ArrowUp exits to the roster card,
     // and ArrowDown re-enters it. This is the same focus path used by the pad.
     await page.keyboard.press('ArrowUp');
-    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-detail-scroll]')), true);
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-section-scroll]')), true);
     await page.$eval(detailSelector, (detail) => { detail.scrollTop = 0; });
     await page.keyboard.press('ArrowUp');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="field-engineer"]')), true);
     await page.keyboard.press('ArrowDown');
-    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-detail-scroll]')), true);
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-section-scroll]')), true);
   };
   const padEdge = async ({ button = null, axisY = 0 }) => {
     await page.evaluate(async ({ button, axisY }) => {
@@ -219,7 +268,7 @@ try {
   };
   const exerciseRealGamepadNavigation = async (rootSelector, expectedExitId) => {
     const cardSelector = `${rootSelector} [data-character-id="field-engineer"]`;
-    const detailSelector = `${rootSelector} [data-character-detail-scroll]`;
+    const detailSelector = `${rootSelector}[data-character-section-scroll]`;
     await page.waitForFunction((selector) => document.querySelector(selector)?.classList.contains('pad-focus'), {}, cardSelector);
     await assertPadFocus(cardSelector);
 
@@ -354,8 +403,11 @@ try {
   const selectorState = await page.evaluate(readRoster, '#character-select-roster');
   assert.equal(await page.$eval('#character-confirm-button', (button) => button.disabled), false);
   assert.equal(selectorState.statusIcon, null);
+  await assertCurrentContentFits('#character-select-roster', '#character-confirm-button', 1920, 1080);
+  await assertCurrentContentFits('#character-select-roster', '#character-confirm-button', 1024, 600);
+  await page.setViewport({ width: 520, height: 400, deviceScaleFactor: 1 });
   await exerciseRealGamepadNavigation('#character-select-roster', 'character-select-back-button');
-  await exerciseDetailNavigation('#character-select-roster', 'character-select-back-button');
+  await exerciseSectionNavigation('#character-select-roster', 'character-select-back-button');
   await exerciseLockedCharacter('#character-select-roster', '#character-confirm-button');
 
   await page.click('#character-select-back-button');
@@ -366,8 +418,11 @@ try {
   }, {}, PORTRAIT_PATH);
   const rosterState = await page.evaluate(readRoster, '#characters-roster');
   assert.equal(rosterState.statusIcon, null);
+  await assertCurrentContentFits('#characters-roster', '#characters-back-button', 1920, 1080);
+  await assertCurrentContentFits('#characters-roster', '#characters-back-button', 1024, 600);
+  await page.setViewport({ width: 520, height: 400, deviceScaleFactor: 1 });
   await exerciseRealGamepadNavigation('#characters-roster', 'characters-back-button');
-  await exerciseDetailNavigation('#characters-roster', 'characters-back-button');
+  await exerciseSectionNavigation('#characters-roster', 'characters-back-button');
   await exerciseLockedCharacter('#characters-roster');
 
   assert.equal(selectorState.portrait, PORTRAIT_PATH);
@@ -377,6 +432,8 @@ try {
   assert.equal(selectorState.status, 'Unlocked');
   assert.equal(selectorState.header, 'Field Engineer');
   assert.equal(selectorState.description, 'A forgiving chassis that turns Core upgrades into small repairs.');
+  assert.equal(selectorState.profileStatus, 'Unlocked');
+  assert.equal(selectorState.largePortrait, PORTRAIT_PATH);
   assert.deepEqual(selectorState.stats, EXPECTED_STATS);
   assert.deepEqual(selectorState.modules, [
     {
@@ -404,24 +461,30 @@ try {
   assert.equal(selectorState.unlockFooter, null);
   assert.equal(selectorState.canvases, 0);
   assert.equal(selectorState.webglContexts, baselineWebglContexts);
-  assert.equal(selectorState.gridOverflow, 'auto');
-  assert.equal(selectorState.detailOverflow, 'auto');
+  assert.equal(selectorState.sectionOverflow, 'auto');
+  assert.equal(selectorState.gridOverflow, 'visible');
+  assert.equal(selectorState.detailOverflow, 'visible');
   assert.deepEqual(rosterState, selectorState);
   if (process.env.CAPTURE_CHARACTER_UI) {
     await page.screenshot({ path: 'assets/preview/character-detail-polish.png' });
   }
-  await page.setViewport({ width: 720, height: 800, deviceScaleFactor: 1 });
+  await page.setViewport({ width: 520, height: 400, deviceScaleFactor: 1 });
   const compactLayout = await page.$eval('#characters-roster', (root) => ({
-    statColumns: getComputedStyle(root.querySelector('.character-stat-grid')).gridTemplateColumns.split(' ').length,
-    moduleColumns: getComputedStyle(root.querySelector('.character-module-grid')).gridTemplateColumns.split(' ').length,
+    sectionRange: root.scrollHeight - root.clientHeight,
+    horizontalRange: root.scrollWidth - root.clientWidth,
+    profileColumns: getComputedStyle(root.querySelector('.character-detail')).gridTemplateColumns.split(' ').length,
+    sectionOverflow: getComputedStyle(root).overflowY,
     gridOverflow: getComputedStyle(root.querySelector('.character-grid')).overflowY,
     detailOverflow: getComputedStyle(root.querySelector('.character-detail')).overflowY,
   }));
-  assert.deepEqual(compactLayout, {
-    statColumns: 1,
-    moduleColumns: 1,
-    gridOverflow: 'auto',
-    detailOverflow: 'auto',
+  assert.ok(compactLayout.sectionRange > 0, 'constrained layout must fall back to whole-section scrolling');
+  assert.deepEqual({ ...compactLayout, sectionRange: true }, {
+    sectionRange: true,
+    horizontalRange: 0,
+    profileColumns: 1,
+    sectionOverflow: 'auto',
+    gridOverflow: 'visible',
+    detailOverflow: 'visible',
   });
   await page.click('#characters-back-button');
   assert.equal(await page.$eval('#menu-overlay', (menu) => menu.classList.contains('hidden')), false);
