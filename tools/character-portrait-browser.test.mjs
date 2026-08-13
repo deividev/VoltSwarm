@@ -91,7 +91,7 @@ try {
       && image.complete
       && image.naturalWidth === 597
       && image.naturalHeight === 826
-      && image.alt === 'Field Engineer front orthographic model reference';
+      && image.alt === 'Field Engineer portrait';
   }, {}, PORTRAIT_PATH);
   const readRoster = (rootSelector) => {
     const root = document.querySelector(rootSelector);
@@ -106,8 +106,8 @@ try {
       statusIcon: card?.querySelector('.character-card-status img')?.getAttribute('src') ?? null,
       header: detail?.querySelector('h2')?.textContent?.trim(),
       description: detail?.querySelector('.character-detail-header p')?.textContent?.trim(),
-      profileStatus: detail?.querySelector('.character-profile-status')?.textContent?.trim(),
       largePortrait: detail?.querySelector('.character-portrait.large')?.getAttribute('src'),
+      largePortraitAlt: detail?.querySelector('.character-portrait.large')?.getAttribute('alt'),
       stats: [...(detail?.querySelectorAll('.character-stat-row') ?? [])].map((row) => [
         row.getAttribute('data-character-stat'),
         row.querySelector(':scope > span')?.textContent?.trim(),
@@ -129,8 +129,9 @@ try {
       detailOverflow: detail ? getComputedStyle(detail).overflowY : null,
     };
   };
-  const assertCurrentContentFits = async (rootSelector, actionSelector, width, height) => {
+  const assertLayoutContract = async (rootSelector, actionSelector, width, height, detailColumns, statColumns, expectFit = true) => {
     await page.setViewport({ width, height, deviceScaleFactor: 1 });
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     const geometry = await page.$eval(rootSelector, (section, actionSelector) => {
       const detail = section.querySelector('.character-detail');
       const grid = section.querySelector('.character-grid');
@@ -143,7 +144,10 @@ try {
       return {
         verticalRange: section.scrollHeight - section.clientHeight,
         horizontalRange: section.scrollWidth - section.clientWidth,
-        columns: detail ? getComputedStyle(detail).gridTemplateColumns.split(' ').length : 0,
+        detailColumns: detail ? getComputedStyle(detail).gridTemplateColumns.split(' ').length : 0,
+        statColumns: detail ? getComputedStyle(detail.querySelector('.character-stat-grid')).gridTemplateColumns.split(' ').length : 0,
+        order: [...(detail?.children ?? [])].map((child) => child.className),
+        tabIndex: section.tabIndex,
         sectionOverflow: getComputedStyle(section).overflowY,
         gridOverflow: grid ? getComputedStyle(grid).overflowY : null,
         detailOverflow: detail ? getComputedStyle(detail).overflowY : null,
@@ -164,9 +168,12 @@ try {
       };
     }, actionSelector);
     assert.deepEqual(geometry, {
-      verticalRange: 0,
+      verticalRange: expectFit ? 0 : geometry.verticalRange,
       horizontalRange: 0,
-      columns: 3,
+      detailColumns,
+      statColumns,
+      order: ['character-identity', 'character-rules', 'character-stat-sheet'],
+      tabIndex: expectFit ? -1 : geometry.verticalRange > 1 ? 0 : -1,
       sectionOverflow: 'auto',
       gridOverflow: 'visible',
       detailOverflow: 'visible',
@@ -177,6 +184,27 @@ try {
       nameWhiteSpace: 'normal',
       nameOverflow: 'visible',
     });
+    return geometry;
+  };
+  const exerciseZeroRangeNavigation = async (rootSelector, expectedExitId) => {
+    const cardSelector = `${rootSelector} [data-character-id="field-engineer"]`;
+    const sectionSelector = `${rootSelector}[data-character-section-scroll]`;
+    assert.equal(await page.$eval(sectionSelector, (section) => section.scrollHeight - section.clientHeight), 0);
+    assert.equal(await page.$eval(sectionSelector, (section) => section.tabIndex), -1);
+
+    await page.$eval(cardSelector, (card) => card.focus());
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), expectedExitId);
+    await page.keyboard.press('ArrowUp');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="field-engineer"]')), true);
+
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+    await assertPadFocus(cardSelector);
+    await padEdge({ button: 13 });
+    await assertPadFocus(`#${expectedExitId}`);
+    await padEdge({ button: 12 });
+    await assertPadFocus(cardSelector);
   };
   const exerciseSectionNavigation = async (rootSelector, expectedExitId) => {
     const detailSelector = `${rootSelector}[data-character-section-scroll]`;
@@ -338,6 +366,9 @@ try {
       const status = card?.querySelector('.character-card-status.locked');
       const statusIcon = status?.querySelector('img');
       const footer = root.querySelector('.character-unlock-footer.locked');
+      const detail = root.querySelector('.character-detail');
+      const footerRect = footer?.getBoundingClientRect();
+      const detailRect = detail?.getBoundingClientRect();
       const progress = footer?.querySelector('[role="progressbar"]');
       return {
         cardLocked: card?.getAttribute('data-character-unlocked'),
@@ -349,6 +380,8 @@ try {
         footerText: footer?.querySelector('.character-unlock-head span')?.textContent?.trim(),
         footerIcon: footer?.querySelector('.character-unlock-head img')?.getAttribute('src'),
         footerIconAlt: footer?.querySelector('.character-unlock-head img')?.getAttribute('alt'),
+        profileStatusAbsent: root.querySelector('.character-profile-status') === null,
+        footerSpansProfile: Boolean(footerRect && detailRect && Math.abs(footerRect.left - detailRect.left) <= 3 && Math.abs(footerRect.right - detailRect.right) <= 3),
         progressRole: progress?.getAttribute('role'),
         progressLabel: progress?.getAttribute('aria-label'),
         progressMax: progress?.getAttribute('aria-valuemax'),
@@ -384,6 +417,8 @@ try {
     assert.ok(locked.progressLabel?.endsWith(' progress'));
     assert.ok(Number(locked.progressMax) > 0);
     assert.ok(Number(locked.progressNow) >= 0);
+    assert.equal(locked.profileStatusAbsent, true);
+    assert.equal(locked.footerSpansProfile, true);
     if (confirmSelector) assert.equal(await page.$eval(confirmSelector, (button) => button.disabled), true);
 
     await page.evaluate(async ({ rootSelector, contractId }) => {
@@ -401,10 +436,16 @@ try {
     }, { rootSelector, contractId });
   };
   const selectorState = await page.evaluate(readRoster, '#character-select-roster');
+  const runtimeMeasurements = [];
   assert.equal(await page.$eval('#character-confirm-button', (button) => button.disabled), false);
   assert.equal(selectorState.statusIcon, null);
-  await assertCurrentContentFits('#character-select-roster', '#character-confirm-button', 1920, 1080);
-  await assertCurrentContentFits('#character-select-roster', '#character-confirm-button', 1024, 600);
+  runtimeMeasurements.push({ viewport: '1920x1080', ...(await assertLayoutContract('#character-select-roster', '#character-confirm-button', 1920, 1080, 3, 1)) });
+  runtimeMeasurements.push({ viewport: '1280x720', ...(await assertLayoutContract('#character-select-roster', '#character-confirm-button', 1280, 720, 3, 1)) });
+  runtimeMeasurements.push({ viewport: '1024x600', ...(await assertLayoutContract('#character-select-roster', '#character-confirm-button', 1024, 600, 3, 1)) });
+  await exerciseZeroRangeNavigation('#character-select-roster', 'character-select-back-button');
+  runtimeMeasurements.push({ viewport: '800x900', ...(await assertLayoutContract('#character-select-roster', '#character-confirm-button', 800, 900, 2, 3)) });
+  runtimeMeasurements.push({ viewport: '520x900', ...(await assertLayoutContract('#character-select-roster', '#character-confirm-button', 520, 900, 1, 2, false)) });
+  runtimeMeasurements.push({ viewport: '390x900', ...(await assertLayoutContract('#character-select-roster', '#character-confirm-button', 390, 900, 1, 1, false)) });
   await page.setViewport({ width: 520, height: 400, deviceScaleFactor: 1 });
   await exerciseRealGamepadNavigation('#character-select-roster', 'character-select-back-button');
   await exerciseSectionNavigation('#character-select-roster', 'character-select-back-button');
@@ -418,22 +459,27 @@ try {
   }, {}, PORTRAIT_PATH);
   const rosterState = await page.evaluate(readRoster, '#characters-roster');
   assert.equal(rosterState.statusIcon, null);
-  await assertCurrentContentFits('#characters-roster', '#characters-back-button', 1920, 1080);
-  await assertCurrentContentFits('#characters-roster', '#characters-back-button', 1024, 600);
+  await assertLayoutContract('#characters-roster', '#characters-back-button', 1920, 1080, 3, 1);
+  await assertLayoutContract('#characters-roster', '#characters-back-button', 1280, 720, 3, 1);
+  await assertLayoutContract('#characters-roster', '#characters-back-button', 1024, 600, 3, 1);
+  await exerciseZeroRangeNavigation('#characters-roster', 'characters-back-button');
+  await assertLayoutContract('#characters-roster', '#characters-back-button', 800, 900, 2, 3);
+  await assertLayoutContract('#characters-roster', '#characters-back-button', 520, 900, 1, 2, false);
+  await assertLayoutContract('#characters-roster', '#characters-back-button', 390, 900, 1, 1, false);
   await page.setViewport({ width: 520, height: 400, deviceScaleFactor: 1 });
   await exerciseRealGamepadNavigation('#characters-roster', 'characters-back-button');
   await exerciseSectionNavigation('#characters-roster', 'characters-back-button');
   await exerciseLockedCharacter('#characters-roster');
 
   assert.equal(selectorState.portrait, PORTRAIT_PATH);
-  assert.equal(selectorState.portraitAlt, 'Field Engineer front orthographic model reference');
+  assert.equal(selectorState.portraitAlt, 'Field Engineer portrait');
   assert.equal(selectorState.unlocked, 'true');
   assert.equal(selectorState.selected, 'true');
   assert.equal(selectorState.status, 'Unlocked');
   assert.equal(selectorState.header, 'Field Engineer');
   assert.equal(selectorState.description, 'A forgiving chassis that turns Core upgrades into small repairs.');
-  assert.equal(selectorState.profileStatus, 'Unlocked');
   assert.equal(selectorState.largePortrait, PORTRAIT_PATH);
+  assert.equal(selectorState.largePortraitAlt, '');
   assert.deepEqual(selectorState.stats, EXPECTED_STATS);
   assert.deepEqual(selectorState.modules, [
     {
@@ -444,20 +490,37 @@ try {
       badge: '1% MAX HP / CORE UPGRADE',
     },
     {
-      id: 'recommended-weapon',
-      icon: 'assets/2d/icon-weapon-bolt.png',
-      label: 'Recommended Weapon',
-      title: 'Bolt Cannon',
-      badge: null,
-    },
-    {
       id: 'tradeoff',
       icon: 'assets/2d/icon-stat-damage.png',
       label: 'Tradeoff',
       title: '-5% Damage',
       badge: null,
     },
+    {
+      id: 'recommended-weapon',
+      icon: 'assets/2d/icon-weapon-bolt.png',
+      label: 'Suggested Start',
+      title: 'Bolt Cannon',
+      badge: null,
+    },
   ]);
+  const statEmphasis = await page.evaluate(async () => {
+    const { CHARACTER_REGISTRY, characterStatRows } = await import('/src/characters.ts');
+    return characterStatRows(CHARACTER_REGISTRY['field-engineer']).map((row) => {
+      const element = document.querySelector(`#characters-roster [data-character-stat="${row.id}"]`);
+      return {
+        id: row.id,
+        derived: row.changed,
+        marked: element?.getAttribute('data-character-stat-changed'),
+        className: element?.classList.contains(row.changed ? 'changed' : 'baseline'),
+      };
+    });
+  });
+  assert.equal(statEmphasis.length, 9);
+  for (const stat of statEmphasis) {
+    assert.equal(stat.marked, String(stat.derived));
+    assert.equal(stat.className, true);
+  }
   assert.equal(selectorState.unlockFooter, null);
   assert.equal(selectorState.canvases, 0);
   assert.equal(selectorState.webglContexts, baselineWebglContexts);
@@ -486,6 +549,7 @@ try {
     gridOverflow: 'visible',
     detailOverflow: 'visible',
   });
+  console.log('character runtime measurements:', JSON.stringify([...runtimeMeasurements, { viewport: '520x400', ...compactLayout }]));
   await page.click('#characters-back-button');
   assert.equal(await page.$eval('#menu-overlay', (menu) => menu.classList.contains('hidden')), false);
   assert.deepEqual(pageErrors, []);
