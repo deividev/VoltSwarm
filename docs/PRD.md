@@ -398,14 +398,14 @@ Arquitectura que separa RITMO de CONTENIDO, para que añadir contenido nunca obl
 
 #### Estado implementado verificado (2026-08-12)
 
-Hay **29 contratos declarados y 27 activos**. `Proving Ground` y `Two of a Kind` son definiciones latentes: no se evalúan ni se muestran. Ambos siguen declarando internamente un premio `next-core`; `Two of a Kind` todavía no registra personajes distintos, por lo que ninguno debe describirse como progresión de personaje implementada.
+Hay **29 contratos declarados y 27 activos**. `Proving Ground` y `Survival Trial` son definiciones latentes: no se evalúan ni se muestran. Ambos siguen declarando internamente un premio `next-core`; `Survival Trial` evalúa supervivencia y no registra personajes distintos, por lo que ninguno debe describirse como progresión de personaje implementada.
 
 | Área | Estado actual |
 | --- | --- |
 | Armas | 5 por defecto. `First Blood` entrega Junk Ricochet; Arsenal consume, en orden de liquidación, Arc Welder, Acid Drum, Turbine Fan y Dismantler. Arsenal V queda seco/de repuesto. Oil Sprayer existe en código y herramientas de desarrollo, pero está explícitamente fuera del camino de desbloqueo y no está disponible para el jugador. |
 | Cores | 10 por defecto + 10 IDs en `CORE_QUEUE`. Los 11 peldaños activos que pagan `next-core` (Scrap Quota 4 + Veteran 4 + Ascension 3) compiten por esa cola compartida: el ID concedido depende del orden de liquidación, no de un nombre de contrato fijo. Un peldaño queda seco/de repuesto y oculto hasta que exista premio. |
 | Mods | 12 por defecto. Overkill, Purist y Foreman entregan Overload Trigger, Phase Chassis y Magnetron Heart; Endurance consume Coolant Burst y Chain Relay. Endurance III queda seco/de repuesto. |
-| Capacidad | Armas 2 → 3 por Boss Hunter; cores 2 → 4 por Second Wind y Full Loadout; descartes de level-up 3 → 4 por Untouchable. |
+| Capacidad | Armas 2 → 3 por Boss Hunter; cores 2 → 4 por Second Wind y Level Milestone; descartes de level-up 3 → 4 por Untouchable. |
 | Personajes | Field Engineer es el único personaje registrado y desbloqueado por defecto. El reward/persistence seam existe, pero no hay contrato activo de personaje. |
 
 **Semántica vigente en esta rama:** Second Wind exige limpiar la Demo derrotando un boss del Mapa 1 (`sector-cleared`/`run-complete`); sobrevivir al reloj o sufrir una derrota tardía no basta. Boss Hunter exige derrotar los 2 bosses exactos del Mapa 1; Purist exige esa misma limpieza estructural con una sola arma y sin mods; Foreman, los 2 tipos de boss del Mapa 1. **Maestría de arma** significa acumular **50.000 de daño de carrera con esa arma**.
@@ -425,13 +425,13 @@ Decisiones que sostienen el diseño:
 - Las escaleras llevan **más peldaños que ítems** a propósito. Un peldaño sin premio disponible **ni se liquida ni se ofrece**; reaparece cuando la cola crece.
 - `progressOf()` devuelve actual y objetivo, sirviendo a la vez para "¿está hecho?" y la barra de progreso, que así no pueden discrepar.
 - Se evalúa **una vez por run terminada** contra el ledger, y también al arrancar, así un contrato publicado después se completa retroactivamente sin dejar una ventana donde la pantalla diga COMPLETE sin haber pagado.
-- Los dos contratos latentes (`Proving Ground` y `Two of a Kind`) permanecen definidos, pero nunca se evalúan ni se muestran.
+- Los dos contratos latentes (`Proving Ground` y `Survival Trial`) permanecen definidos, pero nunca se evalúan ni se muestran.
 
 Umbrales en `config.ts` `CONTRACTS`, marcados como **placeholders**: están anclados a una sola run registrada y necesitan decenas de runs humanas del balance actual antes de significar algo.
 
 ### UI
 
-Pantalla de Contratos desde el menú (una columna por categoría: Weapons/Cores/Mods/Sockets/Perks), ordenada por cercanía a completarse, con el arte del premio en cada fila y barras de celdas segmentadas. Los sockets usan un diagrama de pips en vez de icono, porque ninguna imagen comunica "capacidad". Reveal al terminar la run entre las stats y el desglose de daño, solo si se ganó algo, con tope de 5 filas.
+Pantalla de Contratos desde el menú (una columna por categoría: Weapons/Cores/Mods/Sockets/Perks), ordenada por cercanía a completarse, con el arte del premio en cada fila y barras de celdas segmentadas. Cada título usa `reto — recompensa concreta`, resuelta con el mismo orden canónico de premios que la fila; la recompensa se conserva también en su línea separada. Los sockets usan un diagrama de pips en vez de icono, porque ninguna imagen comunica "capacidad". Reveal al terminar la run entre las stats y el desglose de daño, solo si se ganó algo, con tope de 5 filas.
 
 ### Herramientas de desarrollo
 

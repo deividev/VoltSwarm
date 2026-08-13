@@ -27,7 +27,7 @@ Debe ser una evolución reconocible del jugador actual y cargar con las primeras
 - `src/characters.ts` es el registry data-driven y usa IDs estables; `field-engineer` está desbloqueado por defecto.
 - Flujo: Play → selección de personaje → draft de arma → loading → run. El menú Characters reutiliza el mismo registry.
 - `PROFILE.unlockedCharacters` persiste IDs y deja el seam listo para recompensas de Contracts, sin ningún contrato activo de personaje.
-- `Proving Ground` y `Two of a Kind` existen solo como definiciones latentes y excluidas de la UI/evaluación. Ambos conservan internamente `next-core`; `Two of a Kind` todavía no rastrea personajes distintos. No son desbloqueos de personaje implementados.
+- `Proving Ground` y `Survival Trial` existen solo como definiciones latentes y excluidas de la UI/evaluación. Ambos conservan internamente `next-core`; `Survival Trial` evalúa supervivencia y no rastrea personajes distintos. No son desbloqueos de personaje implementados.
 - Selection, character details, and model v1 are integrated at runtime. The body uses measured-profile extrusion with a pack-free `side-depth` sheet; `backPaintRef` paints the existing shell, while dedicated procedural geometry restores the pack's rear volume. Multi-angle inspection, rear-view locomotion, and the 400+ enemy swarm gate passed, and the runtime model is definitively approved in-game.
 
 ## Brief visual v1
