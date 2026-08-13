@@ -2,10 +2,11 @@ import { PROFILE, PLAYER, SECONDS_PER_MINUTE, DEV_TOOLS, MAPS, MENU_NAVIGATION, 
 import { LIFETIME, resetProfile, saveProfile } from './profile';
 import {
   ACTIVE_CONTRACTS,
+  describeObjective,
   describeReward,
   devCompleteAllContracts,
   progressOf,
-  resolveReward,
+  previewContractRewards,
   rewardCategory,
   rewardName,
   type Contract,
@@ -1176,6 +1177,7 @@ export class Hud {
    *  answer to "what should I chase this run". Completed ones sink to the
    *  bottom as a record rather than disappearing. */
   private renderContracts(): void {
+    const rewardPreviews = previewContractRewards();
     const rows = ACTIVE_CONTRACTS.map((contract) => {
       const { current, target } = progressOf(contract.objective);
       // "Done" means SETTLED, not merely "objective met". Settling declines a
@@ -1189,6 +1191,7 @@ export class Hud {
         done,
         asTime: 'seconds' in contract.objective,
         ratio: target > 0 ? current / target : 0,
+        resolved: rewardPreviews[contract.id] ?? null,
       };
     }).sort((a, b) => (a.done === b.done ? b.ratio - a.ratio : a.done ? 1 : -1));
 
@@ -1217,14 +1220,12 @@ export class Hud {
       head.className = 'contract-group-head';
       group.appendChild(head);
 
-      // Pending rungs of the same ladder all draw from one queue, so resolve
-      // them in display order — otherwise every row would advertise the same
-      // item as its reward.
-      const claimed = new Set<string>();
+      // Attribution is already frozen in canonical settlement order, so this
+      // progress-sorted presentation cannot change which reward a row promises.
       let shown = 0;
       let done = 0;
       for (const row of inSection) {
-        const element = this.contractRow(row, claimed);
+        const element = this.contractRow(row);
         // A spare ladder rung with nothing left in its queue is not offered:
         // advertising a contract that cannot pay is worse than hiding it until
         // new content fills the slot.
@@ -1256,15 +1257,12 @@ export class Hud {
   }
 
   private contractRow(
-    row: { contract: Contract; current: number; target: number; done: boolean; asTime: boolean },
-    claimed: Set<string>,
+    row: { contract: Contract; current: number; target: number; done: boolean; asTime: boolean; resolved: Reward | null },
   ): HTMLElement | null {
     // A settled contract shows what it actually gave; a pending one shows what
     // it would give. Contracts settled before grantedRewards existed fall back
     // to the declared reward.
-    const resolved = row.done
-      ? LIFETIME.grantedRewards[row.contract.id] ?? row.contract.reward
-      : resolveReward(row.contract.reward, claimed);
+    const resolved = row.resolved;
     if (!row.done && resolved === null) return null;
 
     const item = document.createElement('div');
@@ -1277,10 +1275,12 @@ export class Hud {
           `<span class="contract-title">${row.contract.title}</span>` +
           `<span class="contract-count">${row.done ? 'COMPLETE' : `${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}`}</span>` +
         '</div>' +
-        `<div class="contract-desc">${row.contract.description}</div>` +
+        '<div class="contract-desc"></div>' +
         segmentedContractBarHtml(row.current, row.target) +
         `<div class="contract-reward">${rewardLabelHtml(row.contract.reward, resolved, row.done)}</div>` +
       '</div>';
+    const description = item.querySelector<HTMLElement>('.contract-desc');
+    if (description) description.textContent = describeObjective(row.contract.objective);
     return item;
   }
 

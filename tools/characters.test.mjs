@@ -62,7 +62,10 @@ test('Boss Hunter unlocks weapon slot 3 and cannot exceed the design cap', () =>
   const bossHunter = contracts.ALL_CONTRACTS.find((contract) => contract.id === 'boss-hunter');
   assert.ok(bossHunter);
   assert.deepEqual(bossHunter.reward, { kind: 'socket', slot: 'weapon' });
-  assert.equal(bossHunter.objective.n, config.CONTRACTS.bossHunterKills);
+  assert.deepEqual(bossHunter.objective, {
+    type: 'defeat-boss-types',
+    requiredTypes: [...new Set(config.BOSS_TYPE_INDEXES.map((index) => config.ENEMY_TYPES[index].name))],
+  });
 
   const originalSockets = config.PROFILE.weaponSockets;
   try {
@@ -84,10 +87,10 @@ test('Foreman tracks every boss kind in the full-game roster', () => {
   const foreman = contracts.ALL_CONTRACTS.find((contract) => contract.id === 'foreman');
   assert.ok(foreman);
   assert.deepEqual(foreman.objective, {
-    type: 'boss-kinds',
-    n: config.ENEMY_TYPES.filter((type) => type.isBoss).length,
+    type: 'defeat-all-boss-types',
+    requiredTypes: config.ENEMY_TYPES.filter((type) => type.isBoss).map((type) => type.name),
   });
-  assert.equal(foreman.objective.n, 3);
+  assert.equal(foreman.objective.requiredTypes.length, 3);
 });
 
 test('socket HUD derives three weapon pips from PROFILE rather than a fixed count', async () => {

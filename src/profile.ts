@@ -184,7 +184,7 @@ export function recordRunInLifetime(record: RunRecordV1): void {
   // damageTaken counter existed cannot claim flawless — unknown is not zero.
   const weaponsCarried = Object.values(record.weaponLevels).filter((level) => level > 0).length;
   const modsTaken = Object.values(record.modCounts).reduce((total, n) => total + Math.max(0, n), 0);
-  if (weaponsCarried <= 1 && modsTaken === 0) {
+  if (weaponsCarried === 1 && modsTaken === 0) {
     LIFETIME.bestMinimalRunS = Math.max(LIFETIME.bestMinimalRunS, record.durationS);
     LIFETIME.bestMinimalSectors = Math.max(LIFETIME.bestMinimalSectors, sectorsCleared);
   }
@@ -350,7 +350,7 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
     LIFETIME.bestMinimalSectors = history.reduce((best, record) => {
       const weapons = Object.values(record.weaponLevels).filter((level) => level > 0).length;
       const mods = Object.values(record.modCounts).reduce((sum, count) => sum + Math.max(0, count), 0);
-      return weapons <= 1 && mods === 0 ? Math.max(best, sectorsClearedOf(record)) : best;
+      return weapons === 1 && mods === 0 ? Math.max(best, sectorsClearedOf(record)) : best;
     }, 0);
   }
 }

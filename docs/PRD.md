@@ -119,11 +119,11 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - **Arc Welder**: rayo continuo al más cercano; el daño CRECE mientras no cambie de objetivo.
 - **Hydraulic Press**: pistón que aplasta una franja frontal (dirección de movimiento) cada X s.
 - **Tire Fire**: neumático ardiendo que rueda en línea recta atravesando todo.
-- Total armas: 6 (Bolt, Pulse, Blades, Welder, Press, Tire).
+- Base P1: 6 armas. El roster implementado actual tiene 11 IDs; 10 están disponibles por perfil/contratos y Oil Sprayer permanece fuera del camino de desbloqueo.
 
 ### 11. Draft de arma inicial y tope de armas
-- Al empezar run: 3 opciones aleatorias de las 6 armas; la elegida es tu arma inicial (reemplaza al Bolt fijo).
-- **Tope de 2 armas por build.** Mientras tengas 1, cada level-up garantiza una carta de desbloqueo entre las 3 opciones; al llegar a 2, desaparecen los desbloqueos y solo salen mejoras (stats + niveles de tus armas).
+- Al empezar run: 3 opciones aleatorias del pool desbloqueado (5 armas en un perfil nuevo); la elegida es tu arma inicial (reemplaza al Bolt fijo).
+- **Capacidad de armas por build:** 2 en un perfil nuevo y 3 tras Boss Hunter. Mientras quede un socket libre, el level-up puede ofrecer desbloqueos; al llenar la capacidad desaparecen y solo salen mejoras (stats + niveles de tus armas).
 - **Panel de build** a la izquierda de la pantalla: iconos con las armas (y su nivel) y cada stat que hayas subido, actualizado con cada elección y cofre.
 
 ### 12. Tótem + boss aleatorio
@@ -393,6 +393,28 @@ Arquitectura que separa RITMO de CONTENIDO, para que añadir contenido nunca obl
 - **Contratos firma** (~10) escritos a mano, nombran su premio: sockets, primer boss, desafíos de maestría.
 - **Peldaños de escalera** generados de plantilla que pagan "el siguiente de una cola" (`WEAPON_QUEUE`, `CORE_QUEUE`, `MOD_QUEUE`). Añadir un arma es un `push`; el peldaño ya existe.
 
+#### Estado implementado verificado (2026-08-12)
+
+Hay **29 contratos declarados y 27 activos**. `Proving Ground` y `Two of a Kind` son definiciones latentes: no se evalúan ni se muestran. Ambos siguen declarando internamente un premio `next-core`; `Two of a Kind` todavía no registra personajes distintos, por lo que ninguno debe describirse como progresión de personaje implementada.
+
+| Área | Estado actual |
+| --- | --- |
+| Armas | 5 por defecto. `First Blood` entrega Junk Ricochet; Arsenal consume, en orden de liquidación, Arc Welder, Acid Drum, Turbine Fan y Dismantler. Arsenal V queda seco/de repuesto. Oil Sprayer existe en código y herramientas de desarrollo, pero está explícitamente fuera del camino de desbloqueo y no está disponible para el jugador. |
+| Cores | 10 por defecto + 10 IDs en `CORE_QUEUE`. Los 11 peldaños activos que pagan `next-core` (Scrap Quota 4 + Veteran 4 + Ascension 3) compiten por esa cola compartida: el ID concedido depende del orden de liquidación, no de un nombre de contrato fijo. Un peldaño queda seco/de repuesto y oculto hasta que exista premio. |
+| Mods | 12 por defecto. Overkill, Purist y Foreman entregan Overload Trigger, Phase Chassis y Magnetron Heart; Endurance consume Coolant Burst y Chain Relay. Endurance III queda seco/de repuesto. |
+| Capacidad | Armas 2 → 3 por Boss Hunter; cores 2 → 4 por Second Wind y Full Loadout; descartes de level-up 3 → 4 por Untouchable. |
+| Personajes | Field Engineer es el único personaje registrado y desbloqueado por defecto. El reward/persistence seam existe, pero no hay contrato activo de personaje. |
+
+**Semántica vigente en esta rama:** Second Wind exige completar estructuralmente la run; Boss Hunter, derrotar los 2 bosses exactos del Mapa 1; Purist, completar los 2 sectores con una sola arma y sin mods; Foreman, derrotar los 3 tipos de boss, incluido Hazard Marshal. **Maestría de arma** significa acumular **50.000 de daño de carrera con esa arma**.
+
+| Escalera | Umbrales activos |
+| --- | --- |
+| Arsenal | 1 / 2 / 3 / 4 / 5 armas dominadas |
+| Scrap Quota | 300 / 1.500 / 5.000 / 12.000 kills de carrera |
+| Veteran | 3 / 8 / 15 / 25 runs terminadas |
+| Ascension | mejor nivel 10 / 15 / 20 |
+| Endurance | 120 / 240 / 360 s |
+
 Decisiones que sostienen el diseño:
 
 - Lo otorgado se guarda como **IDS**, nunca como posición en la cola: reordenar la cola no puede duplicar ni saltear.
@@ -400,7 +422,7 @@ Decisiones que sostienen el diseño:
 - Las escaleras llevan **más peldaños que ítems** a propósito. Un peldaño sin premio disponible **ni se liquida ni se ofrece**; reaparece cuando la cola crece.
 - `progressOf()` devuelve actual y objetivo, sirviendo a la vez para "¿está hecho?" y la barra de progreso, que así no pueden discrepar.
 - Se evalúa **una vez por run terminada** contra el ledger, y también al arrancar, así un contrato publicado después se completa retroactivamente sin dejar una ventana donde la pantalla diga COMPLETE sin haber pagado.
-- Los contratos cuyo contenido no existe (personajes) quedan **latentes**: definidos, nunca evaluados, nunca mostrados.
+- Los dos contratos latentes (`Proving Ground` y `Two of a Kind`) permanecen definidos, pero nunca se evalúan ni se muestran.
 
 Umbrales en `config.ts` `CONTRACTS`, marcados como **placeholders**: están anclados a una sola run registrada y necesitan decenas de runs humanas del balance actual antes de significar algo.
 
