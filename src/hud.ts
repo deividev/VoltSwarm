@@ -1052,6 +1052,11 @@ export class Hud {
       { capture: true },
     );
     window.addEventListener('keydown', (event) => this.handleCharacterDetailKeyDown(event));
+    window.addEventListener('resize', () => {
+      for (const section of document.querySelectorAll<HTMLElement>('[data-character-section-scroll]')) {
+        this.syncCharacterSectionFocus(section);
+      }
+    });
 
     // Pre-composites every core icon inside the tier-tinted orb shell;
     // cards/panel fall back to bare icons until this resolves.
@@ -1818,7 +1823,8 @@ export class Hud {
       (el) =>
         el.offsetParent !== null &&
         !el.classList.contains('hidden') &&
-        !(el as HTMLButtonElement).disabled,
+        !(el as HTMLButtonElement).disabled &&
+        (!el.matches('[data-character-section-scroll]') || this.syncCharacterSectionFocus(el)),
     );
     // The scroll owner wraps the roster buttons in DOM order, but it is a
     // deliberate navigation stop after those buttons, not before them.
@@ -1833,6 +1839,12 @@ export class Hud {
       if (section) items.splice(insertionIndex, 0, section);
     }
     return items;
+  }
+
+  private syncCharacterSectionFocus(section: HTMLElement): boolean {
+    const scrollable = section.scrollHeight - section.clientHeight > 1;
+    section.tabIndex = scrollable ? 0 : -1;
+    return scrollable;
   }
 
   private handleContractsKeyDown(event: KeyboardEvent): void {
@@ -1897,9 +1909,10 @@ export class Hud {
     const nextIndex = index + direction;
     const next = nextIndex >= 0 && nextIndex < items.length ? items[nextIndex] : null;
     if (index < 0 || !next) return;
-    // Arrow navigation is scoped to entering or leaving the scroll region;
-    // ordinary buttons keep their existing keyboard behavior elsewhere.
-    if (!target.matches('[data-character-section-scroll]') && !next.matches('[data-character-section-scroll]')) return;
+    const crossesSection = target.matches('[data-character-section-scroll]') || next.matches('[data-character-section-scroll]');
+    const leavesRoster = direction > 0 && target.matches('[data-character-id]');
+    const returnsFromActions = direction < 0 && target.closest('.character-actions') !== null;
+    if (!crossesSection && !leavesRoster && !returnsFromActions) return;
     event.preventDefault();
     this.padNavContainer = container;
     this.padNavIndex = nextIndex;
@@ -1923,7 +1936,7 @@ export class Hud {
     host.innerHTML = '<div class="character-grid"></div><article class="character-detail"></article>';
     const grid = host.querySelector<HTMLElement>('.character-grid')!;
     const detail = host.querySelector<HTMLElement>('.character-detail')!;
-    host.tabIndex = 0;
+    host.tabIndex = -1;
     host.dataset.characterSectionScroll = 'true';
     host.setAttribute('role', 'region');
     host.setAttribute('aria-label', `${selected.name} character profile`);
@@ -1961,28 +1974,16 @@ export class Hud {
     const recommendedWeapon = WEAPON_INFO[selected.recommendedWeapon];
     const recommendedWeaponIcon = WEAPON_ICON_IMAGES[selected.recommendedWeapon];
     detail.innerHTML = `
-      <section class="character-identity">
+      <section class="character-identity" aria-label="Character identity">
         <div class="character-portrait-stage">${this.characterPortraitHtml(selected, true)}</div>
         <header class="character-detail-header">
           <span>Character Profile</span>
           <h2>${selected.name}</h2>
           <p>${selected.shortDescription}</p>
-          <span class="character-profile-status ${selectedUnlocked ? 'unlocked' : 'locked'}">${selectedUnlocked ? 'Unlocked' : 'Locked'}</span>
         </header>
       </section>
-      <section class="character-stat-sheet" aria-label="Character stats">
-        <div class="character-column-heading">Stat Sheet</div>
-        <div class="character-stat-grid">
-        ${statRows.map((row) => `
-          <div class="character-stat-row build-row" data-character-stat="${row.id}">
-            <img class="build-icon build-icon-img" src="${row.icon}" alt="" />
-            <span>${row.label}</span>
-            <strong class="build-value">${row.value}</strong>
-          </div>`).join('')}
-        </div>
-      </section>
-      <section class="character-rules" aria-label="Character rules">
-        <div class="character-column-heading">Rules</div>
+      <section class="character-rules" aria-label="Gameplay identity">
+        <div class="character-column-heading">Gameplay Identity</div>
         <div class="character-module-grid">
         <section class="character-module signature" data-character-module="signature">
           ${rigTileHtml({ src: 'assets/2d/icon-item-repair.png', label: selected.signature.name, cls: 'character-module-tile' })}
@@ -1993,14 +1994,6 @@ export class Hud {
             <span class="character-rule-badge">${selected.signature.badge}</span>
           </div>
         </section>
-        <section class="character-module" data-character-module="recommended-weapon">
-          ${rigTileHtml({ src: recommendedWeaponIcon, label: recommendedWeapon.title, cls: 'character-module-tile' })}
-          <div class="character-module-copy">
-            <span class="character-module-kicker">Recommended Weapon</span>
-            <h3>${recommendedWeapon.title}</h3>
-            <p>Highlighted when offered in the starting draft.</p>
-          </div>
-        </section>
         <section class="character-module tradeoff" data-character-module="tradeoff">
           ${rigTileHtml({ src: 'assets/2d/icon-stat-damage.png', label: 'Damage tradeoff', cls: 'character-module-tile' })}
           <div class="character-module-copy">
@@ -2009,10 +2002,30 @@ export class Hud {
             <p>${selected.tradeoff}</p>
           </div>
         </section>
-          ${this.characterUnlockHtml(selected, selectedUnlocked)}
+        <section class="character-module suggested-start" data-character-module="recommended-weapon">
+          ${rigTileHtml({ src: recommendedWeaponIcon, label: recommendedWeapon.title, cls: 'character-module-tile' })}
+          <div class="character-module-copy">
+            <span class="character-module-kicker">Suggested Start</span>
+            <h3>${recommendedWeapon.title}</h3>
+            <p>Shown as a suggested start when offered. It is not guaranteed and its draft odds do not change.</p>
+          </div>
+        </section>
         </div>
       </section>
+      <section class="character-stat-sheet" aria-label="Character stats">
+        <div class="character-column-heading">Stats</div>
+        <div class="character-stat-grid">
+        ${statRows.map((row) => `
+          <div class="character-stat-row build-row ${row.changed ? 'changed' : 'baseline'}" data-character-stat="${row.id}" data-character-stat-changed="${row.changed}">
+            <img class="build-icon build-icon-img" src="${row.icon}" alt="" />
+            <span>${row.label}</span>
+            <strong class="build-value">${row.value}</strong>
+          </div>`).join('')}
+        </div>
+      </section>
+      ${this.characterUnlockHtml(selected, selectedUnlocked)}
     `;
+    requestAnimationFrame(() => this.syncCharacterSectionFocus(host));
     if (selectable) {
       const confirm = mustGet('character-confirm-button') as HTMLButtonElement;
       confirm.disabled = !selectedUnlocked;
@@ -2023,8 +2036,8 @@ export class Hud {
     const cls = `character-portrait${large ? ' large' : ''}`;
     const initials = character.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase();
     return character.portrait
-      ? `<img class="${cls}" src="${character.portrait}" alt="${character.name} front orthographic model reference" />`
-      : `<div class="${cls} fallback" role="img" aria-label="${character.name} character portrait fallback">${initials}</div>`;
+      ? `<img class="${cls}" src="${character.portrait}" alt="${large ? '' : `${character.name} portrait`}" />`
+      : `<div class="${cls} fallback"${large ? ' aria-hidden="true"' : ` role="img" aria-label="${character.name} portrait"`}>${initials}</div>`;
   }
 
   private characterUnlockHtml(character: CharacterDef, unlocked: boolean): string {
@@ -2076,7 +2089,7 @@ export class Hud {
       if (option.recommended) {
         const recommended = document.createElement('span');
         recommended.className = 'recommended-tag';
-        recommended.textContent = 'Recommended';
+        recommended.textContent = 'Suggested Start';
         card.appendChild(recommended);
       }
       card.insertAdjacentHTML('beforeend', cardIconHtml(`weapon-${weaponId}`));

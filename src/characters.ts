@@ -116,6 +116,8 @@ export interface CharacterStatRow {
   label: string;
   value: string;
   icon: string;
+  /** True when the value differs from the shared gameplay baseline. */
+  changed: boolean;
 }
 
 /** Presentation values derived from the same config-backed character data as
@@ -128,20 +130,22 @@ export function characterStatRows(character: CharacterDef): CharacterStatRow[] {
       label: 'Max HP',
       value: asValueWithDelta(character.maxHp, PLAYER.maxHp),
       icon: 'assets/2d/icon-card-max-hp.png',
+      changed: character.maxHp !== PLAYER.maxHp,
     },
-    { id: 'armor', label: 'Armor', value: asPercent(character.stats.armor), icon: 'assets/2d/icon-stat-armor-v2.png' },
-    { id: 'damage', label: 'Damage', value: asSignedPercent(character.stats.damage - BASE_STATS.damage), icon: 'assets/2d/icon-stat-damage.png' },
+    { id: 'armor', label: 'Armor', value: asPercent(character.stats.armor), icon: 'assets/2d/icon-stat-armor-v2.png', changed: character.stats.armor !== BASE_STATS.armor },
+    { id: 'damage', label: 'Damage', value: asSignedPercent(character.stats.damage - BASE_STATS.damage), icon: 'assets/2d/icon-stat-damage.png', changed: character.stats.damage !== BASE_STATS.damage },
     {
       id: 'move-speed',
       label: 'Move Speed',
       value: asValueWithDelta(character.moveSpeed, PLAYER.moveSpeed),
       icon: 'assets/2d/icon-stat-move-speed.png',
+      changed: character.moveSpeed !== PLAYER.moveSpeed,
     },
-    { id: 'attack-speed', label: 'Attack Speed', value: `x${character.stats.attackSpeed}`, icon: 'assets/2d/icon-stat-attack-speed.png' },
-    { id: 'crit-chance', label: 'Crit Chance', value: asPercent(character.stats.critChance), icon: 'assets/2d/icon-stat-crit.png' },
-    { id: 'crit-damage', label: 'Crit Damage', value: `+${asPercent(character.stats.critDamage)}`, icon: 'assets/2d/icon-stat-crit-damage.png' },
-    { id: 'luck', label: 'Luck', value: asPercent(character.stats.luck), icon: 'assets/2d/icon-stat-luck.png' },
-    { id: 'regen', label: 'Regen', value: `${(character.stats.regen * SECONDS_PER_MINUTE) / PLAYER.regenTickS} HP/min`, icon: 'assets/2d/icon-stat-regen.png' },
+    { id: 'attack-speed', label: 'Attack Speed', value: `x${character.stats.attackSpeed}`, icon: 'assets/2d/icon-stat-attack-speed.png', changed: character.stats.attackSpeed !== BASE_STATS.attackSpeed },
+    { id: 'crit-chance', label: 'Crit Chance', value: asPercent(character.stats.critChance), icon: 'assets/2d/icon-stat-crit.png', changed: character.stats.critChance !== BASE_STATS.critChance },
+    { id: 'crit-damage', label: 'Crit Damage', value: `+${asPercent(character.stats.critDamage)}`, icon: 'assets/2d/icon-stat-crit-damage.png', changed: character.stats.critDamage !== BASE_STATS.critDamage },
+    { id: 'luck', label: 'Luck', value: asPercent(character.stats.luck), icon: 'assets/2d/icon-stat-luck.png', changed: character.stats.luck !== BASE_STATS.luck },
+    { id: 'regen', label: 'Regen', value: `${(character.stats.regen * SECONDS_PER_MINUTE) / PLAYER.regenTickS} HP/min`, icon: 'assets/2d/icon-stat-regen.png', changed: character.stats.regen !== BASE_STATS.regen },
   ];
 }
 

@@ -118,6 +118,20 @@ test('character stat rows derive baselines and format percentage ratings', () =>
     `${(engineer.stats.regen * config.SECONDS_PER_MINUTE) / config.PLAYER.regenTickS} HP/min`,
   );
   assert.equal(characters.characterStatRows(engineer).length, 9);
+  assert.deepEqual(
+    Object.fromEntries(characters.characterStatRows(engineer).map((row) => [row.id, row.changed])),
+    {
+      'max-hp': engineer.maxHp !== config.PLAYER.maxHp,
+      armor: engineer.stats.armor !== stats.defaultStats().armor,
+      damage: engineer.stats.damage !== stats.defaultStats().damage,
+      'move-speed': engineer.moveSpeed !== config.PLAYER.moveSpeed,
+      'attack-speed': engineer.stats.attackSpeed !== stats.defaultStats().attackSpeed,
+      'crit-chance': engineer.stats.critChance !== stats.defaultStats().critChance,
+      'crit-damage': engineer.stats.critDamage !== stats.defaultStats().critDamage,
+      luck: engineer.stats.luck !== stats.defaultStats().luck,
+      regen: engineer.stats.regen !== stats.defaultStats().regen,
+    },
+  );
   assert.equal(engineer.signature.badge, `${config.CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction * 100}% MAX HP / CORE UPGRADE`);
 });
 
@@ -177,6 +191,11 @@ test('Bolt recommendation labels presentation without mutating draft membership 
   assert.deepEqual(pool, before);
 });
 
+test('starting draft presents the recommendation as a non-guaranteed Suggested Start', async () => {
+  const hudSource = await readFile(new URL('../src/hud.ts', import.meta.url), 'utf8');
+  assert.match(hudSource, /recommended\.textContent\s*=\s*'Suggested Start'/);
+});
+
 test('character actions stay fixed outside the single section scroll owner', async () => {
   const [hudSource, cssSource, configSource] = await Promise.all([
     readFile(new URL('../src/hud.ts', import.meta.url), 'utf8'),
@@ -190,15 +209,17 @@ test('character actions stay fixed outside the single section scroll owner', asy
   assert.match(hudSource, /dataset\.defaultCharacterId\s*=\s*DEFAULT_CHARACTER_ID/);
   assert.match(hudSource, /dataset\.characterId\s*=\s*character\.id/);
   assert.match(hudSource, /dataset\.characterUnlocked/);
-  assert.match(cssSource, /\.character-screen\s*\{[\s\S]*position:\s*static;[\s\S]*height:\s*min\(820px, calc\(100dvh - 32px\)\);[\s\S]*overflow:\s*hidden;/);
+  assert.match(cssSource, /\.character-screen\s*\{[\s\S]*position:\s*static;[\s\S]*height:\s*min\(640px, calc\(100dvh - 32px\)\);[\s\S]*overflow:\s*hidden;/);
   assert.match(cssSource, /\.character-layout\s*\{[\s\S]*flex:\s*1 1 auto;[\s\S]*overflow-x:\s*hidden;[\s\S]*overflow-y:\s*auto;/);
   assert.match(cssSource, /\.character-grid\s*\{[\s\S]*flex-wrap:\s*wrap;[\s\S]*overflow:\s*visible;/);
   assert.match(cssSource, /\.character-card\s*\{[\s\S]*min-width:\s*300px;[\s\S]*min-height:\s*80px;[\s\S]*overflow:\s*visible;/);
   assert.match(cssSource, /\.character-card > strong\s*\{[\s\S]*overflow:\s*visible;[\s\S]*white-space:\s*normal;[\s\S]*overflow-wrap:\s*anywhere;/);
-  assert.match(cssSource, /\.character-detail\s*\{[\s\S]*grid-template-columns:[^;]*0\.95fr[^;]*1fr[^;]*1\.15fr[\s\S]*overflow:\s*visible;[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/);
+  assert.match(cssSource, /\.character-detail\s*\{[\s\S]*grid-template-columns:[^;]*0\.9fr[^;]*1\.2fr[^;]*1\.05fr[\s\S]*overflow:\s*visible;[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/);
   assert.match(cssSource, /\.character-actions\s*\{[\s\S]*flex:\s*0 0 auto;/);
   assert.match(configSource, /MENU_NAVIGATION\s*=\s*\{[\s\S]*characterSectionScrollPx:\s*\d+/);
   assert.match(hudSource, /host\.dataset\.characterSectionScroll\s*=\s*'true'/);
+  assert.match(hudSource, /host\.tabIndex\s*=\s*-1/);
+  assert.match(hudSource, /scrollHeight\s*-\s*section\.clientHeight\s*>\s*1/);
   assert.match(hudSource, /MENU_NAVIGATION\.characterSectionScrollPx/);
   assert.doesNotMatch(hudSource, /data-character-detail-scroll|characterDetailScrollPx/);
 });
@@ -282,13 +303,13 @@ test('both character rosters reuse the approved front model reference without mo
   assert.match(hudSource, /renderCharacterRoster\('characters-roster', false\)/);
   assert.match(hudSource, /renderCharacterRoster\('character-select-roster', true\)/);
   assert.doesNotMatch(hudSource, /CharacterModelPreview|character-model-preview|character-model-canvas/);
-  assert.match(hudSource, /alt="\$\{character\.name\} front orthographic model reference"/);
-  assert.match(hudSource, /aria-label="\$\{character\.name\} character portrait fallback"/);
+  assert.match(hudSource, /`\$\{character\.name\} portrait`/);
+  assert.match(hudSource, /large \? ''/);
   assert.match(cssSource, /\.character-card \.character-portrait\s*\{[\s\S]*object-fit:\s*contain/);
   assert.doesNotMatch(cssSource, /\.character-model-preview|\.character-model-canvas/);
   assert.match(hudSource, /data-character-stat="\$\{row\.id\}"/);
   assert.match(hudSource, /data-character-module="signature"[\s\S]*icon-item-repair\.png/);
-  assert.match(hudSource, /data-character-module="recommended-weapon"[\s\S]*Recommended Weapon/);
+  assert.match(hudSource, /data-character-module="recommended-weapon"[\s\S]*Suggested Start/);
   assert.match(hudSource, /data-character-module="tradeoff"[\s\S]*icon-stat-damage\.png/);
   assert.match(hudSource, /if \(unlocked \|\| character\.unlock\.kind === 'default'\) \{[\s\S]*return '';/);
   assert.doesNotMatch(hudSource, /character-unlock-chip|character-unlock-footer unlocked/);
@@ -300,7 +321,10 @@ test('both character rosters reuse the approved front model reference without mo
   assert.doesNotMatch(hudSource, /status\.innerHTML/);
   assert.match(cssSource, /\.character-stat-grid\s*\{[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/);
   assert.match(cssSource, /@media \(max-width:\s*899px\)[\s\S]*\.character-detail[^}]*repeat\(2/);
-  assert.match(cssSource, /@media \(max-width:\s*559px\)[\s\S]*\.character-detail[^}]*minmax\(0, 1fr\)/);
+  assert.match(cssSource, /@media \(max-width:\s*599px\)[\s\S]*\.character-stat-grid[^}]*repeat\(2/);
+  assert.match(cssSource, /@media \(max-width:\s*419px\)[\s\S]*\.character-stat-grid[^}]*minmax\(0, 1fr\)/);
+  assert.doesNotMatch(hudSource, /character-profile-status/);
+  assert.match(hudSource, /data-character-stat-changed="\$\{row\.changed\}"/);
   assert.equal(characters.CHARACTER_REGISTRY['field-engineer'].modelKey, 'field-engineer');
   assert.equal(
     characters.CHARACTER_REGISTRY['field-engineer'].portrait,
