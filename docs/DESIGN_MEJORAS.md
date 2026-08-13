@@ -29,7 +29,7 @@ Nuestra regla derivada: **cada elemento nuevo debe interactuar con algo que ya e
 Decisiones que enmarcan todas las listas (proceso completo: sesión de diseño 2026-07-08 sobre los canales de consumo de Megabonk):
 
 - **Taxonomia con una excepcion documentada (v3, 2026-07-17)**: stat permanente del draft -> **Core** (ocupa socket); comportamientos y consumibles -> **Mod** por cofre/chatarrero. Barrier Cell es Mod azul defensivo: no entra en sockets, level-up ni Chaos.
-- **Sockets** (estado de cuenta, se amplían por Contratos de Desguace): armas **1 de inicio → 2** · cores **2 de inicio → 4**. **Sin swap en v1**: un core instalado es compromiso de todo el run. Números a revisitar con datos de playtest. Los primeros contratos de socket deben caer rápido (runs 1-3) para que el estado mínimo no se alargue.
+- **Sockets** (estado de cuenta, se amplían por Contratos de Desguace): armas **2 de inicio → 3** · cores **2 de inicio → 4**. **Sin swap en v1**: un core instalado es compromiso de todo el run. Boss Hunter abre el tercer socket de arma; Second Wind y Full Loadout abren los dos de core.
 - **5 tiers de rareza**: gris → verde → azul → morado → dorado. Las magnitudes de cores pasan a arrays de 5 en `upgrades.ts`; el roll por Luck se recalibra a 5 pesos; el tier regula precio del chatarrero y peso del jackpot. (Arte: ornamentos de rareza pasan de 3 a 4 — gris va limpio.)
 - **Carta de arma con identidad (Opción A, ampliada 2026-07-17)**: la carta "+1 nivel" tira tier y muestra la mejora concreta ya escalada por esa rareza. Escala común tomada del patrón de las tablas de armas/tomos de Megabonk: gris/Common ×1 · verde/Uncommon ×1.2 · azul/Rare ×1.4 · morado/Epic ×1.6 · dorado/Legendary ×2. Opción B (roll del pool propio del arma, estilo Megabonk) sigue diferida.
 - **Migración de recompensas de cofre (2026-07-08)**: **Lucky Gear** y **Cursed Core** pasan a CORES del draft (Lucky Gear = core de Luck, el core "meta" que mejora tus tiers; Cursed Core = core tradeoff +dificultad/+XP por nivel — paridad con el Cursed Tome). **Expansion Core se elimina** (redundante con Expansion Module). **Repair Kit, Volt Cache, Frenzy y Overdrive se integran en la lista de Mods como consumibles** — la ruleta del cofre tira del pool de mods completo, pesada por tier.
@@ -100,10 +100,12 @@ La base Megabonk: pasivas que suben la ficha. Nuestra vuelta: la mitad del pool 
 
 ### Cores v1 — reparto default/contrato (cerrado 2026-07-09)
 
-Los 20 cores = 16 cartas de stat existentes + Chaos Module + Ammo Feeder + Lucky Gear y Cursed Core (migrados de cofre). Lógica: default = kit coherente para aprender; contrato = capas que definen builds avanzadas. Las condiciones concretas de cada contrato se diseñan en Fase 5.
+Los 20 cores = 16 cartas de stat existentes + Chaos Module + Ammo Feeder + Lucky Gear y Cursed Core (migrados de cofre). Lógica: default = kit coherente para aprender; contrato = capas que definen builds avanzadas. El reparto está implementado mediante una cola compartida, no mediante una asignación fija contrato→Core.
 
 - **Default (10)**: Power Coupling · Overclock · Servo Tune-Up · Hull Plates · Deflector Plates · Nanobot Swarm · Long Barrel · Magnet Coil · Ballistics Kit · Expansion Module
 - **Por contrato (10)**: Targeting Chip + Piercing Rounds (la rama crit completa se GANA — decisión 2026-07-09: media rama suelta se percibe inútil aunque el crit base pegue +50%) · Ghost Plating · Rusty Spikes · Leech Coil (cadena de build tanque) · Capacitor Bank · Chaos Module · Ammo Feeder (power-spike tardío) · Lucky Gear · Cursed Core (rama de codicia/riesgo)
+
+Los 11 peldaños activos de Scrap Quota, Veteran y Ascension consumen esos 10 IDs según el **orden de liquidación**. Por tanto, ningún Core concreto pertenece de forma estable a un nombre de contrato; un peldaño queda seco/de repuesto y oculto hasta que la cola crezca.
 
 **Guardarraíl de compatibilidad (implementado 2026-07-17):** los cores que dependen de comportamiento de arma (Range, Projectile Speed, Area, Duration y Projectile Count) declaran qué armas/mods consumen ese stat y no se ofrecen si la build actual no contiene ninguno. Los cores universales no se filtran. Barrier Cell ya no ocupa un socket de core: es un Mod azul del pool de cofre/tienda, con 1–6 cargas y 7–10 copias de recarga.
 Chaos Module reutiliza ese guardarraíl y la misma regla de valor marginal del draft directo: descarta Crit Chance y Lifesteal al alcanzar sus caps efectivos. Crit Chance y Lifesteal se limitan a 100%; Crit Damage y los demás stats sin techo no reciben un cap artificial.
@@ -119,7 +121,7 @@ Chaos Module reutiliza ese guardarraíl y la misma regla de valor marginal del d
 
 La base Megabonk que adoptamos: cada arma tiene **su propia lista de stats mejorables** (Power siempre; el resto restringido por arma → identidad). Las ideas son nuestras: cada arma nace de una herramienta de desguace y de una interacción con el enjambre.
 
-### Ya implementadas (11 armas shippeadas, draft de 11 — sincronizado con `WEAPON_INFO` en `src/config.ts`, 2026-07-05)
+### Ya implementadas (11 IDs en código; 10 en el camino de desbloqueo y Oil Sprayer deshabilitada)
 
 | Arma | Patrón | Stats propios mejorables |
 | --- | --- | --- |
@@ -138,6 +140,7 @@ La base Megabonk que adoptamos: cada arma tiene **su propia lista de stats mejor
 ### Progresión por nivel y desbloqueo (v2, cerrado 2026-07-09)
 
 - **Nivel máximo de arma: 20** (antes 5, `MAX_WEAPON_LEVEL`).
+- **Maestría de arma:** 50.000 de daño de carrera acumulado con esa arma. Arsenal cuenta cuántas armas han cruzado ese umbral (1 / 2 / 3 / 4 / 5).
 - **Todo escalado por nivel en % del valor BASE** (aditivo, no compuesto). Desde 2026-07-17 cada carta de rama acumula potencia segun su tier (`WEAPON_UPGRADE_TIER_SCALE`); el valor de config representa Common y los tiers superiores aplican x1.2/x1.4/x1.6/x2. La carta muestra el incremento real auto-generado desde `describeWeaponBranch`, sin strings manuales. El nivel nominal conserva elecciones y milestones; `WeaponPower` solo persiste la suma ponderada para snapshots compatibles y el combate lee exclusivamente `WeaponBranchLevels`.
 - **Cantidad SOLO en Lv3 y Lv5**; desde Lv5 solo stats. **Ammo Feeder se redefine: "+1 unidad" del arma correspondiente** (proyectil/neumático/hoja/tornado) — el único escalador de cantidad post-Lv5, y está tras contrato (sinergia). El bounce del Ricochet queda solo de milestone.
 - Blades y Turbine ganan milestones como el resto (decisión 2026-07-09): +1 hoja / +1 tornado en dirección distinta.
@@ -158,9 +161,22 @@ La base Megabonk que adoptamos: cada arma tiene **su propia lista de stats mejor
 | Junk Ricochet | +10% damage | +1 bounce | 🔒 Contrato |
 | Dismantler | Damage / execute threshold / claw range branches | - | Contract |
 
-Reparto **5 default / 6 contrato** (espeja el ~5-6 del roadmap): los 5 default cubren un arquetipo básico cada uno y TODOS se sostienen solos — con 1 socket de arma en cuenta nueva, un arma de 0 daño en el pool default sería una trampa. Los contratos enseñan mecánicas avanzadas: ramp, control, DoT, rebote, ejecución.
+Reparto jugable actual: **5 default / 5 obtenibles por contrato**. Junk Ricochet llega por First Blood y Arsenal entrega Arc Welder, Acid Drum, Turbine Fan y Dismantler; Arsenal V queda de repuesto. Los 5 default cubren un arquetipo básico cada uno y TODOS se sostienen solos. Los contratos enseñan mecánicas avanzadas: ramp, DoT, rebote y ejecución.
 
-**⏸️ Oil Sprayer — FUERA DEL CAMINO DE DESBLOQUEO (decisión del usuario 2026-07-26).** Con 1 socket de arma, un arma de 0 daño no es "control puro", es una run perdida; el mismo argumento que la mantenía fuera del pool default la deja también fuera de los contratos. **No se borró nada**: `WeaponId`, `WEAPON_INFO`, icono, VFX e implementación siguen enteros, y el panel dev todavía la desbloquea para pruebas. Solo se quitó de `WEAPON_QUEUE` en `contracts.ts`, con lo que las armas por contrato pasan a **5 obtenibles** (Junk Ricochet por First Blood + 4 por la escalera Arsenal) y el peldaño Arsenal V queda de repuesto, oculto hasta que haya un arma que dar. Volver a meterla = añadir `'oil'` a ese array. Sigue sin sonido a propósito: no se produce SFX para un arma que quizá se rediseñe.
+**⏸️ Oil Sprayer — FUERA DEL CAMINO DE DESBLOQUEO (decisión del usuario 2026-07-26).** Como opción inicial, un arma de 0 daño no es "control puro", es una trampa de onboarding; el mismo argumento que la mantenía fuera del pool default la deja también fuera de los contratos. **No se borró nada**: `WeaponId`, `WEAPON_INFO`, icono, VFX e implementación siguen enteros, y el panel dev todavía la desbloquea para pruebas. Solo se quitó de `WEAPON_QUEUE` en `contracts.ts`, con lo que las armas por contrato pasan a **5 obtenibles** (Junk Ricochet por First Blood + 4 por la escalera Arsenal) y el peldaño Arsenal V queda de repuesto, oculto hasta que haya un arma que dar. Volver a meterla = añadir `'oil'` a ese array. Sigue sin sonido a propósito: no se produce SFX para un arma que quizá se rediseñe.
+
+### Snapshot interno de calibración de contratos — 2026-08-11
+
+**Fuente:** `run-history` local ordinario, última escritura 2026-08-11. Esto es evidencia **gruesa**, no una verdad universal ni base suficiente para ajuste fino: 28 runs terminadas repartidas entre 13 builds. El smoke está aislado, pero los registros no tienen un campo explícito humano/bot; además, la cohorte de la build actual es demasiado pequeña.
+
+| Señal | Snapshot |
+| --- | --- |
+| Resultados | 23 derrotas · 4 `sector-cleared` · 1 `run-complete` estructural · 5 runs de al menos 590 s |
+| Kills | p50 342 · p75 721 · p90 1.491 · máximo 7.254 · 5 runs con al menos 800 |
+| Nivel | p50 10 · p75 19 · p90 32 · máximo 73 · 5 runs con nivel al menos 25 |
+| Duración | p50 185 s · p75 407 s · p90 600 s · máximo 1.205 s · 5 runs con al menos 595 s |
+| Bosses y maestría | 9 bosses totales · 5 armas con al menos 50.000 de daño de carrera |
+| Purist | 4 intentos de una arma/sin mods; máximo 105 s. No existe ninguna run con daño total cero. |
 
 **Revisión pendiente (apuntada 2026-07-09, post-arte v1)**: cuando la v1 de arte + capturas + página Steam esté cerrada, pase a fondo del elenco de armas — si todas tienen sentido y qué ideas nuevas bien ambientadas merecen entrar.
 
@@ -189,7 +205,7 @@ La base Megabonk que adoptamos: items = categoría separada del draft, obtenida 
 - Dos naturalezas dentro del pool: **consumibles** (efecto al momento, re-obtenibles siempre) y **permanentes** (comportamientos que duran el run).
 - **Los stats permanentes del draft son Cores**; los Mods no entran en sockets. Excepcion intencional: Barrier Cell modifica la defensa como comportamiento de Mod y se obtiene solo por cofre/chatarrero.
 - **Copias sanas por Mod**: los permanentes escalan con su suelo/tope propio. Barrier Cell tiene cap duro de 10 copias: 1-6 suman carga hasta 6; 7-10 reducen recarga de 8s a 4s; al cap se filtra de cofre y chatarrero. Orb Siphon es una excepción por puerta: tras obtenerlo una vez, deja de ser candidato de cofre durante esa run, aunque el chatarrero conserva su comportamiento de copias existente.
-- El tier fija precio en el chatarrero y peso en la ruleta. Reparto: 12 default / 5 por contrato.
+- El tier fija precio en el chatarrero y peso en la ruleta. Reparto: 12 default / 5 por contrato: Overload Trigger, Phase Chassis y Magnetron Heart son premios firma; Endurance consume Coolant Burst y Chain Relay, y Endurance III queda seco/de repuesto.
 
 | Mod | Tier | Efecto (in-game, EN) | Stack por copia | Icono | Origen |
 | --- | --- | --- | --- | --- | --- |

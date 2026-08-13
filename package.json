@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.13.31-demo",
+  "version": "0.13.32-demo",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -17,7 +17,7 @@
     "package": "pnpm run check:release-flags && pnpm run build && pnpm run electron:build && electron-builder",
     "package:dir": "pnpm run check:release-flags && pnpm run build && pnpm run electron:build && electron-builder --dir",
     "check:release-flags": "node tools/check-release-flags.mjs",
-    "test": "pnpm run electron:build && node --experimental-strip-types --test tools/version-format.test.cjs tools/demo-build.test.cjs tools/demo-mission.test.mjs tools/safe-save.test.cjs tools/playtest-reset.test.cjs tools/telemetry-client.test.cjs tools/display-settings.test.mjs tools/defeat-transition.test.mjs tools/characters.test.mjs tools/character-preview-state.test.mjs tools/chest-reel.test.mjs tools/audio-selection.test.mjs tools/stat-units.test.mjs tools/sustain.test.mjs tools/regen-pressure.test.mjs",
+    "test": "pnpm run electron:build && node --experimental-strip-types --test tools/version-format.test.cjs tools/demo-build.test.cjs tools/demo-mission.test.mjs tools/safe-save.test.cjs tools/playtest-reset.test.cjs tools/telemetry-client.test.cjs tools/display-settings.test.mjs tools/defeat-transition.test.mjs tools/characters.test.mjs tools/character-preview-state.test.mjs tools/chest-reel.test.mjs tools/audio-selection.test.mjs tools/stat-units.test.mjs tools/sustain.test.mjs tools/regen-pressure.test.mjs tools/contracts.test.mjs",
     "test:all": "pnpm test && pnpm run test:defeat-runtime && pnpm run test:character-portrait-browser && pnpm run test:chest-reel-browser && pnpm run test:smoke",
     "test:smoke": "node tools/smoke-run.mjs",
     "test:telemetry": "pnpm run electron:build && node --test tools/telemetry-client.test.cjs",
@@ -36,6 +36,7 @@
     "test:chest-reel-browser": "node tools/chest-reel-browser.test.mjs",
     "test:audio-selection": "node --test tools/audio-selection.test.mjs",
     "test:regen-pressure": "node --test tools/regen-pressure.test.mjs",
+    "test:contracts": "node --test tools/contracts.test.mjs",
     "test:stat-units": "node --test tools/stat-units.test.mjs",
     "test:sustain": "node --test tools/sustain.test.mjs",
     "stats": "node tools/run-stats.mjs",
@@ -79,7 +80,7 @@
     ]
   },
   "build": {
-    "buildVersion": "0.13.31.0",
+    "buildVersion": "0.13.32.0",
     "appId": "com.davidseco.voltswarm.demo",
     "productName": "Voltswarm Demo",
     "directories": {

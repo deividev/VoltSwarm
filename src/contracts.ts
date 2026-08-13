@@ -24,16 +24,18 @@ export type Objective =
   | { type: 'lifetime-kills'; n: number }
   | { type: 'kills-in-run'; n: number }
   | { type: 'finish-runs'; n: number }
+  | { type: 'complete-runs'; n: number }
   | { type: 'reach-level'; n: number }
   | { type: 'survive'; seconds: number }
   | { type: 'defeat-bosses'; n: number }
   /** Every listed boss TYPE, not an arbitrary number of distinct boss kinds. */
   | { type: 'defeat-boss-types'; requiredTypes: readonly string[] }
-  /** Distinct boss KINDS, not a count of kills. */
-  | { type: 'boss-kinds'; n: number }
+  /** The complete boss roster for this build, captured by display name. */
+  | { type: 'defeat-all-boss-types'; requiredTypes: readonly string[] }
   | { type: 'weapons-mastered'; n: number }
   | { type: 'distinct-starting-weapons'; n: number }
   | { type: 'minimal-run'; seconds: number }
+  | { type: 'minimal-complete-runs'; n: number }
   | { type: 'flawless-run'; seconds: number };
 
 export type Reward =
@@ -59,6 +61,53 @@ export interface Contract {
    *  contracts are never evaluated and never shown — defining them now keeps
    *  the reward wiring honest without promising the player something absent. */
   latent?: string;
+}
+
+type ContractDefinition = Omit<Contract, 'description'>;
+
+function plural(value: number, singular: string, pluralForm = `${singular}s`): string {
+  return value === 1 ? singular : pluralForm;
+}
+
+function formatDuration(seconds: number): string {
+  const wholeSeconds = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(wholeSeconds / 60);
+  const remainder = wholeSeconds % 60;
+  const parts: string[] = [];
+  if (minutes > 0) parts.push(`${minutes} ${plural(minutes, 'minute')}`);
+  if (remainder > 0 || parts.length === 0) parts.push(`${remainder} ${plural(remainder, 'second')}`);
+  return parts.join(' ');
+}
+
+function describeBossRoster(requiredTypes: readonly string[]): string {
+  return `${requiredTypes.length} distinct boss ${plural(requiredTypes.length, 'type')}: ${requiredTypes.join(', ')}`;
+}
+
+/** Player-facing requirement copy is generated from the same objective that
+ * drives progress. There is no second hand-maintained summary to drift. */
+export function describeObjective(objective: Objective): string {
+  switch (objective.type) {
+    case 'lifetime-kills': return `Destroy ${objective.n.toLocaleString('en-US')} machines across your career.`;
+    case 'kills-in-run': return `Destroy ${objective.n.toLocaleString('en-US')} machines in a single run.`;
+    case 'finish-runs': return `Finish ${objective.n.toLocaleString('en-US')} ${plural(objective.n, 'run')} to a recorded end; victories and Demo clears, clock-only survivals, and defeats all count, but quitting early does not.`;
+    case 'complete-runs': return `Clear the Demo ${objective.n.toLocaleString('en-US')} ${plural(objective.n, 'time')} by defeating a Map 1 boss; clock-only survival and defeat do not count.`;
+    case 'reach-level': return `Reach level ${objective.n.toLocaleString('en-US')} in a single run.`;
+    case 'survive': return `Survive ${formatDuration(objective.seconds)} in a single run.`;
+    case 'defeat-bosses': return `Defeat ${objective.n.toLocaleString('en-US')} ${plural(objective.n, 'boss', 'bosses')} across your career.`;
+    case 'defeat-boss-types': return `Defeat all ${describeBossRoster(objective.requiredTypes)} across your career.`;
+    case 'defeat-all-boss-types': return `Defeat all ${describeBossRoster(objective.requiredTypes)} across your career.`;
+    case 'weapons-mastered': return objective.n === 1
+      ? `Deal at least ${CONTRACTS.ladders.masteryDamage.toLocaleString('en-US')} lifetime damage with 1 weapon.`
+      : `Deal at least ${CONTRACTS.ladders.masteryDamage.toLocaleString('en-US')} lifetime damage with each of ${objective.n.toLocaleString('en-US')} different weapons.`;
+    case 'distinct-starting-weapons': return `Finish runs with ${objective.n.toLocaleString('en-US')} different starting weapons across your career.`;
+    case 'minimal-run': return `Survive ${formatDuration(objective.seconds)} in a single run while carrying exactly 1 positive-level weapon and 0 Mods.`;
+    case 'minimal-complete-runs': return `Clear the Demo ${objective.n.toLocaleString('en-US')} ${plural(objective.n, 'time')} by defeating a Map 1 boss while carrying exactly 1 positive-level weapon and 0 Mods; clock-only survival and defeat do not count.`;
+    case 'flawless-run': return `Survive ${formatDuration(objective.seconds)} in a single run while taking exactly 0 damage.`;
+  }
+}
+
+function defineContract(definition: ContractDefinition): Contract {
+  return { ...definition, description: describeObjective(definition.objective) };
 }
 
 /** Ordered payout queues. The LADDERS decide WHEN a reward lands; these decide
@@ -94,71 +143,61 @@ const MAP_1_BOSS_TYPE_IDS = [...new Set(BOSS_TYPE_INDEXES.map((index) => {
 }))];
 
 const SIGNATURE: Contract[] = [
-  {
+  defineContract({
     id: 'first-blood', title: 'First Blood',
-    description: 'Defeat your first boss.',
     objective: { type: 'defeat-bosses', n: CONTRACTS.firstBossKill },
     reward: { kind: 'weapon', id: 'ricochet' },
-  },
-  {
+  }),
+  defineContract({
     id: 'second-wind', title: 'Second Wind',
-    description: 'Survive a full run.',
-    objective: { type: 'survive', seconds: CONTRACTS.fullRunSeconds },
+    objective: { type: 'complete-runs', n: 1 },
     reward: { kind: 'socket', slot: 'core' },
-  },
-  {
+  }),
+  defineContract({
     id: 'boss-hunter', title: 'Boss Hunter',
-    description: 'Defeat every Map 1 boss.',
     objective: { type: 'defeat-boss-types', requiredTypes: MAP_1_BOSS_TYPE_IDS },
     reward: { kind: 'socket', slot: 'weapon' },
-  },
-  {
+  }),
+  defineContract({
     id: 'full-loadout', title: 'Full Loadout',
-    description: `Reach level ${CONTRACTS.fullLoadoutLevel} in a run.`,
     objective: { type: 'reach-level', n: CONTRACTS.fullLoadoutLevel },
     reward: { kind: 'socket', slot: 'core' },
-  },
-  {
+  }),
+  defineContract({
     id: 'overkill', title: 'Overkill',
-    description: `Score ${CONTRACTS.overkillKillsInRun} kills in a single run.`,
     objective: { type: 'kills-in-run', n: CONTRACTS.overkillKillsInRun },
     reward: { kind: 'mod', id: 'overload-trigger' as ModId },
-  },
-  {
+  }),
+  defineContract({
     id: 'purist', title: 'Purist',
-    description: 'Survive a full run with one weapon and no mods.',
-    objective: { type: 'minimal-run', seconds: CONTRACTS.puristSeconds },
+    objective: { type: 'minimal-complete-runs', n: 1 },
     reward: { kind: 'mod', id: 'phase-chassis' as ModId },
-  },
-  {
+  }),
+  defineContract({
     id: 'untouchable', title: 'Untouchable',
-    description: 'Survive five minutes without taking damage.',
     objective: { type: 'flawless-run', seconds: CONTRACTS.flawlessSeconds },
     reward: { kind: 'discards', n: 1 },
-  },
-  {
+  }),
+  defineContract({
     id: 'proving-ground', title: 'Proving Ground',
-    description: `Finish runs with ${CONTRACTS.provingGroundWeapons} different starting weapons.`,
     objective: { type: 'distinct-starting-weapons', n: CONTRACTS.provingGroundWeapons },
     reward: { kind: 'next-core' },
     latent: 'Reward becomes the second character once characters exist.',
-  },
-  {
+  }),
+  defineContract({
     id: 'foreman', title: 'Foreman',
-    description: 'Defeat every kind of boss.',
     // Target read from the roster, so adding a boss raises the bar by itself.
     // It was hardcoded to 3 against a roster of 2, and as a defeat-bosses COUNT
     // — which would have meant "kill three bosses", not "kill each kind".
-    objective: { type: 'boss-kinds', n: BOSS_TYPE_INDEXES.length },
+    objective: { type: 'defeat-all-boss-types', requiredTypes: MAP_1_BOSS_TYPE_IDS },
     reward: { kind: 'mod', id: 'magnetron-heart' as ModId },
-  },
-  {
+  }),
+  defineContract({
     id: 'two-of-a-kind', title: 'Two of a Kind',
-    description: 'Survive a full run with two different characters.',
     objective: { type: 'survive', seconds: CONTRACTS.fullRunSeconds },
     reward: { kind: 'next-core' },
     latent: 'Characters are not implemented.',
-  },
+  }),
 ];
 
 /** Rung numerals. Repeating 'I' produced "Arsenal IIII"; a table is enough for
@@ -173,13 +212,11 @@ function ladder(
   title: string,
   thresholds: readonly number[],
   make: (n: number) => Objective,
-  describe: (n: number) => string,
   reward: Reward,
 ): Contract[] {
-  return thresholds.map((n, index) => ({
+  return thresholds.map((n, index) => defineContract({
     id: `${prefix}-${index + 1}`,
     title: `${title} ${ROMAN[index] ?? String(index + 1)}`,
-    description: describe(n),
     objective: make(n),
     reward,
   }));
@@ -188,23 +225,18 @@ function ladder(
 const LADDERS: Contract[] = [
   ...ladder('arsenal', 'Arsenal', CONTRACTS.ladders.arsenal,
     (n) => ({ type: 'weapons-mastered', n }),
-    (n) => `Master ${n} different weapon${n === 1 ? '' : 's'}.`,
     { kind: 'next-weapon' }),
   ...ladder('scrap-quota', 'Scrap Quota', CONTRACTS.ladders.scrapQuota,
     (n) => ({ type: 'lifetime-kills', n }),
-    (n) => `Destroy ${n.toLocaleString('en-US')} machines.`,
     { kind: 'next-core' }),
   ...ladder('veteran', 'Veteran', CONTRACTS.ladders.veteran,
     (n) => ({ type: 'finish-runs', n }),
-    (n) => `Finish ${n} runs.`,
     { kind: 'next-core' }),
   ...ladder('ascension', 'Ascension', CONTRACTS.ladders.ascension,
     (n) => ({ type: 'reach-level', n }),
-    (n) => `Reach level ${n} in a run.`,
     { kind: 'next-core' }),
   ...ladder('endurance', 'Endurance', CONTRACTS.ladders.endurance,
     (n) => ({ type: 'survive', seconds: n }),
-    (n) => `Survive ${Math.round(n / 60)} minutes in a run.`,
     { kind: 'next-mod' }),
 ];
 
@@ -220,6 +252,7 @@ export function progressOf(objective: Objective, stats: LifetimeStats = LIFETIME
     case 'lifetime-kills': return { current: stats.totalKills, target: objective.n };
     case 'kills-in-run': return { current: stats.bestKillsInRun, target: objective.n };
     case 'finish-runs': return { current: stats.runsFinished, target: objective.n };
+    case 'complete-runs': return { current: stats.runsCompleted, target: objective.n };
     case 'reach-level': return { current: stats.bestLevel, target: objective.n };
     case 'survive': return { current: stats.bestDurationS, target: objective.seconds };
     case 'defeat-bosses': return { current: stats.bossesDefeated, target: objective.n };
@@ -230,8 +263,15 @@ export function progressOf(objective: Objective, stats: LifetimeStats = LIFETIME
         target: objective.requiredTypes.length,
       };
     }
-    case 'boss-kinds': return { current: stats.bossTypesDefeated.length, target: objective.n };
+    case 'defeat-all-boss-types': {
+      const defeatedTypes = new Set(stats.bossTypesDefeated);
+      return {
+        current: objective.requiredTypes.filter((type) => defeatedTypes.has(type)).length,
+        target: objective.requiredTypes.length,
+      };
+    }
     case 'minimal-run': return { current: stats.bestMinimalRunS, target: objective.seconds };
+    case 'minimal-complete-runs': return { current: stats.minimalRunsCompleted, target: objective.n };
     case 'flawless-run': return { current: stats.bestFlawlessRunS, target: objective.seconds };
     case 'weapons-mastered':
       return {
@@ -465,26 +505,27 @@ export function rewardCategory(reward: Reward): RewardCategory {
 /** Resolves what a reward would actually hand over, so the screen can show a
  *  real name and icon instead of "Next core".
  *
- *  `claimed` accumulates across a section: several pending rungs all draw from
- *  the same queue, so without it every one of them would advertise the SAME
- *  item. Walking them in display order shows what completing them in that
- *  order would give. */
-export function resolveReward(reward: Reward, claimed: Set<string>): Reward | null {
+ *  `claimed` reserves queue entries while a caller walks a chosen order. The
+ *  Contracts UI uses previewContractRewards() so that order is settlement,
+ *  never presentation sorting. */
+type RewardProfile = Pick<typeof PROFILE, 'unlockedWeapons' | 'unlockedCores' | 'unlockedMods'>;
+
+function resolveRewardAgainst(reward: Reward, claimed: Set<string>, profile: RewardProfile): Reward | null {
   switch (reward.kind) {
     case 'next-weapon': {
-      const id = WEAPON_QUEUE.find((w) => !PROFILE.unlockedWeapons.includes(w) && !claimed.has(w));
+      const id = WEAPON_QUEUE.find((w) => !profile.unlockedWeapons.includes(w) && !claimed.has(w));
       if (!id) return null;
       claimed.add(id);
       return { kind: 'weapon', id };
     }
     case 'next-core': {
-      const id = CORE_QUEUE.find((c) => !PROFILE.unlockedCores.includes(c) && !claimed.has(c));
+      const id = CORE_QUEUE.find((c) => !profile.unlockedCores.includes(c) && !claimed.has(c));
       if (!id) return null;
       claimed.add(id);
       return { kind: 'core', id };
     }
     case 'next-mod': {
-      const id = MOD_QUEUE.find((m) => !PROFILE.unlockedMods.includes(m) && !claimed.has(m));
+      const id = MOD_QUEUE.find((m) => !profile.unlockedMods.includes(m) && !claimed.has(m));
       if (!id) return null;
       claimed.add(id);
       return { kind: 'mod', id };
@@ -492,4 +533,36 @@ export function resolveReward(reward: Reward, claimed: Set<string>): Reward | nu
     default:
       return reward;
   }
+}
+
+export function resolveReward(reward: Reward, claimed: Set<string>): Reward | null {
+  return resolveRewardAgainst(reward, claimed, PROFILE);
+}
+
+/** Resolves visible rewards before presentation sorting can change queue
+ * attribution. Newly completable contracts go first in canonical settlement
+ * order; remaining pending contracts reserve later queue items in that order. */
+export function previewContractRewards(
+  stats: LifetimeStats = LIFETIME,
+  profile: RewardProfile = PROFILE,
+  contracts: readonly Contract[] = ACTIVE_CONTRACTS,
+): Record<string, Reward | null> {
+  const previews: Record<string, Reward | null> = {};
+  const claimed = new Set<string>();
+  const pending = contracts.filter(
+    (contract) => !contract.latent && !stats.completedContracts.includes(contract.id),
+  );
+  const canonical = [
+    ...pending.filter((contract) => isComplete(contract, stats)),
+    ...pending.filter((contract) => !isComplete(contract, stats)),
+  ];
+
+  for (const contract of contracts) {
+    if (contract.latent || !stats.completedContracts.includes(contract.id)) continue;
+    previews[contract.id] = stats.grantedRewards[contract.id] ?? contract.reward;
+  }
+  for (const contract of canonical) {
+    previews[contract.id] = resolveRewardAgainst(contract.reward, claimed, profile);
+  }
+  return previews;
 }

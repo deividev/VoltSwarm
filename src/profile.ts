@@ -29,6 +29,8 @@ const VERSION = 3;
 export interface LifetimeStats {
   runsFinished: number;
   runsSurvived: number;
+  /** Demo clears only: a late defeat or clock-only survival never counts. */
+  runsCompleted: number;
   totalKills: number;
   totalPlayS: number;
   bestKillsInRun: number;
@@ -50,6 +52,8 @@ export interface LifetimeStats {
   bestGoldEarnedInRun: number;
   /** Longest finished run carrying ONE weapon and ZERO mods. */
   bestMinimalRunS: number;
+  /** Demo clears carrying one weapon and zero mods. */
+  minimalRunsCompleted: number;
   /** Longest finished run that took no damage at all. */
   bestFlawlessRunS: number;
   /** Contract ids already paid out. Rewards are never revoked, so raising a
@@ -68,12 +72,13 @@ export const LIFETIME: LifetimeStats = emptyLifetime();
 
 function emptyLifetime(): LifetimeStats {
   return {
-    runsFinished: 0, runsSurvived: 0, totalKills: 0, totalPlayS: 0,
+    runsFinished: 0, runsSurvived: 0, runsCompleted: 0, totalKills: 0, totalPlayS: 0,
     bestKillsInRun: 0, bestLevel: 0, bestDurationS: 0, bossesDefeated: 0, bossTypesDefeated: [],
     damageTaken: 0, goldEarned: 0, shopPurchases: 0,
     damageByWeapon: {}, runsByStartingWeapon: {}, weaponMaxLevel: {},
     chestsByTier: {}, bestModsHeld: 0, bestGoldEarnedInRun: 0,
-    bestMinimalRunS: 0, bestFlawlessRunS: 0, completedContracts: [], grantedRewards: {},
+    bestMinimalRunS: 0, minimalRunsCompleted: 0,
+    bestFlawlessRunS: 0, completedContracts: [], grantedRewards: {},
     countedRunIds: [],
   };
 }
@@ -118,9 +123,13 @@ const VALID_CHARACTERS = new Set<string>(Object.keys(CHARACTER_REGISTRY));
  *  boot; a missing, corrupt or partial save leaves the fresh-profile defaults. */
 export function loadProfile(): void {
   const raw = window.electronAPI?.loadProfile() ?? window.localStorage.getItem(STORAGE_KEY);
+  let migrateRunsCompleted = false, migrateMinimalRunsCompleted = false;
   if (raw) {
     try {
-      applyProfile(JSON.parse(raw) as Partial<ProfileSave>);
+      const saved = JSON.parse(raw) as Partial<ProfileSave>;
+      migrateRunsCompleted = !!saved.lifetime && !('runsCompleted' in saved.lifetime);
+      migrateMinimalRunsCompleted = !!saved.lifetime && !('minimalRunsCompleted' in saved.lifetime);
+      applyProfile(saved);
     } catch {
       // Corrupt save: keep the defaults rather than refusing to start.
     }
@@ -132,6 +141,9 @@ export function loadProfile(): void {
   // survives so playtests recorded before contracts existed still count, and
   // the player is not asked to re-earn what they already did.
   if (LIFETIME.runsFinished === 0) backfillLifetime(loadRunHistory());
+  else if (migrateRunsCompleted || migrateMinimalRunsCompleted) {
+    backfillStructuralCounters(loadRunHistory(), migrateRunsCompleted, migrateMinimalRunsCompleted);
+  }
 }
 
 /** Folds a finished run into the career ledger. Idempotent per run id, so a
@@ -145,6 +157,8 @@ export function recordRunInLifetime(record: RunRecordV1): void {
 
   LIFETIME.runsFinished += 1;
   if (record.outcome !== 'defeat') LIFETIME.runsSurvived += 1;
+  const completed = record.outcome === 'sector-cleared' || record.outcome === 'run-complete';
+  if (completed) LIFETIME.runsCompleted += 1;
   LIFETIME.totalKills += record.kills;
   LIFETIME.totalPlayS += record.durationS;
   LIFETIME.bossesDefeated += record.bossesDefeated;
@@ -164,8 +178,9 @@ export function recordRunInLifetime(record: RunRecordV1): void {
   // damageTaken counter existed cannot claim flawless — unknown is not zero.
   const weaponsCarried = Object.values(record.weaponLevels).filter((level) => level > 0).length;
   const modsTaken = Object.values(record.modCounts).reduce((total, n) => total + Math.max(0, n), 0);
-  if (weaponsCarried <= 1 && modsTaken === 0) {
+  if (weaponsCarried === 1 && modsTaken === 0) {
     LIFETIME.bestMinimalRunS = Math.max(LIFETIME.bestMinimalRunS, record.durationS);
+    if (completed) LIFETIME.minimalRunsCompleted += 1;
   }
   if (record.damageTaken === 0) {
     LIFETIME.bestFlawlessRunS = Math.max(LIFETIME.bestFlawlessRunS, record.durationS);
@@ -194,6 +209,18 @@ export function recordRunInLifetime(record: RunRecordV1): void {
 function backfillLifetime(history: RunRecordV1[]): void {
   for (const record of [...history].reverse()) recordRunInLifetime(record);
   if (history.length > 0) saveProfile();
+}
+
+/** Recovers only counters introduced after the v2 ledger, from bounded retained evidence. */
+function backfillStructuralCounters(history: RunRecordV1[], runs: boolean, minimal: boolean): void {
+  const completed = history.filter(({ outcome }) => outcome === 'sector-cleared' || outcome === 'run-complete');
+  if (runs) LIFETIME.runsCompleted = completed.length;
+  if (minimal) {
+    LIFETIME.minimalRunsCompleted = completed.filter((record) =>
+      Object.values(record.weaponLevels).filter((level) => level > 0).length === 1 &&
+      Object.values(record.modCounts).every((count) => count <= 0)).length;
+  }
+  saveProfile();
 }
 
 /** Writes the current PROFILE. Call after any progression change. */
@@ -274,6 +301,7 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
   Object.assign(LIFETIME, {
     runsFinished: num(saved.runsFinished),
     runsSurvived: num(saved.runsSurvived),
+    runsCompleted: num(saved.runsCompleted),
     totalKills: num(saved.totalKills),
     totalPlayS: num(saved.totalPlayS),
     bestKillsInRun: num(saved.bestKillsInRun),
@@ -289,6 +317,7 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
     bestModsHeld: num(saved.bestModsHeld),
     bestGoldEarnedInRun: num(saved.bestGoldEarnedInRun),
     bestMinimalRunS: num(saved.bestMinimalRunS),
+    minimalRunsCompleted: num(saved.minimalRunsCompleted),
     bestFlawlessRunS: num(saved.bestFlawlessRunS),
     completedContracts: Array.isArray(saved.completedContracts)
       ? saved.completedContracts.filter((id): id is string => typeof id === 'string')
