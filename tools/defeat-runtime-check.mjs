@@ -14,7 +14,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { confirmOnlyVisibleCharacterIfPresent } from './character-flow.mjs';
+import { confirmOnlyVisibleCharacterIfPresent, enterMainMenu } from './character-flow.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUTPUT = resolve(ROOT, 'tmp/defeat-runtime-output');
@@ -136,6 +136,7 @@ try {
   }, SEED);
 
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await enterMainMenu(page, 30_000);
   await page.waitForSelector('#play-button', { visible: true, timeout: 30_000 });
   await page.click('#play-button');
   await confirmOnlyVisibleCharacterIfPresent(page);

@@ -2748,7 +2748,7 @@ img.ui-glyph {
 }
 
 /* Menu views (main menu, weapon draft, unlocks, loading) render OUTSIDE the
-   game — the 3D isn't drawn behind them (game.ts skips the render in 'menu'),
+   game — the 3D isn't drawn behind them (game.ts skips boot and menu rendering),
    so each carries its OWN opaque backdrop: the key-art image + a scrim for
    legibility. Swap public/assets/2d/menu-bg.png to change the background. */
 .menu-view {
@@ -2760,6 +2760,27 @@ img.ui-glyph {
        RELATIVE or file:// breaks them in Electron (2026-07-13 lesson). */
     url('/assets/2d/menu-bg.png') center / cover no-repeat,
     #0b0d12;
+}
+
+/* One-time launch gate. It deliberately shares .menu-view's key art instead
+ * of duplicating the background asset or creating a second visual language. */
+#boot-overlay {
+  justify-content: flex-end;
+  padding-bottom: 12vh;
+}
+#boot-prompt {
+  padding: 15px 24px 13px;
+  color: #f4fbff;
+  background: rgba(8, 12, 18, 0.88);
+  border: 2px solid #58d9ff;
+  box-shadow: 0 0 0 3px rgba(5, 8, 12, 0.85), 0 0 24px rgba(88, 217, 255, 0.42);
+  font-size: clamp(12px, 1.6vw, 18px);
+  letter-spacing: 0.12em;
+  text-shadow: 0 0 10px rgba(88, 217, 255, 0.75);
+  animation: boot-prompt-pulse 1.25s steps(2, end) infinite;
+}
+@keyframes boot-prompt-pulse {
+  50% { opacity: 0.58; }
 }
 
 /* The in-run HUD (bars, timer, kills, FPS, build panel) stays hidden while any

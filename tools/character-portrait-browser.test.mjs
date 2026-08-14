@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
+import { enterMainMenu } from './character-flow.mjs';
 
 const PORT = 5204;
 const PORTRAIT_PATH = 'assets/2d/ref-field-engineer-front-v1.png';
@@ -80,6 +81,7 @@ try {
   });
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
+  await enterMainMenu(page);
   await page.waitForSelector('#play-button');
   const baselineWebglContexts = await page.evaluate(() => window.__characterPortraitWebglContexts);
 

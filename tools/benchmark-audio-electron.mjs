@@ -3,7 +3,7 @@ import { mkdirSync, existsSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import os from 'node:os';
 import puppeteer from 'puppeteer-core';
-import { confirmOnlyVisibleCharacterIfPresent } from './character-flow.mjs';
+import { confirmOnlyVisibleCharacterIfPresent, enterMainMenu } from './character-flow.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUTPUT = resolve(ROOT, 'tmp/perf-audio-output');
@@ -41,6 +41,7 @@ try {
   browser = await puppeteer.connect({ browserURL: `http://127.0.0.1:${PORT}` });
   const pages = await browser.pages(); const page = pages[0];
   if (!page) throw new Error('No renderer target found');
+  await enterMainMenu(page, 20_000);
   await page.waitForSelector('#play-button', { visible: true, timeout: 20_000 });
   await page.click('#play-button');
   await confirmOnlyVisibleCharacterIfPresent(page);
