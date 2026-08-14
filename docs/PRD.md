@@ -340,6 +340,8 @@ A level-up screen allows at most one branch for each weapon owner. When both soc
 
 ## Audio Foundation — Implemented 2026-07-17
 
+UI navigation uses one semantic cue per action: quiet `ui-focus` on real hover/keyboard/Tab/gamepad target changes, `ui-back` for Back/Escape, and dedicated Resume/purchase cues without generic-confirm overlap.
+
 `Game` owns observer-style renderer audio; `Hud` does not. `AudioDirector` lazily creates/resumes Web Audio only from a gesture and silently no-ops without context/assets. Runtime selects cached pre-rendered assets only; offline deterministic SFX generation lives in `tools/audio/`. The validation pack covers representative semantic events and diagnostics, not the final audio catalog/music.
 
 ### Packaged audio swarm evidence (2026-07-17)

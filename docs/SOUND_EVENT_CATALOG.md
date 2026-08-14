@@ -48,7 +48,8 @@ Current runtime source of truth: `AUDIO.validation.enabledEvents` (config.ts) +
 
 | Event | Asset (current) | Design | Status |
 |---|---|---|---|
-| `ui-confirm` | `modern-ui-confirm` x2 | click + warm pluck, 60ms, sharp attack; fired by the UNIVERSAL delegated click listener (all buttons/cards/selects) | DONE |
+| `ui-confirm` | `modern-ui-confirm-1` (fixed variant 0) | semantic confirm only; the prototype manifest retains audition candidates but release routing never random-mixes UI families | DONE |
+| `ui-focus` | `ui-focus-v1..v4` | dark low electric texture, 55ms microvariants; only an eligible hover/keyboard/Tab/gamepad target change emits it, never initial setup or repeats | DONE |
 | `bolt-cannon-fire` | `burst-bolt` x4 | 3-tick electric micro-burst "brrt", peak 0.78, weapon dominates | WIRED (long-run verdict pending) |
 | `enemy-death` | `cube-death` x4 | voxel cube burst: pop + dice-knock cluster + rebounds, ≤3kHz, peak 0.33, cooldown 0.16s | WIRED (long-run verdict pending) |
 | `xp-pickup` | `pickup-xp` x4 | soft rising blip, 40ms, peak 0.42; accumulator number rides the player | WIRED |
@@ -83,7 +84,7 @@ the closing validation passes, then the Phase 5 catalog scale-out (§4).
 
 | Event | Where the emit belongs |
 |---|---|
-| `ui-back` | back buttons / Escape closes (delegated listener could route it) |
+| `ui-back` | `ui-back-v1` | Back/Leave and Settings Escape use exactly this one semantic cue; gamepad B inherits the chosen Back action | DONE |
 | `levelup-pick` | card chosen in draft (distinct from generic ui-confirm?) — decide if needed |
 | `weapon-activation` | generic weapon proc — probably replaced by per-weapon events (below) |
 | `boss-attack` | boss telegraphs (Crusher slam, Tesla grid) |

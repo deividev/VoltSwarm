@@ -1,0 +1,664 @@
+{
+  "version": "phase2-survival-r18",
+  "note": "PHASE 2 audio: modern SFX set in Neon Horizon style. Batch A survival (player-hit danger clang, shield-block electric deflect) added. Does not replace the sfx pack.",
+  "events": {
+    "bolt-cannon-fire": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/burst-bolt-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/burst-bolt-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/burst-bolt-3.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/burst-bolt-4.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "ui-confirm": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/modern-ui-confirm-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ai2-ui-confirm-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ai2-ui-confirm-2.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "enemy-death": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/cube-death-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/cube-death-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/cube-death-3.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/cube-death-4.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "levelup-open": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/modern-levelup-open.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ai2-levelup-open-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ai2-levelup-open-2.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "chest-open": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/modern-chest-open.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ai2-chest-open-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ai2-chest-open-2.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "foundation-music": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/music-lead.mp3",
+          "format": "ogg"
+        }
+      }
+    ],
+    "chest-spin": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/modern-chest-spin.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "chest-reveal": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/modern-chest-reveal.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ai2-chest-reveal-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ai2-chest-reveal-2.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "levelup-intro": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/modern-levelup-intro.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ai2-levelup-intro-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ai2-levelup-intro-2.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "xp-pickup": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pickup-xp-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pickup-xp-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pickup-xp-3.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pickup-xp-4.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "gold-pickup": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pickup-gold-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pickup-gold-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pickup-gold-3.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pickup-gold-4.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "panel-open": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/modern-levelup-open.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "menu-music": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/menu-music.mp3",
+          "format": "ogg"
+        }
+      }
+    ],
+    "player-hit": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/player-hit-c-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/player-hit-c-2.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "player-fatal": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/player-fatal-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/player-fatal-2.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "shield-block": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/shield-block-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/shield-block-2.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "boss-awaken": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-awaken.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "boss-defeat": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-defeat.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "boss-portal": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-portal.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "run-start": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/run-start.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "menu-enter": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/menu-enter.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "pause": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pause.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "resume": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/resume.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "run-victory": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/run-victory-b.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "run-defeat": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/run-defeat.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "merchant-arrival": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/merchant-arrival-b.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "shop-purchase": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/shop-purchase-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/shop-purchase-2.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "pulse-fire": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pulse-fire-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pulse-fire-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/pulse-fire-3.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "press-slam": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/press-slam-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/press-slam-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/press-slam-3.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "ricochet-throw": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ricochet-throw-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ricochet-throw-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ricochet-throw-3.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "blades-loop": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/blades-loop-1.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "welder-beam": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/welder-beam-1.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "blades-hit": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/blades-hit-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/blades-hit-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/blades-hit-3.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "blades-spin": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/blades-spin-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/blades-spin-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/blades-spin-3.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "tire-launch": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/tire-launch-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/tire-launch-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/tire-launch-3.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "dismantler-swipe": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/dismantler-swipe-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/dismantler-swipe-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/dismantler-swipe-3.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "turbine-launch": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/turbine-launch-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/turbine-launch-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/turbine-launch-3.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "acid-loop": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/acid-loop-1.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "turbine-loop": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/turbine-loop-1.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "acid-throw": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/acid-throw-1.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/acid-throw-2.wav",
+          "format": "wav"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/acid-throw-3.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "ui-focus": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ui-focus-v1.wav",
+          "format": "wav"
+        },
+        "provenance": {
+          "recipeId": "ui-focus",
+          "version": "ui-navigation-v1",
+          "seed": 211,
+          "variantIndex": 0,
+          "generatorHash": "dd84a38e396ca6ee8ad7c099eb5ad8090a6b28eabaa23fe32a2ce4853d118e0a",
+          "sha256": "9d93352a41f73ca56dad6b65440a646f1c328bfd415b9fa5f1dc929d3f6e1b9b"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ui-focus-v2.wav",
+          "format": "wav"
+        },
+        "provenance": {
+          "recipeId": "ui-focus",
+          "version": "ui-navigation-v1",
+          "seed": 211,
+          "variantIndex": 1,
+          "generatorHash": "dd84a38e396ca6ee8ad7c099eb5ad8090a6b28eabaa23fe32a2ce4853d118e0a",
+          "sha256": "4bc509af5e94be4c179bb8ed2129b25d399c5e716e541ce22d0bdd44fd221976"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ui-focus-v3.wav",
+          "format": "wav"
+        },
+        "provenance": {
+          "recipeId": "ui-focus",
+          "version": "ui-navigation-v1",
+          "seed": 211,
+          "variantIndex": 2,
+          "generatorHash": "dd84a38e396ca6ee8ad7c099eb5ad8090a6b28eabaa23fe32a2ce4853d118e0a",
+          "sha256": "dd30b1de84e088af595685ec45638bc33b08925ff181d3e03e8a8009a4173649"
+        }
+      },
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ui-focus-v4.wav",
+          "format": "wav"
+        },
+        "provenance": {
+          "recipeId": "ui-focus",
+          "version": "ui-navigation-v1",
+          "seed": 211,
+          "variantIndex": 3,
+          "generatorHash": "dd84a38e396ca6ee8ad7c099eb5ad8090a6b28eabaa23fe32a2ce4853d118e0a",
+          "sha256": "9c7a7a5a25cc02d9351f736bffae54335c4398a210bd034c0719c29d6d21e962"
+        }
+      }
+    ],
+    "ui-back": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/ui-back-v1.wav",
+          "format": "wav"
+        },
+        "provenance": {
+          "recipeId": "ui-back",
+          "version": "ui-navigation-v1",
+          "seed": 307,
+          "variantIndex": 0,
+          "generatorHash": "dd84a38e396ca6ee8ad7c099eb5ad8090a6b28eabaa23fe32a2ce4853d118e0a",
+          "sha256": "3d7ea695f41026360488e1c1a9e23b7c6cb48f48e8a5141577da6d05ffe86af5"
+        }
+      }
+    ]
+  }
+}
