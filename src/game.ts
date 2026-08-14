@@ -43,6 +43,7 @@ import { MOD_REGISTRY, barrierCellCapacity, barrierCellRegenS, describeMod, isMo
 import { DamageNumbers } from './damage-numbers';
 import { BossSystem, type BossBody } from './boss';
 import { AudioDirector, type AudioEventId } from './audio';
+import type { UiAudioEventId } from './ui-audio';
 import { DefeatSparks, VoxelBurst } from './particles';
 import {
   DEFAULT_CHARACTER_ID,
@@ -401,7 +402,7 @@ export class Game {
       () => this.quitToMenu(),
       () => this.startNewRunFromDefeat(),
       (settings) => this.updateSettings(settings),
-      () => this.playUiConfirm(),
+      (event) => this.playUiEvent(event),
       async (feedback) => {
         if (!this.currentRunId) return false;
         return telemetry.feedback(this.currentRunId, feedback);
@@ -692,14 +693,15 @@ export class Game {
     });
   }
 
-  private playUiConfirm(): void {
+  private playUiEvent(id: UiAudioEventId): void {
     void this.audio.activateFromUserGesture().then(() => {
-      this.audio.emit({ id: 'ui-confirm' });
+      const volume = id === 'ui-focus' ? AUDIO.ui.focusVolume : id === 'ui-back' ? AUDIO.ui.backVolume : 1;
+      this.audio.emit({ id, volume });
       // Autoplay policy: the boot menu cannot start its theme until the first
       // user gesture — so the first menu click starts it. The keyed loop
       // dedupes repeats, and by the time this runs after a Play click the
       // state has already left 'menu', so runs never double-start it.
-      if (this.state === 'menu') {
+      if (id === 'ui-confirm' && this.state === 'menu') {
         this.audio.emit({ id: 'menu-music', key: 'menu-music-loop', loop: true, priority: 2, volume: AUDIO.music.menuLoopVolume });
       }
     });
@@ -917,7 +919,7 @@ export class Game {
 
   private handleEscape(): void {
     if (this.hud.isSettingsOpen()) {
-      this.hud.closeSettings();
+      this.hud.closeSettingsFromBack();
       return;
     }
     if (this.state === 'playing') {

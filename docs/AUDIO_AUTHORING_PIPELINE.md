@@ -54,6 +54,15 @@ Fuentes oficiales: [Suno commercial use / subscription](https://help.suno.com/en
 
 Repository deliverables (currently unstaged until the user stages/commits them): generator scripts, embedded versioned recipes and `tools/audio/manifest.json`. Local/regenerable by policy: `art/audio` WAV masters and `public/assets/audio` runtime exports; both directories are intentionally ignored and regenerate with `pnpm audio:generate` (also invoked by `pnpm build`). The manifest stores recipe/version/seed, generator hash, variant index, WAV hash plus PCM/duration/peak/fade metadata and the runtime format/path. `pnpm audio:validate` validates existing outputs without generating; `pnpm audio:foundation-check` generates, validates, re-renders hashes and runs negative fixtures. OGG is preferred when local ffmpeg/libvorbis succeeds; WAV fallback is valid and recorded in the manifest. The validation pack is foundation coverage, not final catalog completion.
 
+### UI navigation prototypes
+
+The active `assets/audio/prototypes/manifest.json` is ignored runtime state, so
+`tools/audio/prototype-manifest.json` is its tracked source. `node
+tools/audio/ui-navigation.mjs` updates only `ui-focus` and `ui-back` WAV
+exports plus that manifest; it deliberately does not regenerate unrelated SFX.
+The four focus variants and the Back asset retain recipe/seed/hash provenance in
+the source manifest and are synchronized by `pnpm audio:generate`.
+
 ## Artistic approval gate
 
 This pipeline is technically valid but its current generated pack is TECH FIXTURE / REJECTED FINAL, not an artistic deliverable. Read `SOUND_DIRECTION.md` and `SOUND_EVENT_CATALOG.md` before authoring. The existing `prebuild`/build flow may mechanically regenerate that same rejected technical fixture when local files are missing; this freeze forbids new final recipes, new artistic assets, or artistic replacement/regeneration until the user approves the briefs and material-first prototype gate. Do not manually alter local masters/exports during the freeze.

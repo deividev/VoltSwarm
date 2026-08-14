@@ -44,6 +44,7 @@ import {
 import type { PlayerInput } from './input';
 import { RUN_OUTCOME_TITLES, type RunMapRef, type RunOutcome } from './run-history';
 import type { FeedbackDifficulty, FeedbackReason, StructuredFeedback } from './telemetry';
+import { UI_ACTION_CUES, UI_INTERACTIVE_SELECTOR, UiFocusTracker, isMouseHover, type UiActionCue, type UiAudioEventId, uiActionCue } from './ui-audio';
 
 // All UI is plain DOM layered over the canvas. Fast to build, trivially
 // styleable, and it never touches the render loop.
@@ -409,6 +410,8 @@ export class Hud {
   private contractCategory: ContractViewCategory = 'all';
   private contractStatus: ContractViewStatus = 'active';
   private selectedContractId: string | null = null;
+  private readonly uiFocus = new UiFocusTracker<HTMLElement>();
+  private suppressedFocusTarget: HTMLElement | null = null;
 
   constructor(
     root: HTMLElement,
@@ -420,7 +423,7 @@ export class Hud {
      *  normal character/start-weapon flow. Never reuses the finished run. */
     private readonly onPlayAgain: () => void,
     private readonly onSettingsChanged: (settings: GameSettings) => void,
-    private readonly onUiConfirm: () => void,
+    private readonly onUiAudio: (event: UiAudioEventId) => void,
     private readonly onFeedbackSubmit: (feedback: StructuredFeedback) => Promise<boolean>,
     feedbackAvailable: boolean,
   ) {
@@ -800,6 +803,8 @@ export class Hud {
       });
     }
 
+    this.installUiAudioRouting();
+
     // Universal click feedback (user rule 2026-07-18): ANY interactive element
     // clicked anywhere — menus, shop, level-up cards, settings, unlocks —
     // plays the UI confirm. Delegated in capture phase so no individual
@@ -807,8 +812,8 @@ export class Hud {
     document.addEventListener(
       'click',
       (e) => {
-        const target = e.target as HTMLElement | null;
-        if (target?.closest('button, select, .upgrade-card, .unlock-row')) this.onUiConfirm();
+        const target = this.uiTarget(e.target);
+        if (target) this.emitUi(uiActionCue(target));
       },
       { capture: true },
     );
@@ -924,7 +929,10 @@ export class Hud {
       this.selectedContractId = null;
       this.renderContracts();
       mustGet('contracts-overlay').classList.remove('hidden');
-      queueMicrotask(() => mustGet('contracts-status-filters').querySelector<HTMLButtonElement>('[data-contract-status="active"]')?.focus());
+      queueMicrotask(() => {
+        const initial = mustGet('contracts-status-filters').querySelector<HTMLButtonElement>('[data-contract-status="active"]');
+        if (initial) this.focusUiTarget(initial, true);
+      });
     });
     mustGet('contracts-back-button').addEventListener('click', () => {
       mustGet('contracts-overlay').classList.add('hidden');
@@ -1268,11 +1276,7 @@ export class Hud {
       button.setAttribute('aria-selected', `${this.contractCategory === category.key}`);
       button.tabIndex = this.contractCategory === category.key ? 0 : -1;
       button.innerHTML = `<span class="contracts-filter-label">${category.label}</span><span class="contracts-filter-count">${count}</span>`;
-      button.addEventListener('click', () => {
-        this.contractCategory = category.key;
-        this.renderContracts();
-        mustGet('contracts-category-filters').querySelector<HTMLButtonElement>(`[data-contract-category="${category.key}"]`)?.focus();
-      });
+      button.addEventListener('click', () => this.selectContractFilter(button, true));
       categoryHost.appendChild(button);
     }
     mustGet('contracts-list').setAttribute('aria-labelledby', `contracts-category-${this.contractCategory}`);
@@ -1289,11 +1293,7 @@ export class Hud {
       button.setAttribute('aria-pressed', `${this.contractStatus === status}`);
       button.disabled = status === 'completed' && count === 0;
       button.innerHTML = `<span class="contracts-filter-label">${status === 'active' ? 'Active' : 'Completed'}</span><span class="contracts-filter-count">${count}</span>`;
-      button.addEventListener('click', () => {
-        this.contractStatus = status;
-        this.renderContracts();
-        mustGet('contracts-status-filters').querySelector<HTMLButtonElement>(`[data-contract-status="${status}"]`)?.focus();
-      });
+      button.addEventListener('click', () => this.selectContractFilter(button, true));
       statusHost.appendChild(button);
     }
 
@@ -1337,6 +1337,55 @@ export class Hud {
       for (const row of displayRows) list.appendChild(this.contractRow(row));
     }
     this.renderContractDetail(selected);
+  }
+
+  private installUiAudioRouting(): void {
+    for (const [id, cue] of Object.entries(UI_ACTION_CUES)) {
+      const control = document.getElementById(id);
+      if (control) control.dataset.uiCue = cue;
+    }
+    document.addEventListener('pointerover', (event) => {
+      if (isMouseHover(event)) this.noteUiFocus(this.uiTarget(event.target));
+    });
+    document.addEventListener('pointerout', (event) => {
+      const from = this.uiTarget(event.target);
+      const to = this.uiTarget(event.relatedTarget);
+      if (from && from !== to) this.uiFocus.clear(from);
+    });
+    document.addEventListener('focusin', (event) => {
+      const target = this.uiTarget(event.target);
+      if (target === this.suppressedFocusTarget) {
+        this.suppressedFocusTarget = null;
+        return;
+      }
+      this.noteUiFocus(target);
+    });
+    document.addEventListener('focusout', (event) => {
+      const from = this.uiTarget(event.target);
+      const to = this.uiTarget(event.relatedTarget);
+      if (from && from !== to) this.uiFocus.clear(from);
+    });
+  }
+
+  private uiTarget(raw: EventTarget | null): HTMLElement | null {
+    if (!(raw instanceof Element)) return null;
+    const target = raw.closest<HTMLElement>(UI_INTERACTIVE_SELECTOR);
+    if (!target || target.offsetParent === null || target.matches(':disabled, [aria-disabled="true"]')) return null;
+    return target;
+  }
+
+  private emitUi(cue: UiActionCue): void {
+    if (cue !== 'none') this.onUiAudio(cue);
+  }
+
+  private noteUiFocus(target: HTMLElement | null, silent = false): void {
+    if (this.uiFocus.move(target, silent)) this.onUiAudio('ui-focus');
+  }
+
+  private focusUiTarget(target: HTMLElement, silent = false): void {
+    this.suppressedFocusTarget = target;
+    target.focus({ preventScroll: true });
+    this.noteUiFocus(target, silent);
   }
 
   private contractRow(row: ContractViewRow): HTMLButtonElement {
@@ -1708,7 +1757,7 @@ export class Hud {
     if (this.padNavContainer !== container) {
       this.padNavContainer = container;
       this.padNavIndex = 0;
-      this.setPadFocus(items[0] ?? null);
+      this.setPadFocus(items[0] ?? null, true);
       this.closePadSelectEditor(false);
     }
     if (this.padNavIndex >= items.length) this.padNavIndex = items.length - 1;
@@ -1828,7 +1877,7 @@ export class Hud {
     if (confirm) select.dispatchEvent(new Event('change'));
   }
 
-  private setPadFocus(el: HTMLElement | null): void {
+  private setPadFocus(el: HTMLElement | null, silent = false): void {
     // Drop any native DOM focus so a previously clicked select/slider can't
     // keep eating keyboard arrows while the pad focus is elsewhere.
     const active = document.activeElement;
@@ -1840,6 +1889,7 @@ export class Hud {
       el.classList.add('pad-focus');
       el.scrollIntoView({ block: 'nearest' });
     }
+    this.noteUiFocus(el, silent);
   }
 
   private menuNavItems(container: HTMLElement): HTMLElement[] {
@@ -1869,10 +1919,28 @@ export class Hud {
     return items;
   }
 
+  closeSettingsFromBack(): void {
+    this.emitUi('ui-back');
+    this.closeSettings();
+  }
+
   private syncCharacterSectionFocus(section: HTMLElement): boolean {
     const scrollable = section.scrollHeight - section.clientHeight > 1;
     section.tabIndex = scrollable ? 0 : -1;
     return scrollable;
+  }
+
+  private selectContractFilter(button: HTMLButtonElement, silentFocus: boolean): void {
+    const category = button.dataset.contractCategory as ContractViewCategory | undefined;
+    const status = button.dataset.contractStatus as ContractViewStatus | undefined;
+    if (category) this.contractCategory = category;
+    if (status) this.contractStatus = status;
+    this.renderContracts();
+    const selector = category
+      ? `[data-contract-category="${category}"]`
+      : `[data-contract-status="${status}"]`;
+    const updated = mustGet('contracts-overlay').querySelector<HTMLButtonElement>(selector);
+    if (updated) this.focusUiTarget(updated, silentFocus);
   }
 
   private handleContractsKeyDown(event: KeyboardEvent): void {
@@ -1900,17 +1968,14 @@ export class Hud {
     event.preventDefault();
     const nextIndex = (currentIndex + direction + items.length) % items.length;
     if (selector.includes('contract-row')) {
-      items[nextIndex]?.focus({ preventScroll: true });
+      const next = items[nextIndex];
+      if (next) this.focusUiTarget(next);
       items[nextIndex]?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
       return;
     }
-    const identity = items[nextIndex]?.dataset.contractCategory ?? items[nextIndex]?.dataset.contractStatus;
-    items[nextIndex]?.click();
-    const updated = Array.from(overlay.querySelectorAll<HTMLButtonElement>(selector)).find((button) =>
-      button.dataset.contractCategory === identity || button.dataset.contractStatus === identity,
-    );
-    updated?.focus({ preventScroll: true });
-    updated?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    const next = items[nextIndex];
+    if (next) this.selectContractFilter(next, false);
+    next?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
 
   private scrollCharacterSection(section: HTMLElement, direction: number): boolean {
@@ -1945,7 +2010,7 @@ export class Hud {
     this.padNavContainer = container;
     this.padNavIndex = nextIndex;
     this.setPadFocus(next);
-    next.focus({ preventScroll: true });
+    this.focusUiTarget(next);
   }
 
   /** Start-of-run weapon draft: 3 random distinct options out of the
@@ -2546,6 +2611,7 @@ export class Hud {
       const affordable = gold >= entry.price;
       const el = document.createElement('div');
       el.className = `upgrade-card ${info.tier} shop-vcard${affordable ? '' : ' unaffordable'}`;
+      el.dataset.uiCue = 'none';
       const icon = info.image
         ? `<img class="shop-card-img" src="${info.image}" alt="" />`
         : `<span class="shop-card-emoji">${info.icon}</span>`;

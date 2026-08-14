@@ -2,7 +2,7 @@ import { AUDIO } from './config';
 import type { GameSettings } from './settings';
 
 export type AudioEventId =
-  | 'ui-confirm' | 'ui-back' | 'panel-open' | 'run-start' | 'menu-enter'
+  | 'ui-confirm' | 'ui-back' | 'ui-focus' | 'panel-open' | 'run-start' | 'menu-enter'
   | 'pause' | 'resume' | 'weapon-activation' | 'player-hit' | 'player-fatal' | 'shield-block'
   | 'bolt-cannon-fire' | 'pulse-fire' | 'blades-spin' | 'blades-loop' | 'blades-hit' | 'welder-beam' | 'press-slam'
   | 'tire-launch' | 'oil-drop' | 'acid-throw' | 'acid-loop' | 'turbine-launch' | 'turbine-loop' | 'ricochet-throw' | 'dismantler-swipe'

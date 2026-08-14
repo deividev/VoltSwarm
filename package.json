@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.13.36-demo",
+  "version": "0.13.37-demo",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -34,7 +34,7 @@
     "test:character-portrait-browser": "node tools/character-portrait-browser.test.mjs",
     "test:chest-reel": "node --test tools/chest-reel.test.mjs",
     "test:chest-reel-browser": "node tools/chest-reel-browser.test.mjs",
-    "test:audio-selection": "node --test tools/audio-selection.test.mjs",
+    "test:audio-selection": "node --test tools/audio-selection.test.mjs tools/ui-audio.test.mjs",
     "test:regen-pressure": "node --test tools/regen-pressure.test.mjs",
     "test:contracts": "node --test tools/contracts.test.mjs",
     "test:contracts-browser": "node tools/contracts-browser.test.mjs",
@@ -42,7 +42,7 @@
     "test:sustain": "node --test tools/sustain.test.mjs",
     "stats": "node tools/run-stats.mjs",
     "reset:profile": "node tools/reset-profile.mjs",
-    "audio:generate": "node tools/audio/generate.mjs",
+    "audio:generate": "node tools/audio/generate.mjs && node tools/audio/ui-navigation.mjs",
     "audio:validate": "node tools/audio/validate.mjs",
     "audio:foundation-check": "node tools/audio/foundation-check.mjs",
     "benchmark:audio": "node tools/benchmark-audio-electron.mjs",
@@ -81,7 +81,7 @@
     ]
   },
   "build": {
-    "buildVersion": "0.13.36.0",
+    "buildVersion": "0.13.37.0",
     "appId": "com.davidseco.voltswarm.demo",
     "productName": "Voltswarm Demo",
     "directories": {

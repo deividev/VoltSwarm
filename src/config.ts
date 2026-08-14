@@ -87,11 +87,12 @@ export const AUDIO = {
    *  when the manifest ships an asset for it, so anything audible in a release
    *  is a deliberate choice rather than a leftover. */
   validation: {
-    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'player-fatal', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'foundation-music', 'menu-music'] as readonly string[],
+    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'ui-back', 'ui-focus', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'player-fatal', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'foundation-music', 'menu-music'] as readonly string[],
   },
   /** Release-owned variant choices. Dev audition pins still override these;
    * events absent here keep their normal random rotation. */
   fixedVariantIndex: {
+    'ui-confirm': 0,
     'chest-reveal': 0,
   } as Readonly<Record<string, number>>,
   voiceCaps: { global: 18, sfx: 14, music: 2 },
@@ -101,7 +102,7 @@ export const AUDIO = {
     'enemy-death': 0.16, 'xp-pickup': 0.08, 'gold-pickup': 0.08,
     /** Long enough that being surrounded reads as a steady "taking damage"
      *  throb, not machine-gun fire from many simultaneous contacts (2026-07-19). */
-    'weapon-activation': 0.14, 'player-hit': 0.4, 'ui-confirm': 0.06,
+    'weapon-activation': 0.14, 'player-hit': 0.4, 'ui-confirm': 0.06, 'ui-back': 0.06, 'ui-focus': 0.075,
     'bolt-cannon-fire': 0.11,
     'pulse-fire': 0.1, 'press-slam': 0.12, 'ricochet-throw': 0.1,
     'blades-spin': 0.1, 'tire-launch': 0.1, 'dismantler-swipe': 0.1, 'turbine-launch': 0.1, 'acid-throw': 0.1,
@@ -114,6 +115,7 @@ export const AUDIO = {
    *  leaves priority weapon cues slightly above the run bed without letting
    *  the complete effects bus overpower it. */
   mix: { sfxBusGain: 0.85 },
+  ui: { focusVolume: 0.22, backVolume: 0.58 },
   /** World-positioned zone loops (acid pool sizzle): the game attenuates the
    *  loop volume by the player's distance to the NEAREST active zone, so it
    *  fades out as the player walks away. Base is the level at distance 0. */
