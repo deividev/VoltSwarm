@@ -61,7 +61,7 @@ test('weapon socket migration raises old saves and preserves Boss Hunter payout'
 test('Boss Hunter unlocks weapon slot 3 and cannot exceed the design cap', () => {
   const bossHunter = contracts.ALL_CONTRACTS.find((contract) => contract.id === 'boss-hunter');
   assert.ok(bossHunter);
-  assert.deepEqual(bossHunter.reward, { kind: 'socket', slot: 'weapon' });
+  assert.deepEqual(bossHunter.reward, { kind: 'socket', slot: 'weapon', index: 3 });
   assert.deepEqual(bossHunter.objective, {
     type: 'defeat-boss-types',
     requiredTypes: [...new Set(config.BOSS_TYPE_INDEXES.map((index) => config.ENEMY_TYPES[index].name))],
