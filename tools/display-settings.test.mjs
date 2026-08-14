@@ -3,6 +3,7 @@
 // that needs `window` and is deliberately not exercised here.
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'vite';
 
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
@@ -107,4 +108,25 @@ test('malformed UI scale falls back safely to Auto', () => {
   for (const value of [null, '', '200', 1.25, {}, []]) {
     assert.equal(settings.normalizeSettings({ uiScale: value }, QHD).uiScale, 'auto');
   }
+});
+
+test('Settings compact CSS keeps the segmented navigation and fixed footer', () => {
+  const css = readFileSync(new URL('../src/ui.css', import.meta.url), 'utf8');
+  const compact = css.slice(css.lastIndexOf('@media (max-width: 900px)'));
+  assert.match(compact, /#settings-panel\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
+  assert.match(compact, /#settings-sidebar\s*\{[\s\S]*?flex-direction:\s*row;/);
+  assert.match(compact, /#settings-frame\s*\{[\s\S]*?width:\s*100%;/);
+  assert.match(compact, /#settings-footer\s*\{[\s\S]*?grid-row:\s*4;/);
+  assert.match(compact, /@media \(max-width: 560px\)[\s\S]*?#settings-content \.settings-row,[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\);/);
+});
+
+test('Settings layout declares safe shrinking, fixed chrome, and shared scroll owners', () => {
+  const css = readFileSync(new URL('../src/ui.css', import.meta.url), 'utf8');
+  assert.match(css, /#settings-panel\s*\{[\s\S]*?align-items:\s*stretch;/);
+  assert.match(css, /#settings-frame\s*\{[\s\S]*?box-sizing:\s*border-box;[\s\S]*?overflow-x:\s*hidden;[\s\S]*?overflow-y:\s*auto;/);
+  assert.match(css, /#settings-content\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?max-width:\s*100%;/);
+  assert.match(css, /#settings-content \.settings-row\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;/);
+  assert.match(css, /#settings-sidebar \.settings-tab\s*\{[\s\S]*?padding:\s*12px 16px;/);
+  assert.match(css, /#settings-frame,[\s\S]*?#contracts-list,[\s\S]*?\.contract-detail,[\s\S]*?\.character-layout\s*\{[\s\S]*?scrollbar-color:\s*#526172 #090d12;/);
+  assert.match(css, /\.contracts-category-tabs\s*\{[\s\S]*?scrollbar-width:\s*none;/);
 });

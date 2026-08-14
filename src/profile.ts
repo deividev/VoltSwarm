@@ -6,6 +6,7 @@ import { clearRunHistory, loadRunHistory, type RunRecordV1 } from './run-history
 // contracts.ts, which imports LIFETIME from here.
 import type { Reward } from './contracts';
 import { CHARACTER_REGISTRY } from './characters';
+import { canonicalSocketReward, completedSocketFloor, type SocketSlot } from './socket-rewards';
 
 // Cross-run player profile. Mirrors the settings persistence seam
 // (src/settings.ts): Electron writes a JSON file under userData, the browser
@@ -260,15 +261,21 @@ export function resetProfile(): void {
 
 function applyProfile(value: Partial<ProfileSave>): void {
   normalizeCharacterUnlocks(value.unlockedCharacters);
-  const bossHunterCompleted = Array.isArray(value.lifetime?.completedContracts)
-    && value.lifetime.completedContracts.includes('boss-hunter');
-  PROFILE.weaponSockets = normalizeWeaponSockets(
+  const completedContracts = contractIds(value.lifetime?.completedContracts);
+  PROFILE.weaponSockets = normalizeSocketCount(
     value.weaponSockets,
     DEFAULTS.weaponSockets,
     PROFILE.maxWeaponSockets,
-    bossHunterCompleted,
+    completedContracts,
+    'weapon',
   );
-  PROFILE.coreSockets = clampSockets(value.coreSockets, DEFAULTS.coreSockets, PROFILE.maxCoreSockets);
+  PROFILE.coreSockets = normalizeSocketCount(
+    value.coreSockets,
+    DEFAULTS.coreSockets,
+    PROFILE.maxCoreSockets,
+    completedContracts,
+    'core',
+  );
   PROFILE.levelupDiscards = clampSockets(value.levelupDiscards, DEFAULTS.levelupDiscards, 99);
   PROFILE.unlockedWeapons = mergeUnlocks(DEFAULTS.unlockedWeapons, value.unlockedWeapons, VALID_WEAPONS) as WeaponId[];
   PROFILE.unlockedCores = mergeUnlocks(DEFAULTS.unlockedCores, value.unlockedCores, VALID_CORES);
@@ -319,9 +326,7 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
     bestMinimalRunS: num(saved.bestMinimalRunS),
     minimalRunsCompleted: num(saved.minimalRunsCompleted),
     bestFlawlessRunS: num(saved.bestFlawlessRunS),
-    completedContracts: Array.isArray(saved.completedContracts)
-      ? saved.completedContracts.filter((id): id is string => typeof id === 'string')
-      : [],
+    completedContracts: contractIds(saved.completedContracts),
     grantedRewards: rewardMap(saved.grantedRewards),
     damageByWeapon: map(saved.damageByWeapon),
     runsByStartingWeapon: map(saved.runsByStartingWeapon),
@@ -351,7 +356,7 @@ function rewardMap(value: unknown): Record<string, Reward> {
   if (value && typeof value === 'object') {
     for (const [id, reward] of Object.entries(value as Record<string, unknown>)) {
       if (reward && typeof reward === 'object' && typeof (reward as Reward).kind === 'string') {
-        out[id] = reward as Reward;
+        out[id] = canonicalSocketReward(id, reward as Reward);
       }
     }
   }
@@ -374,4 +379,21 @@ export function normalizeWeaponSockets(
 ): number {
   const earnedFloor = Math.min(maxSockets, defaultSockets + (bossHunterCompleted ? 1 : 0));
   return clampSockets(saved, earnedFloor, maxSockets);
+}
+
+function contractIds(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((id): id is string => typeof id === 'string') : [];
+}
+
+/** Completed ids are durable proof of socket ownership. The saved counter can
+ * be stale, but it may never lower a contract reward already paid. */
+function normalizeSocketCount(
+  saved: unknown,
+  defaultSockets: number,
+  maxSockets: number,
+  completedContracts: readonly string[],
+  slot: SocketSlot,
+): number {
+  const floor = completedSocketFloor(completedContracts, slot) ?? defaultSockets;
+  return clampSockets(saved, Math.min(maxSockets, Math.max(defaultSockets, floor)), maxSockets);
 }

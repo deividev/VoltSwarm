@@ -3,6 +3,7 @@ import { CORE_TITLES } from './upgrades';
 import { MOD_REGISTRY, refreshUnlockedMods, type ModId } from './mods';
 import { LIFETIME, saveProfile, type LifetimeStats } from './profile';
 import { CHARACTER_REGISTRY, grantCharacterId, type CharacterId } from './characters';
+import { canonicalSocketReward, socketReward } from './socket-rewards';
 
 // Contracts: the only progression engine (there is no meta-currency in v1).
 //
@@ -43,8 +44,7 @@ export type Reward =
   | { kind: 'weapon'; id: WeaponId }
   | { kind: 'core'; id: string }
   | { kind: 'mod'; id: ModId }
-  /** `index` is stamped when the socket is actually granted, so a settled
-   *  contract can name the slot IT opened instead of the next one. */
+  /** Signature socket contracts declare the exact capacity they own. */
   | { kind: 'socket'; slot: 'weapon' | 'core'; index?: number }
   | { kind: 'discards'; n: number }
   | { kind: 'next-weapon' }
@@ -151,17 +151,17 @@ const SIGNATURE: Contract[] = [
   defineContract({
     id: 'second-wind', title: 'Second Wind',
     objective: { type: 'complete-runs', n: 1 },
-    reward: { kind: 'socket', slot: 'core' },
+    reward: socketReward('second-wind'),
   }),
   defineContract({
     id: 'boss-hunter', title: 'Boss Hunter',
     objective: { type: 'defeat-boss-types', requiredTypes: MAP_1_BOSS_TYPE_IDS },
-    reward: { kind: 'socket', slot: 'weapon' },
+    reward: socketReward('boss-hunter'),
   }),
   defineContract({
     id: 'full-loadout', title: 'Level Milestone',
     objective: { type: 'reach-level', n: CONTRACTS.fullLoadoutLevel },
-    reward: { kind: 'socket', slot: 'core' },
+    reward: socketReward('full-loadout'),
   }),
   defineContract({
     id: 'overkill', title: 'Overkill',
@@ -306,10 +306,23 @@ export interface EarnedContract {
  *  have given — it may attribute that item to a contract. Acceptable: without
  *  this the row shows no icon and reads "Claimed", which is strictly worse. */
 export function backfillGrantedRewards(): void {
+  let repaired = false;
+  for (const contractId of LIFETIME.completedContracts) {
+    const existing = LIFETIME.grantedRewards[contractId];
+    if (!existing) continue;
+    const canonical = canonicalSocketReward(contractId, existing);
+    if (canonical !== existing) {
+      LIFETIME.grantedRewards[contractId] = canonical;
+      repaired = true;
+    }
+  }
   const missing = ALL_CONTRACTS.filter(
     (contract) => LIFETIME.completedContracts.includes(contract.id) && !LIFETIME.grantedRewards[contract.id],
   );
-  if (missing.length === 0) return;
+  if (missing.length === 0) {
+    if (repaired) saveProfile();
+    return;
+  }
 
   const used = new Set<string>();
   for (const reward of Object.values(LIFETIME.grantedRewards)) {
@@ -438,12 +451,18 @@ export function grantReward(reward: Reward): Reward | null {
       if (!PROFILE.unlockedMods.includes(reward.id)) PROFILE.unlockedMods.push(reward.id);
       return reward;
     case 'socket':
-      if (reward.slot === 'weapon') {
-        PROFILE.weaponSockets = Math.min(PROFILE.maxWeaponSockets, PROFILE.weaponSockets + 1);
-        return { ...reward, index: PROFILE.weaponSockets };
+      {
+        const current = reward.slot === 'weapon' ? PROFILE.weaponSockets : PROFILE.coreSockets;
+        const max = reward.slot === 'weapon' ? PROFILE.maxWeaponSockets : PROFILE.maxCoreSockets;
+        // A socket contract pays exactly its canonical ordinal. Refusing a gap
+        // preserves the signature queue, and refusing an already-open target
+        // prevents malformed/capped saves from fabricating a duplicate grant.
+        const target = reward.index ?? current + 1;
+        if (target > max || target !== current + 1) return null;
+        if (reward.slot === 'weapon') PROFILE.weaponSockets = target;
+        else PROFILE.coreSockets = target;
+        return { ...reward, index: target };
       }
-      PROFILE.coreSockets = Math.min(PROFILE.maxCoreSockets, PROFILE.coreSockets + 1);
-      return { ...reward, index: PROFILE.coreSockets };
     case 'discards':
       PROFILE.levelupDiscards += reward.n;
       return reward;

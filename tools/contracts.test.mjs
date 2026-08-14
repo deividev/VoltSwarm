@@ -16,6 +16,7 @@ const server = await createServer({ server: { middlewareMode: true, hmr: false }
 const contracts = await server.ssrLoadModule('/src/contracts.ts');
 const config = await server.ssrLoadModule('/src/config.ts');
 const profile = await server.ssrLoadModule('/src/profile.ts');
+const hud = await server.ssrLoadModule('/src/hud.ts');
 const lifetimeBaseline = structuredClone(profile.LIFETIME);
 const profileBaseline = structuredClone(config.PROFILE);
 
@@ -67,7 +68,7 @@ test('contract catalog exposes Demo branch rules and configured mastery copy', (
   const bossHunter = contracts.ALL_CONTRACTS.find(({ id }) => id === 'boss-hunter');
   const expectedBossIds = ['Crusher King', 'Tesla Titan'];
   assert.deepEqual(bossHunter.objective, { type: 'defeat-boss-types', requiredTypes: expectedBossIds });
-  assert.deepEqual(bossHunter.reward, { kind: 'socket', slot: 'weapon' });
+  assert.deepEqual(bossHunter.reward, { kind: 'socket', slot: 'weapon', index: 3 });
   assert.equal(config.PROFILE.weaponSockets, 2);
   assert.equal(config.PROFILE.maxWeaponSockets, 3);
   assert.deepEqual(contracts.ALL_CONTRACTS.find(({ id }) => id === 'full-loadout').objective,
@@ -89,6 +90,60 @@ test('contract catalog exposes Demo branch rules and configured mastery copy', (
   assert.deepEqual(preview['scrap-quota-1'], { kind: 'core', id: contracts.CORE_QUEUE[0] });
   assert.deepEqual(preview['endurance-1'], { kind: 'mod', id: contracts.MOD_QUEUE[0] });
   assert.equal(preview['endurance-3'], null);
+});
+
+test('socket rewards expose distinct canonical targets and settle once in signature order', () => {
+  const secondWind = contracts.ALL_CONTRACTS.find(({ id }) => id === 'second-wind');
+  const fullLoadout = contracts.ALL_CONTRACTS.find(({ id }) => id === 'full-loadout');
+  const bossHunter = contracts.ALL_CONTRACTS.find(({ id }) => id === 'boss-hunter');
+  assert.deepEqual(secondWind.reward, { kind: 'socket', slot: 'core', index: 3 });
+  assert.deepEqual(fullLoadout.reward, { kind: 'socket', slot: 'core', index: 4 });
+  assert.deepEqual(bossHunter.reward, { kind: 'socket', slot: 'weapon', index: 3 });
+  assert.deepEqual(contracts.previewContractRewards()['second-wind'], secondWind.reward);
+  assert.deepEqual(contracts.previewContractRewards()['full-loadout'], fullLoadout.reward);
+
+  profile.LIFETIME.runsCompleted = 1;
+  profile.LIFETIME.bestLevel = config.CONTRACTS.fullLoadoutLevel;
+  const settled = Object.fromEntries(contracts.settleContracts().map(({ contract, granted }) => [contract.id, granted]));
+  assert.deepEqual(settled['second-wind'], { kind: 'socket', slot: 'core', index: 3 });
+  assert.deepEqual(settled['full-loadout'], { kind: 'socket', slot: 'core', index: 4 });
+  assert.equal(config.PROFILE.coreSockets, 4);
+  assert.equal(contracts.settleContracts().filter(({ granted }) => granted?.kind === 'socket').length, 0);
+});
+
+test('socket settlement refuses gaps and capped malformed rewards without marking them paid', () => {
+  assert.equal(contracts.grantReward({ kind: 'socket', slot: 'core', index: 4 }), null);
+  assert.equal(config.PROFILE.coreSockets, 2);
+  config.PROFILE.coreSockets = config.PROFILE.maxCoreSockets;
+  assert.equal(contracts.grantReward({ kind: 'socket', slot: 'core', index: 4 }), null);
+  profile.LIFETIME.bestLevel = config.CONTRACTS.fullLoadoutLevel;
+  contracts.settleContracts();
+  assert.equal(profile.LIFETIME.completedContracts.includes('full-loadout'), false);
+});
+
+test('legacy socket records receive canonical indices and completed ids restore their socket floors', () => {
+  storage.set('voltswarm:profile', JSON.stringify({
+    version: 3,
+    weaponSockets: 2,
+    coreSockets: 2,
+    lifetime: {
+      completedContracts: ['second-wind', 'full-loadout', 'boss-hunter'],
+      grantedRewards: {
+        'second-wind': { kind: 'socket', slot: 'core' },
+        'full-loadout': { kind: 'socket', slot: 'core' },
+        'boss-hunter': { kind: 'socket', slot: 'weapon' },
+      },
+    },
+  }));
+  profile.loadProfile();
+  assert.equal(config.PROFILE.coreSockets, 4);
+  assert.equal(config.PROFILE.weaponSockets, 3);
+  assert.deepEqual(profile.LIFETIME.grantedRewards['second-wind'], { kind: 'socket', slot: 'core', index: 3 });
+  assert.deepEqual(profile.LIFETIME.grantedRewards['full-loadout'], { kind: 'socket', slot: 'core', index: 4 });
+  assert.deepEqual(profile.LIFETIME.grantedRewards['boss-hunter'], { kind: 'socket', slot: 'weapon', index: 3 });
+  profile.LIFETIME.grantedRewards['second-wind'] = { kind: 'socket', slot: 'core' };
+  contracts.backfillGrantedRewards();
+  assert.deepEqual(profile.LIFETIME.grantedRewards['second-wind'], { kind: 'socket', slot: 'core', index: 3 });
 });
 
 test('every active requirement is generated exhaustively from its objective', () => {
@@ -140,6 +195,33 @@ test('latent copy is truthful to current non-character objectives', () => {
   }
 });
 
+test('Contract progress cells use exact small targets and fractional normalized large targets', () => {
+  const cases = [
+    [0, 1], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [8, 8], [10, 10], [12, 12],
+    [15, 12], [25, 12], [300, 12], [800, 12], [12000, 12],
+  ];
+  for (const [target, expectedCells] of cases) {
+    const progress = hud.contractProgressCells(0, target);
+    assert.equal(progress.cellCount, expectedCells, `target ${target} uses its truthful cell count`);
+    assert.equal(progress.fills.length, expectedCells);
+    assert.ok(progress.fills.every((fill) => fill === 0));
+  }
+
+  assert.deepEqual(hud.contractProgressCells(1, 15).fills, [0.8, ...Array(11).fill(0)]);
+  assert.deepEqual(hud.contractProgressCells(1, 25).fills, [0.48, ...Array(11).fill(0)]);
+  assert.deepEqual(hud.contractProgressCells(200, 800).fills, [1, 1, 1, ...Array(9).fill(0)]);
+  assert.deepEqual(hud.contractProgressCells(60, 300).fills, [1, 1, 0.4, ...Array(9).fill(0)]);
+  assert.deepEqual(hud.contractProgressCells(1, 1).fills, [1]);
+  assert.deepEqual(hud.contractProgressCells(9, 3).fills, [1, 1, 1]);
+  assert.deepEqual(hud.contractProgressCells(-1, 3).fills, [0, 0, 0]);
+  assert.deepEqual(hud.contractProgressCells(Number.NaN, -1), {
+    cellCount: 1, target: 0, current: 0, fills: [0],
+  });
+  assert.deepEqual(hud.contractProgressCells(Infinity, Number.NaN), {
+    cellCount: 1, target: 0, current: 0, fills: [0],
+  });
+});
+
 test('Contracts HUD exposes an accessible master-detail browser without changing settlement semantics', () => {
   const hudSource = readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8');
   const cssSource = readFileSync(new URL('../src/ui.css', import.meta.url), 'utf8');
@@ -175,7 +257,8 @@ test('Contracts HUD exposes an accessible master-detail browser without changing
   assert.match(hudSource, /querySelectorAll<HTMLButtonElement>\(selector\)\)\.filter\(\(button\) => !button\.disabled\)/);
   assert.match(hudSource, /LIFETIME\.completedContracts\.includes\(contract\.id\)/);
   assert.match(hudSource, /row\.done \|\| row\.resolved !== null/);
-  assert.match(hudSource, /filteredRows\.find\(\(row\) => row\.contract\.id === this\.selectedContractId\) \?\? filteredRows\[0\]/);
+  assert.match(hudSource, /displayRows\.find\(\(row\) => row\.contract\.id === this\.selectedContractId\)/);
+  assert.match(hudSource, /filteredRows\.reduce<ContractViewRow \| null>/);
   assert.match(hudSource, /document\.createElement\('button'\)/);
   assert.match(hudSource, /setAttribute\('aria-pressed'/);
   assert.match(hudSource, /setAttribute\('aria-current'/);
@@ -195,10 +278,42 @@ test('Contracts HUD exposes an accessible master-detail browser without changing
   assert.match(cssSource, /#contracts-list\s*\{[^}]*min-width:\s*0[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s);
   assert.match(cssSource, /\.contract-detail\s*\{[^}]*min-width:\s*0[^}]*min-height:\s*0[^}]*overflow-y:\s*auto/s);
   assert.match(cssSource, /\.contract-row\s*\{[^}]*height:\s*62px[^}]*box-sizing:\s*border-box/s);
-  assert.match(cssSource, /\.contract-row:focus-visible,[^}]*outline:\s*2px solid #f4f8ff/s);
+  assert.match(cssSource, /\.contract-row:focus-visible,[^}]*outline:\s*2px solid #ffffff/s);
   assert.match(cssSource, /\.contracts-filter-count\s*\{[^}]*font-size:\s*8px/s);
   assert.match(cssSource, /@media \(max-width: 900px\)[\s\S]*#contracts-browser\s*\{[^}]*flex-direction:\s*column/);
   assert.doesNotMatch(cssSource, /@media \(max-width: 900px\)[\s\S]*#contracts-panel\s*\{[^}]*overflow-y:\s*auto/);
+});
+
+test('Contracts All groups visible rows by tab category without changing canonical order or progress fallback', () => {
+  const previews = contracts.previewContractRewards();
+  const visible = contracts.ACTIVE_CONTRACTS.filter((contract) => previews[contract.id] !== null);
+  const categories = ['weapon', 'core', 'mod', 'socket', 'other'];
+  const grouped = categories.flatMap((category) => visible
+    .filter((contract) => contracts.rewardCategory(contract.reward) === category)
+    .map(({ id }) => id));
+
+  assert.deepEqual(grouped, [
+    'first-blood', 'arsenal-1', 'arsenal-2', 'arsenal-3', 'arsenal-4',
+    'scrap-quota-1', 'scrap-quota-2', 'scrap-quota-3', 'scrap-quota-4',
+    'veteran-1', 'veteran-2', 'veteran-3', 'veteran-4', 'ascension-1', 'ascension-2',
+    'overkill', 'purist', 'foreman', 'endurance-1', 'endurance-2',
+    'second-wind', 'boss-hunter', 'full-loadout',
+    'untouchable',
+  ]);
+  for (const category of categories) {
+    const tabRows = visible.filter((contract) => contracts.rewardCategory(contract.reward) === category);
+    assert.deepEqual(
+      grouped.filter((id) => contracts.rewardCategory(contracts.ACTIVE_CONTRACTS.find((contract) => contract.id === id).reward) === category),
+      tabRows.map(({ id }) => id),
+      category,
+    );
+  }
+
+  const hudSource = readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8');
+  assert.match(hudSource, /const displayRows = this\.contractCategory === 'all'/);
+  assert.match(hudSource, /for \(const row of displayRows\) list\.appendChild\(this\.contractRow\(row\)\)/);
+  assert.match(hudSource, /filteredRows\.reduce<ContractViewRow \| null>/);
+  assert.doesNotMatch(hudSource, /\}\)\.sort\(\(a, b\) => b\.ratio - a\.ratio\)/);
 });
 
 test('every rendered title pairs its objective-aligned challenge with the exact concrete reward', () => {
@@ -318,4 +433,16 @@ test('old populated lifetime saves migrate missing structural counters selective
   profile.loadProfile();
   assert.equal(profile.LIFETIME.runsCompleted, 4);
   assert.equal(profile.LIFETIME.minimalRunsCompleted, 2);
+});
+
+test('Characters, Contracts, and Settings retain their shared UI roles', () => {
+  const hudSource = readFileSync(new URL('../src/hud.ts', import.meta.url), 'utf8');
+  const cssSource = readFileSync(new URL('../src/ui.css', import.meta.url), 'utf8');
+  assert.match(hudSource, /id="settings-panel" class="overlay-panel">\s*<div class="panel-header">Settings<\/div>/);
+  assert.match(cssSource, /\.panel-header\s*\{[\s\S]*?font-size:\s*13px;[\s\S]*?color:\s*#ffd24a;/);
+  assert.match(cssSource, /\.character-card\.selected\s*\{\s*border-color:\s*#3fa9f5;/);
+  assert.match(cssSource, /#settings-sidebar \.settings-tab\.active\s*\{[\s\S]*?border-color:\s*#3fa9f5;/);
+  assert.match(cssSource, /\.pad-focus\s*\{[\s\S]*?border-color:\s*#01e6fe !important;[\s\S]*?outline:\s*2px solid #ffffff;/);
+  assert.match(cssSource, /\.contracts-status-control\s*\{[\s\S]*?background:\s*rgba\(12, 16, 22, 0\.96\);[\s\S]*?clip-path:/);
+  assert.match(cssSource, /\.contract-detail\s*\{[\s\S]*?clip-path:/);
 });

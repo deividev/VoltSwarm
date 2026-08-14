@@ -639,8 +639,8 @@ export class Hud {
         <button id="quit-run-button">Quit to Menu</button>
       </div>
       <div id="settings-overlay" class="overlay menu-view hidden">
-        <h1>Settings</h1>
-        <div id="settings-panel">
+        <div id="settings-panel" class="overlay-panel">
+          <div class="panel-header">Settings</div>
           <div id="settings-sidebar">
             <button id="settings-tab-general" class="settings-tab active">General</button>
             <button id="settings-tab-controls" class="settings-tab">Controls</button>
@@ -708,10 +708,10 @@ export class Hud {
               </p>
             </div>
           </div>
+          </div>
           <div id="settings-footer">
             <button id="settings-back-button">Back</button>
             <button id="settings-reset-bindings" class="hidden">Reset to Defaults</button>
-          </div>
           </div>
         </div>
       </div>
@@ -1242,7 +1242,7 @@ export class Hud {
         ratio: target > 0 ? current / target : 0,
         resolved: rewardPreviews[contract.id] ?? null,
       };
-    }).sort((a, b) => b.ratio - a.ratio);
+    });
 
     // A spare ladder rung with nothing left in its queue is not offered. A
     // settled legacy row remains visible even if its attribution is missing.
@@ -1301,7 +1301,27 @@ export class Hud {
       row.done === (this.contractStatus === 'completed') &&
       (this.contractCategory === 'all' || rewardCategory(row.contract.reward) === this.contractCategory),
     );
-    const selected = filteredRows.find((row) => row.contract.id === this.selectedContractId) ?? filteredRows[0] ?? null;
+    // The All tab is a category index, not a progress ranking. Keep each
+    // category's ACTIVE_CONTRACTS declaration order while putting categories in
+    // the same order as their visible tabs.
+    const categoryOrder = new Map(
+      CONTRACT_CATEGORIES
+        .filter(({ key }) => key !== 'all')
+        .map(({ key }, index) => [key, index]),
+    );
+    const displayRows = this.contractCategory === 'all'
+      ? [...filteredRows].sort((a, b) =>
+        (categoryOrder.get(rewardCategory(a.contract.reward)) ?? Number.MAX_SAFE_INTEGER) -
+        (categoryOrder.get(rewardCategory(b.contract.reward)) ?? Number.MAX_SAFE_INTEGER))
+      : filteredRows;
+    // A filter may hide the prior selection. Choose the closest visible row by
+    // progress from the ungrouped result, so presentation order never changes
+    // the documented nearest-completion fallback.
+    const selected = displayRows.find((row) => row.contract.id === this.selectedContractId) ??
+      filteredRows.reduce<ContractViewRow | null>(
+        (nearest, row) => nearest === null || row.ratio > nearest.ratio ? row : nearest,
+        null,
+      );
     this.selectedContractId = selected?.contract.id ?? null;
 
     const list = mustGet('contracts-list');
@@ -1314,7 +1334,7 @@ export class Hud {
         : 'No completed contracts in this category yet.';
       list.appendChild(empty);
     } else {
-      for (const row of filteredRows) list.appendChild(this.contractRow(row));
+      for (const row of displayRows) list.appendChild(this.contractRow(row));
     }
     this.renderContractDetail(selected);
   }
@@ -1335,7 +1355,7 @@ export class Hud {
           '<span class="contract-title"></span>' +
           `<span class="contract-count">${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}${row.done ? ' COMPLETE' : ''}</span>` +
         '</div>' +
-        segmentedContractBarHtml(row.current, row.target, `${row.contract.title} progress`) +
+        segmentedContractBarHtml(row.current, row.target, `${row.contract.title} progress`, row.asTime) +
       '</div>';
     const title = item.querySelector<HTMLElement>('.contract-title');
     if (title) title.textContent = row.contract.title;
@@ -1371,7 +1391,7 @@ export class Hud {
       '<p class="contract-detail-objective"></p>' +
       '<div class="contract-detail-progress">' +
         `<strong>${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}${row.done ? ' - SETTLED' : ''}</strong>` +
-        segmentedContractBarHtml(row.current, row.target, `${row.contract.title} progress`) +
+        segmentedContractBarHtml(row.current, row.target, `${row.contract.title} progress`, row.asTime) +
       '</div>' +
       `<div class="contract-detail-reward"><span>${row.done ? 'OWNED' : 'REWARD'}</span>${rewardLabelHtml(row.contract.reward, row.resolved, row.done)}</div>`;
     const title = detail.querySelector<HTMLElement>('.contract-detail-title');
@@ -2981,7 +3001,7 @@ function rewardIconHtml(reward: Reward | null, done: boolean): string {
       const image = MOD_REGISTRY[reward.id]?.image;
       return image ? `<img class="card-icon" src="${image}" alt="" />` : '';
     }
-    case 'socket': return socketPipsHtml(reward.slot, done);
+    case 'socket': return socketPipsHtml(reward.slot, reward.index, done);
     case 'discards': return '<img class="card-icon" src="assets/2d/icon-ui-discard.png" alt="" />';
     default: return '';
   }
@@ -2990,7 +3010,7 @@ function rewardIconHtml(reward: Reward | null, done: boolean): string {
 /** A socket reward is a capacity change, which no single icon conveys. Drawing
  *  the whole row — filled, the one this opens, and the ones still locked —
  *  answers "what does this actually give me" at a glance. */
-function socketPipsHtml(slot: 'weapon' | 'core', done: boolean): string {
+function socketPipsHtml(slot: 'weapon' | 'core', target: number | undefined, done: boolean): string {
   const open = slot === 'weapon' ? PROFILE.weaponSockets : PROFILE.coreSockets;
   const max = slot === 'weapon' ? PROFILE.maxWeaponSockets : PROFILE.maxCoreSockets;
   const pips = Array.from({ length: max }, (_, i) => {
@@ -2998,7 +3018,7 @@ function socketPipsHtml(slot: 'weapon' | 'core', done: boolean): string {
     // Only a PENDING contract highlights the slot it would open. Marking one
     // on an already-paid contract would advertise the next socket as if this
     // one still granted it.
-    if (i === open && !done) return '<i class="next"></i>';
+    if (i + 1 === target && !done) return '<i class="next"></i>';
     return '<i></i>';
   }).join('');
   return `<div class="socket-pips">${pips}</div>`;
@@ -3020,10 +3040,10 @@ function rewardLabelHtml(original: Reward, resolved: Reward | null, done: boolea
   if (original.kind === 'socket') {
     // Pending sockets state the BENEFIT, not the mechanism: "carry another
     // weapon" is what the extra slot actually buys you.
-    const open = original.slot === 'weapon' ? PROFILE.weaponSockets : PROFILE.coreSockets;
+    const target = resolved?.kind === 'socket' ? resolved.index : original.index;
     return original.slot === 'weapon'
-      ? `Weapon slot ${open + 1} &mdash; carry another weapon`
-      : `Core slot ${open + 1} &mdash; install another core`;
+      ? `Weapon slot ${target ?? '?'} &mdash; carry another weapon`
+      : `Core slot ${target ?? '?'} &mdash; install another core`;
   }
   if (!resolved) return 'Nothing left to unlock';
   return describeReward(resolved);
@@ -3034,14 +3054,40 @@ function rewardLabelHtml(original: Reward, resolved: Reward | null, done: boolea
  *  the number — "300 kills" formatted as a duration would say 5:00. */
 /** Shared segmented progress grammar for Contracts and future locked character
  * requirements. The data stays exact while the cells provide quick shape. */
-function segmentedContractBarHtml(current: number, target: number, label?: string): string {
-  const cellCount = 12;
-  const filled = target > 0 ? Math.round((current / target) * cellCount) : 0;
-  const cells = Array.from(
+const CONTRACT_PROGRESS_MAX_CELLS = 12;
+
+/** Maps exact Contract progress to a compact visual grammar without rounding it. */
+export function contractProgressCells(current: number, target: number): {
+  cellCount: number;
+  target: number;
+  current: number;
+  fills: number[];
+} {
+  const safeTarget = Number.isFinite(target) ? Math.max(0, Math.floor(target)) : 0;
+  const safeCurrent = Number.isFinite(current) ? Math.max(0, Math.min(current, safeTarget)) : 0;
+  const cellCount = safeTarget > 0 && safeTarget <= CONTRACT_PROGRESS_MAX_CELLS
+    ? safeTarget
+    : safeTarget > CONTRACT_PROGRESS_MAX_CELLS
+      ? CONTRACT_PROGRESS_MAX_CELLS
+      : 1;
+  const scaledFill = safeTarget > 0 ? (safeCurrent / safeTarget) * cellCount : 0;
+  const fills = Array.from(
     { length: cellCount },
-    (_, index) => `<i class="${index < filled ? 'on' : ''}"></i>`,
-  ).join('');
-  const aria = label ? ` role="progressbar" aria-label="${label}" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${current}"` : '';
+    (_, index) => Number(Math.max(0, Math.min(1, scaledFill - index)).toFixed(6)),
+  );
+  return { cellCount, target: safeTarget, current: safeCurrent, fills };
+}
+
+function segmentedContractBarHtml(current: number, target: number, label?: string, asTime = false): string {
+  const progress = contractProgressCells(current, target);
+  const cells = progress.fills.map((fill) => {
+    const state = fill === 1 ? 'on' : fill > 0 ? 'partial' : '';
+    return `<i class="${state}" data-fill="${fill}" style="--cell-fill:${fill * 100}%"></i>`;
+  }).join('');
+  const valueText = `${fmtProgress(progress.current, asTime)} / ${fmtProgress(progress.target, asTime)}`;
+  const aria = label
+    ? ` role="progressbar" aria-label="${label}" aria-valuetext="${valueText}" aria-valuemin="0" aria-valuemax="${progress.target}" aria-valuenow="${progress.current}"`
+    : '';
   return `<div class="contract-bar"${aria}>${cells}</div>`;
 }
 
