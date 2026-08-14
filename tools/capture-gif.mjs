@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import { decodePNG, buildPalette, indexFrame, buildGif } from './gif-encoder.mjs';
-import { confirmOnlyVisibleCharacterIfPresent } from './character-flow.mjs';
+import { confirmOnlyVisibleCharacterIfPresent, enterMainMenu } from './character-flow.mjs';
 
 const OUT = process.argv[2] ?? 'art/steam/gif/boss-summon.gif';
 const FRAMES = Number(process.argv[3] ?? 42);
@@ -35,6 +35,7 @@ try {
   const page = await browser.newPage();
   await page.setViewport({ width: W, height: H });
   await page.goto(`http://localhost:${PORT}/`);
+  await enterMainMenu(page);
   await page.waitForSelector('#play-button', { visible: true, timeout: 15000 });
   await page.click('#play-button');
   await confirmOnlyVisibleCharacterIfPresent(page);

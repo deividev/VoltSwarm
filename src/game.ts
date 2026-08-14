@@ -141,6 +141,7 @@ import {
 import type { EarnedContract } from './contracts';
 
 type GameState =
+  | 'boot'
   | 'menu'
   | 'loading'
   | 'playing'
@@ -227,7 +228,7 @@ export class Game {
   private weaponDamage: Record<WeaponId, number> = emptyWeaponLevels();
   /** Installed cores (stat-card id → level) — the chassis sockets. */
   private coreLevels: CoreLevels = {};
-  private state: GameState = 'menu';
+  private state: GameState = 'boot';
   /** Loading handoff: the picked weapon, whether the world is built yet, and
    *  the warmup countdown (see LOADING_WARMUP_FRAMES). */
   private pendingWeapon: WeaponId | null = null;
@@ -734,13 +735,20 @@ export class Game {
     void this.audio.activateFromUserGesture().then(() => {
       const volume = id === 'ui-focus' ? AUDIO.ui.focusVolume : id === 'ui-back' ? AUDIO.ui.backVolume : 1;
       this.audio.emit({ id, volume });
-      // Autoplay policy: the boot menu cannot start its theme until the first
-      // user gesture — so the first menu click starts it. The keyed loop
-      // dedupes repeats, and by the time this runs after a Play click the
-      // state has already left 'menu', so runs never double-start it.
-      if (id === 'ui-confirm' && this.state === 'menu') {
-        this.audio.emit({ id: 'menu-music', key: 'menu-music-loop', loop: true, priority: 2, volume: AUDIO.music.menuLoopVolume });
-      }
+    });
+  }
+
+  /** Turns the first input edge into Web Audio activation before exposing any
+   *  interactive menu controls. consumeAnyPress() drains every pending edge,
+   *  so the initiating key/button cannot also navigate the revealed menu. */
+  private dismissBoot(): void {
+    if (this.state !== 'boot') return;
+    this.state = 'menu';
+    this.audio.setMenu(true);
+    this.hud.showMainMenu();
+    void this.audio.activateFromUserGesture().then(() => {
+      if (this.state !== 'menu' || !this.hud.isMainMenuVisible()) return;
+      this.audio.emit({ id: 'menu-music', key: 'menu-music-loop', loop: true, priority: 2, volume: AUDIO.music.menuLoopVolume });
     });
   }
 
@@ -897,6 +905,10 @@ export class Game {
     const rawDt = this.clock.getDelta();
     const dt = Math.min(rawDt, 0.05);
     this.input.poll();
+    if (this.state === 'boot') {
+      if (this.input.consumeAnyPress()) this.dismissBoot();
+      return;
+    }
     if (this.hud.tickBindingCapture(this.input)) {
       // A rebind capture is in progress: it swallows all input this frame.
     } else {
@@ -935,8 +947,9 @@ export class Game {
     if (this.state === 'levelup-intro') this.tickLevelUpIntro(dt);
     this.damageNumbers.update(dt, this.camera, this.player.position.x, this.player.position.z);
     // The menu is a view OUTSIDE the game: skip the 3D render entirely so no
-    // scene runs behind it (the opaque menu backdrop covers the canvas). Every
-    // other state — including 'loading' warmup — renders normally.
+    // scene runs behind it (the opaque menu backdrop covers the canvas). The
+    // boot state returned earlier in this frame; every remaining non-menu
+    // state — including 'loading' warmup — renders normally.
     if (this.state !== 'menu') {
       if (this.composer) this.composer.render();
       else this.renderer.render(this.scene, this.camera);

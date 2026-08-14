@@ -61,7 +61,7 @@ Current runtime source of truth: `AUDIO.validation.enabledEvents` (config.ts) +
 | `chest-spin` | `modern-chest-spin` | act 2: 2.6s riser, one tick per REEL CELL at bezier-solved times, shimmer on final approach | DONE |
 | `chest-reveal` | `modern-chest-reveal` | act 3: impact in the flash, arp riding the 0.6s icon rise, top note at settle. **Fijado a la variante 0 desde `AUDIO.fixedVariantIndex`**: el manifiesto conserva los otros candidatos para audición, pero una run normal ya no los sortea. Un pin de audición dev sigue teniendo prioridad. | DONE |
 | `foundation-music` | `music-lead.mp3` = "Neon Horizon" | in-run bed, loops on music bus, ducks on pause/menu | WIRED (provisional lead; more takes planned) |
-| `menu-music` | `menu-music.mp3` = "Neon Swarm (4)" | title-screen theme, starts on first menu gesture, hands over to the run bed on Play | WIRED |
+| `menu-music` | `menu-music.mp3` = "Neon Swarm (4)" | title-screen theme; the app opens on a one-time input gate, then any keyboard/gamepad button activates Web Audio, starts this keyed loop once, and reveals the menu without leaking that edge into navigation; returning from a run skips the gate and restores the theme directly | WIRED |
 | `player-hit` | `player-hit` x2 | PRIORITY danger: metallic clang + heavy sub thud + downward stress bend, peak 0.85 | WIRED (batch A, verdict pending) |
 | `shield-block` | `shield-block` x2 | positive twin: bright electric deflect crack + barrier ting, no low thud, peak 0.72 | WIRED (batch A, verdict pending) |
 | `boss-portal` | `boss-portal` | 2.5s telegraph charge (rising drone + beam-synced strobe pulses + surge), keyed one-shot cut on spawn; fires on `summonJustBegan` | WIRED (batch B, verdict pending) |

@@ -16,6 +16,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
+import { enterMainMenu } from './character-flow.mjs';
 
 const EXE = process.argv[2];
 const PLAY_SECONDS = Number(process.argv[3] ?? 25);
@@ -101,6 +102,7 @@ async function main() {
 
     await page.evaluateOnNewDocument(installRecorders);
     await page.reload({ waitUntil: 'domcontentloaded' });
+    await enterMainMenu(page, 60_000);
 
     await page.waitForFunction(
       () => {

@@ -3,7 +3,7 @@
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
-import { confirmOnlyVisibleCharacterIfPresent } from './character-flow.mjs';
+import { confirmOnlyVisibleCharacterIfPresent, enterMainMenu } from './character-flow.mjs';
 
 const PORT = 5199;
 const CHROME_PATHS = [
@@ -38,6 +38,7 @@ try {
   const page = await browser.newPage();
   await page.setViewport({ width: 1600, height: 900 });
   await page.goto(`http://localhost:${PORT}/`);
+  await enterMainMenu(page);
   await page.waitForSelector('#play-button', { visible: true, timeout: 15000 });
   await page.click('#play-button');
   await confirmOnlyVisibleCharacterIfPresent(page);

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
+import { enterMainMenu } from './character-flow.mjs';
 
 const PORT = 5206;
 const CHROME_PATHS = [
@@ -34,6 +35,7 @@ try {
   page.setDefaultTimeout(25_000);
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.goto(`http://localhost:${PORT}/`, { waitUntil: 'domcontentloaded' });
+  await enterMainMenu(page);
   await page.waitForSelector('#contracts-button');
 
   const measureSettings = async (width, height) => {
@@ -253,6 +255,7 @@ try {
     window.localStorage.setItem('voltswarm:profile', JSON.stringify(profile));
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await enterMainMenu(page);
   await page.waitForSelector('#contracts-button');
   await page.click('#contracts-button');
   await page.waitForSelector('#contracts-overlay:not(.hidden) .contract-row');
@@ -300,6 +303,7 @@ try {
     window.localStorage.setItem('voltswarm:profile', JSON.stringify(profile));
   });
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await enterMainMenu(page);
   await page.waitForSelector('#contracts-button');
   await page.click('#contracts-button');
   await page.click('[data-contract-status="completed"]');

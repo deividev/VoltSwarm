@@ -365,6 +365,8 @@ export class Hud {
   private readonly fpsCounter: HTMLElement;
   private readonly chestMarkers: ChestMarkerSlot[] = [];
 
+  private readonly bootOverlay: HTMLElement;
+  private readonly menuOverlay: HTMLElement;
   private readonly startOverlay: HTMLElement;
   private readonly draftCards: HTMLElement;
   private readonly levelUpOverlay: HTMLElement;
@@ -469,7 +471,10 @@ export class Hud {
       </div>
       <div id="fps-counter" class="hidden"></div>
       <div id="build-panel"></div>
-      <div id="menu-overlay" class="overlay menu-view">
+      <div id="boot-overlay" class="overlay menu-view">
+        <div id="boot-prompt">PRESS ANY KEY</div>
+      </div>
+      <div id="menu-overlay" class="overlay menu-view hidden">
         <div id="menu-lockup">
           <img id="menu-logo-mascot" src="assets/2d/logo-mascot-v3.png" alt="Voltswarm" />
           <img id="menu-logo-wordmark" src="assets/2d/logo-letras-v3.png" alt="Voltswarm" />
@@ -764,6 +769,8 @@ export class Hud {
     this.timer = mustGet('timer');
     this.levelBadge = mustGet('level-badge');
     this.fpsCounter = mustGet('fps-counter');
+    this.bootOverlay = mustGet('boot-overlay');
+    this.menuOverlay = mustGet('menu-overlay');
     this.startOverlay = mustGet('start-overlay');
     this.draftCards = mustGet('draft-cards');
     this.levelUpOverlay = mustGet('levelup-overlay');
@@ -1075,9 +1082,16 @@ export class Hud {
     void this.preloadUiAssets();
   }
 
-  /** Landing screen: title + Play. Runs always start (and end) here. */
+  /** Reveals the normal menu after the one-time boot input gate, or whenever a
+   *  run returns to the menu. The boot overlay can never reappear from here. */
   showMainMenu(): void {
-    mustGet('menu-overlay').classList.remove('hidden');
+    this.bootOverlay.classList.add('hidden');
+    this.menuOverlay.classList.remove('hidden');
+    this.padNavContainer = null;
+  }
+
+  isMainMenuVisible(): boolean {
+    return !this.menuOverlay.classList.contains('hidden');
   }
 
   /** The normal start flow, entered without passing through the main menu.

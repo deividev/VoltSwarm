@@ -169,6 +169,7 @@ function createWindow(): void {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      autoplayPolicy: 'no-user-gesture-required',
       devTools: !app.isPackaged,
       backgroundThrottling: !benchmarkMode,
     },

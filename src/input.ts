@@ -132,6 +132,16 @@ export class PlayerInput {
     return key || pad;
   }
 
+  /** Consumes any keyboard or normalized gamepad button edge. Used by the
+   *  initial boot gate, where every non-repeat key/button is equivalent and
+   *  the initiating edge must not leak into the menu revealed that frame. */
+  consumeAnyPress(): boolean {
+    const hit = this.pressedOnce.size > 0 || this.padButtonsOnce.some(Boolean);
+    if (!hit) return false;
+    this.clearTransientPresses();
+    return true;
+  }
+
   /** Normalized movement axis on the XZ plane: x = right, y = forward (-Z).
    *  Bound keys/buttons are digital; the left stick adds analog on top. */
   moveAxis(): { x: number; y: number } {

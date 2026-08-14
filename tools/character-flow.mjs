@@ -1,4 +1,27 @@
 /**
+ * Reaches the first interactive menu in both boot-gated and legacy builds.
+ * A real keyboard event is required when the boot overlay is present so
+ * browser automation exercises the same trusted-input path as a player.
+ */
+export async function enterMainMenu(page, timeout = 15_000) {
+  const stateHandle = await page.waitForFunction(
+    () => {
+      const isVisible = (element) =>
+        element instanceof HTMLElement &&
+        !element.classList.contains('hidden') &&
+        element.getClientRects().length > 0;
+      if (isVisible(document.querySelector('#menu-overlay'))) return 'menu';
+      if (isVisible(document.querySelector('#boot-overlay'))) return 'boot';
+      return false;
+    },
+    { timeout },
+  );
+  const state = await stateHandle.jsonValue();
+  if (state === 'boot') await page.keyboard.press('KeyX');
+  await page.waitForSelector('#menu-overlay:not(.hidden)', { visible: true, timeout });
+}
+
+/**
  * Advances the optional character-selection step introduced between Play and
  * the starting weapon draft. Older builds go straight to the draft, so the
  * helper also accepts that state without adding a fixed delay.

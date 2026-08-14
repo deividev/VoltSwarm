@@ -15,7 +15,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { confirmOnlyVisibleCharacterIfPresent } from './character-flow.mjs';
+import { confirmOnlyVisibleCharacterIfPresent, enterMainMenu } from './character-flow.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OUTPUT = resolve(ROOT, 'tmp/smoke-output');
@@ -183,6 +183,7 @@ try {
   await installHooks(SEED);
 
   await page.reload({ waitUntil: 'domcontentloaded' });
+  await enterMainMenu(page, 30_000);
   await page.waitForSelector('#play-button', { visible: true, timeout: 30_000 });
   // The starting draft offers a RANDOM subset of the unlocked weapons and
   // re-rolls on every reload, so iterating by card index tests whatever landed
@@ -208,6 +209,7 @@ try {
     try {
       await installHooks(SEED + attempt);
       await page.reload({ waitUntil: 'domcontentloaded' });
+      await enterMainMenu(page, 30_000);
       await page.waitForSelector('#play-button', { visible: true, timeout: 30_000 });
       // evaluate().click() rather than page.click(): the latter hit-tests for a
       // clickable point and loses a race with the menu's layout/animation.
