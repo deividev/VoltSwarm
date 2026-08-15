@@ -362,38 +362,166 @@ function buildMegafactoryMap(root: THREE.Object3D): Obstacle[] {
   return obstacles;
 }
 
+/** Foundry floor plate: steel plates with tread, bolts, wear and molten heat
+ *  scoring, drawn once into a canvas. Seeded so every run gets the same floor,
+ *  and TILEABLE — every pass wraps at the edges, or the seam between repeats
+ *  would draw a visible grid across the arena. */
 function createMegafactoryGroundTexture(): THREE.CanvasTexture {
   const cfg = MEGAFACTORY_MAP;
+  const f = cfg.floor;
   const canvas = document.createElement('canvas');
-  canvas.width = VISUAL.ground.textureSize;
-  canvas.height = VISUAL.ground.textureSize;
+  canvas.width = f.textureSize;
+  canvas.height = f.textureSize;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D canvas context unavailable');
-  ctx.fillStyle = `#${cfg.colors.floor.toString(16).padStart(6, '0')}`;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const cell = canvas.width / VISUAL.ground.tiles;
-  ctx.strokeStyle = `#${cfg.colors.seam.toString(16).padStart(6, '0')}`;
-  ctx.lineWidth = 2;
-  for (let i = 0; i <= VISUAL.ground.tiles; i++) {
-    const p = Math.round(i * cell) + 0.5;
+  const rng = mulberry32(21);
+  const size = f.textureSize;
+  const plate = size / f.plates;
+  const hex = (color: number): string => `#${color.toString(16).padStart(6, '0')}`;
+  /** Draws at (x, y) and at its wrapped twins, so a mark straddling an edge
+   *  reappears on the opposite side instead of being clipped. */
+  const wrapped = (x: number, y: number, draw: (x: number, y: number) => void): void => {
+    for (const dx of [-size, 0, size]) for (const dy of [-size, 0, size]) draw(x + dx, y + dy);
+  };
+
+  // Base plates with per-plate brightness jitter, so the floor never reads as
+  // one flat fill the way the first version did.
+  const base = cfg.colors.floor;
+  const [br, bg, bb] = [(base >> 16) & 255, (base >> 8) & 255, base & 255];
+  for (let py = 0; py < f.plates; py++) {
+    for (let px = 0; px < f.plates; px++) {
+      const jitter = (rng() - 0.5) * f.plateJitter * 2;
+      ctx.fillStyle = `rgb(${br + jitter}, ${bg + jitter}, ${bb + jitter})`;
+      ctx.fillRect(px * plate, py * plate, plate + 1, plate + 1);
+    }
+  }
+
+  // Tread plate: diagonal grip ribs on a scattered subset of plates. This is the
+  // pass that reads as "industrial metal" rather than "painted concrete".
+  ctx.save();
+  for (let i = 0; i < f.treadPlates; i++) {
+    const px = Math.floor(rng() * f.plates);
+    const py = Math.floor(rng() * f.plates);
+    const flip = rng() < 0.5;
+    ctx.save();
     ctx.beginPath();
-    ctx.moveTo(p, 0);
-    ctx.lineTo(p, canvas.height);
-    ctx.moveTo(0, p);
-    ctx.lineTo(canvas.width, p);
+    ctx.rect(px * plate, py * plate, plate, plate);
+    ctx.clip();
+    ctx.strokeStyle = `rgba(96, 116, 132, ${0.05 + rng() * 0.05})`;
+    ctx.lineWidth = 2;
+    for (let o = -plate; o < plate * 2; o += f.treadSpacingPx) {
+      ctx.beginPath();
+      ctx.moveTo(px * plate + o, py * plate);
+      ctx.lineTo(px * plate + o + (flip ? plate : -plate), py * plate + plate);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.restore();
+
+  // Wear: faint dark smudges. Small and low-alpha or they read as glitches.
+  for (let i = 0; i < f.wearBlobs; i++) {
+    const r = plate * (0.22 + rng() * 0.5);
+    const x = rng() * size;
+    const y = rng() * size;
+    const ry = r * (0.5 + rng() * 0.7);
+    const rot = rng() * Math.PI;
+    ctx.fillStyle = `rgba(14, 20, 26, ${0.05 + rng() * 0.05})`;
+    wrapped(x, y, (wx, wy) => {
+      ctx.beginPath();
+      ctx.ellipse(wx, wy, r, ry, rot, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // Heat scoring: molten spill that cooled on the plate. Amber core bleeding to
+  // dark scorch — the pass that says FOUNDRY instead of generic factory floor.
+  for (let i = 0; i < f.heatStains; i++) {
+    const r = plate * (0.35 + rng() * 0.85);
+    const x = rng() * size;
+    const y = rng() * size;
+    wrapped(x, y, (wx, wy) => {
+      const grad = ctx.createRadialGradient(wx, wy, 0, wx, wy, r);
+      grad.addColorStop(0, `${hex(cfg.colors.heat)}2e`);
+      grad.addColorStop(0.55, `${hex(cfg.colors.amber)}14`);
+      grad.addColorStop(1, '#0000');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(wx, wy, r, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  }
+
+  // Bright scuffs: chipped steel catching the light. Wrapped like the rest, so
+  // one straddling an edge is not sliced in half at the tiling seam.
+  for (let i = 0; i < f.scuffs; i++) {
+    ctx.fillStyle = `rgba(130, 150, 168, ${0.05 + rng() * 0.07})`;
+    const w = 2 + rng() * plate * 0.3;
+    const h = 2 + rng() * 3;
+    const x = rng() * size;
+    const y = rng() * size;
+    wrapped(x, y, (wx, wy) => ctx.fillRect(wx, wy, w, h));
+  }
+
+  // Cyan inspection lanes: a few plate rows edged as walkways. Sparse on
+  // purpose — the cyan is the brand accent and must not carpet the floor.
+  ctx.strokeStyle = hex(cfg.colors.cyan);
+  for (let i = 0; i < f.conduitLanes; i++) {
+    const row = Math.floor(rng() * f.plates);
+    const vertical = rng() < 0.5;
+    const at = row * plate + plate * 0.5;
+    ctx.globalAlpha = 0.14 + rng() * 0.1;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    if (vertical) { ctx.moveTo(at, 0); ctx.lineTo(at, size); }
+    else { ctx.moveTo(0, at); ctx.lineTo(size, at); }
     ctx.stroke();
   }
-  ctx.strokeStyle = `#${cfg.colors.cyan.toString(16).padStart(6, '0')}`;
-  ctx.globalAlpha = 0.5;
-  ctx.lineWidth = 3;
-  ctx.strokeRect(cell, cell, canvas.width - cell * 2, canvas.height - cell * 2);
   ctx.globalAlpha = 1;
+
+  // Seams last, over everything: a dark recess with a lit upper lip, so plates
+  // read as separate slabs rather than a drawn grid.
+  for (let i = 0; i <= f.plates; i++) {
+    const p = Math.round(i * plate) + 0.5;
+    ctx.strokeStyle = hex(cfg.colors.seam);
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(p, 0); ctx.lineTo(p, size);
+    ctx.moveTo(0, p); ctx.lineTo(size, p);
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(104, 124, 140, 0.14)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(p + 2, 0); ctx.lineTo(p + 2, size);
+    ctx.moveTo(0, p + 2); ctx.lineTo(size, p + 2);
+    ctx.stroke();
+  }
+
+  // Bolt studs at plate corners — the small repeated detail that sells scale.
+  const inset = plate * f.boltInset;
+  for (let py = 0; py < f.plates; py++) {
+    for (let px = 0; px < f.plates; px++) {
+      for (const [ox, oy] of [[inset, inset], [plate - inset, inset], [inset, plate - inset], [plate - inset, plate - inset]]) {
+        const bx = px * plate + (ox as number);
+        const by = py * plate + (oy as number);
+        ctx.fillStyle = 'rgba(12, 17, 22, 0.5)';
+        ctx.beginPath();
+        ctx.arc(bx, by + 1.5, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(122, 142, 158, 0.4)';
+        ctx.beginPath();
+        ctx.arc(bx, by, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 4;
   texture.wrapS = THREE.RepeatWrapping;
   texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(4, 4);
+  texture.repeat.set(f.repeats, f.repeats);
   return texture;
 }
 

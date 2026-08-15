@@ -258,8 +258,15 @@ export const MEGAFACTORY_MAP = {
   perimeterRadius: 72,
   towerCount: 12,
   towerWidth: 7,
-  towerHeightMin: 12,
-  towerHeightMax: 22,
+  /** Lowered 12-22 -> 6-10 (2026-08-16, user playtest: enemies vanished behind
+   *  them). MEASURED: the follow camera sits at (0, 24, 19) ≈ 51.6°, so a tower
+   *  of height H hides H / tan(51.6°) ≈ H * 0.79 world units of ground BEHIND
+   *  it. The old 22 buried a 17-unit-deep blind band while enemies spawn only
+   *  32-44 units away — a whole approach could happen inside it. At 6-10 the
+   *  band is 4.8-7.9 units, still twice the height of a Map 1 container (3.0),
+   *  so the structures keep their industrial mass without eating the field. */
+  towerHeightMin: 6,
+  towerHeightMax: 10,
   towerDepth: 7,
   towerColliderRadius: 4.8,
   pipeSegments: 16,
@@ -276,6 +283,46 @@ export const MEGAFACTORY_MAP = {
     cyan: 0x01e6fe,
     amber: 0xfdb601,
     heat: 0xff6a24,
+  },
+  /** Foundry floor plate. The first version was a flat fill + grid + one cyan
+   *  rectangle, which read as untextured next to Map 1 — Map 1 gets an actual
+   *  AI top-down image (VISUAL.ground.aiTextureUrl) and only falls back to its
+   *  procedural canvas. This gives Map 2 a procedural floor with the same detail
+   *  vocabulary Map 1's fallback uses (seeded jitter, wear, stains, scuffs) plus
+   *  foundry-specific passes: tread plate, bolt studs and heat scoring.
+   *
+   *  Each repeat covers (ARENA_HALF_SIZE * 2) / repeats world units, so plate
+   *  size is that divided by `plates` — currently 180/4/16 = 2.8u, readable at
+   *  the ~1u scale of the bots instead of the old 0.6u mesh. */
+  floor: {
+    textureSize: 2048,
+    repeats: 4,
+    /** Plates per texture repeat. Kept as an exact divisor of textureSize
+     *  (2048/16 = 128px) so plate edges, seams and bolts land on whole pixels
+     *  instead of drifting sub-pixel across the sheet.
+     *
+     *  NOT a tiling requirement: measured at full resolution, the wrap
+     *  discontinuity is ~0.1 luminance at both 15 and 16 plates — BELOW the
+     *  ~0.2 interior pixel-to-pixel variation, i.e. invisible either way. (An
+     *  earlier "6x seam" reading came from measuring a 512px downscale of the
+     *  sheet, where resampling fakes an edge discontinuity. Measure tileability
+     *  at native resolution or the number is meaningless.) */
+    plates: 16,
+    /** Per-plate brightness jitter, in 0-255 channel units. MEASURED 2026-08-16:
+     *  at 9 the plate-to-plate spread was 14.8% of the mean — 4x Map 1's 3.7%
+     *  with the same technique — and read as a checkerboard rather than as worn
+     *  steel. 4 lands near 6%, slightly above Map 1 because this floor is much
+     *  darker (luminance ~40 vs ~55) and needs the extra to stay legible. */
+    plateJitter: 4,
+    treadPlates: 46,
+    treadSpacingPx: 9,
+    boltInset: 0.16,
+    wearBlobs: 54,
+    /** Molten spill scoring — the pass that says "foundry" rather than "floor". */
+    heatStains: 16,
+    scuffs: 180,
+    /** Cyan inspection lanes: a few plate rows lit as walkway edging. */
+    conduitLanes: 3,
   },
 } as const;
 
