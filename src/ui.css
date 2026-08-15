@@ -778,6 +778,34 @@
   text-align: center;
   white-space: nowrap;
 }
+
+/* Animated map-transition curtain. Opacity is driven per-frame from the game
+   loop (Game.tickMapTransition); it sits above the HUD and event banner (28)
+   but below menus/results (40), so the world swap happens unseen at full black. */
+#map-fade {
+  position: fixed;
+  inset: 0;
+  z-index: 35;
+  background: #05060a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 6vw;
+  pointer-events: none;
+  opacity: 0;
+}
+#map-fade.hidden {
+  display: none;
+}
+#map-fade-label {
+  font-family: var(--pixel-font);
+  font-size: clamp(13px, 2.3vw, 26px);
+  line-height: 1.9;
+  letter-spacing: 3px;
+  color: #cfeaff;
+  text-align: center;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.85), 0 0 16px rgba(1, 230, 254, 0.55);
+}
 @keyframes defeat-beat-in {
   0% { opacity: 0; transform: translateX(-50%) scale(0.72); }
   60% { opacity: 1; transform: translateX(-50%) scale(1.05); }

@@ -444,6 +444,10 @@ export class Hud {
         <div id="summon-prompt" class="hidden"></div>
         <div id="chest-markers" aria-label="Active chests"></div>
         <div id="interact-prompt" class="hidden"></div>
+        <!-- Full-screen fade for the animated map transition (MAP_TRANSITION +
+             Game.tickMapTransition). Opacity is driven per-frame from the game
+             loop; the child label names the sector being entered. -->
+        <div id="map-fade" class="hidden"><div id="map-fade-label"></div></div>
         <div id="event-banner" class="hidden">
           <div class="banner-stripe"></div>
           <div id="event-banner-text"></div>
@@ -2302,6 +2306,22 @@ export class Hud {
     el.classList.add('play');
     window.clearTimeout(this.bannerTimer);
     this.bannerTimer = window.setTimeout(() => el.classList.add('hidden'), 1900);
+  }
+
+  /** Drives the animated map-transition curtain. Opacity is set per frame by
+   *  Game.tickMapTransition; the optional label names the entered sector and is
+   *  set only when a new transition begins. */
+  showMapFade(opacity: number, label?: string): void {
+    const el = mustGet('map-fade');
+    el.classList.remove('hidden');
+    el.style.opacity = String(opacity);
+    if (label !== undefined) mustGet('map-fade-label').textContent = label;
+  }
+
+  hideMapFade(): void {
+    const el = mustGet('map-fade');
+    el.classList.add('hidden');
+    el.style.opacity = '0';
   }
   private bannerTimer = 0;
 

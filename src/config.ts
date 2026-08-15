@@ -71,7 +71,7 @@ export const DEV_TOOLS: {
    *  crossed (heal to full, gold to zero, build and level carried — 0.3). Lets
    *  Map 2 be playtested without clearing Map 1 first. check-release-flags.mjs
    *  fails the build while this is true. */
-  simulateMap1Handoff: false,
+  simulateMap1Handoff: true,
   /** K mid-run: apply a guaranteed lethal hit through the REAL damage funnel.
    *  The defeat beat is otherwise only reachable by dying for real, which makes
    *  measuring its phases, audio and freeze rules a matter of luck. It goes
@@ -222,6 +222,16 @@ export const MAPS = [
     difficultyOffsetS: 240,
   },
 ] as const;
+
+/** Timing of the animated sector-to-sector transition (Game.tickMapTransition).
+ *  A dry one-frame world swap read as a hitch, so this fades to black, swaps the
+ *  world at full black where the cut can't be seen, holds briefly on the sector
+ *  name, then fades back in. */
+export const MAP_TRANSITION = {
+  fadeOutS: 0.5,
+  holdS: 0.45,
+  fadeInS: 0.6,
+};
 
 export type MapId = (typeof MAPS)[number]['id'];
 

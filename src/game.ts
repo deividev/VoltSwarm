@@ -17,6 +17,7 @@ import {
   ENEMY_TYPES,
   GOLD,
   MAPS,
+  MAP_TRANSITION,
   MERCHANT,
   MODS,
   PICKUPS,
@@ -150,6 +151,9 @@ type GameState =
   | 'levelup'
   | 'chest'
   | 'shop'
+  /** Animated sector-to-sector transition. Gameplay is frozen while the curtain
+   *  fades out, the world swaps at full black, and it fades back in. */
+  | 'map-transition'
   /** Staged defeat beat. The run is already durably recorded here; only the
    *  presentation is still running. Terminal, and never advances to a map. */
   | 'defeat-transition'
@@ -242,6 +246,9 @@ export class Game {
   private loadingDelay = 0;
   private elapsedS = 0;
   private runFlow: RunFlowState = createRunFlowState();
+  /** Non-null only during the 'map-transition' state: the animated curtain's
+   *  progress and the map it swaps to at full black. */
+  private mapTransition: { elapsedS: number; nextMapIndex: number; swapped: boolean } | null = null;
   /** Shared identity for packaged telemetry and the terminal-only local record. */
   private currentRunId: string | null = null;
   /** Terminal side effects (history, telemetry, contracts and HUD) may run once per run. */
@@ -959,6 +966,7 @@ export class Game {
       this.state === 'chest' || this.state === 'shop' || this.state === 'ended',
     );
     if (this.state === 'loading') this.tickLoading();
+    else if (this.state === 'map-transition') this.tickMapTransition(rawDt);
     else if (this.state === 'defeat-transition') this.tickDefeatTransition(rawDt);
     else if (this.state === 'playing') {
       telemetry.samplePerformance(rawDt, this.enemies.activeCount);
@@ -1156,6 +1164,50 @@ export class Game {
     this.hud.showInteractPrompt(null, this.interactLabel());
   }
 
+  /** Starts the animated sector transition instead of swapping the world in one
+   *  frame. Gameplay freezes (state leaves 'playing'); the real swap happens at
+   *  full black inside tickMapTransition, which is what removes the dry cut. */
+  private beginMapTransition(nextMapIndex: number): void {
+    const nextMap = MAPS[nextMapIndex] ?? MAPS[MAPS.length - 1] ?? MAPS[0];
+    this.mapTransition = { elapsedS: 0, nextMapIndex, swapped: false };
+    this.state = 'map-transition';
+    this.hud.showMapFade(0, `ENTERING ${nextMap.title.toUpperCase()}`);
+  }
+
+  /** Advances the fade curtain: fade out -> swap the world at full black (once)
+   *  -> hold on the sector name -> fade back in -> resume play. */
+  private tickMapTransition(rawDt: number): void {
+    const mt = this.mapTransition;
+    if (!mt) {
+      this.state = 'playing';
+      return;
+    }
+    const dt = Math.min(rawDt, 0.05);
+    mt.elapsedS += dt;
+    const { fadeOutS, holdS, fadeInS } = MAP_TRANSITION;
+    const fadeInStart = fadeOutS + holdS;
+    const total = fadeInStart + fadeInS;
+
+    // The swap is hidden at full black so the cut is never seen. Doing it here,
+    // not in beginMapTransition, is what removes the dry one-frame jump.
+    if (!mt.swapped && mt.elapsedS >= fadeOutS) {
+      this.transitionToMap(mt.nextMapIndex);
+      mt.swapped = true;
+    }
+
+    let opacity: number;
+    if (mt.elapsedS < fadeOutS) opacity = mt.elapsedS / fadeOutS;
+    else if (mt.elapsedS < fadeInStart) opacity = 1;
+    else opacity = Math.max(0, 1 - (mt.elapsedS - fadeInStart) / fadeInS);
+    this.hud.showMapFade(opacity);
+
+    if (mt.elapsedS >= total) {
+      this.hud.hideMapFade();
+      this.mapTransition = null;
+      this.state = 'playing';
+    }
+  }
+
   private transitionToMap(nextMapIndex: number): void {
     const nextMap = MAPS[nextMapIndex];
     if (!nextMap) throw new Error(`Missing map configuration at index ${nextMapIndex}.`);
@@ -1248,7 +1300,7 @@ export class Game {
     this.runCursedIntegral += this.stats.cursedDifficulty * dt;
     this.tickAudioBenchmark(dt);
     if (flowAction.type === 'transition') {
-      this.transitionToMap(flowAction.nextMapIndex);
+      this.beginMapTransition(flowAction.nextMapIndex);
       return;
     }
     if (flowAction.type === 'end-run') {
