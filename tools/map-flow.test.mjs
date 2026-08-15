@@ -149,6 +149,19 @@ test('enterMap is the single definition of crossing, shared by the real path and
   assert.match(key, /nextMapIndex >= MAPS\.length/);
 });
 
+test('the transition fades the music on the same curve as the curtain', async () => {
+  const gameSource = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
+  const tick = gameSource.slice(
+    gameSource.indexOf('private tickMapTransition'),
+    gameSource.indexOf('private transitionToMap'),
+  );
+  // Music volume is driven by the SAME opacity the curtain uses, so picture and
+  // sound cannot drift apart, and it lands exactly on the run level at the end
+  // (the per-frame ramp only approaches its target).
+  assert.match(tick, /setLoopVolume\('foundation-run-loop', AUDIO\.music\.runLoopVolume \* \(1 - opacity\)\)/);
+  assert.match(tick, /setLoopVolume\('foundation-run-loop', AUDIO\.music\.runLoopVolume\)/);
+});
+
 test('Hazard Marshal has one instanced slot and is excluded from Map 1 boss draw', () => {
   const hazard = ENEMY_TYPES[FINAL_BOSS_TYPE_INDEX];
   assert.equal(hazard?.name, 'Hazard Marshal');

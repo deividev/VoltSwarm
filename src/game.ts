@@ -1232,9 +1232,15 @@ export class Game {
     else if (mt.elapsedS < fadeInStart) opacity = 1;
     else opacity = Math.max(0, 1 - (mt.elapsedS - fadeInStart) / fadeInS);
     this.hud.showMapFade(opacity);
+    // The music rides the SAME curve as the curtain, so the sector change reads
+    // as one event: silent at full black, back up as the new map appears. A cut
+    // that only faded the picture left the old map's bed playing over the new one.
+    this.audio.setLoopVolume('foundation-run-loop', AUDIO.music.runLoopVolume * (1 - opacity));
 
     if (mt.elapsedS >= total) {
       this.hud.hideMapFade();
+      // Land exactly on the run level: the per-frame ramp only ever approaches it.
+      this.audio.setLoopVolume('foundation-run-loop', AUDIO.music.runLoopVolume);
       this.mapTransition = null;
       this.state = 'playing';
     }

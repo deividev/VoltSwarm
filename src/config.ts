@@ -72,7 +72,7 @@ export const DEV_TOOLS: {
    *  crossed (heal to full, gold to zero, build and level carried — 0.3). Lets
    *  Map 2 be playtested without clearing Map 1 first. check-release-flags.mjs
    *  fails the build while this is true. */
-  simulateMap1Handoff: true,
+  simulateMap1Handoff: false,
   /** T mid-run: jump straight to the sector transition — plays the real fade
    *  curtain and lands in the next map with a recorded build overlaid, exactly
    *  like simulateMap1Handoff but WITH the animation. Iterating the transition's
