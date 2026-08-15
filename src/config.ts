@@ -235,10 +235,14 @@ export const MAPS = [
  *  A dry one-frame world swap read as a hitch, so this fades to black, swaps the
  *  world at full black where the cut can't be seen, holds briefly on the sector
  *  name, then fades back in. */
+/** Lengthened 1.55s -> 2.8s after the first playtest (2026-08-15): the original
+ *  read as too abrupt for a whole sector change, and its 0.45s hold was not even
+ *  long enough to READ the sector name. Most of the extra time went to the hold,
+ *  which is the beat that sells the jump as a chapter break rather than a cut. */
 export const MAP_TRANSITION = {
-  fadeOutS: 0.5,
-  holdS: 0.45,
-  fadeInS: 0.6,
+  fadeOutS: 0.8,
+  holdS: 1.1,
+  fadeInS: 0.9,
 };
 
 export type MapId = (typeof MAPS)[number]['id'];

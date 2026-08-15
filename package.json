@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.13.45",
+  "version": "0.13.46",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
