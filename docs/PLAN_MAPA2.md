@@ -1,6 +1,6 @@
 # PLAN — Bloque Mapa 2 (Swarm Foundry): transición · visual · Hazard Marshal
 
-> Estado: PLANIFICADO 2026-08-15. Nada implementado en este doc todavía.
+> Estado 2026-08-16: **Paso 0 (decisiones) CERRADO · Workstream 1 (transición) COMPLETADO** (v0.13.40→0.13.47). Pendientes los Workstreams 2 (visual de la fundición) y 3 (moveset del Hazard Marshal).
 > Alcance: cerrar la run completa **Mapa 1 (10 min de oleadas + gate de boss) → transición → Mapa 2 (10 min de oleadas) → Hazard Marshal (jefe final, 3 fases)**.
 > Rama de trabajo: `codex/map-2` (worktree `chest-marker-demo`). Config ya titula el mapa como **"Swarm Foundry"** (`config.ts` ~línea 209). Cambios de gameplay portan a `codex/demo-map1` según la regla de ramas.
 > Fuente de verdad de orden: `docs/ROADMAP_STEAM.md` §"Bloque Mapa 2 + Volt Warden". Este doc es el desglose accionable de ese bloque.
@@ -37,8 +37,16 @@ No son burocracia: cada una cambia qué se implementa. Marcar cuando el usuario 
 
 ---
 
-## Workstream 1 — Transición Mapa 1 → Mapa 2
+## Workstream 1 — Transición Mapa 1 → Mapa 2 ✅ COMPLETADO 2026-08-16
 
+> **CIERRE 2026-08-16 (v0.13.40 → 0.13.47).** El arco Mapa 1 → Mapa 2 obedece las decisiones del Paso 0 de punta a punta y la transición está animada con imagen y sonido.
+>
+> **Lo entregado:** stats segmentada por mapa (`0.13.40`) · vida 100% + oro 0 + pantalla `OBJECTIVE FAILED` al fallar el gate (`0.13.41`) · `difficultyOffsetS: 240` para el Mapa 2 + flag `simulateMap1Handoff` (`0.13.42`) · transición animada con estado `map-transition` (`0.13.43`) · tecla dev **T** que salta a la transición con build grabada (`0.13.44`) · fundido de música atado a la misma curva (`0.13.45`) · duración 1.55s → **2.8s** tras playtest (`0.13.46`) · entrada escalonada del nombre del sector al negro pleno (`0.13.47`).
+>
+> **Cómo probarlo sin jugar 10 min:** `DEV_TOOLS.mapTransitionKey = true` → tecla **T** en una run. `DEV_TOOLS.simulateMap1Handoff = true` arranca directo en el Mapa 2. Ambos gateados: `check-release-flags.mjs` aborta el `package` si quedan encendidos.
+>
+> **Deuda consciente que queda (no bloquea los Workstreams 2/3):** un **sting** propio de transición y **camas de música por mapa** (hoy una sola cama de run) = pendiente **0c del roadmap**, requiere assets nuevos · validar en playtest que el tótem del boss es alcanzable de forma fiable dentro de los 10 min (1.12).
+>
 > **HALLAZGO 2026-08-15:** la lógica central del arco YA existe en `src/run-flow.ts` (verificado). `advanceRunFlow` implementa el gate (`end-run` con `reason: 'boss-required'` → run cortada si no cae boss, exactamente 0.1/0.7), la `transition` entre mapas y el `start-finale` del boss al acabar el último mapa (0.8); `game.ts` la consume (~líneas 1207-1222) y actualiza `currentMap`. `MAPS` en `config.ts` ya define los 2 mapas (`scrapyard`, `megafactory`/"Swarm Foundry"). Por tanto varios ítems de abajo NO son lógica nueva sino **cableado/UX**; **re-scopear cada uno contra la rama antes de tocar nada** en vez de reconstruir lo que ya está. Lo que casi seguro falta es la capa visible: misión en HUD (1.2b), pantalla "objetivo no completado" (1.2c), y confirmar que el handoff (vida 100%, oro 0, XP reescalada) coincide con 0.3.
 
 Depende de: 0.1 (cerrada), 0.2, 0.3, 0.6 (hecha), 0.7.
