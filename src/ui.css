@@ -792,6 +792,9 @@
   justify-content: center;
   padding: 0 6vw;
   pointer-events: none;
+  /* The label's entrance starts at a wide letter-spacing, which a long sector
+     name could push past the viewport on a narrow window. */
+  overflow: hidden;
   opacity: 0;
 }
 #map-fade.hidden {
@@ -805,6 +808,19 @@
   color: #cfeaff;
   text-align: center;
   text-shadow: 0 2px 0 rgba(0, 0, 0, 0.85), 0 0 16px rgba(1, 230, 254, 0.55);
+  /* Hidden while the world fades away; the game plays the entrance once the
+     curtain reaches full black, so the sector announces itself instead of
+     riding in over the map it is replacing. */
+  opacity: 0;
+}
+#map-fade-label.play {
+  animation: map-label-in 0.55s steps(7) forwards;
+}
+/* Letters settle inward from a wide spread — the same chunky stepped language
+   as the defeat title and the chest reel, never a smooth ease. */
+@keyframes map-label-in {
+  0% { opacity: 0; letter-spacing: 16px; filter: brightness(2.4); }
+  100% { opacity: 1; letter-spacing: 3px; filter: brightness(1); }
 }
 @keyframes defeat-beat-in {
   0% { opacity: 0; transform: translateX(-50%) scale(0.72); }

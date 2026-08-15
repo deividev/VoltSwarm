@@ -2315,13 +2315,29 @@ export class Hud {
     const el = mustGet('map-fade');
     el.classList.remove('hidden');
     el.style.opacity = String(opacity);
-    if (label !== undefined) mustGet('map-fade-label').textContent = label;
+    if (label !== undefined) {
+      // Setting the label also ARMS it: clearing 'play' is what lets the
+      // entrance replay on every transition instead of only the first.
+      const text = mustGet('map-fade-label');
+      text.textContent = label;
+      text.classList.remove('play');
+    }
+  }
+
+  /** Plays the sector name's stepped entrance. Called at full black so the name
+   *  announces the new sector rather than fading in over the old one. */
+  playMapFadeLabel(): void {
+    const text = mustGet('map-fade-label');
+    text.classList.remove('play');
+    void text.offsetWidth; // Reflow: without it the re-added class never restarts.
+    text.classList.add('play');
   }
 
   hideMapFade(): void {
     const el = mustGet('map-fade');
     el.classList.add('hidden');
     el.style.opacity = '0';
+    mustGet('map-fade-label').classList.remove('play');
   }
   private bannerTimer = 0;
 

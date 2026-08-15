@@ -162,6 +162,28 @@ test('the transition fades the music on the same curve as the curtain', async ()
   assert.match(tick, /setLoopVolume\('foundation-run-loop', AUDIO\.music\.runLoopVolume\)/);
 });
 
+test('the sector name announces itself at full black, and can replay', async () => {
+  const [gameSource, hudSource, cssSource] = await Promise.all([
+    readFile(new URL('../src/game.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/hud.ts', import.meta.url), 'utf8'),
+    readFile(new URL('../src/ui.css', import.meta.url), 'utf8'),
+  ]);
+  // The entrance fires inside the swap block (full black), not when the curtain
+  // starts: otherwise the name rides in over the map it is replacing.
+  const tick = gameSource.slice(
+    gameSource.indexOf('private tickMapTransition'),
+    gameSource.indexOf('private transitionToMap'),
+  );
+  const swapAt = tick.indexOf('this.transitionToMap(mt.nextMapIndex)');
+  const announceAt = tick.indexOf('this.hud.playMapFadeLabel()');
+  assert.ok(swapAt >= 0 && announceAt > swapAt);
+  // Reflow between removing and re-adding the class, or the entrance plays only
+  // on the first transition of the session.
+  assert.match(hudSource, /playMapFadeLabel\(\): void \{[\s\S]*?void text\.offsetWidth;[\s\S]*?classList\.add\('play'\)/);
+  // Stepped, like the defeat title and the chest reel — never a smooth ease.
+  assert.match(cssSource, /#map-fade-label\.play \{\s*animation: map-label-in [\d.]+s steps\(\d+\) forwards;/);
+});
+
 test('Hazard Marshal has one instanced slot and is excluded from Map 1 boss draw', () => {
   const hazard = ENEMY_TYPES[FINAL_BOSS_TYPE_INDEX];
   assert.equal(hazard?.name, 'Hazard Marshal');

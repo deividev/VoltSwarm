@@ -1224,6 +1224,9 @@ export class Game {
       // DEV jump only: equip the recorded build behind the black, so the shortcut
       // arrives the way a real crossing would rather than with a stub loadout.
       if (mt.simulateBuild) this.overlayLatestRecordedBuild('Map transition');
+      // Announce the sector at the same instant, so the name lands on the black
+      // rather than riding in over the map it is replacing.
+      this.hud.playMapFadeLabel();
       mt.swapped = true;
     }
 
