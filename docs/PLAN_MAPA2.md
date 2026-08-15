@@ -43,16 +43,23 @@ No son burocracia: cada una cambia qué se implementa. Marcar cuando el usuario 
 
 Depende de: 0.1 (cerrada), 0.2, 0.3, 0.6 (hecha), 0.7.
 
-- [ ] **1.1 Máquina de estados del arco.** Estado explícito de fase (Mapa 1 → transición → Mapa 2 → final → fin) chequeable en `game.ts`. El comentario de `config.ts` (~línea 75) ya anticipa este flujo; convertirlo en estado real.
-- [ ] **1.2 Gate AND cableado** (0.1 + 0.7): rastrear "≥1 boss derrotado" y "≥10:00 sobrevividos"; en el corte de 10:00 habilitar el cruce solo con ambas, o cortar la run sin cruce.
-- [ ] **1.2b Misión en pantalla (HUD)** en el Mapa 1: objetivo visible con estado de las dos condiciones (boss ✓/✗ · tiempo). Copy en inglés.
-- [ ] **1.2c Pantalla de resultados "objetivo no completado"**: variante del flujo de derrota (`defeat-transition.ts` + resultados) que muestra datos + aviso de objetivo incumplido cuando la run se corta sin cruce.
-- [ ] **1.2d Accesibilidad del boss dentro de la ventana**: garantizar que el jugador pueda **invocar y matar** un boss antes de 10:00 (las 6 primeras runs invocaron 0 bosses con el portal opcional). Requisito de diseño de la transición, no opcional.
-- [ ] **1.3 Handoff de build.** Al cruzar, conservar armas/cores/mods/sockets intactos (depende de 0.3 para vida/oro/XP). `PROFILE` se muta en su sitio, nunca se reemplaza (guardarraíl #8).
-- [ ] **1.4 Reset/rebuild del mundo** para el Mapa 2: limpiar enjambre, props y pickups del Mapa 1; construir el entorno foundry (Workstream 2) sin recargar la app ni perder la sesión de audio.
-- [ ] **1.5 Curva de dificultad del Mapa 2** según 0.2 (multiplicador base por mapa en `config.ts`, cero magnitudes hardcodeadas).
-- [ ] **1.6 Beat visual + audio de transición.** Fundido / secuencia corta al cruzar el portal. Crossfade de música entre cama de Mapa 1 y cama de Mapa 2 (engancha con el pendiente 0c del roadmap: crossfade real en vez de corte seco). Cero gore, lenguaje voxel.
-- [ ] **1.7 Atribución de muerte por mapa** cableada de punta a punta (0.6): el `map` se escribe en cada run terminada y `npm run stats` lo segmenta.
+**Ya implementado en la rama (verificado 2026-08-15) — NO reconstruir:**
+- [x] **1.1 Máquina de estados del arco** — `run-flow.ts` + consumo en `game.ts` (~1207-1222): `transition`, `end-run` (gate) y `start-finale`.
+- [x] **1.2 Misión en HUD** con las dos condiciones — `hud.ts:435-438` ("Survive until time expires" + "Defeat the boss to unlock the next sector").
+- [x] **1.3 Mecánica de transición** — `transitionToMap()`: cambia el mundo (`worldMaps.setMap`), limpia props/enjambre, banner `MAP 2: SWARM FOUNDRY`, telemetría.
+- [x] **1.4 Atribución de muerte + stats por mapa** — 0.6, cerrado hoy.
+
+**Divergencias con las decisiones de hoy (la rama es ANTERIOR a ellas) — esto es el Workstream 1 real:**
+- [x] **1.5 Vida al cruzar (0.3 = curar 100%) — HECHO 2026-08-15.** `transitionToMap()` ahora hace `this.player.hp = this.player.maxHp` al cruzar.
+- [x] **1.6 Oro al cruzar (0.3 = empezar de 0) — HECHO 2026-08-15.** `transitionToMap()` ahora hace `this.gold = 0` + `hud.updateGold(0)`.
+- [ ] **1.7 Curva de dificultad por mapa (0.2).** Hoy `difficultyScalar(this.elapsedS)` usa el reloj TOTAL → el Mapa 2 arranca al máximo/plano. NOTA: `runFlow.mapElapsedS` YA existe y el timer del HUD ya lo usa (`game.ts` ~1230); falta solo que la **dificultad** (y de paso precios/XP) lo consuman + un **multiplicador base por mapa** en `config.ts MAPS`. Requiere fijar el número de base — **decisión de balance, pendiente de valor**.
+- [x] **1.8 Pantalla "objetivo no completado" (0.7) — HECHO 2026-08-15.** `endRun` propaga `reason`; `showEnd` pinta título `OBJECTIVE FAILED` + subtítulo "Defeat a boss to unlock the next sector" SOLO en el fallo del gate (la muerte por HP no cambia).
+
+**Por confirmar (aún no verificado):**
+- [ ] **1.9 Reescalado de XP** alineado a la oleada del Mapa 2 (¿ya ocurre? va con 1.7).
+- [ ] **1.10 Descartes de level-up** se conservan al cruzar (0.3): verificar que nada los resetea.
+- [ ] **1.11 Beat de transición** visual + crossfade de música (hoy solo banner + un sonido). Engancha con el pendiente 0c del roadmap.
+- [ ] **1.12 Accesibilidad del boss dentro de la ventana**: garantizar que se pueda invocar y matar un boss antes de 10:00 (portal opcional → 0 bosses en las primeras runs). Revisar si la rama ya lo fuerza o sigue opcional.
 
 ---
 

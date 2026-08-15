@@ -2916,12 +2916,20 @@ export class Hud {
     /** Defeat stages its reveal, so the actions arrive disabled and the defeat
      *  controller enables them once its release gate is armed. */
     actionsEnabled = true,
+    /** The arc gate cut this run WITHOUT a death: the player reached the sector
+     *  timer but never felled a boss (docs/PLAN_MAPA2.md, 0.7). The results screen
+     *  must say the objective failed, not report a chassis that never blew. */
+    objectiveFailed = false,
   ): void {
     this.resetFeedback();
-    this.endTitle.textContent = RUN_OUTCOME_TITLES[outcome];
+    this.endTitle.textContent = objectiveFailed ? 'OBJECTIVE FAILED' : RUN_OUTCOME_TITLES[outcome];
     const defeated = outcome === 'defeat';
-    this.endSubtitle.textContent = defeated ? 'Chassis integrity lost' : '';
-    this.endSubtitle.classList.toggle('hidden', !defeated);
+    this.endSubtitle.textContent = objectiveFailed
+      ? 'Defeat a boss to unlock the next sector'
+      : defeated
+        ? 'Chassis integrity lost'
+        : '';
+    this.endSubtitle.classList.toggle('hidden', this.endSubtitle.textContent === '');
     this.setEndActionsEnabled(actionsEnabled);
     this.renderEarnedContracts(earnedContracts);
     const m = Math.floor(survivedS / 60);

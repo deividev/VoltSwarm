@@ -1130,6 +1130,12 @@ export class Game {
     const nextMap = MAPS[nextMapIndex];
     if (!nextMap) throw new Error(`Missing map configuration at index ${nextMapIndex}.`);
     this.resetForMapTransition();
+    // Crossing is a reward, not a punishment for surviving on the wire: the arc
+    // decision (docs/PLAN_MAPA2.md, 0.3) heals to full and restarts the economy
+    // from zero. Build (weapons/cores/mods/sockets) and level carry over intact.
+    this.player.hp = this.player.maxHp;
+    this.gold = 0;
+    this.hud.updateGold(this.gold);
     clearProps(this.scene, this.propMeshes);
     this.propMeshes = [];
     this.obstacles.length = 0;
@@ -1216,7 +1222,7 @@ export class Game {
       return;
     }
     if (flowAction.type === 'end-run') {
-      this.endRun(flowAction.outcome);
+      this.endRun(flowAction.outcome, flowAction.reason);
       return;
     }
     if (flowAction.type === 'start-finale') this.startFinale();
@@ -2525,7 +2531,7 @@ export class Game {
     );
   }
 
-  private endRun(outcome: RunOutcome): void {
+  private endRun(outcome: RunOutcome, reason?: 'boss-required'): void {
     const summary = this.finalizeRun(outcome);
     if (!summary) return;
     this.state = 'ended';
@@ -2545,6 +2551,8 @@ export class Game {
       this.coreLevels,
       this.modCounts,
       summary.earnedContracts,
+      true,
+      reason === 'boss-required',
     );
   }
 
