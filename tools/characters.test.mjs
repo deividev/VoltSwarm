@@ -235,13 +235,23 @@ test('automation chooses the explicit unlocked default from a scalable roster', 
   assert.equal(chooseCharacterId([{ id: 'locked', unlocked: false }], 'locked'), null);
 });
 
-test('Boss Lab restores the recorded character baseline before replaying Cores', async () => {
+test('Recorded-build replay restores the character baseline before replaying Cores', async () => {
+  // The ordering invariant now lives in applyRecordedBuild, shared by the Boss
+  // Lab and the Map 2 dev shortcuts. Assert it where the code actually is, and
+  // assert the Boss Lab still routes through it rather than hand-rolling a copy.
   const gameSource = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
-  const bossLab = gameSource.slice(gameSource.indexOf('private enterBossLab'), gameSource.indexOf('private installAuditionKeys'));
-  const resolveAt = bossLab.indexOf('registeredCharacterId(record.characterId)');
-  const statsAt = bossLab.indexOf('characterStats(this.currentCharacterId)');
-  const replayAt = bossLab.indexOf('replayCoresOntoStats(this.stats, this.player, this.coreLevels)');
+  const apply = gameSource.slice(
+    gameSource.indexOf('private applyRecordedBuild'),
+    gameSource.indexOf('private enterBossLab'),
+  );
+  const resolveAt = apply.indexOf('registeredCharacterId(record.characterId)');
+  const statsAt = apply.indexOf('characterStats(this.currentCharacterId)');
+  const replayAt = apply.indexOf('replayCoresOntoStats(this.stats, this.player, this.coreLevels)');
   assert.ok(resolveAt >= 0 && statsAt > resolveAt && replayAt > statsAt);
+  assert.doesNotMatch(apply, /fieldRepairHp\(/);
+
+  const bossLab = gameSource.slice(gameSource.indexOf('private enterBossLab'), gameSource.indexOf('private installAuditionKeys'));
+  assert.match(bossLab, /this\.applyRecordedBuild\(record\)/);
   assert.doesNotMatch(bossLab, /fieldRepairHp\(/);
 });
 

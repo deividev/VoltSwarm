@@ -37,6 +37,20 @@ export function markMapBossDefeated(state: RunFlowState): void {
   state.mapBossDefeated = true;
 }
 
+/** Moves the arc state onto `nextMapIndex`: credits the sector just left and
+ *  resets the per-map clock, finale latch and boss credit.
+ *
+ *  Exported so the development jump-to-transition key advances the arc through
+ *  the SAME code the real crossing uses — a hand-rolled copy in the dev path
+ *  would drift and make the shortcut lie about the state it produces. */
+export function enterMap(state: RunFlowState, nextMapIndex: number): void {
+  state.sectorsCleared += 1;
+  state.mapIndex = nextMapIndex;
+  state.mapElapsedS = 0;
+  state.finaleStarted = false;
+  state.mapBossDefeated = false;
+}
+
 /** Advances both clocks and returns the one structural action owed this frame.
  * The last map starts its finale once; elapsed time alone never completes a run. */
 export function advanceRunFlow(
@@ -61,11 +75,7 @@ export function advanceRunFlow(
     }
     // Boss credit and timer survival are both required: one without the other
     // cannot cross this map boundary.
-    state.sectorsCleared += 1;
-    state.mapIndex = nextMapIndex;
-    state.mapElapsedS = 0;
-    state.finaleStarted = false;
-    state.mapBossDefeated = false;
+    enterMap(state, nextMapIndex);
     return { type: 'transition', nextMapIndex };
   }
 

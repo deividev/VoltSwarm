@@ -48,6 +48,7 @@ export const DEV_TOOLS: {
   bossLab: boolean;
   startingMapSelector: boolean;
   simulateMap1Handoff: boolean;
+  mapTransitionKey: boolean;
   fatalHitKey: boolean;
   shortMaps: boolean;
 } = {
@@ -72,6 +73,13 @@ export const DEV_TOOLS: {
    *  Map 2 be playtested without clearing Map 1 first. check-release-flags.mjs
    *  fails the build while this is true. */
   simulateMap1Handoff: true,
+  /** T mid-run: jump straight to the sector transition — plays the real fade
+   *  curtain and lands in the next map with a recorded build overlaid, exactly
+   *  like simulateMap1Handoff but WITH the animation. Iterating the transition's
+   *  feel otherwise costs a full ten-minute map plus a boss kill. The arc state
+   *  advances through run-flow's own enterMap, so the shortcut cannot drift from
+   *  the real crossing. check-release-flags.mjs fails the build while this is true. */
+  mapTransitionKey: true,
   /** K mid-run: apply a guaranteed lethal hit through the REAL damage funnel.
    *  The defeat beat is otherwise only reachable by dying for real, which makes
    *  measuring its phases, audio and freeze rules a matter of luck. It goes

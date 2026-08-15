@@ -57,7 +57,9 @@ test('stat sheet reads the live Max HP total after Hull Plates updates the playe
   assert.match(hudSource, /src="\$\{CARD_ICON_IMAGES\['max-hp'\]\}"/);
 
   const liveMaxHpCalls = gameSource.match(/this\.hud\.updateBuild\(\s*this\.stats,\s*this\.player\.maxHp,/g) ?? [];
-  assert.equal(liveMaxHpCalls.length, 7);
+  // Bumped 7 -> 8 when overlayLatestRecordedBuild landed (the dev build overlay
+  // behind the Map 2 shortcuts); it passes the LIVE max HP like every other site.
+  assert.equal(liveMaxHpCalls.length, 8);
 
   const baseMaxHp = CHARACTER_BALANCE.fieldEngineer.maxHp;
   const hullPlateTotal = baseMaxHp + CORE_TIER_MAGNITUDES['max-hp'][0];

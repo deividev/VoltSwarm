@@ -13,6 +13,7 @@ import {
   advanceRunFlow,
   completeFinale,
   createRunFlowState,
+  enterMap,
   markMapBossDefeated,
 } from '../src/run-flow.ts';
 
@@ -60,9 +61,14 @@ test('several bosses on one map still clear exactly one sector', () => {
   assert.equal(state.sectorsCleared, 1);
 });
 
-test('Map 2 uses the provisional minute-zero pressure baseline', () => {
+test('Map 2 opens above Map 1 while keeping room to ramp', () => {
+  // Decision 0.2: the foundry must not restart Map 1's curve from zero (that made
+  // it a clone), and must not sit at or past the 480s difficulty cap either — an
+  // offset >= the cap would open Map 2 permanently flat at maximum pressure.
   const map2 = MAPS.find((map) => map.id === 'megafactory');
-  assert.equal(map2?.difficultyOffsetS, 0);
+  assert.equal(map2?.difficultyOffsetS, 240);
+  assert.ok((map2?.difficultyOffsetS ?? 0) > (MAPS[0].difficultyOffsetS ?? 0));
+  assert.ok((map2?.difficultyOffsetS ?? 0) < 480);
 });
 
 test('clearing every sector needs the Map 1 boss and the finale', () => {
@@ -76,12 +82,15 @@ test('clearing every sector needs the Map 1 boss and the finale', () => {
   assert.equal(full.mapIndex + 1, 2);
 });
 
-test('Game ends the run on the explicit boss-required timeout action', async () => {
+test('Game ends the run on the explicit boss-required timeout action, carrying the reason', async () => {
   const gameSource = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
+  // The reason must reach endRun: the results screen reads it to say OBJECTIVE
+  // FAILED instead of the generic death title (decision 0.7).
   assert.match(
     gameSource,
-    /if \(flowAction\.type === 'end-run'\) \{\s*this\.endRun\(flowAction\.outcome\);\s*return;/,
+    /if \(flowAction\.type === 'end-run'\) \{\s*this\.endRun\(flowAction\.outcome, flowAction\.reason\);\s*return;/,
   );
+  assert.match(gameSource, /private endRun\(outcome: RunOutcome, reason\?: 'boss-required'\)/);
 });
 
 test('persistent mission and enlarged ASCII-safe edge markers stay wired into the HUD', async () => {
@@ -115,6 +124,29 @@ test('Direct Map 2 start records one cleared sector without fabricating Map 1', 
   assert.equal(completeFinale(state, MAPS), false);
   assert.equal(state.sectorsCleared, 1);
   assert.equal(state.mapIndex + 1, 2);
+});
+
+test('enterMap is the single definition of crossing, shared by the real path and the dev key', async () => {
+  // The dev jump-to-transition key must not hand-roll its own arc advance: a copy
+  // would drift and make the shortcut show something players never get.
+  const state = createRunFlowState();
+  enterMap(state, 1);
+  assert.equal(state.mapIndex, 1);
+  assert.equal(state.mapElapsedS, 0);
+  assert.equal(state.sectorsCleared, 1);
+  assert.equal(state.mapBossDefeated, false);
+  assert.equal(state.finaleStarted, false);
+
+  const gameSource = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
+  const key = gameSource.slice(
+    gameSource.indexOf('private installMapTransitionKey'),
+    gameSource.indexOf('private installFatalHitKey'),
+  );
+  assert.match(key, /enterMap\(this\.runFlow, nextMapIndex\)/);
+  assert.match(key, /this\.beginMapTransition\(nextMapIndex, true\)/);
+  // Guarded, and it must refuse to run past the last map.
+  assert.match(gameSource, /DEV_TOOLS\.mapTransitionKey\) this\.installMapTransitionKey\(\)/);
+  assert.match(key, /nextMapIndex >= MAPS\.length/);
 });
 
 test('Hazard Marshal has one instanced slot and is excluded from Map 1 boss draw', () => {

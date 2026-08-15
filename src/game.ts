@@ -129,6 +129,7 @@ import {
   completeFinale,
   markMapBossDefeated,
   createRunFlowState,
+  enterMap,
   type RunFlowState,
 } from './run-flow';
 import {
@@ -248,7 +249,14 @@ export class Game {
   private runFlow: RunFlowState = createRunFlowState();
   /** Non-null only during the 'map-transition' state: the animated curtain's
    *  progress and the map it swaps to at full black. */
-  private mapTransition: { elapsedS: number; nextMapIndex: number; swapped: boolean } | null = null;
+  private mapTransition: {
+    elapsedS: number;
+    nextMapIndex: number;
+    swapped: boolean;
+    /** DEV shortcut only: overlay a recorded build at full black, so the jump
+     *  lands in the next map equipped instead of with the current one. */
+    simulateBuild: boolean;
+  } | null = null;
   /** Shared identity for packaged telemetry and the terminal-only local record. */
   private currentRunId: string | null = null;
   /** Terminal side effects (history, telemetry, contracts and HUD) may run once per run. */
@@ -432,6 +440,7 @@ export class Game {
     void this.audio.preloadEnabled();
     if (DEV_TOOLS.auditionKeys) this.installAuditionKeys();
     if (DEV_TOOLS.bossLab) this.installBossLab();
+    if (DEV_TOOLS.mapTransitionKey) this.installMapTransitionKey();
     if (DEV_TOOLS.fatalHitKey) this.installFatalHitKey();
     this.hud.syncSettings(this.settings);
     applyWindowSettings(this.settings);
@@ -605,23 +614,9 @@ export class Game {
     this.prevPz = this.player.position.z;
     this.hud.updateGold(this.gold);
     this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
-    if (DEV_TOOLS.simulateMap1Handoff) {
-      // "As if we had played Map 1 and crossed": overlay the latest recorded
-      // run's build so Map 2 is playtested with a realistic loadout, not a fresh
-      // one. HP is full and gold is the run's starting value — the real cross
-      // also heals to full and zeroes gold (0.3). Falls back to the fresh build
-      // when nothing is on record yet.
-      const record = loadRunHistory()
-        .slice()
-        .sort((a: RunRecordV1, b: RunRecordV1) => Date.parse(b.endedAt) - Date.parse(a.endedAt))[0];
-      if (record) {
-        this.applyRecordedBuild(record);
-        this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
-        this.hud.toast(`Map 2 sim: loaded build from a recorded run (lv ${record.level})`);
-      } else {
-        this.hud.toast('Map 2 sim: no recorded run yet — Map 2 with a fresh build');
-      }
-    }
+    // "As if we had played Map 1 and crossed": overlay the latest recorded run's
+    // build so Map 2 is playtested with a realistic loadout, not a fresh one.
+    if (DEV_TOOLS.simulateMap1Handoff) this.overlayLatestRecordedBuild('Map 2 sim');
     // state → 'playing' and the clock reset happen at the reveal (tickLoading),
     // after the warmup frames render behind the loading screen.
   }
@@ -680,6 +675,22 @@ export class Game {
     // HP cores act on the player object directly (the `_p` arg the stat cards
     // take), so replayCoresOntoStats above already applied them — just top up.
     this.player.hp = this.player.maxHp;
+  }
+
+  /** DEV: overlays the most recent recorded run's build onto the live run, so a
+   *  development shortcut lands with a realistic loadout instead of a stub one.
+   *  No-ops (with a toast) when nothing has been recorded yet. */
+  private overlayLatestRecordedBuild(label: string): void {
+    const record = loadRunHistory()
+      .slice()
+      .sort((a: RunRecordV1, b: RunRecordV1) => Date.parse(b.endedAt) - Date.parse(a.endedAt))[0];
+    if (!record) {
+      this.hud.toast(`${label}: no recorded run yet — keeping the fresh build`);
+      return;
+    }
+    this.applyRecordedBuild(record);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.toast(`${label}: loaded build from a recorded run (lv ${record.level})`);
   }
 
   private enterBossLab(): void {
@@ -759,6 +770,24 @@ export class Game {
    *  demand instead of waited for. Armor/shield/dodge still apply — pressing it
    *  behind a shield charge burns the charge, which is exactly the behavior the
    *  acceptance checklist wants to confirm. */
+  /** DEV (DEV_TOOLS.mapTransitionKey): T jumps straight to the sector
+   *  transition, so its animation can be iterated without playing a full map and
+   *  killing a boss first. It advances the arc through run-flow's own enterMap
+   *  and then runs the REAL transition, so what you see is what players get. */
+  private installMapTransitionKey(): void {
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'KeyT' || e.repeat || this.state !== 'playing') return;
+      const nextMapIndex = this.runFlow.mapIndex + 1;
+      if (nextMapIndex >= MAPS.length) {
+        this.hud.toast('Map transition: already on the last map');
+        return;
+      }
+      e.preventDefault();
+      enterMap(this.runFlow, nextMapIndex);
+      this.beginMapTransition(nextMapIndex, true);
+    });
+  }
+
   private installFatalHitKey(): void {
     window.addEventListener('keydown', (e) => {
       if (e.code !== 'KeyK' || e.repeat || this.state !== 'playing') return;
@@ -1167,9 +1196,9 @@ export class Game {
   /** Starts the animated sector transition instead of swapping the world in one
    *  frame. Gameplay freezes (state leaves 'playing'); the real swap happens at
    *  full black inside tickMapTransition, which is what removes the dry cut. */
-  private beginMapTransition(nextMapIndex: number): void {
+  private beginMapTransition(nextMapIndex: number, simulateBuild = false): void {
     const nextMap = MAPS[nextMapIndex] ?? MAPS[MAPS.length - 1] ?? MAPS[0];
-    this.mapTransition = { elapsedS: 0, nextMapIndex, swapped: false };
+    this.mapTransition = { elapsedS: 0, nextMapIndex, swapped: false, simulateBuild };
     this.state = 'map-transition';
     this.hud.showMapFade(0, `ENTERING ${nextMap.title.toUpperCase()}`);
   }
@@ -1192,6 +1221,9 @@ export class Game {
     // not in beginMapTransition, is what removes the dry one-frame jump.
     if (!mt.swapped && mt.elapsedS >= fadeOutS) {
       this.transitionToMap(mt.nextMapIndex);
+      // DEV jump only: equip the recorded build behind the black, so the shortcut
+      // arrives the way a real crossing would rather than with a stub loadout.
+      if (mt.simulateBuild) this.overlayLatestRecordedBuild('Map transition');
       mt.swapped = true;
     }
 
