@@ -182,6 +182,42 @@ const mapsReached = (run) => run.mapsReached ?? Math.max(1, run.map?.number ?? 1
 distribution('sectors cleared', history.map(sectorsCleared));
 distribution('maps reached', history.map(mapsReached));
 
+// Death attribution by map — the field that cannot be backfilled. Once Map 2
+// exists a pooled median blends two populations: a run that died 90s into Map 1
+// and a run that reached the Map 2 finale are not the same game. Runs are
+// grouped by the map they ENDED on (r.map) so "where do runs end?" and "does a
+// later map kill more?" become answerable. Records written before the map field
+// existed are bucketed separately, never folded into Map 1 as if measured there.
+const byEndMap = new Map();
+for (const r of history) {
+  const key = r.map?.id ?? '(unrecorded)';
+  const group = byEndMap.get(key) ?? {
+    label: r.map ? `${r.map.number}. ${r.map.title}` : '(unrecorded map)',
+    order: r.map?.number ?? Infinity,
+    runs: [],
+  };
+  group.runs.push(r);
+  byEndMap.set(key, group);
+}
+{
+  const groups = [...byEndMap.values()].sort((a, b) => a.order - b.order);
+  console.log('\nWhere runs END, by map — death attribution:');
+  for (const g of groups) {
+    const share = Math.round((g.runs.length / history.length) * 100);
+    const oc = {};
+    for (const r of g.runs) oc[r.outcome] = (oc[r.outcome] ?? 0) + 1;
+    const ocStr = Object.entries(oc).sort().map(([o, n]) => `${o} ${n}`).join(', ');
+    console.log(`  ${g.label.padEnd(22)} ${String(g.runs.length).padStart(4)} runs (${String(share).padStart(3)}%)   [${ocStr}]`);
+  }
+  console.log('\nPer end-map             min     p25     p50     p75     p90     max');
+  for (const g of groups) {
+    console.log(`  ${g.label}`);
+    distribution('  duration (s)', g.runs.map((r) => r.durationS));
+    distribution('  kills / run', g.runs.map((r) => r.kills));
+    distribution('  level reached', g.runs.map((r) => r.level));
+  }
+}
+
 // Completion is structural. A 20-minute defeat in Map 2 is not a completed
 // run, while a future balance pass changing map duration must not break stats.
 const finished = history.filter((r) => r.outcome === 'run-complete');
