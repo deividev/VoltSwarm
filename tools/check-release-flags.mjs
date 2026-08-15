@@ -19,6 +19,7 @@ const GUARDED = [
   { block: 'DEV_TOOLS', key: 'auditionKeys', why: 'the F2-F9 SFX audition hotkeys would ship to players' },
   { block: 'DEV_TOOLS', key: 'bossLab', why: 'the B/N boss-lab hotkeys would let players skip to minute 8 with a loaded build' },
   { block: 'DEV_TOOLS', key: 'startingMapSelector', why: 'the development starting-map selector would ship to players' },
+  { block: 'DEV_TOOLS', key: 'simulateMap1Handoff', why: 'the Map 2 dev-start with a simulated Map 1 build would ship to players' },
   { block: 'DEV_TOOLS', key: 'fatalHitKey', why: 'the K instant-death hotkey would let players end a run on demand' },
   { block: 'DEV_TOOLS', key: 'shortMaps', why: 'the validation rig would ship four-minute maps instead of the real ten' },
   { block: 'RECORDING', key: 'enabled', why: 'the level-up draft is rigged for capture' },

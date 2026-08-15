@@ -47,6 +47,7 @@ export const DEV_TOOLS: {
   auditionKeys: boolean;
   bossLab: boolean;
   startingMapSelector: boolean;
+  simulateMap1Handoff: boolean;
   fatalHitKey: boolean;
   shortMaps: boolean;
 } = {
@@ -65,6 +66,12 @@ export const DEV_TOOLS: {
   /** Starting-map selector shown with the weapon draft. Direct Map 2 starts
    *  are partial-sector development runs, never fabricated full-arc clears. */
   startingMapSelector: false,
+  /** Map 2 dev-start: begin a run directly in the Swarm Foundry with the build
+   *  from the latest recorded run overlaid, as if a full Map 1 had just been
+   *  crossed (heal to full, gold to zero, build and level carried — 0.3). Lets
+   *  Map 2 be playtested without clearing Map 1 first. check-release-flags.mjs
+   *  fails the build while this is true. */
+  simulateMap1Handoff: false,
   /** K mid-run: apply a guaranteed lethal hit through the REAL damage funnel.
    *  The defeat beat is otherwise only reachable by dying for real, which makes
    *  measuring its phases, audio and freeze rules a matter of luck. It goes
@@ -208,8 +215,11 @@ export const MAPS = [
     number: 2,
     title: 'Swarm Foundry',
     durationS: DEV_TOOLS.shortMaps ? SHORT_RUN_DURATION_S : 10 * 60,
-    /** Provisional playtest baseline: the foundry starts at minute-zero pressure. */
-    difficultyOffsetS: 0,
+    /** Provisional playtest baseline (set 0.13.42, decision 0.2): the foundry
+     *  opens at roughly the pressure Map 1 reaches near minute 4 and keeps ramping
+     *  to the 8-minute difficulty cap — a higher base than Map 1's minute-zero
+     *  start, so Map 2 is not a clone. Tune with the map-segmented `npm run stats`. */
+    difficultyOffsetS: 240,
   },
 ] as const;
 

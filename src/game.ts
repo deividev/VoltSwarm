@@ -535,7 +535,13 @@ export class Game {
     clearProps(this.scene, this.propMeshes);
     this.propMeshes = [];
     this.obstacles.length = 0;
-    const selectedMapIndex = MAPS.findIndex((map) => map.id === selectedMapId);
+    // DEV: jump straight into Map 2 so the second sector can be playtested
+    // without clearing Map 1 first (DEV_TOOLS.simulateMap1Handoff); the recorded
+    // build is overlaid once the fresh run state is in place, below.
+    const effectiveMapId = DEV_TOOLS.simulateMap1Handoff
+      ? (MAPS[1]?.id ?? selectedMapId)
+      : selectedMapId;
+    const selectedMapIndex = MAPS.findIndex((map) => map.id === effectiveMapId);
     const startMapIndex = selectedMapIndex >= 0 ? selectedMapIndex : 0;
     const startMap = MAPS[startMapIndex] ?? MAPS[0];
     this.runFlow = createRunFlowState(startMapIndex);
@@ -592,6 +598,23 @@ export class Game {
     this.prevPz = this.player.position.z;
     this.hud.updateGold(this.gold);
     this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    if (DEV_TOOLS.simulateMap1Handoff) {
+      // "As if we had played Map 1 and crossed": overlay the latest recorded
+      // run's build so Map 2 is playtested with a realistic loadout, not a fresh
+      // one. HP is full and gold is the run's starting value — the real cross
+      // also heals to full and zeroes gold (0.3). Falls back to the fresh build
+      // when nothing is on record yet.
+      const record = loadRunHistory()
+        .slice()
+        .sort((a: RunRecordV1, b: RunRecordV1) => Date.parse(b.endedAt) - Date.parse(a.endedAt))[0];
+      if (record) {
+        this.applyRecordedBuild(record);
+        this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+        this.hud.toast(`Map 2 sim: loaded build from a recorded run (lv ${record.level})`);
+      } else {
+        this.hud.toast('Map 2 sim: no recorded run yet — Map 2 with a fresh build');
+      }
+    }
     // state → 'playing' and the clock reset happen at the reveal (tickLoading),
     // after the warmup frames render behind the loading screen.
   }
@@ -620,19 +643,13 @@ export class Game {
     });
   }
 
-  private enterBossLab(): void {
-    const history = loadRunHistory()
-      .slice()
-      .sort((a: RunRecordV1, b: RunRecordV1) => Date.parse(b.endedAt) - Date.parse(a.endedAt));
-    const record = history[BOSS_LAB.buildFromRunIndex];
-    if (!record) {
-      this.hud.toast('Boss lab: no recorded run to load a build from');
-      return;
-    }
-
-    // Load the recorded build. Stats are REPLAYED from core picks rather than
-    // restored, because the record stores how many times each core was taken
-    // and never which rarity rolled — see replayCoresOntoStats.
+  /** Overlays a recorded run's build (character, stats, weapons, mods, cores,
+   *  level) onto the LIVE run without walking the upgrade path. Shared by the
+   *  boss lab and the Map 2 dev-start (DEV_TOOLS.simulateMap1Handoff). Stats are
+   *  REPLAYED from core picks rather than restored: the record stores how many
+   *  times each core was taken, never which rarity rolled — see
+   *  replayCoresOntoStats. Callers refresh the build HUD after any further setup. */
+  private applyRecordedBuild(record: RunRecordV1): void {
     // Preserve the registered character recorded with the build. Older or
     // unknown ids fall back to the default, but current unlocks cannot rewrite
     // the identity of an existing run record.
@@ -656,6 +673,19 @@ export class Game {
     // HP cores act on the player object directly (the `_p` arg the stat cards
     // take), so replayCoresOntoStats above already applied them — just top up.
     this.player.hp = this.player.maxHp;
+  }
+
+  private enterBossLab(): void {
+    const history = loadRunHistory()
+      .slice()
+      .sort((a: RunRecordV1, b: RunRecordV1) => Date.parse(b.endedAt) - Date.parse(a.endedAt));
+    const record = history[BOSS_LAB.buildFromRunIndex];
+    if (!record) {
+      this.hud.toast('Boss lab: no recorded run to load a build from');
+      return;
+    }
+
+    this.applyRecordedBuild(record);
 
     // Jumping the CLOCK is what reproduces the real fight: density, enemy
     // types and the HP ramp are all derived from it. The lab never empties the

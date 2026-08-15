@@ -52,7 +52,7 @@ Depende de: 0.1 (cerrada), 0.2, 0.3, 0.6 (hecha), 0.7.
 **Divergencias con las decisiones de hoy (la rama es ANTERIOR a ellas) — esto es el Workstream 1 real:**
 - [x] **1.5 Vida al cruzar (0.3 = curar 100%) — HECHO 2026-08-15.** `transitionToMap()` ahora hace `this.player.hp = this.player.maxHp` al cruzar.
 - [x] **1.6 Oro al cruzar (0.3 = empezar de 0) — HECHO 2026-08-15.** `transitionToMap()` ahora hace `this.gold = 0` + `hud.updateGold(0)`.
-- [ ] **1.7 Curva de dificultad por mapa (0.2).** Hoy `difficultyScalar(this.elapsedS)` usa el reloj TOTAL → el Mapa 2 arranca al máximo/plano. NOTA: `runFlow.mapElapsedS` YA existe y el timer del HUD ya lo usa (`game.ts` ~1230); falta solo que la **dificultad** (y de paso precios/XP) lo consuman + un **multiplicador base por mapa** en `config.ts MAPS`. Requiere fijar el número de base — **decisión de balance, pendiente de valor**.
+- [x] **1.7 Curva de dificultad por mapa (0.2) — HECHO 2026-08-15 (valor provisional).** El mecanismo ya existía (`combatElapsedS = difficultyOffsetS + mapElapsedS`, game.ts:1289); solo faltaba el número. Fijado `MAPS.megafactory.difficultyOffsetS = 240` → el Mapa 2 abre en la intensidad del ~min 4 del Mapa 1 y rampa hasta el cap de 8 min, sin ser un clon. Provisional, a tunear con la stats segmentada por mapa (0.6). Interacción conocida: `difficultyScalar` capa a 480s, así que un offset ≥480 dejaría el Mapa 2 plano al máximo.
 - [x] **1.8 Pantalla "objetivo no completado" (0.7) — HECHO 2026-08-15.** `endRun` propaga `reason`; `showEnd` pinta título `OBJECTIVE FAILED` + subtítulo "Defeat a boss to unlock the next sector" SOLO en el fallo del gate (la muerte por HP no cambia).
 
 **Por confirmar (aún no verificado):**
@@ -60,6 +60,9 @@ Depende de: 0.1 (cerrada), 0.2, 0.3, 0.6 (hecha), 0.7.
 - [ ] **1.10 Descartes de level-up** se conservan al cruzar (0.3): verificar que nada los resetea.
 - [ ] **1.11 Beat de transición** visual + crossfade de música (hoy solo banner + un sonido). Engancha con el pendiente 0c del roadmap.
 - [ ] **1.12 Accesibilidad del boss dentro de la ventana**: garantizar que se pueda invocar y matar un boss antes de 10:00 (portal opcional → 0 bosses en las primeras runs). Revisar si la rama ya lo fuerza o sigue opcional.
+
+**Tooling de desarrollo:**
+- [x] **1.13 Flag `DEV_TOOLS.simulateMap1Handoff` — HECHO 2026-08-15.** Arranca la run directo en el Mapa 2 con la build de la última run grabada superpuesta (reusa `applyRecordedBuild`, extraído del boss lab), como si se hubiera cruzado desde el Mapa 1 (vida llena, oro de arranque, build+nivel). Gateado por `DEV_TOOLS`; verificado que `check-release-flags.mjs` aborta el `package` si queda encendido. Permite playtestear el Mapa 2 sin jugar el Mapa 1.
 
 ---
 
