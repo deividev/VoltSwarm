@@ -179,7 +179,11 @@ export class Game {
   private readonly scene: THREE.Scene;
   private readonly worldMaps: WorldMapController;
   private readonly camera: THREE.PerspectiveCamera;
-  private readonly clock = new THREE.Clock();
+  /** Timer, not the deprecated Clock. reset() discards the time an overlay or
+   *  a load ate; update() advances one simulation step. Deliberately NOT
+   *  connect()ed to the document: the Page Visibility path would zero the delta
+   *  on its own, and every pause already discards its own time explicitly. */
+  private readonly timer = new THREE.Timer();
   private readonly obstacles: Obstacle[];
   /** Static props plus currently active merchant/chests/totem. Reused every
    *  frame so every mover and every placement query sees the same world. */
@@ -354,7 +358,12 @@ export class Game {
       if (this.settings.uiScale === 'auto') applyUiScale(this.settings);
     });
     if (removeDisplayInfoListener) {
-      window.addEventListener('beforeunload', () => removeDisplayInfoListener(), { once: true });
+      // The braces matter. `() => removeDisplayInfoListener()` RETURNS the value
+      // of ipcRenderer.removeListener, which is ipcRenderer itself, and Electron
+      // reads any non-undefined return from beforeunload as "cancel the unload"
+      // -- the opposite of a browser, which would only prompt. Swallow it, so a
+      // teardown detail can never argue with the window trying to close.
+      window.addEventListener('beforeunload', () => { removeDisplayInfoListener(); }, { once: true });
     }
     this.renderer = createRenderer(container);
     const world = createScene();
@@ -537,7 +546,7 @@ export class Game {
           startingWeaponId: this.startingWeapon,
         });
       }
-      this.clock.getDelta(); // Discard the time spent building + warming up.
+      this.timer.reset(); // Discard the time spent building + warming up.
     }
   }
 
@@ -845,7 +854,7 @@ export class Game {
     this.audio.setMenu(false);
     this.audio.setPaused(false);
     this.audio.emit({ id: 'foundation-music', key: 'foundation-run-loop', loop: true, priority: 2, volume: AUDIO.music.runLoopVolume });
-    this.clock.getDelta();
+    this.timer.reset();
     return { scenario: AUDIO.benchmark.scenario, seed: AUDIO.benchmark.seed, enemies: this.enemies.activeCount, digest: `${AUDIO.benchmark.seed}:${AUDIO.benchmark.typeCounts.join('-')}:${AUDIO.benchmark.sacrificeIntervalS}:${AUDIO.benchmark.sacrificeBatch}` };
   }
 
@@ -962,13 +971,16 @@ export class Game {
       : (this.coreLevels[card.id] ?? 0) === 1;
     this.hud.flashBuildRow(weaponId ? `weapon-${weaponId}` : card.id, installed);
     this.state = 'playing';
-    this.clock.getDelta(); // Discard time spent choosing.
+    this.timer.reset(); // Discard time spent choosing.
     this.maybeShowLevelUp(); // Chains the next card if more levels are owed.
   }
 
   private frame(): void {
     // Raw delta feeds the FPS instrument (the clamp would hide slow frames).
-    const rawDt = this.clock.getDelta();
+    // Timer splits advancing from reading: update() once per simulation step,
+    // then getDelta() as often as needed without the value shifting.
+    this.timer.update();
+    const rawDt = this.timer.getDelta();
     const dt = Math.min(rawDt, 0.05);
     this.input.poll();
     if (this.state === 'boot') {
@@ -1067,7 +1079,7 @@ export class Game {
     this.audio.emit({ id: 'resume' });
     this.audio.setPaused(false);
     this.hud.showPause(false);
-    this.clock.getDelta(); // Discard time spent paused.
+    this.timer.reset(); // Discard time spent paused.
   }
 
   private quitToMenu(): void {
@@ -1114,7 +1126,7 @@ export class Game {
     this.audio.emit({ id: 'menu-enter' });
     this.audio.emit({ id: 'menu-music', key: 'menu-music-loop', loop: true, priority: 2, volume: AUDIO.music.menuLoopVolume });
     this.hud.showMainMenu();
-    this.clock.getDelta();
+    this.timer.reset();
   }
 
   /** Auto-applied on every settings change — silent by design (a toast per
@@ -1658,7 +1670,7 @@ export class Game {
         : 'Upgrade discarded (none left)',
     );
     this.state = 'playing';
-    this.clock.getDelta(); // Discard time spent choosing.
+    this.timer.reset(); // Discard time spent choosing.
     this.maybeShowLevelUp();
   }
 
@@ -1822,7 +1834,7 @@ export class Game {
       // Continue clicked: resume the run.
       () => {
         this.state = 'playing';
-        this.clock.getDelta(); // Discard time spent reading the reward.
+        this.timer.reset(); // Discard time spent reading the reward.
         this.maybeShowLevelUp();
       },
     );
@@ -2618,7 +2630,7 @@ export class Game {
       },
       () => {
         this.state = 'playing';
-        this.clock.getDelta(); // Discard time spent shopping.
+        this.timer.reset(); // Discard time spent shopping.
       },
       { copies: whistleCopies, discount, modCounts: this.modCounts },
     );
@@ -2908,7 +2920,7 @@ export class Game {
     void this.audio.preloadEnabled();
     this.audio.setMenu(true);
     this.hud.showCharacterSelect();
-    this.clock.getDelta();
+    this.timer.reset();
   }
 
   /** Tears the defeat presenter down. Safe when no defeat ran. */

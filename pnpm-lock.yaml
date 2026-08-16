@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  electron-builder-squirrel-windows: 26.15.3
+
 importers:
 
   .:
@@ -16,8 +19,8 @@ importers:
         specifier: ^3.4.1
         version: 3.4.1
       '@types/node':
-        specifier: ^22.19.21
-        version: 22.20.1
+        specifier: ^24.13.3
+        version: 24.13.3
       '@types/three':
         specifier: ^0.185.4
         version: 0.185.4
@@ -35,7 +38,7 @@ importers:
         version: 5.9.3
       vite:
         specifier: ^5.4.10
-        version: 5.4.21(@types/node@22.20.1)
+        version: 5.4.21(@types/node@24.13.3)
 
 packages:
 
@@ -573,7 +576,7 @@ packages:
     engines: {node: '>=14.0.0'}
     peerDependencies:
       dmg-builder: 25.1.8
-      electron-builder-squirrel-windows: 25.1.8
+      electron-builder-squirrel-windows: 26.15.3
 
   app-builder-lib@26.15.3:
     resolution: {integrity: sha512-2VnyWkqsP5v5XbBhL3tD5Syx8iNPBYsoU7kY4S2fz7wg8Rj/nztWKCUzGKaFRTv0Xwf3/H058CR1Kvtd/3lRow==}
@@ -4059,13 +4062,13 @@ snapshots:
 
   util-deprecate@1.0.2: {}
 
-  vite@5.4.21(@types/node@22.20.1):
+  vite@5.4.21(@types/node@24.13.3):
     dependencies:
       esbuild: 0.21.5
       postcss: 8.5.26
       rollup: 4.62.4
     optionalDependencies:
-      '@types/node': 22.20.1
+      '@types/node': 24.13.3
       fsevents: 2.3.3
 
   wcwidth@1.0.1:

@@ -171,6 +171,25 @@ try {
   // starting draft roll identically on every reload, so it would never offer a
   // weapon the sweep has not covered yet. Each attempt stays individually
   // reproducible via SEED + attempt.
+  /** Reloads from INSIDE the page instead of through puppeteer's page.reload().
+   *
+   *  Measured on Electron 43: CDP's `Page.reload` -- what page.reload() calls --
+   *  is silently ignored by this renderer. The frame never navigates, so
+   *  `waitUntil: 'domcontentloaded'` blocks for its whole timeout while the page
+   *  sits there perfectly healthy (readyState 'complete', dev server 200). A
+   *  `location.reload()` issued by the page itself navigates normally, emitting
+   *  framenavigated + domcontentloaded + load.
+   *
+   *  The setTimeout matters: calling location.reload() directly inside evaluate
+   *  tears down the execution context before the call can return. And the wait
+   *  polls a stamp on the outgoing document rather than listening for an event,
+   *  so it cannot miss an edge and it proves a NEW document actually exists. */
+  const reloadPage = async () => {
+    await page.evaluate(() => { window.__smokePreReload = true; });
+    await page.evaluate(() => { setTimeout(() => location.reload(), 0); }).catch(() => undefined);
+    await page.waitForFunction(() => window.__smokePreReload === undefined, { timeout: 30_000, polling: 250 });
+  };
+
   const installHooks = (seed) => page.evaluateOnNewDocument((s) => {
     let state = s >>> 0;
     Math.random = () => { state = (state * 1664525 + 1013904223) >>> 0; return state / 0x100000000; };
@@ -182,7 +201,7 @@ try {
   }, seed);
   await installHooks(SEED);
 
-  await page.reload({ waitUntil: 'domcontentloaded' });
+  await reloadPage();
   await enterMainMenu(page, 30_000);
   await page.waitForSelector('#play-button', { visible: true, timeout: 30_000 });
   // The starting draft offers a RANDOM subset of the unlocked weapons and
@@ -208,7 +227,7 @@ try {
 
     try {
       await installHooks(SEED + attempt);
-      await page.reload({ waitUntil: 'domcontentloaded' });
+      await reloadPage();
       await enterMainMenu(page, 30_000);
       await page.waitForSelector('#play-button', { visible: true, timeout: 30_000 });
       // evaluate().click() rather than page.click(): the latter hit-tests for a
