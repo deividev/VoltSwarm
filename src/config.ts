@@ -489,19 +489,30 @@ export const POWERCELL_PROP = {
   width: 1.32,
   height: 1.6,
   colliderRadius: 0.55,
-  /** Lower than the barrel's [36, 50] on purpose: Map 2 already carries
-   *  perimeter towers as standing collision, and the foundry's read is an
-   *  OPEN combat center (DIRECCION_ARTE, Map 2 visual contract). */
-  countRange: [28, 40] as [number, number],
+  /** [28, 40] -> [46, 62] (2026-08-17, user request: more of them, more variety).
+   *
+   *  The original low count had a reason worth recording rather than silently
+   *  overwriting: Map 2 already carries perimeter towers as standing collision,
+   *  and the foundry's read is an OPEN combat center (DIRECCION_ARTE, Map 2
+   *  visual contract). Two things changed since. The ring moved out from radius
+   *  72 to 82, freeing the field it used to crowd, and the cell's collider is
+   *  only 0.55 — sixty of them add far less obstruction than one tower.
+   *  Comparable to Map 1's barrels at [45, 65], which is the density this is
+   *  chasing. */
+  countRange: [46, 62] as [number, number],
   minDistFromCenter: 8,
   maxDistFromCenter: ARENA_HALF_SIZE - 4,
   minSeparation: 8,
   /** Clearance kept from the boss totem's summon zone. */
   totemClearance: 8,
-  /** Single variant for now. The barrel earns three recolors because Map 1
-   *  scatters up to 50 of them; at 28-40 with a cyan core reading as the
-   *  identity, recolors would fight the map's own conduit language. */
-  variants: ['powercell'] as const,
+  /** Three recolours, the barrel's structure (2026-08-17). The earlier note here
+   *  argued one variant was enough at 28-40; at 46-62 the repetition shows, which
+   *  is the same threshold that earned the barrel its three.
+   *
+   *  Steel / oxide / pale rather than three hues: the cyan core stays the shared
+   *  identity across all three, so the body tones only have to separate the
+   *  props from each other, not carry the map's language. */
+  variants: ['powercell', 'powercell-rust', 'powercell-bone'] as const,
 };
 
 /** Extra room scatter props keep from a map's own structures (Map 2's towers).

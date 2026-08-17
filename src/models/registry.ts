@@ -223,6 +223,31 @@ export const POWERCELL_FRAME = 0x232830;
 export const POWERCELL_RECESS = 0x17212a;
 export const POWERCELL_TERMINAL = 0x8fa3ad;
 export const POWERCELL_CORE = 0x01e6fe;
+// Two recolours of the power cell (2026-08-17, user request), the same variant
+// technique Map 1's barrels use: identical ref and classification palette, with
+// a recolorMap applied to the OUTPUT. Entering these as palette members instead
+// would make them lose to the steel tones they are meant to replace — the
+// container teal->orange attempt that came back grey.
+//
+// Unlike the foundry towers, these CAN carry a real hue shift. The towers are
+// dark mass at luma ~38, where the three-step toon quantisation crushes hue to
+// nothing and their variants had to move luminance instead. A power cell is a
+// mid-tone prop, so hue survives at play distance.
+//
+// The oxide steps are luminance-matched to the measured steel ramp
+// (77 / 63 / 52 / 40) so shading depth reads identically across both.
+export const POWERCELL_RUST_FACE = 0x654433;
+export const POWERCELL_RUST_FLANK = 0x533628;
+export const POWERCELL_RUST_FLANK_DARK = 0x432c21;
+export const POWERCELL_RUST_FRAME = 0x342319;
+// The pale variant deliberately breaks that match and sits brighter than the
+// other two, exactly as Map 1's white barrel sits brighter than the mustard one.
+// A prop this small is meant to be picked out of the floor, which is the
+// opposite of the towers' job.
+export const POWERCELL_BONE_FACE = 0xa8a294;
+export const POWERCELL_BONE_FLANK = 0x8b8678;
+export const POWERCELL_BONE_FLANK_DARK = 0x6e6a5e;
+export const POWERCELL_BONE_FRAME = 0x46433b;
 // Foundry tower accents (2026-08-17, user direction). Applied as a recolorMap
 // over the classified grid, never by swapping the palette hexes: the quantizer
 // picks the nearest palette entry to the SHEET's real pixels, so a new hue
@@ -1051,6 +1076,94 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
     ],
     frontOnly: [],
     previewScale: 1.4,
+  },
+  // Warm oxide recolour of `powercell`: same ref, same classification palette,
+  // luminance-matched to the steel ramp so shading depth is unchanged.
+  'powercell-rust': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-powercell-front-v6.png',
+    // Back is byte-identical to the front on purpose (same reasoning as the
+    // scaffold and container): a faceted canister is front/back symmetric,
+    // and props spawn at a random yaw — a dark back face would leave half
+    // the cells looking switched off.
+    sideProfileRef: 'assets/2d/prop-powercell-side-v6.png',
+    backPaintRef: 'assets/2d/prop-powercell-back-v6.png',
+    // Outer left/right faces take their colors from the side sheet instead of
+    // smearing the front silhouette's edge pixels down the flanks.
+    sidePaint: true,
+    // Fallback only: sideProfileRef supplies rowMaxHalf for every row. Kept at
+    // the barrel's value so a missing side sheet degrades to a drum-proportioned
+    // cell rather than a wafer.
+    depthFactor: 0.48,
+    // 24 columns keeps the two features that would otherwise vanish: the
+    // cyan column lands on ~1.5 columns and each fin on ~2.5. At the
+    // barrel's 22 the fin gaps started fusing.
+    targetWidth: 24,
+    // 24 x 0.055 = 1.32m wide, ~1.6m tall — deliberately the barrel's
+    // footprint (1.3 x 1.5) so Map 2 navigation feels like Map 1.
+    voxelSize: 0.055,
+    bodyColor: POWERCELL_FACE,
+    palette: [
+      POWERCELL_FACE,
+      POWERCELL_FLANK,
+      POWERCELL_FLANK_DARK,
+      POWERCELL_FRAME,
+      POWERCELL_RECESS,
+      POWERCELL_TERMINAL,
+      POWERCELL_CORE,
+    ],
+    frontOnly: [],
+    previewScale: 1.4,
+    recolorMap: {
+      [POWERCELL_FACE]: POWERCELL_RUST_FACE,
+      [POWERCELL_FLANK]: POWERCELL_RUST_FLANK,
+      [POWERCELL_FLANK_DARK]: POWERCELL_RUST_FLANK_DARK,
+      [POWERCELL_FRAME]: POWERCELL_RUST_FRAME,
+    },
+  },
+  // Pale recolour of `powercell`, the counterpart to Map 1's white barrel: it
+  // reads brighter than the other two so the field carries a light note.
+  'powercell-bone': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-powercell-front-v6.png',
+    // Back is byte-identical to the front on purpose (same reasoning as the
+    // scaffold and container): a faceted canister is front/back symmetric,
+    // and props spawn at a random yaw — a dark back face would leave half
+    // the cells looking switched off.
+    sideProfileRef: 'assets/2d/prop-powercell-side-v6.png',
+    backPaintRef: 'assets/2d/prop-powercell-back-v6.png',
+    // Outer left/right faces take their colors from the side sheet instead of
+    // smearing the front silhouette's edge pixels down the flanks.
+    sidePaint: true,
+    // Fallback only: sideProfileRef supplies rowMaxHalf for every row. Kept at
+    // the barrel's value so a missing side sheet degrades to a drum-proportioned
+    // cell rather than a wafer.
+    depthFactor: 0.48,
+    // 24 columns keeps the two features that would otherwise vanish: the
+    // cyan column lands on ~1.5 columns and each fin on ~2.5. At the
+    // barrel's 22 the fin gaps started fusing.
+    targetWidth: 24,
+    // 24 x 0.055 = 1.32m wide, ~1.6m tall — deliberately the barrel's
+    // footprint (1.3 x 1.5) so Map 2 navigation feels like Map 1.
+    voxelSize: 0.055,
+    bodyColor: POWERCELL_FACE,
+    palette: [
+      POWERCELL_FACE,
+      POWERCELL_FLANK,
+      POWERCELL_FLANK_DARK,
+      POWERCELL_FRAME,
+      POWERCELL_RECESS,
+      POWERCELL_TERMINAL,
+      POWERCELL_CORE,
+    ],
+    frontOnly: [],
+    previewScale: 1.4,
+    recolorMap: {
+      [POWERCELL_FACE]: POWERCELL_BONE_FACE,
+      [POWERCELL_FLANK]: POWERCELL_BONE_FLANK,
+      [POWERCELL_FLANK_DARK]: POWERCELL_BONE_FLANK_DARK,
+      [POWERCELL_FRAME]: POWERCELL_BONE_FRAME,
+    },
   },
   // Map 2 perimeter chimney. Replaces the stackable segment+cap pair, which was
   // abandoned 2026-08-17: to tile, its modules needed perfectly vertical,
