@@ -206,6 +206,23 @@ export const BARREL_BLACK_DARK = 0x1c1e21;
 export const BARREL_WHITE_LIGHT = 0xe8e4da;
 export const BARREL_WHITE = 0xc9c4b6;
 export const BARREL_WHITE_DARK = 0x8f8a7c;
+// Power cell (Map 2 scatter prop) — MEASURED from prop-powercell-front-v3.png,
+// which quantizes to exactly these 7 tones. Deliberately a cold steel family
+// rather than the Map 1 mustard/teal/mauve trio: the Swarm Foundry is an
+// ACTIVE futuristic plant, not the dead factory. The four steel steps are a
+// 4-stop ramp (front face lit, flank, far flank, frame) because the faceted
+// body shows three luminance planes at once and a 3-step ramp collapsed the
+// middle one. CORE reuses the map's own conduit cyan (config MEGAFACTORY_MAP
+// .colors.cyan) on purpose, so the prop belongs to the same building as the
+// perimeter towers — but only as a thin recessed column, never a body color:
+// saturated cyan at prop scale competes with the Sparkrunner.
+export const POWERCELL_FACE = 0x40515d;
+export const POWERCELL_FLANK = 0x33424c;
+export const POWERCELL_FLANK_DARK = 0x2a363f;
+export const POWERCELL_FRAME = 0x232830;
+export const POWERCELL_RECESS = 0x17212a;
+export const POWERCELL_TERMINAL = 0x8fa3ad;
+export const POWERCELL_CORE = 0x01e6fe;
 // Scrapper (merchant) palette — MEASURED per-region from
 // ref-scrapper-front-v1.png (v2 2026-07-09: first pass missed the TOOL GRAYS
 // entirely — the wrench/pipes cluster collapsed into bronze/olive mush — and
@@ -920,6 +937,67 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
       [BARREL_DARK]: BARREL_WHITE_DARK,
     },
     previewScale: 1.6,
+  },
+  // Map-2 scatter prop (2026-08-17): the Swarm Foundry's power cell — the
+  // foundry's counterpart to Map 1's barrel, same role (small, scattered,
+  // per-run randomized) with the active-plant vocabulary instead of scrap.
+  //
+  // MEASURED-PROFILE path (sideProfileRef), NOT 3-view carving — reversed
+  // 2026-08-17 after the carved version read as a plain cube in game.
+  //
+  // The reason is geometric, not tuning: a 2-view visual hull can only make
+  // RECTANGULAR cross-sections. At each height it intersects the front
+  // silhouette extruded along Z with the side silhouette extruded along X,
+  // which is the Cartesian product of two width profiles — a rectangle. It
+  // can never cut a corner, so the faceted canister painted into the sheets
+  // was thrown away and a cuboid came out.
+  //
+  // The extrusion path keeps the elliptical per-column falloff
+  // (rawDepth = rowMaxHalf * sqrt(1 - t^2)) that makes the barrel read as a
+  // drum instead of a crate, while sideProfileRef still takes the per-row
+  // depth from the real side sheet — so the cap fins and the stepped plinth
+  // keep their measured depth instead of a guessed dome.
+  //
+  // The upright proportion is a hard constraint, not taste. A squat wide box
+  // with dark corner posts and a horizontal mid band is the treasure CHEST
+  // (prop-chest-front-v2.png), an interactive reward object — scenery that
+  // reads as a chest sends players running at it for nothing. Distinguishing
+  // by color alone is not enough: DIRECCION_ARTE rule 1 requires silhouette.
+  powercell: {
+    kind: 'prop',
+    ref: 'assets/2d/prop-powercell-front-v6.png',
+    // Back is byte-identical to the front on purpose (same reasoning as the
+    // scaffold and container): a faceted canister is front/back symmetric,
+    // and props spawn at a random yaw — a dark back face would leave half
+    // the cells looking switched off.
+    sideProfileRef: 'assets/2d/prop-powercell-side-v6.png',
+    backPaintRef: 'assets/2d/prop-powercell-back-v6.png',
+    // Outer left/right faces take their colors from the side sheet instead of
+    // smearing the front silhouette's edge pixels down the flanks.
+    sidePaint: true,
+    // Fallback only: sideProfileRef supplies rowMaxHalf for every row. Kept at
+    // the barrel's value so a missing side sheet degrades to a drum-proportioned
+    // cell rather than a wafer.
+    depthFactor: 0.48,
+    // 24 columns keeps the two features that would otherwise vanish: the
+    // cyan column lands on ~1.5 columns and each fin on ~2.5. At the
+    // barrel's 22 the fin gaps started fusing.
+    targetWidth: 24,
+    // 24 x 0.055 = 1.32m wide, ~1.6m tall — deliberately the barrel's
+    // footprint (1.3 x 1.5) so Map 2 navigation feels like Map 1.
+    voxelSize: 0.055,
+    bodyColor: POWERCELL_FACE,
+    palette: [
+      POWERCELL_FACE,
+      POWERCELL_FLANK,
+      POWERCELL_FLANK_DARK,
+      POWERCELL_FRAME,
+      POWERCELL_RECESS,
+      POWERCELL_TERMINAL,
+      POWERCELL_CORE,
+    ],
+    frontOnly: [],
+    previewScale: 1.4,
   },
   // The Scrapper merchant — front-only voxelization (Camino A, 2026-07-09):
   // a stationary NPC that faces the player, so the back is never the hero

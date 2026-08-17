@@ -67,7 +67,7 @@ Regla general: si el pedido no encaja claro en una fila, `docs/PRD.md` primero (
 | `docs/METODO_DISENO.md` | Proceso de 4 pasos para diseñar sin clonar: estudiar la base real → extraer el principio → generar ideas propias ancladas a nuestros sistemas → tematizar en juguete industrial. |
 | `docs/DESIGN_MEJORAS.md` | 3 listas de diseño (stats, mejoras, armas) con estado de implementación y bocetos de personajes. |
 | `docs/COMPARATIVA_MEGABONK.md` | Gap-analysis estructural contra Megabonk completo (armas, tomos, stats, retención). |
-| `docs/DIRECCION_ARTE.md` | Paleta, reglas de silueta/color, arco de mapas (scrapyard → fundición → ciudad neón), pipeline voxel. |
+| `docs/DIRECCION_ARTE.md` | Paleta, reglas de silueta/color, arco de mapas (fábrica abandonada → megafábrica futurista activa; la ciudad neón/estación orbital es un mapa POST-v1, no el Mapa 2 — ver `DIRECCION_ARTE.md` líneas 27-28), pipeline voxel. |
 | `docs/PROMPTS_IMAGENES.md` | Prompts concretos de generación de imágenes IA, todos con la regla voxel reforzada. |
 | `docs/REFERENCIAS_VISUALES.md` | Plan técnico del pase visual (bloom, sombras, toon, partículas) con referencias externas. |
 | `docs/ROADMAP_STEAM.md` | Plan ordenado y con razones hacia el lanzamiento en Steam (fases 0-6 + post-lanzamiento). |

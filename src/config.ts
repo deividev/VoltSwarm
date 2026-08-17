@@ -415,6 +415,36 @@ export const BARREL_PROP = {
   variants: ['barrel', 'barrel-black', 'barrel-white'] as const,
 };
 
+/** Map-2 scatter prop: the Swarm Foundry's power cells. Same ROLE as Map 1's
+ *  barrel (small loose obstacle, count and position randomized per run) with
+ *  the active-plant vocabulary instead of scrap, so navigation feel carries
+ *  across the sector boundary while the read changes.
+ *
+ *  Footprint deliberately matches BARREL_PROP (1.3 x 1.5): the swarm dodges
+ *  these the same way it dodges drums, so Map 2 is a new look and not new
+ *  movement rules to relearn mid-run. */
+export const POWERCELL_PROP = {
+  /** Approx world footprint of the voxel model (targetWidth x voxelSize in
+   *  registry.ts = 24 x 0.055) — sizes the primitive placeholder shown
+   *  before the async voxel model resolves. */
+  width: 1.32,
+  height: 1.6,
+  colliderRadius: 0.55,
+  /** Lower than the barrel's [36, 50] on purpose: Map 2 already carries
+   *  perimeter towers as standing collision, and the foundry's read is an
+   *  OPEN combat center (DIRECCION_ARTE, Map 2 visual contract). */
+  countRange: [28, 40] as [number, number],
+  minDistFromCenter: 8,
+  maxDistFromCenter: ARENA_HALF_SIZE - 4,
+  minSeparation: 8,
+  /** Clearance kept from the boss totem's summon zone. */
+  totemClearance: 8,
+  /** Single variant for now. The barrel earns three recolors because Map 1
+   *  scatters up to 50 of them; at 28-40 with a cyan core reading as the
+   *  identity, recolors would fight the map's own conduit language. */
+  variants: ['powercell'] as const,
+};
+
 /** Single source of truth for Barrier Cell gameplay and its shield-plate VFX capacity. */
 export const BARRIER_CELL = {
   capacityPerCopy: 1,

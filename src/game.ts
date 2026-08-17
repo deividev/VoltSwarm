@@ -17,6 +17,7 @@ import {
   ENEMY_TYPES,
   GOLD,
   MAPS,
+  POWERCELL_PROP,
   MAP_TRANSITION,
   MERCHANT,
   MODS,
@@ -199,6 +200,9 @@ export class Game {
    *  them before generating a fresh layout (user request 2026-07-06: a
    *  different container/barrel layout every playthrough). */
   private propMeshes: THREE.Object3D[];
+  /** Collision the ACTIVE MAP owns (Map 2's perimeter towers). Kept apart from
+   *  prop collision because props regenerate per run while these do not. */
+  private mapObstacles: Obstacle[] = [];
 
   private readonly input = new PlayerInput();
   private readonly player: Player;
@@ -571,7 +575,8 @@ export class Game {
     const startMap = MAPS[startMapIndex] ?? MAPS[0];
     this.runFlow = createRunFlowState(startMapIndex);
     this.elapsedS = 0;
-    this.obstacles.push(...this.worldMaps.setMap(startMap.id));
+    this.mapObstacles = [...this.worldMaps.setMap(startMap.id)];
+    this.obstacles.push(...this.mapObstacles);
     this.currentRunId = createRunId();
     this.runFinalized = false;
     this.startingWeapon = startingWeapon;
@@ -597,11 +602,14 @@ export class Game {
     this.weaponDamage = emptyWeaponLevels();
     this.coreLevels = {};
     if (startMapIndex === 0) {
-      // Map 1 owns the totem and scrapyard props. Totem first: prop placement
-      // reads its position so the randomized layout never walls it off.
+      // Map 1 owns the totem. Totem first: prop placement reads its position
+      // so the randomized layout never walls it off.
       if (!this.boss.startRun()) throw new Error('Unable to place the boss totem inside the arena.');
-      this.regenerateProps();
     }
+    // Props are placed for WHICHEVER map the run starts on. Gating this behind
+    // map 1 meant a run that opened on Map 2 (dev handoff, or any later map
+    // select) got a bare floor.
+    this.regenerateProps(startMap.id);
     this.frenzyS = 0;
     this.hasteS = 0;
     this.modCounts = {};
@@ -1274,7 +1282,11 @@ export class Game {
     clearProps(this.scene, this.propMeshes);
     this.propMeshes = [];
     this.obstacles.length = 0;
-    this.obstacles.push(...this.worldMaps.setMap(nextMap.id));
+    this.mapObstacles = [...this.worldMaps.setMap(nextMap.id)];
+    this.obstacles.push(...this.mapObstacles);
+    // The sector swap used to clear props and never rebuild them, so Map 2 was
+    // played on an empty floor no matter what its prop set contained.
+    this.regenerateProps(nextMap.id);
     telemetry.choice('map_transition', {
       mapId: nextMap.id,
       mapNumber: nextMap.number,
@@ -1313,15 +1325,23 @@ export class Game {
    *  avoiding the boss totem (must be placed via boss.startRun() first) —
    *  user request 2026-07-06: different count/position every playthrough,
    *  not just every app launch. */
-  private regenerateProps(): void {
+  private regenerateProps(mapId: string): void {
     clearProps(this.scene, this.propMeshes);
     const totem = this.boss.totemTarget();
-    const avoid = totem
-      ? [{ x: totem.x, z: totem.z, radius: CONTAINER_PROP.totemClearance }]
-      : [];
-    const props = placeRandomProps(this.scene, avoid);
+    // Each map's scatter prop declares its own totem clearance; using Map 1's
+    // for both would either crowd or over-clear the foundry's summon zone.
+    const clearance = mapId === MAPS[1].id
+      ? POWERCELL_PROP.totemClearance
+      : CONTAINER_PROP.totemClearance;
+    const avoid = totem ? [{ x: totem.x, z: totem.z, radius: clearance }] : [];
+    const props = placeRandomProps(this.scene, avoid, mapId);
+    // Rebuild from the map's OWN structural collision (Map 2's perimeter
+    // towers) plus the fresh props. Resetting to props alone silently deleted
+    // the towers' colliders, which only showed up as enemies walking through
+    // solid geometry — the map returns them once, at setMap time, so they
+    // have to be kept rather than re-fetched.
     this.obstacles.length = 0;
-    this.obstacles.push(...props.obstacles);
+    this.obstacles.push(...this.mapObstacles, ...props.obstacles);
     this.propMeshes = props.meshes;
   }
 

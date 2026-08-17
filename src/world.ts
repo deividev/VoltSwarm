@@ -6,6 +6,7 @@ import {
   CONTAINER_PROP,
   MAPS,
   MEGAFACTORY_MAP,
+  POWERCELL_PROP,
   SCAFFOLD_PROP,
   SPAWN_PLACEMENT,
   VISUAL,
@@ -211,13 +212,21 @@ function createWorldMapController(scene: THREE.Scene): WorldMapController {
 export function placeRandomProps(
   scene: THREE.Scene,
   avoid: AvoidPoint[],
+  mapId: string = MAPS[0].id,
 ): { obstacles: Obstacle[]; meshes: THREE.Object3D[] } {
+  // Each map owns its own prop vocabulary. Scrapyard scatter (containers +
+  // drums) on a foundry floor would undo the sector change the transition
+  // just sold, so the set is chosen by map rather than shared.
+  if (mapId === MAPS[1].id) {
+    const cells = buildScatterProps(scene, avoid, POWERCELL_PROP);
+    return { obstacles: cells.obstacles, meshes: cells.meshes };
+  }
   const containers = buildContainerProps(scene, avoid);
   const barrelAvoid: AvoidPoint[] = [
     ...avoid,
     ...containers.centers.map((c) => ({ x: c.x, z: c.z, radius: BARREL_PROP.containerClearance })),
   ];
-  const barrels = buildBarrelProps(scene, barrelAvoid);
+  const barrels = buildScatterProps(scene, barrelAvoid, BARREL_PROP);
   const scaffold = SCAFFOLD_PROP.enabled ? buildScaffoldProps(scene) : { obstacles: [], meshes: [] };
   return {
     obstacles: [...containers.obstacles, ...barrels.obstacles, ...scaffold.obstacles],
@@ -878,12 +887,29 @@ async function upgradeScaffoldModels(
   }
 }
 
-/** Industrial drums scattered around the map — small obstacles, count and
- *  layout randomized per run (user request 2026-07-06), avoiding whatever's
- *  in `avoid` (container gates, the boss totem). */
-function buildBarrelProps(
+/** Shape shared by every map's small scatter prop (Map 1 drums, Map 2 power
+ *  cells) — the placement rules are identical, only the model and counts
+ *  differ, so both live off one builder. */
+interface ScatterPropConfig {
+  readonly width: number;
+  readonly height: number;
+  readonly colliderRadius: number;
+  readonly countRange: readonly [number, number];
+  readonly minDistFromCenter: number;
+  readonly maxDistFromCenter: number;
+  readonly minSeparation: number;
+  /** Non-empty by type, so the first entry can seed the placeholder tint and
+   *  the random pick without an undefined branch that can never happen. */
+  readonly variants: readonly [string, ...string[]];
+}
+
+/** Small loose obstacles scattered around the map — count and layout
+ *  randomized per run (user request 2026-07-06), avoiding whatever's in
+ *  `avoid` (container gates, the boss totem). */
+function buildScatterProps(
   scene: THREE.Scene,
   avoid: AvoidPoint[],
+  config: ScatterPropConfig,
 ): { obstacles: Obstacle[]; meshes: THREE.Object3D[] } {
   const {
     width,
@@ -894,15 +920,19 @@ function buildBarrelProps(
     maxDistFromCenter,
     minSeparation,
     variants,
-  } = BARREL_PROP;
+  } = config;
   const obstacles: Obstacle[] = [];
   const meshesByVariant = new Map<string, THREE.Mesh[]>();
-  const placeholderMaterial = litMaterial({ color: 0x7c631b });
+  // Placeholder tint comes from the model's own body color so a new scatter
+  // prop can never flash the previous prop's color for its first frames.
+  const placeholderMaterial = litMaterial({
+    color: VOXEL_MODELS[variants[0]]?.bodyColor ?? 0x7c631b,
+  });
 
-  const barrelCount = Math.floor(
+  const count = Math.floor(
     countRange[0] + Math.random() * (countRange[1] - countRange[0] + 1),
   );
-  const points = scatterPoints(barrelCount, minDistFromCenter, maxDistFromCenter, minSeparation, avoid);
+  const points = scatterPoints(count, minDistFromCenter, maxDistFromCenter, minSeparation, avoid);
 
   for (const p of points) {
     const mesh = new THREE.Mesh(
