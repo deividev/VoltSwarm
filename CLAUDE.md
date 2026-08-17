@@ -112,7 +112,7 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 
 ---
 
-## Estado operativo actual (2026-08-06) — `codex/map-2` **0.13.13**
+## Estado operativo actual (2026-08-17) — `codex/map-2` **0.13.55**
 
 > ## 🚨 HAY UN RIG DE PRUEBAS ENCENDIDO — LÉELO ANTES DE TOCAR NADA
 >
@@ -144,6 +144,56 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 >
 > **Y revalida la rama al RETOMAR trabajo, no solo al empezar.** Esto ya costó un
 > commit en la rama equivocada el 2026-08-06: el árbol se movió entre turnos.
+
+### Escenografía del Mapa 2 — CERRADA 2026-08-17 (0.13.49 → 0.13.55)
+
+Detalle completo en `docs/PLAN_MAPA2.md` §Workstream 2 y en `docs/PRD.md`.
+Titulares y, sobre todo, **las reglas que salieron de aquí y aplican a todo prop
+futuro**:
+
+- **Suelo raster propio** (0.13.53) que arregla un contraste MEDIDO: el suelo
+  procedural estaba en luminancia ~39 contra ~31.5 de las torres, ratio 1.10:1,
+  o sea estructuras invisibles. El raster lo lleva a ~62 y el ratio a ~1.55:1.
+- **Chimenea de fundición** (0.13.54) sustituye a las cajas primitivas del
+  perímetro: 22 a radio 82 en tres escalas, más 7-10 repartidas por el campo, con
+  tres recoloreados. **Celda de energía** (0.13.55) sube a 46-62 con tres
+  recoloreados propios.
+- **Rendimiento validado:** 430 enemigos, mediana 8.30 ms y p99 8.50 contra un
+  período de vsync de 8.33. Sigue limitado por refresco, no por carga.
+
+> ## ⚠️ Cuatro reglas que costaron tres rondas perdidas — leer antes de tocar un prop
+>
+> 1. **La proporción se juzga en PÍXELES DE PANTALLA, no en unidades de mundo.**
+>    La cámara está en `(0, 24, 19)`, elevación 51.6°, y proyecta la altura por
+>    `cos(51.6°) = 0.62` mientras el ancho va entero. Un 3.3:1 de mundo lee
+>    2.07:1 en cuadro; un 2.0:1 lee 1.24:1, que es un cubo. Medir con
+>    `tools/measure-screenshot-region.mjs` sobre captura real.
+> 2. **Un rasgo por debajo de ~1 columna de vóxel NO EXISTE en el modelo**, por
+>    perfecto que esté en la hoja. Pasó dos veces (conducto a 0.25, detalle
+>    lateral a 0.94). Verificar con
+>    `tools/check-conversion-sheet.mjs <hoja> --columns <targetWidth>`.
+> 3. **La identidad de un prop está en la SILUETA, no en la pintura.** El primer
+>    diseño modular exigía lados rectos para apilar y midió `row width 768..768`
+>    en 512 filas: cero variación. Se leía como una caja y añadir detalle no lo
+>    arregló. Test: borrá los colores interiores; si el contorno solo no dice qué
+>    es, la hoja no sirve.
+> 4. **`voxelizeMultiView` no puede dar sección redonda** — el casco visual de un
+>    cilindro desde dos vistas ortogonales es un prisma cuadrado. Para columnas y
+>    cuerpos redondos: front-only con `sideProfileRef`, el camino del bidón.
+>
+> Y una de proceso: **la generación de imagen no acierta cuotas de área ni anchos
+> de rasgo**. Se piden en el prompt y se CORRIGEN por código
+> (`widen-sheet-feature`, `trim-sheet-tail`, `recolorMap`). Caso medido: se pidió
+> 30% del tono oscuro y volvió 2.1%.
+
+**Abierto y sin decidir:** el núcleo cian de las celdas de energía, ahora ~55% más
+presente en pantalla y compitiendo con el Sparkrunner — el mismo motivo por el
+que las torres pasaron de cian a blanco.
+
+**Bloquea el empaquetado:** `DEV_TOOLS.mapTransitionKey: true` (anterior a esta
+sesión) y 21 PNG huérfanos de iteraciones descartadas en `public/assets/2d/`
+(`prop-foundry-tower-*` y `prop-foundry-stack-*-v1/v2`), que el guardían de
+payload del asar rechaza como arte sin usar.
 
 ### Cambios del 2026-08-06 (0.13.6 → 0.13.13)
 

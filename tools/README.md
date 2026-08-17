@@ -168,6 +168,46 @@ The "compose art in HTML/CSS, screenshot the element" pattern is the reusable pa
 
 ---
 
+### check-conversion-sheet.mjs
+
+Measures a flat voxel-conversion sheet against the rules in
+`docs/PROMPTS_IMAGENES.md` §6, so a sheet is accepted on numbers rather than on a
+thumbnail. Reports aspect, **connected components** (the §6 rule that exists
+because a severed limb is invisible in a thumbnail), palette compliance, mean
+luminance, per-row silhouette edges, width profile, interior holes (which flag an
+object as hollow and therefore incompatible with `voxelizeMultiView`) and — the
+decisive one — the widest run of each colour expressed in VOXEL COLUMNS. Anything
+under one column vanishes from the model no matter how cleanly it is drawn.
+
+- Run: `node tools/check-conversion-sheet.mjs <sheet.png> [--aspect 1.5] [--palette hex,hex] [--columns 28] [--tileable]`
+
+### widen-sheet-feature.mjs
+
+Widens one palette colour inside a sheet to a guaranteed pixel width, row by row,
+clamped to the opaque body so the silhouette cannot change. Exists because image
+generation does not hit a requested feature width reliably — same reasoning as
+`thin-floor-channels.mjs`.
+
+- Run: `node tools/widen-sheet-feature.mjs <in.png> <out.png> --color 01e6fe --width 70`
+
+### trim-sheet-tail.mjs
+
+Clears stray narrow tails from the top or bottom of a sheet. Generation likes to
+run a thin feature past the body; the voxelizer derives grid height from the
+content bounding box, so a tail stretches the whole model's proportions and
+survives as a thin peg.
+
+- Run: `node tools/trim-sheet-tail.mjs <in.png> <out.png> [--edge bottom|top] [--min-width 40]`
+
+### measure-screenshot-region.mjs
+
+Measures the on-screen pixel bounding box of a colour family inside a region of a
+game screenshot. World proportions are not what the eye judges — the follow
+camera foreshortens height by `cos(51.6°)` — so "does this read tall enough" can
+only be answered in screen pixels.
+
+- Run: `node tools/measure-screenshot-region.mjs <shot.png> <x0>,<y0>,<x1>,<y1> cyan|bright`
+
 ## 🔴 Project-specific — tied to Voltswarm; keep as reference examples
 
 These depend on Voltswarm's dev-hook shape, catalog ids, or art assets. In the

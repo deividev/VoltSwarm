@@ -1,6 +1,6 @@
 # PLAN — Bloque Mapa 2 (Swarm Foundry): transición · visual · Hazard Marshal
 
-> Estado 2026-08-16: **Paso 0 (decisiones) CERRADO · Workstream 1 (transición) COMPLETADO** (v0.13.40→0.13.47). Pendientes los Workstreams 2 (visual de la fundición) y 3 (moveset del Hazard Marshal).
+> Estado 2026-08-17: **Paso 0 CERRADO · Workstream 1 COMPLETADO** (v0.13.40→0.13.47) · **Workstream 2 EN CURSO** (v0.13.49→0.13.55: suelo, props y perímetro hechos; ambiente y arena del boss pendientes). Workstream 3 (Hazard Marshal) sin empezar.
 > Alcance: cerrar la run completa **Mapa 1 (10 min de oleadas + gate de boss) → transición → Mapa 2 (10 min de oleadas) → Hazard Marshal (jefe final, 3 fases)**.
 > Rama de trabajo: `codex/map-2` (worktree `chest-marker-demo`). Config ya titula el mapa como **"Swarm Foundry"** (`config.ts` ~línea 209). Cambios de gameplay portan a `codex/demo-map1` según la regla de ramas.
 > Fuente de verdad de orden: `docs/ROADMAP_STEAM.md` §"Bloque Mapa 2 + Volt Warden". Este doc es el desglose accionable de ese bloque.
@@ -76,16 +76,31 @@ Depende de: 0.1 (cerrada), 0.2, 0.3, 0.6 (hecha), 0.7.
 
 ## Workstream 2 — Pase visual del Mapa 2 (Swarm Foundry)
 
+> **ESTADO 2026-08-17 (v0.13.49 → 0.13.55).** Suelo, props y perímetro cerrados.
+> Quedan **2.4** (layout del arena, acoplado al moveset del boss) y **2.5**
+> (VFX de ambiente). El reteñido del elenco a la paleta de fundición (decisión
+> 0.5) tampoco está hecho: `enemies.ts` no tiene ninguna rama por mapa.
+
 Objetivo del usuario: que **no parezca otro juego**. Alinear props y ambiente con el lenguaje del Mapa 1 (misma familia voxel, mismos materiales `litMaterial()`, misma dirección de silueta) pero en el tema **fundición** del arco de arte (chatarrería → **fundición** → ciudad neón, `DIRECCION_ARTE.md`).
 
-- [ ] **2.1 Auditoría de contraste con Mapa 1.** Poner los dos entornos lado a lado y listar exactamente qué "canta" a otro juego (paleta, escala de props, densidad, materiales, iluminación). Medir, no juzgar por captura (regla de método #1).
-- [ ] **2.2 Paleta y suelo de fundición.** Textura de suelo cenital tipo colada/metal fundido vía el pipeline de suelo (`PROMPTS_IMAGENES.md` §7b: top-down estricto, mosaico `RepeatWrapping`, `litMaterial()`), no se voxeliza. Paleta molten (ámbar/naranja calor + carbón) coherente con el logo y el resto del elenco.
-- [ ] **2.3 Props de fundición** en el mismo pipeline voxel que contenedores/bidones del Mapa 1: crisoles, cintas transportadoras, moldes, cubas de colada. **InstancedMesh por tipo** (guardarraíl #1), silueta única por tipo, reusar el sistema de variantes de color ya presente en `world.ts` de la rama.
-- [ ] **2.4 Layout que sirva al boss.** El arena debe soportar el moveset (Workstream 3): **suelo dividido en sectores visibles** (Fase 1), **bahías/corredores de entrada en el perímetro** (Fase 2), **suelo modular que se vuelve peligro** (Fase 3). Diseñar el entorno y el arena juntos, no por separado.
-- [ ] **2.5 Iluminación/VFX de ambiente** (resplandor de colada, chispas) en lenguaje voxel de partículas (cubos de paleta, cero gore), validado con el enjambre a 400+.
-- [ ] **2.6 Validación de rendimiento**: 60 FPS con 400+ enemigos en el entorno nuevo antes de darlo por bueno (guardarraíl #1).
+- [x] **2.1 Auditoría de contraste con Mapa 1 — HECHA por medición, no por comparación lado a lado.** El hallazgo que la cerró: el suelo procedural estaba en luminancia media ~39 y el carboncillo de las torres en ~31.5, un ratio de **1.10:1** — las estructuras del perímetro eran prácticamente invisibles contra su propio suelo, y los props también.
+- [x] **2.2 Paleta y suelo de fundición — HECHO (0.13.53).** Textura raster cenital propia (`ground-megafactory-floor-v14.png`, `worldSizePerRepeat: 20` medido, no copiado del Mapa 1) que sube el suelo a ~62 y el ratio a ~1.55:1. Canales de energía en AZUL (el cian es del Sparkrunner y de la maquinaria). Se eliminaron el anillo de conductos y los ocho carriles radiales: eran bandas planas `MeshBasicMaterial` apiladas sobre el suelo, sin cuantización toon, y duplicaban el lenguaje que ahora lleva la textura.
+- [x] **2.3 Props de fundición — HECHO (0.13.52 → 0.13.55).** Dos familias, ambas por el pipeline voxel y con variantes de color vía `recolorMap`:
+  - **Celda de energía** (`powercell` + `-rust` + `-bone`), 46-62 por partida.
+  - **Chimenea de fundición** (`foundry-stack` + `-iron` + `-graphite`), 22 en el anillo a radio 82 con tres escalas uniformes, más 7-10 repartidas por el campo a escala 0.85.
+  - Cantidad y posición **aleatorias por partida y por cruce de mapa** (`regenerateProps` se llama en `startRun` y en la transición).
+- [ ] **2.4 Layout que sirva al boss.** SIN EMPEZAR. Sigue acoplado al Workstream 3: suelo dividido en sectores (Fase 1), bahías de entrada en el perímetro (Fase 2), suelo modular peligroso (Fase 3). Diseñar entorno y arena juntos.
+- [ ] **2.5 Iluminación/VFX de ambiente.** SIN EMPEZAR. Resplandor de colada y chispas en lenguaje voxel de partículas. **Nota medida:** cielo, niebla y rig de luces son GLOBALES (`world.ts:155-166`, creados una vez en `createWorld`); `setMap` solo cambia suelo, torres y props. El Mapa 2 se juega bajo el cielo del desguace, y el horizonte ocupa una fracción grande de pantalla — es el cambio de más retorno por esfuerzo que queda en este workstream.
+- [x] **2.6 Validación de rendimiento — HECHA.** 430 enemigos, mediana de frametime **8.30 ms** y p99 **8.50 ms** contra un período de vsync de 8.33: el juego sigue limitado por el refresco, no por la carga, con las chimeneas nuevas a 13.688 triángulos por instancia.
 
----
+### Lecciones medidas de este workstream (evitan repetir tres rondas perdidas)
+
+1. **El aspecto que juzga el ojo es el de PANTALLA, no el del mundo.** La cámara está en `(0, 24, 19)`, elevación `atan(24/19)` = 51.6°, así que la altura se proyecta por `cos(51.6°) = 0.62` y el ancho entero. Una torre de 3.3:1 en unidades de mundo mide 2.07:1 en pantalla; una de 2.0:1 mide 1.24:1, que es un cubo. Medido sobre captura real: 325×476 px. **Herramienta:** `tools/measure-screenshot-region.mjs`.
+2. **Un rasgo por debajo de ~1 columna de vóxel desaparece del modelo aunque esté en la hoja.** Pasó dos veces: conducto cian a 0.25 columnas y detalle de la cara lateral a 0.94. Los rasgos de BORDE sobreviven con menos (0.63) porque la columna del extremo los tiene en mayoría; los centrados no. **Herramienta:** `tools/check-conversion-sheet.mjs --columns N`.
+3. **`voxelizeMultiView` no puede dar sección redonda.** Talla por intersección de dos siluetas ortogonales, y el casco visual de un cilindro visto de frente y de lado es un prisma cuadrado. Para columnas redondas: camino front-only con `sideProfileRef` (el del bidón y la celda).
+4. **Un módulo apilable obliga a silueta recta, y una silueta recta es una caja.** El primer intento midió `row width 768..768` en las 512 filas — cero variación. La identidad de un prop voxel vive en la SILUETA, no en la pintura de las caras.
+5. **El toon cuantiza a 3 pasos.** Tonos separados por ~12 escalones de luma colapsan en superficie plana a distancia. Props oscuros (masa, luma ~38) varían **temperatura y luminancia**; props de tono medio (luma ~77) sí admiten variación de **matiz**.
+6. **La generación de imagen no acierta cuotas de área ni anchos de rasgo pedidos.** Se piden en el prompt y se CORRIGEN por código: `tools/widen-sheet-feature.mjs`, `tools/trim-sheet-tail.mjs` y `recolorMap`. Misma lección que ya había producido `tools/thin-floor-channels.mjs`.
 
 ## Workstream 3 — Boss final: Hazard Marshal
 

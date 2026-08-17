@@ -28,7 +28,7 @@ Orden anterior (superseded): foundation de audio → viabilidad multijugador →
 
 **Objetivo interno de RC de la Demo: fin de agosto de 2026.** No es fecha pública, promesa de disponibilidad ni predicción de revisión externa. Se revalida contra su checklist congelado y no fija la fecha del juego completo. El objetivo anterior del 4 de noviembre queda como registro histórico, no como gobernanza vigente.
 
-**Estado operativo:** el paquete/handoff comercial y audio v1 no significan que el juego completo esté cerrado. Mapa 2 + Hazard Marshal ya tienen una primera versión jugable PROVISIONAL; faltan assets finales, moveset autorado, arena y balance. Después vienen 3 personajes diferenciados. Los playtests humanos y la calibración de balance se harán cuando ese contenido exista en una build comparable.
+**Estado operativo:** el paquete/handoff comercial y audio v1 no significan que el juego completo esté cerrado. Mapa 2 + Hazard Marshal ya tienen una primera versión jugable. **Actualizado 2026-08-17:** la escenografía del Mapa 2 (suelo raster, chimeneas de fundición, celdas de energía, variantes de color, rendimiento validado a 430 enemigos) está CERRADA en v0.13.49→0.13.55. Faltan pasada ambiental, cielo/niebla por mapa, reteñido del elenco, y del boss: moveset autorado, arena y balance. Después vienen 3 personajes diferenciados. Los playtests humanos y la calibración de balance se harán cuando ese contenido exista en una build comparable.
 
 ## Hecho (pase de endurecimiento, 2026-07-04)
 

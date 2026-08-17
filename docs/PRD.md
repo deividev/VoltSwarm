@@ -4,6 +4,24 @@
 
 **Juego completo (`codex/map-2`):** Mapa 1 / Scrapyard → Mapa 2 **Swarm Foundry** → **Hazard Marshal**. El arco y el finale ya son jugables; Hazard Marshal conserva `modelKey: 'final-boss'`. Su integración y combate actuales son provisionales: faltan moveset autorado definitivo, arena y balance. Volt Warden es diseño histórico/futuro, no el boss final vigente.
 
+## Swarm Foundry — escenografía del Mapa 2 (2026-08-17, v0.13.49 → 0.13.55)
+
+**Suelo.** Textura raster cenital propia (`ground-megafactory-floor-v14.png`), teselada con `RepeatWrapping` a `worldSizePerRepeat: 20` — medido sobre captura, no copiado del Mapa 1, porque cada hoja empaqueta un número distinto de rasgos por tesela. Existe para arreglar un fallo de contraste MEDIDO: el suelo procedural estaba en luminancia media ~39 contra ~31.5 del carboncillo de las torres, un ratio de 1.10:1 que hacía invisibles las estructuras. El raster lo lleva a ~62 y el ratio a ~1.55:1. El canvas procedural queda como fallback honesto.
+
+**Chimenea de fundición (`foundry-stack`).** Prop de periféria y de campo, tres vistas medidas, voxelizado por el camino front-only (`sideProfileRef` + `backPaintRef` + `sidePaint`) porque `voxelizeMultiView` no puede producir sección redonda. Silueta con plinto escalonado, fuste que afina, tres bridas que sobresalen, tubo externo con codo y corona volada. Tres recoloreados vía `recolorMap` (acero / hierro cálido / grafito), que varían temperatura Y luminancia porque a luma ~38 el toon aplasta el matiz puro.
+
+- **Anillo:** 22 unidades a radio 82, tres escalas uniformes (0.85 / 1.0 / 1.2) → alturas 7.5 / 9.0 / 10.5. Separación centro a centro 23.4 unidades, hueco libre entre vecinas 20.8, cobertura del arco 11.3%.
+- **Campo:** 7-10 a escala 0.85, cantidad y posición aleatorias por partida y por cruce de mapa.
+- **Regla de proporción:** se juzga en PÍXELES DE PANTALLA. La cámara a 51.6° proyecta la altura por `cos(51.6°) = 0.62`, así que un 3.3:1 de mundo lee 2.07:1 en cuadro y un 2.0:1 lee 1.24:1, que es un cubo.
+
+**Celda de energía (`powercell`).** Prop de dispersión, 46-62 por partida, tres recoloreados (acero / óxido / pálida). A diferencia de la chimenea sí varían por MATIZ, porque es tono medio (~77) y ahí el matiz sobrevive. Conserva su núcleo cian.
+
+**Colocación.** `regenerateProps` corre en `startRun` y en la transición de mapa, así que cada entrada a la fundición trae un reparto nuevo. Los props evitan el tótem del boss y — desde 0.13.54 — también las estructuras propias del mapa: antes solo esquivaban el tótem, y las celdas se reparten hasta `ARENA_HALF_SIZE - 4 = 86`, atravesando el anillo, de modo que podían plantarse dentro de una torre.
+
+**Rendimiento validado:** 430 enemigos, mediana de frametime 8.30 ms y p99 8.50 ms contra un período de vsync de 8.33 — sigue limitado por el refresco, no por la carga.
+
+**Pendiente del bloque visual:** pasada ambiental (resplandor de colada, chispas), cielo/niebla propios del mapa (hoy son globales y el Mapa 2 usa los del Mapa 1), arena del boss y reteñido del elenco de enemigos a la paleta de fundición.
+
 **Steam Demo (`codex/demo-map1`, separada):** solo Scrapyard / Mapa 1; termina a los 10 minutos como `SECTOR CLEARED`, sin transición a Mapa 2. No describe el flujo ni los metadatos de producto de esta rama de juego completo.
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
@@ -49,7 +67,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
 3. ⏸️ **Preparación/viabilidad multijugador — DIFERIDA A POST-LANZAMIENTO (decisión del usuario 2026-07-25).** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno, para una feature que `MULTIPLAYER_FEASIBILITY.md` documenta como no diferenciadora, no prometida y que puede terminar NO-GO — mientras el contenido que decide si el juego vale su precio quedaba comprimido. Del gate se rescató solo la mitad barata: cobertura de smoke tests. **El determinismo de tick fijo, el RNG sembrado y los snapshots siguen sin implementar**, y por eso tampoco se guarda semilla en los registros de run. Si el gate se retoma y da GO, el primer objetivo sigue siendo exactamente 2 jugadores local split-screen; online peer-host exige aprobación posterior; hybrid y dedicated servers quedan fuera de alcance.
-4. 🟡 **AHORA:** primera versión jugable del arco completo ya integrada: Mapa 1 → Mapa 2 conservando build → Hazard Marshal provisional. El siguiente trabajo es validar y autorar el contenido final de Mapa 2 y el moveset definitivo del boss; después, 3 personajes diferenciados → balance y retención con datos reales → catálogo de audio → Steamworks/cierre.
+4. 🟡 **AHORA:** arco completo jugable (Mapa 1 → Mapa 2 conservando build → Hazard Marshal provisional). **Escenografía del Mapa 2 cerrada 2026-08-17** (v0.13.49→0.13.55): suelo raster, chimeneas de fundición en anillo y campo, celdas de energía, todo con variantes de color y rendimiento validado a 430 enemigos. Queda del bloque visual: pasada ambiental, cielo/niebla por mapa, arena del boss y reteñido del elenco. El siguiente trabajo grande es el **moveset definitivo del Hazard Marshal**; después, 3 personajes diferenciados → balance y retención con datos reales → catálogo de audio → Steamworks/cierre.
 
 ## P1 — Estructural
 

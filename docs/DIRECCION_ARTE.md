@@ -24,19 +24,21 @@ Decisión del 2026-07-03 (usuario): el juego es de estética FUTURISTA — todos
 | Mapa | Escenario | Lenguaje visual |
 | --- | --- | --- |
 | 1 | **Fábrica abandonada** (redefinido 2026-07-06, antes "scrapyard") | Industrial con TOQUE futurista: planchas metálicas oscuras, remaches, franjas de peligro amarillas/negras, líneas de conducto cian tenues (apagadas, sin energía activa — es una fábrica MUERTA, no una en marcha) |
-| 2 | **Megafábrica futurista activa** — primera versión jugable PROVISIONAL 2026-08-02 | Centro de combate abierto; escala monumental concentrada en el perímetro mediante torres, conductos cian encendidos y carriles térmicos. Fusiona la fundición activa con el salto futurista que antes se atribuía a la ciudad orbital. |
+| 2 | **Megafábrica futurista activa** — suelo y props CERRADOS 2026-08-17, ambiente pendiente | Centro de combate abierto; escala monumental concentrada en el perímetro mediante chimeneas de fundición. El acento de infraestructura pasó de cian a **blanco** (ver contrato abajo). Fusiona la fundición activa con el salto futurista que antes se atribuía a la ciudad orbital. |
 | Post-v1 | Ciudad neón / estación orbital | Dirección conservada para un mapa posterior: emisivos, holografía y futurismo puro; ya no describe el Mapa 2 del arco base. |
 
 Regla: cada mapa nuevo se ve MÁS "futuro" que el anterior — empezás en la fábrica apagada del mundo y peleás hacia la fuente que fabrica a los robots. Las armas-herramienta (Press, Welder, Tire) viajan con el jugador y mantienen su identidad de desguace en cualquier mapa.
 
-**v1 usa 2 mapas:** Mapa 1 (fábrica abandonada/desguace) + Mapa 2 (megafábrica futurista activa y boss final). La primera versión jugable del Mapa 2 ya existe de forma procedural para probar composición y continuidad, pero **NO cierra el arte**: no hay textura raster final, props voxel finales ni pasada ambiental aprobada. Ciudad neón/estación orbital conserva su historia como dirección futura, no se borra ni se reetiqueta retroactivamente.
+**v1 usa 2 mapas:** Mapa 1 (fábrica abandonada/desguace) + Mapa 2 (megafábrica futurista activa y boss final). **Actualizado 2026-08-17:** el Mapa 2 ya tiene textura raster cenital final y props voxel finales (chimenea de fundición y celda de energía, tres variantes de color cada una). Lo que sigue SIN cerrar del arte del mapa es la **pasada ambiental** (resplandor de colada, chispas, y un cielo/niebla propios — hoy son globales y el Mapa 2 se juega bajo los del desguace) y el **arena del boss**. Ciudad neón/estación orbital conserva su historia como dirección futura, no se borra ni se reetiqueta retroactivamente.
 
-### Mapa 2 — contrato visual de la primera versión jugable
+### Mapa 2 — contrato visual (actualizado 2026-08-17)
 
 - **Centro abierto:** la lectura del jugador, proyectiles y enjambre manda; ninguna maquinaria monumental invade el núcleo de combate.
-- **Perímetro monumental:** torres altas y un anillo de conductos hacen visible que se pelea dentro de una megafábrica, no sobre otra variante del suelo del Mapa 1.
-- **Energía activa:** cian eléctrico para infraestructura y naranja térmico para carriles de calor; ambos son señales ambientales, por debajo de la saturación del elenco.
-- **Estado PROVISIONAL:** el suelo procedural generado en runtime es un bloqueador visual honesto, no un asset final ni una excepción permanente al pipeline de texturas cenitales.
+- **Perímetro monumental:** 22 chimeneas de fundición a radio 82, en tres escalas y tres recoloreados. **Regla de proporción, MEDIDA:** una torre se juzga por su aspecto EN PANTALLA, no en unidades de mundo. La cámara está en `(0, 24, 19)`, elevación `atan(24/19)` = 51.6°, así que la altura se proyecta por `cos(51.6°) = 0.62` y el ancho entero. Hay que superar ~4:1 real para leer 2.5:1 en cuadro; por debajo de eso es una caja, por mucho que el número de mundo parezca esbelto.
+- **Energía: BLANCO, no cian (decisión del usuario 2026-08-17).** El cian nunca estuvo libre: es el cuerpo del Sparkrunner y el lenguaje de la maquinaria del suelo. Se evaluó la rueda entera por matiz y todo hueco saturado está tomado por el elenco o por el botín — rojo 0-20° (Rustbrute, boss), ámbar 30-45° (jugador, oro, carriles térmicos), amarillo 50-60° (Voltling), lima 95° (Gunner), cian 176° (Sparkrunner), azul 210-230° (canales del suelo), violeta 275° (Roller), magenta 320° (Drone, élites). El blanco no puede colisionar con ninguna señal de gameplay por construcción.
+- **Los props no compiten con la acción, pero cada uno a su manera.** Estructura grande = masa oscura por debajo de la luminancia del suelo (~62); prop pequeño = tono medio que destaca de él. Por eso la chimenea usa cinco de los siete tonos medidos de la celda de energía pero al revés: la celda toma los claros, la torre los oscuros.
+- **Variantes de color:** props OSCUROS varían **temperatura y luminancia**, porque el toon cuantiza a 3 pasos y a luma ~38 un cambio de matiz puro desaparece; props de TONO MEDIO sí admiten **matiz**, que es por lo que el trío mostaza/teal/mauve del Mapa 1 funciona y no se puede copiar tal cual a una torre.
+- **Pendiente:** pasada ambiental (2.5 de `PLAN_MAPA2.md`) y arena del boss (2.4). Cielo, niebla y luces siguen siendo GLOBALES: el Mapa 2 se juega bajo los del Mapa 1.
 
 ## Por qué
 
