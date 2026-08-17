@@ -255,20 +255,60 @@ export const RUN_DURATION_S = MAPS[0].durationS;
  * monumental machinery and readable heat/energy lanes live at the perimeter. */
 export const MEGAFACTORY_MAP = {
   openCenterRadius: 38,
-  perimeterRadius: 72,
-  towerCount: 12,
-  towerWidth: 7,
-  /** Lowered 12-22 -> 6-10 (2026-08-16, user playtest: enemies vanished behind
-   *  them). MEASURED: the follow camera sits at (0, 24, 19) ≈ 51.6°, so a tower
-   *  of height H hides H / tan(51.6°) ≈ H * 0.79 world units of ground BEHIND
-   *  it. The old 22 buried a 17-unit-deep blind band while enemies spawn only
-   *  32-44 units away — a whole approach could happen inside it. At 6-10 the
-   *  band is 4.8-7.9 units, still twice the height of a Map 1 container (3.0),
-   *  so the structures keep their industrial mass without eating the field. */
-  towerHeightMin: 6,
-  towerHeightMax: 10,
-  towerDepth: 7,
-  towerColliderRadius: 4.8,
+  /** 72 -> 82 (2026-08-17, user request: push the ring outward). The arena is a
+   *  SQUARE of half-size 90, so at the cardinal directions this leaves 8 units
+   *  of floor beyond the towers, and far more toward the corners, which sit at
+   *  90 * sqrt(2) = 127 from centre. The ring stays circular on purpose — a
+   *  square ring would read as a fence rather than as a plant perimeter. */
+  perimeterRadius: 82,
+  /** 12 -> 28 towers, 7 -> 3.0 wide (2026-08-17). The old towers were 7 wide by
+   *  7 deep by 6-10 tall: near CUBES (1.14:1 at mean height), which is why they
+   *  read as grey blocks rather than as towers. Height cannot go up — see the
+   *  occlusion measurement below — so a tower silhouette can only be bought by
+   *  narrowing the base. At 3.0 the aspect is 3.3:1.
+   *
+   *  MEASURED, and the part that is easy to get wrong: narrowing while adding
+   *  proportionally more towers does NOT reduce occlusion. The perimeter arc at
+   *  radius 72 is 452.4 units; 12 x 7 and 28 x 3 both occupy ~84 of them, so the
+   *  blocked ground AREA is identical. What it buys is blocked DURATION — an
+   *  enemy crosses a 3-unit blind band in well under half the time it takes to
+   *  cross a 7-unit one. Cutting the area would mean cutting the total width. */
+  /** 28 -> 22 (2026-08-17, user request: more air between towers). Spacing is
+   *  arc / count, so the wider radius and the lower count compound: 2*pi*72/28
+   *  gave 16.2 units centre-to-centre, 2*pi*82/22 gives 23.4. Measured against
+   *  a mean tower width of 2.64 (2.6 at the [0.85, 1.0, 1.2] scale average),
+   *  the clear gap between neighbours goes 13.6 -> 20.8 units.
+   *
+   *  Perimeter coverage drops with it: 22 * 2.64 = 58 units of a 515-unit arc,
+   *  11.3%, against 13.9% before. Less blocked ground as well as more air. */
+  towerCount: 22,
+  /** Approx world footprint of the voxel chimney (targetWidth x voxelSize in
+   *  registry.ts = 28 x 0.093, and the sheet's 3.29 aspect gives the height) —
+   *  sizes the primitive placeholder shown before the model resolves. */
+  towerWidth: 2.6,
+  towerHeight: 8.6,
+  /** UNIFORM scale per instance, cycled around the ring: one model at three
+   *  sizes. Per-axis scaling would stretch the voxels into slabs.
+   *
+   *  MEASURED 2026-08-17, and it overturned the first sizing pass. World aspect
+   *  is NOT what the eye judges: the camera sits at (0, 24, 19), an elevation of
+   *  atan(24/19) = 51.6 degrees, which projects vertical extent at cos(51.6) =
+   *  0.62 while width projects in full — height loses 38% on screen, width loses
+   *  nothing. A first pass measured 325 x 476 px in a real capture, 1.46:1,
+   *  which is why the towers read as cubes despite a 2-3.3:1 world aspect.
+   *  Judge any change to these in SCREEN pixels, not world units.
+   *
+   *  The tallest lands at 10.3 world units. Occlusion cap: a tower of height H
+   *  hides H * 0.79 units of ground behind it at this camera, and enemies spawn
+   *  only 32-44 units out, so do not push past ~10.5 without redoing that sum. */
+  towerScales: [0.85, 1.0, 1.2],
+  /** Three recolours of one model, cycled around the ring so it never reads as
+   *  the same object stamped 22 times. Same technique as Map 1's container and
+   *  barrel variants: identical geometry and sheets, recoloured output. */
+  towerVariants: ['foundry-stack', 'foundry-stack-iron', 'foundry-stack-graphite'] as const,
+  /** Half the 2.6 footprint plus margin, multiplied by each instance's scale
+   *  in world.ts. Physics, not visuals — it does not follow the model. */
+  towerColliderRadius: 1.5,
   // pipeSegments / pipeRadius / pipeHeight and heatLaneCount / heatLaneWidth /
   // heatLaneLength were removed 2026-08-17 along with the geometry they fed.
   // The energised cyan conduits and orange heat channels are now painted into
@@ -462,6 +502,47 @@ export const POWERCELL_PROP = {
    *  scatters up to 50 of them; at 28-40 with a cyan core reading as the
    *  identity, recolors would fight the map's own conduit language. */
   variants: ['powercell'] as const,
+};
+
+/** Extra room scatter props keep from a map's own structures (Map 2's towers).
+ *  Their collider is sized for the player and the swarm, not for placement, so
+ *  a prop resting exactly on that radius still visually overlaps the tower. */
+export const PROP_STRUCTURE_CLEARANCE = 3;
+
+/** Map-2 field prop: the perimeter chimney again, scattered through the play
+ *  area at the ring's SMALLEST size (user request 2026-08-17). One model, two
+ *  jobs — the ring reads as skyline, these read as cover.
+ *
+ *  MEASURED CAUTION, recorded because it is the exact failure the perimeter
+ *  towers already hit once: at scale 0.85 a pillar stands 7.3 world units tall,
+ *  and this camera hides H * 0.79 units of ground behind an object, so each one
+ *  blanks ~5.8 units. A Map 1 container is 3.0 tall and blanks 2.4. These are
+ *  more than twice as blinding, and unlike the ring they sit where the fighting
+ *  happens. The count starts deliberately low so it is cheap to walk back; if a
+ *  playtest reports enemies appearing out of nowhere, this is the first suspect.
+ */
+export const FOUNDRY_PILLAR_PROP = {
+  /** Approx world footprint at scale (28 x 0.093 x 0.85 wide, 8.6 x 0.85 tall)
+   *  — sizes the primitive placeholder shown before the model resolves. */
+  width: 2.21,
+  height: 7.31,
+  /** Matches the ring's smallest instance. Uniform, never per-axis. */
+  modelScale: 0.85,
+  colliderRadius: 1.3,
+  /** Deliberately sparse. Raise only with a playtest behind it. */
+  countRange: [7, 10] as [number, number],
+  /** Well clear of the player's spawn: an object this tall next to the start
+   *  point would blank the opening approach. */
+  minDistFromCenter: 22,
+  maxDistFromCenter: ARENA_HALF_SIZE - 26,
+  /** Wide, so pillars never form an accidental wall the swarm funnels around. */
+  minSeparation: 26,
+  /** Keeps the boss totem's summon zone open. */
+  totemClearance: 12,
+  /** Radius the power cells keep from each pillar, so the small prop does not
+   *  end up tucked invisibly against the big one. */
+  cellClearance: 6,
+  variants: ['foundry-stack', 'foundry-stack-iron', 'foundry-stack-graphite'] as const,
 };
 
 /** Single source of truth for Barrier Cell gameplay and its shield-plate VFX capacity. */

@@ -4,6 +4,7 @@ import {
   BARREL_PROP,
   CAMERA,
   CONTAINER_PROP,
+  FOUNDRY_PILLAR_PROP,
   MAPS,
   MEGAFACTORY_MAP,
   POWERCELL_PROP,
@@ -220,8 +221,18 @@ export function placeRandomProps(
   // drums) on a foundry floor would undo the sector change the transition
   // just sold, so the set is chosen by map rather than shared.
   if (mapId === MAPS[1].id) {
-    const cells = buildScatterProps(scene, avoid, POWERCELL_PROP);
-    return { obstacles: cells.obstacles, meshes: cells.meshes };
+    // Pillars first: they are far larger than the cells, so the cells scatter
+    // around them rather than the other way round.
+    const pillars = buildScatterProps(scene, avoid, FOUNDRY_PILLAR_PROP);
+    const cellAvoid: AvoidPoint[] = [
+      ...avoid,
+      ...pillars.obstacles.map((o) => ({ x: o.x, z: o.z, radius: FOUNDRY_PILLAR_PROP.cellClearance })),
+    ];
+    const cells = buildScatterProps(scene, cellAvoid, POWERCELL_PROP);
+    return {
+      obstacles: [...pillars.obstacles, ...cells.obstacles],
+      meshes: [...pillars.meshes, ...cells.meshes],
+    };
   }
   const containers = buildContainerProps(scene, avoid);
   const barrelAvoid: AvoidPoint[] = [
@@ -327,31 +338,38 @@ function buildMegafactoryMap(root: THREE.Object3D, isCurrent: () => boolean): Ob
   void upgradeGroundTexture(ground, isCurrent, cfg.aiTextureUrl, cfg.worldSizePerRepeat);
 
   const obstacles: Obstacle[] = [];
+  // Primitive placeholder first, voxel stack swapped in async — the same
+  // pattern every prop uses, so a slow model load never shows an empty ring.
   const towerMaterial = litMaterial({ color: cfg.colors.charcoal });
-  const trimMaterial = new THREE.MeshBasicMaterial({ color: cfg.colors.cyan });
+  // Keyed by "variant|scale": geometry differs per variant (colour is baked
+  // into vertex colours) and scale is per instance, so both belong in the key.
+  const towersByKey = new Map<string, THREE.Mesh[]>();
+  let previousVariant: string | undefined;
   for (let index = 0; index < cfg.towerCount; index++) {
     const angle = (index / cfg.towerCount) * Math.PI * 2;
-    const heightLerp = (index % 4) / 3;
-    const height = THREE.MathUtils.lerp(cfg.towerHeightMin, cfg.towerHeightMax, heightLerp);
+    const scale = cfg.towerScales[index % cfg.towerScales.length] ?? 1;
+    // Never the same colour twice running: the ring is a closed loop, so a
+    // repeat is always visible as a pair from somewhere on the field.
+    const variant = pickVariant(cfg.towerVariants, previousVariant);
+    previousVariant = variant;
     const x = Math.cos(angle) * cfg.perimeterRadius;
     const z = Math.sin(angle) * cfg.perimeterRadius;
-    const tower = new THREE.Group();
-    tower.position.set(x, 0, z);
-    tower.rotation.y = -angle;
-    const body = new THREE.Mesh(
-      new THREE.BoxGeometry(cfg.towerWidth, height, cfg.towerDepth),
+    const tower = new THREE.Mesh(
+      new THREE.BoxGeometry(cfg.towerWidth * scale, cfg.towerHeight * scale, cfg.towerWidth * scale),
       towerMaterial,
     );
-    body.position.y = height / 2;
-    const trim = new THREE.Mesh(
-      new THREE.BoxGeometry(cfg.towerWidth * 0.72, 0.32, cfg.towerDepth + 0.08),
-      trimMaterial,
-    );
-    trim.position.y = height * 0.64;
-    tower.add(body, trim);
+    // The placeholder box is centre-origin; upgradeTowerModels re-seats it once
+    // the voxel geometry, which rests on y=0, takes over.
+    tower.position.set(x, (cfg.towerHeight * scale) / 2, z);
+    tower.rotation.y = -angle;
     root.add(tower);
-    obstacles.push({ x, z, radius: cfg.towerColliderRadius, blocksFlyers: true });
+    const key = `${variant}|${scale}`;
+    const list = towersByKey.get(key) ?? [];
+    list.push(tower);
+    towersByKey.set(key, list);
+    obstacles.push({ x, z, radius: cfg.towerColliderRadius * scale, blocksFlyers: true });
   }
+  void upgradeTowerModels(towersByKey, towerMaterial, isCurrent);
 
   // The perimeter conduit ring and the eight radial heat lanes used to be drawn
   // here as flat MeshBasicMaterial bands lying over the floor. Removed
@@ -813,6 +831,7 @@ function buildContainerProps(
 async function upgradeVariantModels(
   meshesByVariant: Map<string, THREE.Mesh[]>,
   placeholderMaterial: THREE.Material,
+  modelScale?: number,
 ): Promise<void> {
   await Promise.all(
     [...meshesByVariant.entries()].map(async ([key, meshes]) => {
@@ -827,6 +846,7 @@ async function upgradeVariantModels(
           mesh.geometry = geometry;
           mesh.material = voxelMaterial;
           mesh.position.y = 0;
+          if (modelScale !== undefined) mesh.scale.setScalar(modelScale);
         }
       } catch (error) {
         console.warn(`Voxel model '${key}' unavailable, keeping primitive:`, error);
@@ -834,6 +854,54 @@ async function upgradeVariantModels(
     }),
   );
   placeholderMaterial.dispose();
+}
+
+/** Swaps the Map 2 perimeter placeholders for the voxel chimney.
+ *
+ *  One model, scaled UNIFORMLY per instance for height variety. Uniform is the
+ *  whole point: scaling a voxel model per-axis stretches its cubes into slabs,
+ *  and it shows worst right where the prop meets the ground. Three sizes of the
+ *  same chimney is what a real plant looks like anyway.
+ *
+ *  Geometry is built once and shared by every tower, so the ring costs 28 draw
+ *  calls regardless of how many size variants there are. */
+async function upgradeTowerModels(
+  towersByKey: Map<string, THREE.Mesh[]>,
+  placeholderMaterial: THREE.Material,
+  isCurrent: () => boolean,
+): Promise<void> {
+  try {
+    const material = litMaterial({ vertexColors: true });
+    // One geometry per VARIANT, shared across every scale that uses it: the
+    // recolour is baked into vertex colours, so variants cannot share geometry,
+    // but scale is a transform and costs nothing extra.
+    const geometryByVariant = new Map<string, THREE.BufferGeometry>();
+    for (const [key, towers] of towersByKey) {
+      const [variant = '', rawScale = '1'] = key.split('|');
+      const def = VOXEL_MODELS[variant];
+      if (!def) continue;
+      let geometry = geometryByVariant.get(variant);
+      if (!geometry) {
+        const grid = await buildModelGrid(variant);
+        // The map may have been swapped while this decoded; mutating a disposed
+        // material here is the bug the ground-texture upgrade already guards.
+        if (!isCurrent()) return;
+        geometry = buildGridGeometry(grid, def.voxelSize);
+        geometryByVariant.set(variant, geometry);
+      }
+      for (const tower of towers) {
+        tower.geometry.dispose();
+        tower.geometry = geometry;
+        tower.material = material;
+        tower.scale.setScalar(Number(rawScale));
+        // Voxel geometry rests on y=0; the placeholder box was centre-origin.
+        tower.position.y = 0;
+      }
+    }
+    placeholderMaterial.dispose();
+  } catch (error) {
+    console.warn('Foundry stack models unavailable, keeping placeholders:', error);
+  }
 }
 
 /** Landmark scaffold towers: thin single-post placeholder up front (mostly
@@ -896,6 +964,10 @@ interface ScatterPropConfig {
   /** Non-empty by type, so the first entry can seed the placeholder tint and
    *  the random pick without an undefined branch that can never happen. */
   readonly variants: readonly [string, ...string[]];
+  /** UNIFORM scale applied to the voxel model, so one registry entry can serve
+   *  at more than one size without a second geometry in memory. Uniform only —
+   *  per-axis scaling stretches the voxels into slabs. */
+  readonly modelScale?: number;
 }
 
 /** Small loose obstacles scattered around the map — count and layout
@@ -915,6 +987,7 @@ function buildScatterProps(
     maxDistFromCenter,
     minSeparation,
     variants,
+    modelScale,
   } = config;
   const obstacles: Obstacle[] = [];
   const meshesByVariant = new Map<string, THREE.Mesh[]>();
@@ -944,7 +1017,7 @@ function buildScatterProps(
     obstacles.push({ x: p.x, z: p.z, radius: colliderRadius });
   }
 
-  void upgradeVariantModels(meshesByVariant, placeholderMaterial);
+  void upgradeVariantModels(meshesByVariant, placeholderMaterial, modelScale);
   return { obstacles, meshes: [...meshesByVariant.values()].flat() };
 }
 

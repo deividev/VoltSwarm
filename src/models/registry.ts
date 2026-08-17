@@ -223,6 +223,59 @@ export const POWERCELL_FRAME = 0x232830;
 export const POWERCELL_RECESS = 0x17212a;
 export const POWERCELL_TERMINAL = 0x8fa3ad;
 export const POWERCELL_CORE = 0x01e6fe;
+// Foundry tower accents (2026-08-17, user direction). Applied as a recolorMap
+// over the classified grid, never by swapping the palette hexes: the quantizer
+// picks the nearest palette entry to the SHEET's real pixels, so a new hue
+// entered as a palette member loses to whichever original tone is numerically
+// closer (the container teal->orange attempt collapsed to frame gray).
+//
+// Trim goes white — the BODY deliberately stays dark. Measured: the floor
+// raster sits at ~62 mean luminance and the tower casing at ~40; a white body
+// would jump to ~230, making the perimeter the brightest thing on screen and
+// putting it in the player's own bone-white family, the opposite of scenery
+// that sits behind the action.
+export const FOUNDRY_TRIM_WHITE = 0xf0f4f7;
+// Conduit green, replacing the cyan. Cyan was never free — it is the
+// Sparkrunner's body colour and the machinery language of the floor texture.
+// MEASURED by hue, against the cast: red 0-20 (Rustbrute, boss), amber 30-45
+// (player, gold, heat lanes), yellow 50-60 (Voltling), lime 95 (Gunner), cyan
+// 176 (Sparkrunner), blue 210-230 (floor channels), violet 275 (Roller),
+// magenta 320 (Drone, elites). The widest genuinely unoccupied gap is true
+// green near 140, which this sits in at 146 — 51 degrees off the Gunner's lime
+// and 31 off the Sparkrunner's cyan.
+// Foundry stack (Map 2 perimeter chimney, 2026-08-17). The sheet is authored in
+// the five tones below, but two of them are DARKENED at build time by
+// recolorMap: Codex ignored the requested area shares (30% of the darkest tone
+// was asked for, 2.1% came back) and the sheet measures 76 mean luminance
+// against a floor at ~62 — the prop would be brighter than the ground it stands
+// on. Remapping the output is exact and keeps the block structure untouched;
+// re-rolling the generation to chase a share is not.
+export const DARKEST_RECESS = 0x151a20;
+export const SHEET_CASING = 0x2e3a46;
+export const SHEET_PLATE = 0x596b7a;
+export const FOUNDRY_CASING = 0x1e2831;
+export const FOUNDRY_PLATE = 0x3d4b57;
+// The conduit is WHITE, not a hue (user decision 2026-08-17 after rejecting the
+// green). Every saturated slot on the wheel is already spoken for by the cast or
+// by loot — yellow worst of all, since it is simultaneously the Voltling's body,
+// the player's accent, the gold and the chests. White cannot collide with any
+// gameplay signal by construction, and it reuses the trim the user approved.
+export const FOUNDRY_STACK_SHEET_CONDUIT = 0x1f9d55;
+// Two recolours of the stack, the container/barrel variant technique applied to
+// Map 2 (2026-08-17, user request). Same sheets, same classification palette,
+// different recolorMap — recolouring the OUTPUT keeps the block structure and
+// the silhouette identical while changing only render colour.
+//
+// They shift TEMPERATURE AND LUMINANCE, not hue alone, and that is a deliberate
+// departure from Map 1's mustard/teal/mauve trio. Those work because containers
+// are mid-tone (luma ~87) where hue survives; the towers are dark mass (luma
+// ~38) where the three-step toon quantisation crushes a pure hue shift into
+// nothing. The measured casing spread here is 28 / 38 / 45, all comfortably
+// under the floor's ~62 so every variant still reads as scenery.
+export const FOUNDRY_IRON_CASING = 0x332b25;
+export const FOUNDRY_IRON_PLATE = 0x57493d;
+export const FOUNDRY_GRAPHITE_CASING = 0x191d20;
+export const FOUNDRY_GRAPHITE_PLATE = 0x33393d;
 // Scrapper (merchant) palette — MEASURED per-region from
 // ref-scrapper-front-v1.png (v2 2026-07-09: first pass missed the TOOL GRAYS
 // entirely — the wrench/pipes cluster collapsed into bronze/olive mush — and
@@ -998,6 +1051,159 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
     ],
     frontOnly: [],
     previewScale: 1.4,
+  },
+  // Map 2 perimeter chimney. Replaces the stackable segment+cap pair, which was
+  // abandoned 2026-08-17: to tile, its modules needed perfectly vertical,
+  // constant-width sides, and that constraint is exactly what made the towers
+  // read as boxes. Measured on the old sheet — row width 768..768 across all
+  // 512 rows, i.e. ZERO silhouette variation. This model buys the silhouette
+  // back with a stepped plinth, a tapering shaft, protruding flange bands, an
+  // external pipe and a flared crown.
+  //
+  // FRONT-ONLY on purpose, the barrel's path rather than the container's.
+  // voxelizeMultiView cannot produce a round section at all: it carves by the
+  // intersection of two orthogonal silhouettes, and the visual hull of a
+  // cylinder seen front and side IS a square prism. Elliptical extrusion from
+  // one sheet is the only route to the cylindrical read the user asked for.
+  // It also protects the gap between the pipe and the shaft — a front-only
+  // extrusion draws nothing behind a pixel the front shows empty, whereas hull
+  // carving would pack that 3.4%-of-bbox hole with phantom voxels (the
+  // scaffold lesson, PROMPTS_IMAGENES §7).
+  'foundry-stack': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-foundry-stack-front-v3.png',
+    // MEASURED depth and real rear paint, replacing the estimated ellipse.
+    // These are sideProfileRef/backPaintRef, NOT refSide/refBack: the latter
+    // switch the model to voxelizeMultiView, which would both square off the
+    // section and pack the pipe gap with phantom voxels. This pair only
+    // modulates the front extrusion, so the round cross-section survives.
+    sideProfileRef: 'assets/2d/prop-foundry-stack-side-v2.png',
+    backPaintRef: 'assets/2d/prop-foundry-stack-back-v2.png',
+    // Outer left/right faces take their colours from the side sheet instead of
+    // smearing the front silhouette's edge pixels down the flanks.
+    sidePaint: true,
+    // 28 columns over a 301px-wide sheet is ~10.75px per column; every feature
+    // was widened to clear two columns before this entry was written.
+    targetWidth: 28,
+    // 28 x 0.093 = 2.60m wide; the sheet's 3.29 aspect makes that ~8.6m tall.
+    // world.ts scales instances uniformly for height variety — uniform, never
+    // per-axis, so the voxels stay cubes.
+    voxelSize: 0.093,
+    bodyColor: FOUNDRY_CASING,
+    palette: [
+      DARKEST_RECESS,
+      SHEET_CASING,
+      SHEET_PLATE,
+      FOUNDRY_TRIM_WHITE,
+      FOUNDRY_STACK_SHEET_CONDUIT,
+    ],
+    // Classify against the sheet's real tones, THEN recolor. Entering the
+    // darker values as palette members instead would make them lose to the
+    // originals they are meant to replace (the container teal->orange lesson).
+    recolorMap: {
+      [SHEET_CASING]: FOUNDRY_CASING,
+      [SHEET_PLATE]: FOUNDRY_PLATE,
+      [FOUNDRY_STACK_SHEET_CONDUIT]: FOUNDRY_TRIM_WHITE,
+    },
+    frontOnly: [],
+    // Fallback only, now that sideProfileRef supplies a measured depth for every
+    // row. Kept at the barrel's value so a missing side sheet degrades to a
+    // round column rather than a wafer.
+    depthFactor: 0.48,
+    raisedTopFraction: 0,
+    previewScale: 0.5,
+  },
+  // Warm iron recolour of `foundry-stack`: identical geometry and sheets, a warmer
+  // and slightly lighter body (casing luma 45 against the base's 38).
+  'foundry-stack-iron': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-foundry-stack-front-v3.png',
+    // MEASURED depth and real rear paint, replacing the estimated ellipse.
+    // These are sideProfileRef/backPaintRef, NOT refSide/refBack: the latter
+    // switch the model to voxelizeMultiView, which would both square off the
+    // section and pack the pipe gap with phantom voxels. This pair only
+    // modulates the front extrusion, so the round cross-section survives.
+    sideProfileRef: 'assets/2d/prop-foundry-stack-side-v2.png',
+    backPaintRef: 'assets/2d/prop-foundry-stack-back-v2.png',
+    // Outer left/right faces take their colours from the side sheet instead of
+    // smearing the front silhouette's edge pixels down the flanks.
+    sidePaint: true,
+    // 28 columns over a 301px-wide sheet is ~10.75px per column; every feature
+    // was widened to clear two columns before this entry was written.
+    targetWidth: 28,
+    // 28 x 0.093 = 2.60m wide; the sheet's 3.29 aspect makes that ~8.6m tall.
+    // world.ts scales instances uniformly for height variety — uniform, never
+    // per-axis, so the voxels stay cubes.
+    voxelSize: 0.093,
+    bodyColor: FOUNDRY_CASING,
+    palette: [
+      DARKEST_RECESS,
+      SHEET_CASING,
+      SHEET_PLATE,
+      FOUNDRY_TRIM_WHITE,
+      FOUNDRY_STACK_SHEET_CONDUIT,
+    ],
+    // Classify against the sheet's real tones, THEN recolor. Entering the
+    // darker values as palette members instead would make them lose to the
+    // originals they are meant to replace (the container teal->orange lesson).
+    recolorMap: {
+      [SHEET_CASING]: FOUNDRY_IRON_CASING,
+      [SHEET_PLATE]: FOUNDRY_IRON_PLATE,
+      [FOUNDRY_STACK_SHEET_CONDUIT]: FOUNDRY_TRIM_WHITE,
+    },
+    frontOnly: [],
+    // Fallback only, now that sideProfileRef supplies a measured depth for every
+    // row. Kept at the barrel's value so a missing side sheet degrades to a
+    // round column rather than a wafer.
+    depthFactor: 0.48,
+    raisedTopFraction: 0,
+    previewScale: 0.5,
+  },
+  // Graphite recolour of `foundry-stack`: near-neutral and the darkest of the
+  // three (casing luma 28), so the ring reads as three different metals.
+  'foundry-stack-graphite': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-foundry-stack-front-v3.png',
+    // MEASURED depth and real rear paint, replacing the estimated ellipse.
+    // These are sideProfileRef/backPaintRef, NOT refSide/refBack: the latter
+    // switch the model to voxelizeMultiView, which would both square off the
+    // section and pack the pipe gap with phantom voxels. This pair only
+    // modulates the front extrusion, so the round cross-section survives.
+    sideProfileRef: 'assets/2d/prop-foundry-stack-side-v2.png',
+    backPaintRef: 'assets/2d/prop-foundry-stack-back-v2.png',
+    // Outer left/right faces take their colours from the side sheet instead of
+    // smearing the front silhouette's edge pixels down the flanks.
+    sidePaint: true,
+    // 28 columns over a 301px-wide sheet is ~10.75px per column; every feature
+    // was widened to clear two columns before this entry was written.
+    targetWidth: 28,
+    // 28 x 0.093 = 2.60m wide; the sheet's 3.29 aspect makes that ~8.6m tall.
+    // world.ts scales instances uniformly for height variety — uniform, never
+    // per-axis, so the voxels stay cubes.
+    voxelSize: 0.093,
+    bodyColor: FOUNDRY_CASING,
+    palette: [
+      DARKEST_RECESS,
+      SHEET_CASING,
+      SHEET_PLATE,
+      FOUNDRY_TRIM_WHITE,
+      FOUNDRY_STACK_SHEET_CONDUIT,
+    ],
+    // Classify against the sheet's real tones, THEN recolor. Entering the
+    // darker values as palette members instead would make them lose to the
+    // originals they are meant to replace (the container teal->orange lesson).
+    recolorMap: {
+      [SHEET_CASING]: FOUNDRY_GRAPHITE_CASING,
+      [SHEET_PLATE]: FOUNDRY_GRAPHITE_PLATE,
+      [FOUNDRY_STACK_SHEET_CONDUIT]: FOUNDRY_TRIM_WHITE,
+    },
+    frontOnly: [],
+    // Fallback only, now that sideProfileRef supplies a measured depth for every
+    // row. Kept at the barrel's value so a missing side sheet degrades to a
+    // round column rather than a wafer.
+    depthFactor: 0.48,
+    raisedTopFraction: 0,
+    previewScale: 0.5,
   },
   // The Scrapper merchant — front-only voxelization (Camino A, 2026-07-09):
   // a stationary NPC that faces the player, so the back is never the hero

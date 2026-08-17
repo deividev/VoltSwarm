@@ -18,6 +18,8 @@ import {
   GOLD,
   MAPS,
   POWERCELL_PROP,
+  PROP_STRUCTURE_CLEARANCE,
+  FOUNDRY_PILLAR_PROP,
   MAP_TRANSITION,
   MERCHANT,
   MODS,
@@ -1328,12 +1330,26 @@ export class Game {
   private regenerateProps(mapId: string): void {
     clearProps(this.scene, this.propMeshes);
     const totem = this.boss.totemTarget();
-    // Each map's scatter prop declares its own totem clearance; using Map 1's
+    // Each map's scatter props declare their own totem clearance; using Map 1's
     // for both would either crowd or over-clear the foundry's summon zone.
+    // Map 2 scatters two prop types around one shared avoid list, so it takes
+    // the LARGER of the two: the pillar stands 7.3 units tall against the power
+    // cell's 1.6, and letting it sit at the cell's clearance would plant a
+    // sight-blocker on the edge of the boss summon zone.
     const clearance = mapId === MAPS[1].id
-      ? POWERCELL_PROP.totemClearance
+      ? Math.max(POWERCELL_PROP.totemClearance, FOUNDRY_PILLAR_PROP.totemClearance)
       : CONTAINER_PROP.totemClearance;
-    const avoid = totem ? [{ x: totem.x, z: totem.z, radius: clearance }] : [];
+    // Scatter props also have to dodge the map's OWN structures. Without this
+    // the perimeter towers were invisible to placement: Map 2's power cells
+    // scatter out to ARENA_HALF_SIZE - 4 = 86, straight through a tower ring at
+    // 82, so cells could be planted inside solid geometry. The towers carry a
+    // placement radius of their collider plus the widest prop half-width.
+    const avoid: { x: number; z: number; radius: number }[] = totem
+      ? [{ x: totem.x, z: totem.z, radius: clearance }]
+      : [];
+    for (const structure of this.mapObstacles) {
+      avoid.push({ x: structure.x, z: structure.z, radius: structure.radius + PROP_STRUCTURE_CLEARANCE });
+    }
     const props = placeRandomProps(this.scene, avoid, mapId);
     // Rebuild from the map's OWN structural collision (Map 2's perimeter
     // towers) plus the fresh props. Resetting to props alone silently deleted
