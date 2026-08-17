@@ -269,12 +269,10 @@ export const MEGAFACTORY_MAP = {
   towerHeightMax: 10,
   towerDepth: 7,
   towerColliderRadius: 4.8,
-  pipeSegments: 16,
-  pipeRadius: 0.42,
-  pipeHeight: 0.18,
-  heatLaneCount: 8,
-  heatLaneWidth: 1.2,
-  heatLaneLength: 22,
+  // pipeSegments / pipeRadius / pipeHeight and heatLaneCount / heatLaneWidth /
+  // heatLaneLength were removed 2026-08-17 along with the geometry they fed.
+  // The energised cyan conduits and orange heat channels are now painted into
+  // the raster floor instead of stacked over it as flat unlit bands.
   colors: {
     floor: 0x202831,
     seam: 0x111820,
@@ -324,6 +322,27 @@ export const MEGAFACTORY_MAP = {
     /** Cyan inspection lanes: a few plate rows lit as walkway edging. */
     conduitLanes: 3,
   },
+  /** Map 2 foundry floor: AI-generated top-down texture (2026-08-17), tiled
+   *  via RepeatWrapping, with the procedural canvas above as the fallback.
+   *
+   *  It exists to fix a MEASURED contrast failure, not for decoration. The
+   *  procedural floor sits at ~39 mean luminance and the towers' charcoal at
+   *  ~31.5 — a ratio of about 1.10:1, so the perimeter structures were
+   *  effectively invisible against their own ground. Map 1's shipped raster
+   *  measures 64.7, and matching it takes the tower ratio to roughly 1.48:1.
+   *  Raising it much further would start eating the saturated cast and the
+   *  orange heat lanes, so 62-68 is a ceiling as much as a target. */
+  aiTextureUrl: 'assets/2d/ground-megafactory-floor-v14.png',
+  /** MEASURED from the first in-game capture, not copied from Map 1. At Map
+   *  1's 18 the plates rendered ~5.5 world units across (player ~60px wide at
+   *  1u, plate ~330px), more than double the ~2.8u this floor's own procedural
+   *  fallback targets as "readable at the ~1u scale of the bots" — big plates
+   *  make the arena feel small. 10 lands plates near 3u.
+   *
+   *  Map 1 uses a different number for the same apparent scale because its
+   *  sheet packs a different number of plates per tile; matching the constant
+   *  would NOT match the look. */
+  worldSizePerRepeat: 20,
 } as const;
 
 /** Map-1 tactical prop: shipping-container chokepoints. Each gate is a pair

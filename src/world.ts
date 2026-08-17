@@ -194,8 +194,10 @@ function createWorldMapController(scene: THREE.Scene): WorldMapController {
         root.remove(child);
         disposeObject(child);
       }
-      if (mapId === MAPS[1].id) return buildMegafactoryMap(root);
-      buildScrapyardGround(root, generation, () => generation === controllerGeneration());
+      if (mapId === MAPS[1].id) {
+        return buildMegafactoryMap(root, () => generation === controllerGeneration());
+      }
+      buildScrapyardGround(root, () => generation === controllerGeneration());
       return [];
     },
   };
@@ -250,7 +252,6 @@ export function clearProps(scene: THREE.Scene, meshes: THREE.Object3D[]): void {
 
 function buildScrapyardGround(
   scene: THREE.Object3D,
-  generation: number,
   isCurrent: () => boolean,
 ): void {
   // The ground is EXACTLY the playable area: where the floor ends, movement
@@ -268,18 +269,28 @@ function buildScrapyardGround(
 
   // AI-generated top-down factory floor loads async and swaps in over the
   // procedural placeholder; on failure the procedural texture simply stays.
-  void upgradeGroundTexture(ground, generation, isCurrent);
+  void upgradeGroundTexture(
+    ground,
+    isCurrent,
+    VISUAL.ground.aiTextureUrl,
+    VISUAL.ground.worldSizePerRepeat,
+  );
 }
 
+/** Swaps a raster top-down floor in over whichever procedural canvas the map
+ *  built, once it has decoded. Shared by both maps: the procedural floor is a
+ *  placeholder that must never be presented as the final art (§7b), and a map
+ *  without a raster URL simply keeps its canvas. */
 async function upgradeGroundTexture(
   ground: THREE.Mesh,
-  _generation: number,
   isCurrent: () => boolean,
+  url: string,
+  worldSizePerRepeat: number,
 ): Promise<void> {
   try {
-    const texture = await new THREE.TextureLoader().loadAsync(VISUAL.ground.aiTextureUrl);
-    // A Map 1 texture may resolve after Map 2 has already replaced its ground.
-    // Discard it instead of mutating a disposed material from the old map.
+    const texture = await new THREE.TextureLoader().loadAsync(url);
+    // A map's texture may resolve after the player has already crossed into
+    // the next sector. Discard it instead of mutating a disposed material.
     if (!isCurrent() || !ground.parent) {
       texture.dispose();
       return;
@@ -288,7 +299,7 @@ async function upgradeGroundTexture(
     texture.anisotropy = 4;
     texture.wrapS = THREE.RepeatWrapping;
     texture.wrapT = THREE.RepeatWrapping;
-    const repeats = (ARENA_HALF_SIZE * 2) / VISUAL.ground.worldSizePerRepeat;
+    const repeats = (ARENA_HALF_SIZE * 2) / worldSizePerRepeat;
     texture.repeat.set(repeats, repeats);
     const material = ground.material as THREE.MeshToonMaterial | THREE.MeshLambertMaterial;
     material.map?.dispose();
@@ -299,7 +310,7 @@ async function upgradeGroundTexture(
   }
 }
 
-function buildMegafactoryMap(root: THREE.Object3D): Obstacle[] {
+function buildMegafactoryMap(root: THREE.Object3D, isCurrent: () => boolean): Obstacle[] {
   const cfg = MEGAFACTORY_MAP;
   const size = ARENA_HALF_SIZE * 2;
   const ground = new THREE.Mesh(
@@ -308,6 +319,12 @@ function buildMegafactoryMap(root: THREE.Object3D): Obstacle[] {
   );
   ground.rotation.x = -Math.PI / 2;
   root.add(ground);
+
+  // Same async raster upgrade Map 1 gets. The procedural canvas stays as the
+  // honest fallback, and it is measurably darker than the raster (mean
+  // luminance ~39 against the raster's target 62-68), which is why the towers
+  // read as nearly invisible against it.
+  void upgradeGroundTexture(ground, isCurrent, cfg.aiTextureUrl, cfg.worldSizePerRepeat);
 
   const obstacles: Obstacle[] = [];
   const towerMaterial = litMaterial({ color: cfg.colors.charcoal });
@@ -336,38 +353,16 @@ function buildMegafactoryMap(root: THREE.Object3D): Obstacle[] {
     obstacles.push({ x, z, radius: cfg.towerColliderRadius, blocksFlyers: true });
   }
 
-  const pipeMaterial = new THREE.MeshBasicMaterial({ color: cfg.colors.cyan });
-  for (let index = 0; index < cfg.pipeSegments; index++) {
-    const angle = (index / cfg.pipeSegments) * Math.PI * 2;
-    const next = ((index + 1) / cfg.pipeSegments) * Math.PI * 2;
-    const ax = Math.cos(angle) * cfg.perimeterRadius;
-    const az = Math.sin(angle) * cfg.perimeterRadius;
-    const bx = Math.cos(next) * cfg.perimeterRadius;
-    const bz = Math.sin(next) * cfg.perimeterRadius;
-    const length = Math.hypot(bx - ax, bz - az);
-    const pipe = new THREE.Mesh(
-      new THREE.CylinderGeometry(cfg.pipeRadius, cfg.pipeRadius, length, 6),
-      pipeMaterial,
-    );
-    pipe.position.set((ax + bx) / 2, cfg.pipeHeight, (az + bz) / 2);
-    pipe.rotation.z = Math.PI / 2;
-    pipe.rotation.y = -Math.atan2(bz - az, bx - ax);
-    root.add(pipe);
-  }
-
-  const heatMaterial = new THREE.MeshBasicMaterial({ color: cfg.colors.heat });
-  for (let index = 0; index < cfg.heatLaneCount; index++) {
-    const angle = (index / cfg.heatLaneCount) * Math.PI * 2;
-    const lane = new THREE.Mesh(
-      new THREE.PlaneGeometry(cfg.heatLaneWidth, cfg.heatLaneLength),
-      heatMaterial,
-    );
-    const distance = cfg.openCenterRadius + cfg.heatLaneLength / 2;
-    lane.rotation.x = -Math.PI / 2;
-    lane.rotation.z = -angle;
-    lane.position.set(Math.cos(angle) * distance, 0.025, Math.sin(angle) * distance);
-    root.add(lane);
-  }
+  // The perimeter conduit ring and the eight radial heat lanes used to be drawn
+  // here as flat MeshBasicMaterial bands lying over the floor. Removed
+  // 2026-08-17 (user decision) now that the raster floor carries its own
+  // energised channels: two sets of glowing bands stacked on one surface read
+  // as duplicated language, and being unlit they never matched the toon
+  // quantisation every other surface gets.
+  //
+  // DIRECCION_ARTE's Map 2 contract still calls for "conductos cian encendidos
+  // y carriles termicos" — that language now lives in the floor texture rather
+  // than in geometry. The perimeter towers keep their cyan trim.
   return obstacles;
 }
 
