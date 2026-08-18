@@ -100,6 +100,7 @@ import {
   createRenderer,
   createScene,
   createCamera,
+  updateArenaWalls,
   updateCamera,
   placeRandomProps,
   clearProps,
@@ -902,6 +903,8 @@ export class Game {
       else this.update(dt);
     }
     updateCamera(this.camera, this.player.position);
+    // After the camera moves, not before: the fade depends on where it ended up.
+    updateArenaWalls(this.camera);
     if (VISUAL.screenShake.enabled && this.shakeAmp > 0.005) {
       this.camera.position.x += (Math.random() - 0.5) * 2 * this.shakeAmp;
       this.camera.position.z += (Math.random() - 0.5) * 2 * this.shakeAmp;

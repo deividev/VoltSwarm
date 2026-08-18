@@ -2,6 +2,19 @@
 // balancing passes never require touching system code.
 
 export const ARENA_HALF_SIZE = 90;
+/** How far INSIDE the floor's edge the arena wall stands (2026-08-17).
+ *
+ *  The wall rests ON the floor rather than on its rim, and the plane keeps
+ *  going behind it, so the edge of the world is never visible and what shows
+ *  through the faded near wall is more floor instead of empty sky.
+ *
+ *  Movement clamps use it too. That is the point: the visible barrier becomes
+ *  the real limit, which is the honest version of "where the floor ends,
+ *  movement ends" — an invisible stop short of a visible wall is the bug that
+ *  rule exists to prevent. Costs 2.2% of arena surface. */
+export const ARENA_WALL_INSET = 1;
+/** Movement limit for anything that walks: the wall's inner face. */
+export const PLAY_HALF_SIZE = ARENA_HALF_SIZE - ARENA_WALL_INSET;
 
 /** Developer instruments that must NEVER reach a paying player. `npm run package`
  *  refuses to build while any of these is true (tools/check-release-flags.mjs),
@@ -389,8 +402,12 @@ export const VISUAL = {
    *  horizon color. */
   sky: {
     enabled: true,
-    topColor: 0x0e1219,
-    horizonColor: 0x1c2a38,
+    /** Widened 2026-08-17. The old pair (0e1219 / 1c2a38) spanned 22 luma steps
+     *  and read almost flat — a dark wall rather than a sky. This spans 42, so
+     *  the gradient reads as depth. Fog takes the horizon colour, which is what
+     *  makes distance dissolve into the backdrop instead of ending at a line. */
+    topColor: 0x080a0f,
+    horizonColor: 0x24384a,
   },
   /** Vignette: soft corner darkening after bloom — centers the eye. */
   vignette: {
@@ -633,6 +650,26 @@ export const VISUAL = {
   groundMarkersOnTop: true,
   /** Draw order for the three ground layers above. */
   renderOrders: { scenery: 0, groundMarker: 1, character: 2 },
+  /** Arena wall occlusion fade. The camera trails the player by CAMERA.offsetZ
+   *  and is never clamped, so past z = PLAY_HALF_SIZE - offsetZ it sits OUTSIDE
+   *  the near wall and that wall stands between the lens and the player.
+   *
+   *  Only the side the camera has actually left fades — the other three stay
+   *  solid. A fading wall necessarily becomes transparent, and Three draws the
+   *  entire transparent queue after every opaque, so the faded side composites
+   *  OVER the player rather than behind. That is what an occlusion fade should
+   *  look like, and it is the same queue behaviour that bit the ground markers,
+   *  so it is deliberate here. */
+  arenaWallFade: {
+    /** Opacity while fully faded: low enough to read the player through it,
+     *  high enough that the wall itself never disappears. */
+    opacity: 0.32,
+    /** Camera distance INSIDE the wall plane at which fading begins. */
+    startInside: 7,
+    /** Camera distance OUTSIDE the plane at which the fade is complete. A band
+     *  rather than a switch: a hard cut at the threshold pops. */
+    fullOutside: 3,
+  },
   /*  cyan/white and unsegmented so it never collides with elite magenta or
    *  boss red ring language. */
   playerMarker: {

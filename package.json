@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.13.38-demo",
+  "version": "0.13.39-demo",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -81,7 +81,7 @@
     ]
   },
   "build": {
-    "buildVersion": "0.13.37.0",
+    "buildVersion": "0.13.39.0",
     "appId": "com.davidseco.voltswarm.demo",
     "productName": "Voltswarm Demo",
     "directories": {

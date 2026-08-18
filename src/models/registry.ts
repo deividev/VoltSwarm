@@ -145,6 +145,21 @@ export const ELECTRIC_CYAN = 0x2ee6de;
 export const AMBER = 0xffd24a;
 export const ORANGE = 0xff8c33;
 export const BONE = 0xe8e3d5;
+// Arena containment wall (2026-08-17). Its own five-tone family, spaced wide in
+// brightness because the toon material quantises to three steps and anything
+// closer collapses into one flat surface at play distance.
+//
+// The hazard band reuses BONE, never yellow — the container's decision from
+// 2026-07-06, and the reason is unchanged: yellow is the Voltling's body.
+export const WALL_RECESS = 0x14181e;
+export const WALL_PANEL = 0x2b333d;
+export const WALL_RAISED = 0x4a5666;
+export const WALL_BOLT = 0x8a9099;
+// The sheet measures 61.3 mean luminance, which is level with the floor it
+// encloses, so the shipped variant pulls the two dominant tones down and cools
+// them toward the Scrapyard's slate.
+export const WALL_M1_PANEL = 0x222932;
+export const WALL_M1_RAISED = 0x3a4552;
 export const VISOR_DARK = 0x1c2a38;
 export const SIGNAL_RED = 0xff4433;
 export const PURPLE = 0xb069ff;
@@ -920,6 +935,45 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
       [BARREL_DARK]: BARREL_WHITE_DARK,
     },
     previewScale: 1.6,
+  },
+  // Arena containment wall segment, repeated around the arena.
+  //
+  // Repetition is CORRECT here even though it is what sank an earlier stackable
+  // tower module: a tower must read tall and varied, a wall IS a repeating
+  // straight element. What stops it reading as one flat slab is the step in its
+  // TOP edge — a tall pilaster beside a lower panel — so the run alternates
+  // between bays you can see over and columns you cannot.
+  //
+  // Front-only with a thin depthFactor, the scaffold's recipe: a wall is a flat
+  // slab, needs no side sheet, and front-only extrusion cannot fill the notch
+  // above the panel with phantom voxels the way hull carving would.
+  //
+  // 36 columns x 1/9 = exactly 4.0 units wide and 8.0 tall. Height is measured:
+  // with the player at the arena edge the boundary sits ~31 units from the
+  // camera, and the frame's top edge is 26.6 degrees below horizontal, so this
+  // covers most of the void band and is clipped by the frame — which is what
+  // sells it as a structure too big to see the top of.
+  'arena-wall-scrapyard': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-arena-wall-front-v1.png',
+    targetWidth: 36,
+    voxelSize: 1 / 9,
+    bodyColor: WALL_PANEL,
+    palette: [WALL_RECESS, WALL_PANEL, WALL_RAISED, WALL_BOLT, BONE],
+    // Classify against the sheet's real tones, THEN recolour. Entering the
+    // darker values as palette members instead would make them lose to the
+    // originals they are meant to replace (the container teal->orange lesson).
+    recolorMap: {
+      [WALL_PANEL]: WALL_M1_PANEL,
+      [WALL_RAISED]: WALL_M1_RAISED,
+    },
+    frontOnly: [],
+    // Only the inner face is ever seen — the player cannot leave the arena — so
+    // the back is mirrored rather than painted from a sheet.
+    depthFactor: 0.26,
+    mirrorBack: true,
+    raisedTopFraction: 0,
+    previewScale: 0.6,
   },
   // The Scrapper merchant — front-only voxelization (Camino A, 2026-07-09):
   // a stationary NPC that faces the player, so the back is never the hero

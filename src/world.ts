@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   ARENA_HALF_SIZE,
+  PLAY_HALF_SIZE,
   BARREL_PROP,
   CAMERA,
   CONTAINER_PROP,
@@ -140,6 +142,107 @@ export function hasLineOfSight(
   );
 }
 
+/** One faded-when-occluding side of the arena wall. */
+interface ArenaWallSide {
+  readonly mesh: THREE.Mesh;
+  readonly material: THREE.Material & { opacity: number; transparent: boolean; depthWrite: boolean };
+  /** Outward normal of this side, used to test which side the camera has left. */
+  readonly nx: number;
+  readonly nz: number;
+}
+
+let arenaWallSides: ArenaWallSide[] = [];
+
+/** Encloses the arena with a repeated wall segment: FOUR meshes, one per side.
+ *
+ *  WHY A WALL: with the player near the boundary the floor ended in a hard cut
+ *  and the top ~23% of the frame was empty void. That band is the only place any
+ *  backdrop is ever visible — the camera looks down 51.6 degrees with a
+ *  50-degree vertical FOV, so the ray through the top of the frame meets the
+ *  ground just 48 units out and the true horizon sits 26.6 degrees ABOVE the
+ *  frame. Distant scenery cannot help: a ring of towers moved out to radius 130
+ *  rendered nothing at all from the edge.
+ *
+ *  Per side rather than one merged mesh so `updateArenaWalls` can fade only the
+ *  side the camera has actually left. Four draw calls instead of one, which is
+ *  the price of not fading the whole enclosure at once.
+ *
+ *  NO COLLIDERS. Movement is already clamped to PLAY_HALF_SIZE, and a second
+ *  constraint in the same place could only ever disagree with it. */
+async function buildArenaWall(root: THREE.Object3D, modelKey: string): Promise<void> {
+  const def = VOXEL_MODELS[modelKey];
+  if (!def) return;
+  try {
+    const grid = await buildModelGrid(modelKey);
+    arenaWallSides = [];
+    const segment = buildGridGeometry(grid, def.voxelSize);
+    // buildGridGeometry centres the piece on Z, so untouched the wall straddles
+    // the boundary and its inner half intrudes into the playable area. Seat the
+    // face the player sees exactly on the limit.
+    segment.computeBoundingBox();
+    const innerFace = segment.boundingBox?.max.z ?? 0;
+    segment.translate(0, 0, -innerFace);
+    const width = grid[0]?.[0]?.length ?? 0;
+    const segmentWidth = width * def.voxelSize;
+    // Round the run UP and centre it: the inset side is not guaranteed to be a
+    // whole number of segments, and a short run would leave a gap at the
+    // corners. Overlap there is invisible — the runs meet at a right angle.
+    const perSide = Math.ceil((PLAY_HALF_SIZE * 2) / segmentWidth) + 1;
+    const runStart = -(perSide * segmentWidth) / 2;
+
+    for (let side = 0; side < 4; side++) {
+      const yaw = (side * Math.PI) / 2;
+      const parts: THREE.BufferGeometry[] = [];
+      for (let i = 0; i < perSide; i++) {
+        const offset = runStart + (i + 0.5) * segmentWidth;
+        const piece = segment.clone();
+        piece.rotateY(yaw);
+        // Before rotation the run lies along X at z = -PLAY_HALF_SIZE.
+        const x = Math.cos(yaw) * offset + Math.sin(yaw) * -PLAY_HALF_SIZE;
+        const z = -Math.sin(yaw) * offset + Math.cos(yaw) * -PLAY_HALF_SIZE;
+        piece.translate(x, 0, z);
+        parts.push(piece);
+      }
+      const merged = mergeGeometries(parts);
+      for (const part of parts) part.dispose();
+      if (!merged) continue;
+      // A material per side: sharing one would fade all four together.
+      const material = litMaterial({ vertexColors: true }) as ArenaWallSide['material'];
+      const mesh = new THREE.Mesh(merged, material);
+      root.add(mesh);
+      arenaWallSides.push({ mesh, material, nx: -Math.sin(yaw), nz: -Math.cos(yaw) });
+    }
+    segment.dispose();
+  } catch (error) {
+    console.warn(`Arena wall '${modelKey}' unavailable:`, error);
+  }
+}
+
+/** Fades whichever wall side the camera has stepped outside of, so it stops
+ *  hiding the player without the enclosure vanishing. Call once per frame after
+ *  the camera has been positioned. */
+export function updateArenaWalls(camera: THREE.PerspectiveCamera): void {
+  const { opacity, startInside, fullOutside } = VISUAL.arenaWallFade;
+  for (const side of arenaWallSides) {
+    // Positive = camera still inside this side's plane.
+    const inside =
+      PLAY_HALF_SIZE - (camera.position.x * side.nx + camera.position.z * side.nz);
+    const t = THREE.MathUtils.clamp((startInside - inside) / (startInside + fullOutside), 0, 1);
+    const value = THREE.MathUtils.lerp(1, opacity, t);
+    side.material.opacity = value;
+    const wantsTransparent = value < 1;
+    if (side.material.transparent !== wantsTransparent) {
+      // Flipping `transparent` swaps the material's compiled program and Three
+      // will not notice on its own. Without this the flag and the opacity both
+      // change and the wall keeps rendering with the opaque shader — which is
+      // how the first version of this fade did nothing at all.
+      side.material.transparent = wantsTransparent;
+      side.material.depthWrite = !wantsTransparent;
+      side.material.needsUpdate = true;
+    }
+  }
+}
+
 export function createScene(): {
   scene: THREE.Scene;
   obstacles: Obstacle[];
@@ -161,6 +264,7 @@ export function createScene(): {
   scene.add(sun);
 
   buildGround(scene);
+  void buildArenaWall(scene, 'arena-wall-scrapyard');
   // Nothing to avoid yet at construction time — the boss totem doesn't exist
   // until the first startRun(). Real per-run regeneration (avoiding the
   // totem) happens via placeRandomProps(), called again from game.ts.
