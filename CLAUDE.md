@@ -190,10 +190,19 @@ futuro**:
 presente en pantalla y compitiendo con el Sparkrunner — el mismo motivo por el
 que las torres pasaron de cian a blanco.
 
-**Bloquea el empaquetado:** `DEV_TOOLS.mapTransitionKey: true` (anterior a esta
-sesión) y 21 PNG huérfanos de iteraciones descartadas en `public/assets/2d/`
-(`prop-foundry-tower-*` y `prop-foundry-stack-*-v1/v2`), que el guardían de
-payload del asar rechaza como arte sin usar.
+**Empaquetado DESBLOQUEADO 2026-08-17 (0.13.57).** `pnpm package` vuelve a
+producir instalador NSIS y portable: `asar payload OK - 221 files, 56.9 MB`.
+
+- `DEV_TOOLS.mapTransitionKey` apagado.
+- Las hojas huérfanas **no se borran, se excluyen**. `package.json build.files`
+  ya usaba ese patrón (11 exclusiones `!dist/assets/2d/...`, todas hojas con cero
+  referencias en el registry), y ahora lleva 6 más: un glob
+  `prop-foundry-tower-*.png` para las 17 del experimento del módulo apilable,
+  las 4 del `stack` v1/v2 EXPLÍCITAS — un glob `prop-foundry-stack-*` se llevaría
+  por delante las tres que el modelo carga en runtime — y `prop-canister-front-v1`
+  (868K, de la sesión anterior, que el guardián cazó de paso).
+- Las iteraciones descartadas siguen en `public/assets/2d/` como historial. Es
+  deliberado: el guardián solo exige que no VIAJEN, no que desaparezcan.
 
 ### Cambios del 2026-08-06 (0.13.6 → 0.13.13)
 
