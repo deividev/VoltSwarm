@@ -2,6 +2,22 @@
 // balancing passes never require touching system code.
 
 export const ARENA_HALF_SIZE = 90;
+/** How far INSIDE the floor's edge the arena wall stands (2026-08-17).
+ *
+ *  The wall used to sit exactly on the floor boundary, so its base and the
+ *  floor plane's own edge were the same line. Set back, the wall rests ON the
+ *  floor and the plane keeps going behind it — the edge of the world is never
+ *  visible, and when the near wall fades what shows through is more floor
+ *  instead of empty sky.
+ *
+ *  Movement clamps use it too. That is the point: the visible barrier becomes
+ *  the real limit, which is the honest version of "where the floor ends,
+ *  movement ends" — an invisible stop short of a visible wall is the bug that
+ *  rule exists to prevent. Costs 1 unit of play area per side: enough for the wall to stand ON the
+ *  floor rather than on its edge, which is all the overlap needs to be. */
+export const ARENA_WALL_INSET = 1;
+/** Movement limit for anything that walks: the wall's inner face. */
+export const PLAY_HALF_SIZE = ARENA_HALF_SIZE - ARENA_WALL_INSET;
 
 /** Developer instruments that must NEVER reach a paying player. `npm run package`
  *  refuses to build while any of these is true (tools/check-release-flags.mjs),
@@ -79,7 +95,7 @@ export const DEV_TOOLS: {
    *  feel otherwise costs a full ten-minute map plus a boss kill. The arc state
    *  advances through run-flow's own enterMap, so the shortcut cannot drift from
    *  the real crossing. check-release-flags.mjs fails the build while this is true. */
-  mapTransitionKey: false,
+  mapTransitionKey: true,
   /** K mid-run: apply a guaranteed lethal hit through the REAL damage funnel.
    *  The defeat beat is otherwise only reachable by dying for real, which makes
    *  measuring its phases, audio and freeze rules a matter of luck. It goes
@@ -217,6 +233,13 @@ export const MAPS = [
     durationS: DEV_TOOLS.shortMaps ? SHORT_RUN_DURATION_S : 10 * 60,
     /** Map 1 owns the full opening difficulty ramp. */
     difficultyOffsetS: 0,
+    /** Cold dead-factory dusk. Deeper at the top and a touch brighter at the
+     *  horizon than the single global sky it replaces (top 0e1219 / horizon
+     *  1c2a38), which read almost flat: the old pair spanned 22 luma steps, this
+     *  one spans 42, so the gradient reads as sky instead of as a dark wall.
+     *  The fog takes the horizon colour, which is what makes distance dissolve
+     *  into the backdrop instead of ending at a visible line. */
+    sky: { topColor: 0x080a0f, horizonColor: 0x24384a },
   },
   {
     id: 'megafactory',
@@ -228,6 +251,16 @@ export const MAPS = [
      *  to the 8-minute difficulty cap — a higher base than Map 1's minute-zero
      *  start, so Map 2 is not a clone. Tune with the map-segmented `npm run stats`. */
     difficultyOffsetS: 240,
+    /** Ember dusk over a working foundry. Luminance is deliberately matched to
+     *  Map 1's horizon (41 against 39.5) so neither map is brighter than the
+     *  other — only WARMER, the same temperature-not-brightness move the tower
+     *  recolours use. Unlike a small prop, the sky is a huge unlit area that
+     *  never passes through the toon quantiser, so hue survives fully here.
+     *
+     *  Kept dark and desaturated on purpose: amber and gold are the player's
+     *  accent, the coins and the chests, so a bright warm sky would put the
+     *  loot language across the whole backdrop. */
+    sky: { topColor: 0x0f0c0e, horizonColor: 0x3a2418 },
   },
 ] as const;
 
@@ -662,8 +695,16 @@ export const VISUAL = {
    *  horizon color. */
   sky: {
     enabled: true,
+    /** Fallback for a map that declares no `sky` of its own; every map in MAPS
+     *  currently does. Kept as the historical global pair. */
     topColor: 0x0e1219,
     horizonColor: 0x1c2a38,
+    /** Fog distances stay SHARED across maps and are not part of the per-map
+     *  palette. They decide how far a player can see the swarm coming, which
+     *  makes them a gameplay number, not a mood one — only the colour changes
+     *  per map. */
+    fogNear: 55,
+    fogFar: 95,
   },
   /** Vignette: soft corner darkening after bloom — centers the eye. */
   vignette: {
@@ -906,6 +947,29 @@ export const VISUAL = {
   groundMarkersOnTop: true,
   /** Draw order for the three ground layers above. */
   renderOrders: { scenery: 0, groundMarker: 1, character: 2 },
+  /** Arena wall occlusion fade. The camera trails the player by CAMERA.offsetZ
+   *  and is never clamped, so past z = ARENA_HALF_SIZE - offsetZ it sits OUTSIDE
+   *  the near wall and that wall stands between the lens and the player.
+   *
+   *  Only the side the camera has actually left fades — the other three stay
+   *  solid. An earlier attempt made every side a non-occluding backdrop, and the
+   *  side walls then had the floor drawing through them, which read as broken.
+   *
+   *  A fading wall necessarily becomes transparent, and Three draws the entire
+   *  transparent queue after every opaque, so the faded side composites OVER the
+   *  player rather than behind. That is exactly what an occlusion fade should
+   *  look like — the player reads through a tinted pane — but it is the same
+   *  queue behaviour that bit the ground markers, so it is deliberate here. */
+  arenaWallFade: {
+    /** Opacity while fully faded. Low enough to read the player through it,
+     *  high enough that the wall itself never disappears. */
+    opacity: 0.32,
+    /** Camera distance INSIDE the wall plane at which fading begins. */
+    startInside: 7,
+    /** Camera distance OUTSIDE the plane at which the fade is complete. A band
+     *  rather than a switch: a hard cut at the threshold pops. */
+    fullOutside: 3,
+  },
   /*  cyan/white and unsegmented so it never collides with elite magenta or
    *  boss red ring language. */
   playerMarker: {

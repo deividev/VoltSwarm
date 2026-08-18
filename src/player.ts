@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { ARENA_HALF_SIZE, BARRIER_CELL, DEFEAT_TRANSITION, PLAYER, STATUS, VISUAL } from './config';
+import { PLAY_HALF_SIZE, BARRIER_CELL, DEFEAT_TRANSITION, PLAYER, STATUS, VISUAL } from './config';
 import type { PlayerInput } from './input';
 import type { Obstacle } from './world';
 import { buildGridGeometry } from './models/voxel-builder';
@@ -306,7 +306,9 @@ export class Player {
         this.kbZ = 0;
       }
     }
-    const arenaLimit = ARENA_HALF_SIZE - PLAYER.radius;
+    // The WALL is the limit, not the floor edge: it stands ARENA_WALL_INSET
+    // inside, and stopping short of a visible barrier is what reads as a bug.
+    const arenaLimit = PLAY_HALF_SIZE - PLAYER.radius;
     this.position.x = THREE.MathUtils.clamp(this.position.x, -arenaLimit, arenaLimit);
     this.position.z = THREE.MathUtils.clamp(this.position.z, -arenaLimit, arenaLimit);
 

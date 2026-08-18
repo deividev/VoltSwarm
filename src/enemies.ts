@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
-  ARENA_HALF_SIZE,
+  PLAY_HALF_SIZE,
   BOSS,
   BOSS_LAB,
   ELITES,
@@ -442,7 +442,7 @@ export class EnemySystem {
 
       // Arena bounds apply to ALL movement, not just knockback — rollers
       // overshoot and gunners retreat, and both can otherwise walk off the floor.
-      const arenaLimit = ARENA_HALF_SIZE - e.radius;
+      const arenaLimit = PLAY_HALF_SIZE - e.radius;
       e.x = THREE.MathUtils.clamp(e.x, -arenaLimit, arenaLimit);
       e.z = THREE.MathUtils.clamp(e.z, -arenaLimit, arenaLimit);
 
@@ -774,7 +774,7 @@ export class EnemySystem {
           tangentZ = normalX * side * redirected;
         }
 
-        const arenaLimit = ARENA_HALF_SIZE - e.radius;
+        const arenaLimit = PLAY_HALF_SIZE - e.radius;
         let nextX = THREE.MathUtils.clamp(
           boss.x + normalX * contactRadius + tangentX,
           -arenaLimit,
@@ -825,7 +825,7 @@ export class EnemySystem {
           e.z = o.z + dz * minDist;
         }
       }
-      const arenaLimit = ARENA_HALF_SIZE - e.radius;
+      const arenaLimit = PLAY_HALF_SIZE - e.radius;
       e.x = THREE.MathUtils.clamp(e.x, -arenaLimit, arenaLimit);
       e.z = THREE.MathUtils.clamp(e.z, -arenaLimit, arenaLimit);
     }

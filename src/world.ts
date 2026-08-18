@@ -1,6 +1,8 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import {
   ARENA_HALF_SIZE,
+  PLAY_HALF_SIZE,
   BARREL_PROP,
   CAMERA,
   CONTAINER_PROP,
@@ -151,13 +153,11 @@ export function createScene(): {
   maps: WorldMapController;
 } {
   const scene = new THREE.Scene();
-  if (VISUAL.sky.enabled) {
-    scene.background = createSkyTexture();
-    scene.fog = new THREE.Fog(VISUAL.sky.horizonColor, 55, 95);
-  } else {
-    scene.background = new THREE.Color(0x151a22);
-    scene.fog = new THREE.Fog(0x151a22, 55, 95);
-  }
+  // Sky and fog belong to the MAP, not to the scene: applySky runs from
+  // setMap so crossing a sector changes the backdrop too. Before this, both
+  // were built once here and the Swarm Foundry was played under the
+  // Scrapyard's sky — the horizon is a large share of the frame, so it was the
+  // single biggest thing still saying "same place" after the transition.
 
   const hemi = new THREE.HemisphereLight(0xcfe0ec, 0x3c4048, 1.25);
   scene.add(hemi);
@@ -191,6 +191,7 @@ function createWorldMapController(scene: THREE.Scene): WorldMapController {
     setMap(mapId: string): Obstacle[] {
       generation++;
       activeMapId = mapId;
+      applySky(scene, mapId);
       for (const child of [...root.children]) {
         root.remove(child);
         disposeObject(child);
@@ -286,6 +287,7 @@ function buildScrapyardGround(
     VISUAL.ground.aiTextureUrl,
     VISUAL.ground.worldSizePerRepeat,
   );
+  void buildArenaWall(scene, 'arena-wall-scrapyard', isCurrent);
 }
 
 /** Swaps a raster top-down floor in over whichever procedural canvas the map
@@ -336,6 +338,7 @@ function buildMegafactoryMap(root: THREE.Object3D, isCurrent: () => boolean): Ob
   // luminance ~39 against the raster's target 62-68), which is why the towers
   // read as nearly invisible against it.
   void upgradeGroundTexture(ground, isCurrent, cfg.aiTextureUrl, cfg.worldSizePerRepeat);
+  void buildArenaWall(root, 'arena-wall-foundry', isCurrent);
 
   const obstacles: Obstacle[] = [];
   // Primitive placeholder first, voxel stack swapped in async — the same
@@ -562,14 +565,38 @@ function disposeObject(object: THREE.Object3D): void {
 
 /** Screen-space vertical gradient used as the scene background: night navy
  *  above fading to the fog's horizon color below. */
-function createSkyTexture(): THREE.CanvasTexture {
+/** Points the scene's backdrop and fog at one map's palette.
+ *
+ *  The fog colour always equals the sky's HORIZON colour. That is what makes
+ *  distance dissolve into the backdrop rather than ending at a visible line
+ *  where the ground stops, and it is why the two cannot be tuned separately.
+ *  Fog distances stay shared across maps — they govern how far a player sees
+ *  the swarm coming, which is a gameplay number rather than a mood one. */
+function applySky(scene: THREE.Scene, mapId: string): void {
+  const map = MAPS.find((m) => m.id === mapId);
+  const { fogNear, fogFar } = VISUAL.sky;
+  // Backgrounds built here are owned here: a CanvasTexture left behind on every
+  // crossing is a leak that only shows up over a long session.
+  if (scene.background instanceof THREE.Texture) scene.background.dispose();
+  if (!VISUAL.sky.enabled) {
+    scene.background = new THREE.Color(0x151a22);
+    scene.fog = new THREE.Fog(0x151a22, fogNear, fogFar);
+    return;
+  }
+  const topColor = map?.sky?.topColor ?? VISUAL.sky.topColor;
+  const horizonColor = map?.sky?.horizonColor ?? VISUAL.sky.horizonColor;
+  scene.background = createSkyTexture(topColor, horizonColor);
+  scene.fog = new THREE.Fog(horizonColor, fogNear, fogFar);
+}
+
+function createSkyTexture(topColor: number, horizonColor: number): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 2;
   canvas.height = 512;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D canvas context unavailable');
-  const top = `#${VISUAL.sky.topColor.toString(16).padStart(6, '0')}`;
-  const horizon = `#${VISUAL.sky.horizonColor.toString(16).padStart(6, '0')}`;
+  const top = `#${topColor.toString(16).padStart(6, '0')}`;
+  const horizon = `#${horizonColor.toString(16).padStart(6, '0')}`;
   const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
   gradient.addColorStop(0, top);
   gradient.addColorStop(1, horizon);
@@ -854,6 +881,126 @@ async function upgradeVariantModels(
     }),
   );
   placeholderMaterial.dispose();
+}
+
+/** One faded-when-occluding side of the arena wall. */
+interface ArenaWallSide {
+  readonly mesh: THREE.Mesh;
+  readonly material: THREE.Material & { opacity: number; transparent: boolean; depthWrite: boolean };
+  /** Outward normal of this side, used to test which side the camera has left. */
+  readonly nx: number;
+  readonly nz: number;
+}
+
+let arenaWallSides: ArenaWallSide[] = [];
+
+/** Encloses the arena with a repeated wall segment: FOUR meshes, one per side,
+ *  each merged from its own run of segments.
+ *
+ *  WHY A WALL: with the player near the boundary the floor ends in a hard cut
+ *  and the top ~23% of the frame is empty void. That band is the only place any
+ *  backdrop is ever visible — the camera looks down 51.6 degrees with a
+ *  50-degree vertical FOV, so the ray through the top of the frame meets the
+ *  ground just 48 units out and the true horizon sits 26.6 degrees ABOVE the
+ *  frame. Distant scenery cannot help: a ring of towers moved out to radius 130
+ *  rendered nothing at all from the edge.
+ *
+ *  Per side rather than one merged mesh so `updateArenaWalls` can fade only the
+ *  side the camera has actually left. Four draw calls instead of one, which is
+ *  the price of not fading the whole enclosure at once.
+ *
+ *  NO COLLIDERS. Movement is already clamped to ARENA_HALF_SIZE, and a second
+ *  constraint in the same place could only ever disagree with it. */
+async function buildArenaWall(
+  root: THREE.Object3D,
+  modelKey: string,
+  isCurrent: () => boolean,
+): Promise<void> {
+  const def = VOXEL_MODELS[modelKey];
+  if (!def) return;
+  try {
+    const grid = await buildModelGrid(modelKey);
+    if (!isCurrent()) return;
+    arenaWallSides = [];
+    const segment = buildGridGeometry(grid, def.voxelSize);
+    // buildGridGeometry centres the piece on Z, so untouched the wall straddles
+    // the boundary and its inner half intrudes into the playable area — far
+    // enough that the camera ends up inside the mesh along the side walls.
+    // Seat the face the player sees exactly on the limit.
+    segment.computeBoundingBox();
+    const innerFace = segment.boundingBox?.max.z ?? 0;
+    segment.translate(0, 0, -innerFace);
+    const width = grid[0]?.[0]?.length ?? 0;
+    const segmentWidth = width * def.voxelSize;
+    // Round the run UP and centre it: the inset side is not guaranteed to be a
+    // whole number of segments, and a short run would leave a gap at the
+    // corners. Overlap there is invisible — the two runs meet at a right angle.
+    const perSide = Math.ceil((PLAY_HALF_SIZE * 2) / segmentWidth) + 1;
+    const runStart = -(perSide * segmentWidth) / 2;
+
+    for (let side = 0; side < 4; side++) {
+      const yaw = (side * Math.PI) / 2;
+      const parts: THREE.BufferGeometry[] = [];
+      for (let i = 0; i < perSide; i++) {
+        const offset = runStart + (i + 0.5) * segmentWidth;
+        const piece = segment.clone();
+        piece.rotateY(yaw);
+        // Before rotation the run lies along X at z = -ARENA_HALF_SIZE.
+        const x = Math.cos(yaw) * offset + Math.sin(yaw) * -PLAY_HALF_SIZE;
+        const z = -Math.sin(yaw) * offset + Math.cos(yaw) * -PLAY_HALF_SIZE;
+        piece.translate(x, 0, z);
+        parts.push(piece);
+      }
+      const merged = mergeGeometries(parts);
+      for (const part of parts) part.dispose();
+      if (!merged) continue;
+      // A material per side: sharing one would fade all four together.
+      const material = litMaterial({ vertexColors: true }) as ArenaWallSide['material'];
+      const mesh = new THREE.Mesh(merged, material);
+      root.add(mesh);
+      arenaWallSides.push({
+        mesh,
+        material,
+        nx: -Math.sin(yaw),
+        nz: -Math.cos(yaw),
+      });
+    }
+    segment.dispose();
+  } catch (error) {
+    console.warn(`Arena wall '${modelKey}' unavailable:`, error);
+  }
+}
+
+/** Fades whichever wall side the camera has stepped outside of, so it stops
+ *  hiding the player without the enclosure vanishing. Call once per frame after
+ *  the camera has been positioned. */
+export function updateArenaWalls(camera: THREE.PerspectiveCamera): void {
+  const { opacity, startInside, fullOutside } = VISUAL.arenaWallFade;
+  for (const side of arenaWallSides) {
+    // Positive = camera still inside this side's plane.
+    const inside =
+      PLAY_HALF_SIZE - (camera.position.x * side.nx + camera.position.z * side.nz);
+    const t = THREE.MathUtils.clamp(
+      (startInside - inside) / (startInside + fullOutside),
+      0,
+      1,
+    );
+    const value = THREE.MathUtils.lerp(1, opacity, t);
+    side.material.opacity = value;
+    // Only pay for transparency while actually fading: a permanently
+    // transparent wall would sit in the transparent queue every frame and
+    // composite over the swarm for no reason.
+    const wantsTransparent = value < 1;
+    if (side.material.transparent !== wantsTransparent) {
+      // Flipping `transparent` swaps the material's compiled program, and Three
+      // will not notice on its own. Without this the flag changes, the opacity
+      // changes, and the wall keeps rendering with the opaque shader — which is
+      // exactly how the first version of this fade did nothing at all.
+      side.material.transparent = wantsTransparent;
+      side.material.depthWrite = !wantsTransparent;
+      side.material.needsUpdate = true;
+    }
+  }
 }
 
 /** Swaps the Map 2 perimeter placeholders for the voxel chimney.

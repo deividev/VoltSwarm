@@ -248,6 +248,24 @@ export const POWERCELL_BONE_FACE = 0xa8a294;
 export const POWERCELL_BONE_FLANK = 0x8b8678;
 export const POWERCELL_BONE_FLANK_DARK = 0x6e6a5e;
 export const POWERCELL_BONE_FRAME = 0x46433b;
+// Arena containment wall (2026-08-17). Its own five-tone family rather than a
+// borrowed one: the wall is the only prop that is pure background mass on BOTH
+// maps, so it needs tones that recolour cleanly in either direction.
+//
+// The hazard band reuses BONE, never yellow. That is the container's decision
+// from 2026-07-06 and the reason is unchanged: yellow is the Voltling's body.
+export const WALL_RECESS = 0x14181e;
+export const WALL_PANEL = 0x2b333d;
+export const WALL_RAISED = 0x4a5666;
+export const WALL_BOLT = 0x8a9099;
+// Per-map recolours. The sheet measures 61.3 mean luminance and the Map 2 floor
+// raster sits at ~62, so untouched the barrier would be exactly as bright as the
+// ground it encloses. Both variants pull the two dominant tones down; Map 1 also
+// cools them toward its slate floor, Map 2 warms them toward its ember sky.
+export const WALL_M1_PANEL = 0x222932;
+export const WALL_M1_RAISED = 0x3a4552;
+export const WALL_M2_PANEL = 0x262428;
+export const WALL_M2_RAISED = 0x423f44;
 // Foundry tower accents (2026-08-17, user direction). Applied as a recolorMap
 // over the classified grid, never by swapping the palette hexes: the quantizer
 // picks the nearest palette entry to the SHEET's real pixels, so a new hue
@@ -1317,6 +1335,78 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
     depthFactor: 0.48,
     raisedTopFraction: 0,
     previewScale: 0.5,
+  },
+  // Arena containment wall segment. Repeated 30 times per side to enclose the
+  // 180-unit arena, which is why 36 columns x 1/6 voxelSize is exactly 6.0 units
+  // wide and 12.0 tall — a segment that does not divide the side leaves a sliver.
+  //
+  // Repetition is CORRECT here, unlike the stackable tower module that failed
+  // for the same property. A tower must read tall and varied; a wall IS a
+  // repeating straight element. What stops it reading as one flat slab is the
+  // step in its TOP edge — a tall pilaster beside a lower panel — so that the
+  // run alternates between bays you can see over and columns you cannot.
+  //
+  // Height 12 is measured, not chosen. With the player at the arena edge the
+  // boundary sits 31 units from the camera, and a wall of height H tops out at
+  // atan((24 - H) / 31) below horizontal; the frame's top edge is 26.6 degrees.
+  // 12 lands at 21.2, so it covers the void band completely and is clipped by
+  // the frame, which is what sells it as a structure too big to see the top of.
+  //
+  // Front-only with a thin depthFactor, the scaffold's recipe: a wall is a flat
+  // slab and needs no side sheet, and front-only extrusion cannot fill the
+  // notch above the panel with phantom voxels the way hull carving would.
+  'arena-wall': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-arena-wall-front-v1.png',
+    targetWidth: 36,
+    voxelSize: 1 / 9,
+    bodyColor: WALL_PANEL,
+    palette: [WALL_RECESS, WALL_PANEL, WALL_RAISED, WALL_BOLT, BONE],
+    frontOnly: [],
+    // ~1.6 units thick on a 6.0-wide segment. Only the inner face is ever seen
+    // — the player cannot leave the arena — so the back is mirrored rather than
+    // painted from a sheet.
+    depthFactor: 0.26,
+    mirrorBack: true,
+    raisedTopFraction: 0,
+    previewScale: 0.6,
+  },
+  // Map 1 recolour: cooler and darker, toward the Scrapyard's slate floor.
+  'arena-wall-scrapyard': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-arena-wall-front-v1.png',
+    targetWidth: 36,
+    voxelSize: 1 / 9,
+    bodyColor: WALL_PANEL,
+    palette: [WALL_RECESS, WALL_PANEL, WALL_RAISED, WALL_BOLT, BONE],
+    recolorMap: {
+      [WALL_PANEL]: WALL_M1_PANEL,
+      [WALL_RAISED]: WALL_M1_RAISED,
+    },
+    frontOnly: [],
+    depthFactor: 0.26,
+    mirrorBack: true,
+    raisedTopFraction: 0,
+    previewScale: 0.6,
+  },
+  // Map 2 recolour: darker and warmed a touch, so the barrier belongs to the
+  // foundry's ember sky rather than to the Scrapyard's cold one.
+  'arena-wall-foundry': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-arena-wall-front-v1.png',
+    targetWidth: 36,
+    voxelSize: 1 / 9,
+    bodyColor: WALL_PANEL,
+    palette: [WALL_RECESS, WALL_PANEL, WALL_RAISED, WALL_BOLT, BONE],
+    recolorMap: {
+      [WALL_PANEL]: WALL_M2_PANEL,
+      [WALL_RAISED]: WALL_M2_RAISED,
+    },
+    frontOnly: [],
+    depthFactor: 0.26,
+    mirrorBack: true,
+    raisedTopFraction: 0,
+    previewScale: 0.6,
   },
   // The Scrapper merchant — front-only voxelization (Camino A, 2026-07-09):
   // a stationary NPC that faces the player, so the back is never the hero

@@ -39,6 +39,16 @@ const out = await page.evaluate(
     const d = ctx.getImageData(0, 0, w, h).data;
     // Hue/relationship tests, not hex equality: the render applies lighting and
     // toon quantisation, so the sheet's exact values never survive to the frame.
+    if (family === 'mean') {
+      let R = 0, G = 0, B = 0, n = 0;
+      for (let y = Math.max(0, box[1]); y <= Math.min(h - 1, box[3]); y++) {
+        for (let x = Math.max(0, box[0]); x <= Math.min(w - 1, box[2]); x++) {
+          const i = (y * w + x) * 4;
+          R += d[i]; G += d[i + 1]; B += d[i + 2]; n++;
+        }
+      }
+      return { mean: { R: R / n, G: G / n, B: B / n }, count: n };
+    }
     const match = (r, g, b) =>
       family === 'cyan'
         ? b > 110 && g > 90 && r < g * 0.6 && b > r * 1.8
@@ -66,7 +76,16 @@ const out = await page.evaluate(
 );
 await browser.close();
 
-if (!out.count) {
+if (out.mean) {
+  const { R, G, B } = out.mean;
+  const luma = 0.299 * R + 0.587 * G + 0.114 * B;
+  console.log(
+    `${FILE} region ${x0},${y0}-${x1},${y1} (mean)
+` +
+      `  rgb(${R.toFixed(1)}, ${G.toFixed(1)}, ${B.toFixed(1)})   luma ${luma.toFixed(1)}` +
+      `   R-B ${(R - B).toFixed(1)}`,
+  );
+} else if (!out.count) {
   console.log(`${FILE}: no ${FAMILY} pixels in region`);
 } else {
   console.log(
