@@ -114,26 +114,29 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 
 ## Estado operativo actual (2026-08-18) — `codex/map-2` **0.14.0**
 
-> ## 🚨 DOS FLAGS DE DEV ENCENDIDAS — EL EMPAQUETADO ESTÁ BLOQUEADO
+> ## ℹ️ Flags de dev encendidas — normal en desarrollo
 >
 > `DEV_TOOLS.mapTransitionKey` y `DEV_TOOLS.difficultyReadout` están en `true`
-> **a propósito**, para poder iterar el balance del Mapa 2 sin jugar 10 minutos
-> por prueba. `check-release-flags.mjs` aborta `pnpm package` mientras sigan así,
-> que es exactamente su trabajo. Apagar ambas antes del congelado del build.
+> para poder iterar el balance del Mapa 2 sin jugar 10 minutos por prueba. Esto es
+> el estado NORMAL mientras se desarrolla, no una deuda: `check-release-flags.mjs`
+> ya bloquea `pnpm package`, que es exactamente su trabajo, y solo hay que
+> apagarlas antes del congelado del build.
 >
 > `DEV_TOOLS.shortMaps` está en **`false`**: las runs duran los 10 minutos reales.
 > (El aviso anterior decía lo contrario y llevaba caducado desde el 2026-08-17.)
 
-> ## ⚠️ EL BALANCE DEL MAPA 2 ESTÁ SIN VALIDAR POR UN HUMANO
+> ## ⚠️ Al balance del Mapa 2 le falta MUESTRA, no playtest
 >
-> La 0.14.0 cambia **seis** ejes de balance a la vez y **ninguno** tiene una run
-> humana detrás: curva de dificultad propia, reloj de roster, daño de contacto del
-> enjambre, daño de contacto de boss, cobertura nueva y separación de color de
-> props. Están medidos y con tests, no adivinados, pero medido ≠ jugado.
+> La 0.14.0 mueve seis ejes (curva propia, reloj de roster, daño de contacto de
+> enjambre y de boss, cobertura nueva, separación de color de props). Está medido,
+> con tests, y **jugado por el usuario** — varios de esos números salieron de su
+> playtest, no de una hoja de cálculo.
 >
-> **No apiles más cambios de balance encima sin una run COMPLETA grabada.** Una
-> run solo se registra si TERMINA (muerte o reloj agotado); salir al menú no
-> guarda nada. `pnpm stats` segmenta por mapa de fin, que es donde se ve.
+> Lo que NO hay es muestra registrada: ninguna run de 0.14.0 en
+> `run-history.json`, porque **una run solo se graba si TERMINA** (muerte o reloj
+> agotado); salir al menú no guarda nada. Hasta que existan varias, `pnpm stats`
+> —que segmenta por mapa de fin— no puede calibrar umbrales. La validación externa
+> (conocidos del usuario) llega después, cuando él esté conforme.
 >
 > Para leer el estado en vivo mientras jugás: el readout de la esquina
 > (`DEV_TOOLS.difficultyReadout`) muestra los tres relojes, la dificultad contra
@@ -156,6 +159,12 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 >
 > **Y revalida la rama al RETOMAR trabajo, no solo al empezar.** Esto ya costó un
 > commit en la rama equivocada el 2026-08-06: el árbol se movió entre turnos.
+>
+> **Portar a la Demo NO es automático (aclarado por el usuario 2026-08-18).** La
+> regla de "todo cambio de gameplay va a las dos ramas" cubre los **sistemas
+> compartidos**. El contenido del Mapa 2 y del arco completo —curvas por mapa,
+> props de fundición, balance de la fundición— **no va a la Demo**, que es solo
+> Scrapyard. Antes de ofrecer un port, preguntá: ¿la Demo tiene siquiera esto?
 
 ### Balance y presión del Mapa 2 — 0.14.0 (2026-08-18)
 

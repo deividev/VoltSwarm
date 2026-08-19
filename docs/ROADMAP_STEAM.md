@@ -166,8 +166,10 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
   test · puertas de contenedor como cobertura larga en la fundición · separación
   espacial de color entre props · readout de dificultad en vivo. El Mapa 1 queda
   **bit a bit idéntico** por decisión 0.2. Desglose en `docs/PRD.md` y
-  `docs/PLAN_MAPA2.md` §Workstream 4. **Siguiente paso: playtest humano con runs
-  COMPLETAS grabadas antes de tocar un número más.**
+  `docs/PLAN_MAPA2.md` §Workstream 4. Playtesteado por el usuario durante la
+  sesión —varios números salieron de ahí—; **lo que falta es muestra registrada**
+  (runs que TERMINEN) para que `pnpm stats` pueda calibrar. Validación externa con
+  conocidos, después. **Es contenido del juego completo: NO va a la rama Demo.**
 
 ### Bloque Mapa 2 + Hazard Marshal — primera versión jugable PROVISIONAL
 

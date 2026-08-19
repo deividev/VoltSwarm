@@ -723,8 +723,10 @@ Tres mecánicas se llegaron a construir y se apilaron sobre la misma pelea sin j
 ## Presión y balance del Mapa 2 — Implementado 2026-08-18 (v0.14.0)
 
 Cierra el Workstream 4 de `docs/PLAN_MAPA2.md`, donde vive el detalle completo con
-sus mediciones. **Ninguno de estos ejes tiene todavía una run humana detrás**: están
-medidos, cubiertos por tests y razonados, pero medido no es jugado.
+sus mediciones. Está medido, cubierto por tests y **jugado por el usuario en la
+propia sesión** — varios de los números salieron de ese playtest. Lo que falta es
+**muestra**: no hay runs de 0.14.0 en `run-history.json` (una run solo se graba si
+termina), así que `pnpm stats` todavía no tiene contra qué calibrar.
 
 ### Tres relojes en vez de uno
 

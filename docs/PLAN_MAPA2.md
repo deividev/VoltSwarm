@@ -108,10 +108,17 @@ Objetivo del usuario: que **no parezca otro juego**. Alinear props y ambiente co
 > "acorde a cómo ha mejorado el jugador". La auditoría encontró **dos** defectos
 > distintos, y la sesión acabó tocando seis ejes.
 >
-> **ESTADO: entregado y verificado (149 tests, `tsc`, `vite build`), PERO sin una
-> sola run humana detrás.** Medido no es jugado. Antes de tocar otro número hace
-> falta un playtest con runs que TERMINEN (una run solo se graba si muere o agota
-> el reloj) y una lectura de `pnpm stats` segmentada por mapa.
+> **ESTADO: entregado, verificado (149 tests, `tsc`, `vite build`) y jugado por el
+> usuario durante la propia sesión.** Buena parte de los números SALIÓ de ese
+> playtest: el suelo de dificultad bajó de 0.9 a 0.7 porque leyó la apertura como
+> "básicamente donde terminó el Mapa 1", el reloj de roster existe porque vio
+> entrar el elenco completo del final del Mapa 1, el daño de contacto subió porque
+> lo encontró flojo, y los dos arreglos de color de props son observaciones suyas.
+>
+> **Lo que falta no es playtest, es MUESTRA.** No hay ninguna run de 0.14.0 en
+> `run-history.json`, porque una run solo se graba si TERMINA (muerte o reloj
+> agotado). Sin eso `pnpm stats` no tiene contra qué calibrar. Validación externa
+> (conocidos del usuario) prevista para más adelante.
 >
 > Lo que quedó deliberadamente sin hacer, con su motivo: **4.5** (XP del Mapa 2 —
 > la evidencia apunta al revés), **4.7** (elenco propio del Mapa 2 — es el cuello
