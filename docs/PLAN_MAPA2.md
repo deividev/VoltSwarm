@@ -30,7 +30,7 @@ No son burocracia: cada una cambia qué se implementa. Marcar cuando el usuario 
   - **Fin sin cruce = pantalla de resultados/muerte estándar** (reusa `src/defeat-transition.ts` + la pantalla de resultados), con los datos de la run y una **indicación clara de que no se completó el objetivo pedido** (p. ej. "Objetivo no completado: falta derrotar al boss"). Política de reintento del arco = 0.4.
   - Matar el boss antes de 10:00 **no acorta** el Mapa 1: se sigue jugando hasta el corte; el cruce solo se habilita al cumplir ambas condiciones.
 
-- [x] **0.8 Estructura del clímax del Mapa 2 — CERRADA 2026-08-15.** El Hazard Marshal es el **jefe final fijo** del arco: entra **al terminar las oleadas del Mapa 2 (su minuto 10)**, no por portal opcional como el gate del Mapa 1. La curva propia del Mapa 2 (0.2) alcanza su pico justo al entrar el boss, dando un handoff limpio de tensión. A resolver en el moveset (3.B): si durante la pelea siguen entrando oleadas normales o **solo** los refuerzos que genera la Fase 2.
+- [x] **0.8 Estructura del clímax del Mapa 2 — CERRADA 2026-08-15.** El Hazard Marshal es el **jefe final fijo** del arco: entra **al terminar las oleadas del Mapa 2 (su minuto 10)**, no por portal opcional como el gate del Mapa 1. La curva propia del Mapa 2 (0.2) alcanza su pico justo al entrar el boss, dando un handoff limpio de tensión. **Resuelto 2026-08-19 (decisión del usuario): durante la pelea NO entran oleadas normales — solo los refuerzos de la Fase 2.** Además el sector se reinicia como arena al agotarse el reloj: campo limpio, jugador al centro y props con el centro vacío. Sin la pausa del spawner ese reinicio duraría veinte segundos, porque en el pico la fundición rellena hacia ~437 cuerpos.
 
 **Instrumentación irrecuperable — hay que meterla ANTES de la primera run del Mapa 2:**
 - [x] **0.6 Campo `map` en el registro de muerte — HECHO 2026-08-15.** Al revisarlo, la mitad ya existía en esta rama: `RunSnapshot.map` (`{id,number,title}`) + `mapsReached`, y `game.ts` graba `map: this.currentMap` (getter que deriva de `runFlow.mapIndex`), así que **la atribución de muerte por mapa ya era correcta** (una run que muere en el Mapa 2 graba `megafactory`). Lo que faltaba y se añadió: **`npm run stats` (`tools/run-stats.mjs`) ahora segmenta por el mapa en el que terminó la run** — conteo, outcomes y distribuciones de duración/kills/nivel, con los registros sin `map` en un bucket aparte (nunca plegados al Mapa 1). Verificado contra datos reales: 89% de runs terminan en el Mapa 1, 11% ya alcanzan el Mapa 2 (1 arco completo).
@@ -441,18 +441,35 @@ palanca más brusca, reservada para el final.
 
 **El modelo YA está cerrado.** `src/models/registry.ts` clave `final-boss`: hojas medidas frontal/lateral/trasera (`tools/make-hazard-marshal-sheets.mjs`), cabeza vestida con paleta del logo vía `recolorRegions`, rig de piezas con clips `idle`/`walk`/`hit` (`docs/ANIMACION_RIG.md`). Lo que falta es **engancharlo al juego** y **diseñar el moveset** — sin moveset no hay animaciones de ataque que autorizar.
 
+> ## ✅ 3.A.1 y 3.B.1–3.B.4 ENTREGADOS 2026-08-19 (v0.15.0)
+>
+> Detalle completo en `docs/PRD.md` §"Hazard Marshal — llegada telegrafiada y
+> moveset de 3 fases". Titulares: el sector se **reabre como arena** al agotarse
+> el reloj (misma cortina que un cruce, campo limpio, jugador al centro, props
+> con el centro vacío en radio 28, sin acreditar sector) · llegada telegrafiada
+> 2,5 s con el lenguaje de un summon del Mapa 1 pero sin portal · colocación por
+> tres reglas medidas
+> (fuera de alcance 11–15 · caja del cuerpo dentro del cuadro por proyección
+> real · holgura de 3,5 sobre props) · tres fases acumulativas por vida
+> (barrido sectorial → líneas de ensamblaje → sobrecarga del núcleo) · una sola
+> telegrafía por frame · `PHASE n/3` en la barra del boss.
+>
+> Verificado por `tools/final-boss.test.mjs` (en `pnpm test`) y por
+> `pnpm test:finale-runtime`, que mide 5 llegadas en el Mapa 2 real dentro de
+> Electron. Siguen abiertos 3.B.5 (audio) y 3.B.6 (balance con datos humanos).
+
 ### 3.A Integración (sin diseño nuevo)
-- [ ] **3.A.1 Instanciar el Hazard Marshal como jefe final del Mapa 2**, **disparado al terminar las oleadas (minuto 10 del Mapa 2)** — no por portal — en `boss.ts` / `enemies.ts` (hoy el modelo existe pero no se invoca en juego).
+- [x] **3.A.1 Instanciar el Hazard Marshal como jefe final del Mapa 2**, **disparado al terminar las oleadas (minuto 10 del Mapa 2)** — no por portal — en `boss.ts` / `enemies.ts`. HECHO 2026-08-19: la llegada abre una telegrafía de 2,5 s en un punto elegido por distancia, encuadre y holgura, y el cuerpo se materializa por el MISMO camino que un summon de tótem (banner AWAKENS, erupción, anillo de choque y temblor compartidos).
 - [ ] **3.A.2 Feedback de daño = tinte + brillo, NO animación** (`ANIMACION_RIG.md` §8): recibe demasiados impactos/segundo para que un clip termine. El clip `hit` se reserva para eventos raros (cambio de fase, rotura de armadura, stagger).
 - [ ] **3.A.3 Lenguaje visual anti-confusión.** El boss es ámbar+carbón y los Voltling también; a tamaño de boss (medido 244×293 px vs 50×58 del jugador) + doble anillo rojo se distingue, pero **revisar en vivo contra el elenco del Mapa 2** (0.5).
 
 ### 3.B Moveset por fases (dirección inicial del usuario — a prototipar y medir)
 Un cambio a la vez; validar cada fase in-game antes de la siguiente. Números en `config.ts`.
 
-- [ ] **3.B.1 Fase 1 — Barridos energéticos por sectores.** Ataques que cubren sectores del suelo dividido. Necesita **arena abierta con suelo dividido visualmente** (2.4). Telegrafía de suelo: marcador que pasa por delante de la escenografía y por detrás del personaje — sacarlo de la cola transparente y hornear la opacidad en el color (regla de render mordida; capas `VISUAL.renderOrders`). Regla de dos mitades: se ve el origen y el destino.
-- [ ] **3.B.2 Fase 2 — Líneas de ensamblaje.** El boss activa cintas que **producen refuerzos desde el perímetro**. Necesita **bahías y corredores de entrada claramente visibles** (2.4). Refuerzos vía InstancedMesh del tipo de enemigo, spawn presupuestado para no romper el enjambre.
-- [ ] **3.B.3 Fase 3 — Sobrecarga del núcleo.** Activa **zonas peligrosas secuenciales**; el **suelo modular pasa a ser parte del combate**. Telegrafías de zona con la misma regla de cola de render que 3.B.1. Este es el pico de tensión del arco.
-- [ ] **3.B.4 Transiciones de fase** con el clip `hit`/stagger reservado (3.A.2), y umbrales de fase en `config.ts` (por vida, no hardcodeados).
+- [x] **3.B.1 Fase 1 — Barridos energéticos por sectores.** HECHO 2026-08-19 con telegrafía PROPIA en vez de esperar al suelo sectorizado de 2.4: cuña de 42°/20 unidades, 1,3 s de aviso, puntería fijada al empezar (una cuña que persigue es un impacto inevitable disfrazado de aviso). Cola opaca + opacidad horneada + `renderOrder` por malla. Dos mitades: el boss se planta (origen) y el suelo se enciende (destino).
+- [x] **3.B.2 Fase 2 — Líneas de ensamblaje.** HECHO 2026-08-19: bahías en el perímetro del lado en que se juega, avisadas 1,6 s **en la bahía**, 5 refuerzos por bahía con el multiplicador de vida de la oleada viva y techo de 320 cuerpos para no pelearse con el cap del spawner. Las cintas visibles siguen dependiendo de 2.4.
+- [x] **3.B.3 Fase 3 — Sobrecarga del núcleo.** HECHO 2026-08-19: cadena de 4 zonas que nacen EN el boss y erupcionan hacia fuera por la línea del jugador, una cada 0,45 s. Anclada al boss a propósito — la etapa C del Crusher se rechazó porque la zona nacía fuera del foco que otro evento acababa de capturar. El suelo modular de 2.4 sigue pendiente.
+- [x] **3.B.4 Transiciones de fase** HECHO 2026-08-19: umbrales por vida en `FINAL_BOSS.phaseThresholds` (66%/33%), stagger de 1,4 s + erupción + banner + temblor. El clip `hit` del rig sigue sin engancharse al runtime de combate (el enjambre usa la malla instanciada), así que el beat es VFX + aturdimiento.
 - [ ] **3.B.5 Audio del boss** (Fase 4b del roadmap): telegrafías, ataques y capa musical de boss; se audita como contenido nuevo, no reabre audio v1.
 - [ ] **3.B.6 Balance del encuentro** medido sobre build comparable; sin apuntado manual (guardarraíl #4), validado a 400+ con los refuerzos activos.
 

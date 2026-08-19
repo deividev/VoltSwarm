@@ -146,6 +146,20 @@ interface EnemyObstacle extends Obstacle {
 export class EnemySystem {
   readonly pool: Enemy[] = [];
   activeCount = 0;
+  /** HP multiplier the last spawned wave used (arc clock + difficulty).
+   *
+   *  Published because anything else that puts bodies on the field has to match
+   *  the wave it joins. The Hazard Marshal's assembly lines spawn directly
+   *  through spawnAt, whose default multiplier is 1 — at minute 20 that is a
+   *  fifth of what the surrounding swarm is wearing, so its reinforcements
+   *  would evaporate on contact and the phase would read as a nothing beat. */
+  waveHpMultiplier = 1;
+  /** While true the spawner issues no waves. The finale owns this: once the
+   *  Hazard Marshal is inbound the arena belongs to the boss and to the
+   *  reinforcements IT chooses to call (phase 2), which come through spawnAt
+   *  and are deliberately unaffected. Set from the run flow every frame, so it
+   *  cannot be left stuck on by a code path that forgot to clear it. */
+  wavesPaused = false;
 
   /** Reused across frames so the dynamic-obstacle pass allocates nothing. */
   private readonly dynamicObstacles: EnemyObstacle[] = [];
@@ -945,6 +959,9 @@ export class EnemySystem {
     playerZ: number,
     obstacles: Obstacle[],
   ): void {
+    // Checked before the timer, not after: a paused spawner that kept counting
+    // down would dump one full wave the instant it resumed.
+    if (this.wavesPaused) return;
     this.spawnTimer -= dt;
     if (this.spawnTimer > 0) return;
 
@@ -971,6 +988,7 @@ export class EnemySystem {
     );
     const hpMultiplier =
       (1 + (arcElapsedS / 60) * ENEMIES.hpRampPerMinute) * Math.max(1, difficulty);
+    this.waveHpMultiplier = hpMultiplier;
     this.spawnTimer = interval;
 
     for (let n = 0; n < waveSize; n++) {

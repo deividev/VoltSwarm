@@ -21,6 +21,7 @@ const GUARDED = [
   { block: 'DEV_TOOLS', key: 'startingMapSelector', why: 'the development starting-map selector would ship to players' },
   { block: 'DEV_TOOLS', key: 'simulateMap1Handoff', why: 'the Map 2 dev-start with a simulated Map 1 build would ship to players' },
   { block: 'DEV_TOOLS', key: 'mapTransitionKey', why: 'the T jump-to-transition hotkey would let players skip a whole map' },
+  { block: 'DEV_TOOLS', key: 'finaleKey', why: 'the Y jump-to-finale hotkey would let players skip straight to the final boss' },
   { block: 'DEV_TOOLS', key: 'fatalHitKey', why: 'the K instant-death hotkey would let players end a run on demand' },
   { block: 'DEV_TOOLS', key: 'shortMaps', why: 'the validation rig would ship four-minute maps instead of the real ten' },
   { block: 'DEV_TOOLS', key: 'difficultyReadout', why: 'the live difficulty debug readout would ship to players' },

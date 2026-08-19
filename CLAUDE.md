@@ -28,7 +28,8 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 | Trailer, vídeo o captura de marketing | `docs/TRAILER_V1_PLAN.md` (beat sheet, ventana de música medida, checklist de captura) → `docs/MARKETING_PLAN_LAUNCH_2026.md` (calendario de beats) | Se captura DEL build congelado, nunca antes · solo contenido de la variante que se publica · la intro de una cue se arregla recortando, el final NO · nada de Next Fest, fechas ni disponibilidad sin confirmación externa |
 | Multiplayer / co-op | `docs/MULTIPLAYER_FEASIBILITY.md` → `docs/ROADMAP_STEAM.md` | Es un gate GO/NO-GO, no una promesa pública; simulación determinista/observadores antes de modo jugable |
 | Bug visual / orden de dibujado | §"Reglas de render que ya mordieron" en este archivo | Transparente se dibuja SIEMPRE tras opaco · `renderOrder` no se hereda de un Group · medir el material en runtime, no juzgar por captura |
-| Pelea de boss / moveset de boss | `docs/PRD.md` §"Crusher King — banquillo y el principio del boss anclado" — empezar AHÍ, no por la sección de accesibilidad anterior | El enjambre persigue al JUGADOR: un boss quieto nunca se llena de chatarra y el hueco aparece solo · el King está FUERA de la rotación (`BOSS_TYPE_INDEXES`), solo Tesla, en las dos ramas · mover cuerpos con física se rechazó 2 veces y la zona que erupciona una 3ª, SIEMPRE por cómo se ve · hay trabajo construido en un `git stash`: mirarlo antes de reimplementar nada · nunca preguntar por `BOSS_TYPE_INDEXES[0]`, usar las constantes de identidad |
+| Pelea del BOSS FINAL (Hazard Marshal) | `docs/PRD.md` §"Hazard Marshal — llegada telegrafiada y moveset de 3 fases" → `src/final-boss.ts` | Fases por VIDA, nunca por reloj · una sola telegrafía por frame · el encuadre se mide proyectando la CAJA del cuerpo, no el punto del suelo · todo spawn nuevo usa `enemies.waveHpMultiplier` · verificar con `pnpm test:finale-runtime`, no con una captura |
+| Pelea de boss / moveset de boss (Mapa 1) | `docs/PRD.md` §"Crusher King — banquillo y el principio del boss anclado" — empezar AHÍ, no por la sección de accesibilidad anterior | El enjambre persigue al JUGADOR: un boss quieto nunca se llena de chatarra y el hueco aparece solo · el King está FUERA de la rotación (`BOSS_TYPE_INDEXES`), solo Tesla, en las dos ramas · mover cuerpos con física se rechazó 2 veces y la zona que erupciona una 3ª, SIEMPRE por cómo se ve · hay trabajo construido en un `git stash`: mirarlo antes de reimplementar nada · nunca preguntar por `BOSS_TYPE_INDEXES[0]`, usar las constantes de identidad |
 | Balance (números que se sienten mal) | `docs/ROADMAP_STEAM.md` (¿existe ya el instrumento de medición?) | Un cambio numérico por playtest — no varios a la vez |
 | "¿Qué nos falta?" / auditoría grande | `docs/COMPARATIVA_MEGABONK.md` + skill `judgment-day` | Dos jueces ciegos en paralelo, nunca un solo review |
 | "¿Qué toca ahora?" a nivel proyecto | `docs/ROADMAP_STEAM.md` — es LA fuente de verdad del orden | No reordenar de memoria sin actualizar el doc |
@@ -112,11 +113,56 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 
 ---
 
-## Estado operativo actual (2026-08-18) — `codex/map-2` **0.14.0**
+## Estado operativo actual (2026-08-19) — `codex/map-2` **0.15.0**
+
+### Hazard Marshal: llegada + 3 fases — ENTREGADO 2026-08-19 (0.15.0)
+
+Spec completa en `docs/PRD.md` §"Hazard Marshal — llegada telegrafiada y moveset
+de 3 fases". Lo que hay que saber sin abrir el doc, y las reglas que salieron:
+
+- **Al agotarse el reloj el sector se REABRE como arena**, detrás de la misma
+  cortina de fundido que un cruce: campo limpio, jugador al centro, props
+  vueltos a tirar con el **centro vacío** (radio 28) y curación a tope. No es un
+  cruce: no acredita sector ni cambia de mapa; el sector lo sigue cerrando la
+  muerte del boss.
+- **Una zona de exclusión en el centro NO vacía el centro.** Los gates se
+  colocan por su punto central y extienden contenedores a los lados: con un
+  círculo de 28 quedó uno a 26,6. El radio se aplica **por familia de prop,
+  inflado por el alcance de cada una** (`gateReach` en `world.ts`).
+- **La llegada usa el MISMO camino que un summon del Mapa 1** (banner AWAKENS,
+  erupción, anillo, temblor), solo que sin la puerta del portal y con un aviso
+  de 2,5 s sobre el punto de aterrizaje. No hay una segunda implementación del
+  beat que pueda divergir.
+- **"Se ve en pantalla" se comprueba proyectando la CAJA del cuerpo, no el punto
+  del suelo.** La cámara mira hacia abajo: un cuerpo de 9,87 unidades con los
+  pies dentro del cuadro pierde la cabeza por el borde. Y el alto salió de
+  MEDIR el modelo — la primera estimación (7) la cazó el chequeo de runtime.
+- **El anillo de llegada es 11–15 unidades**, no más: cuanto más lejos, menos
+  del cuerpo cabe. Entre los puntos válidos gana el mejor encuadrado, porque
+  arriba está el reloj y abajo la barra del boss.
+- **Una sola telegrafía por frame**, regla heredada del rechazo de la etapa C
+  del Crusher (cuatro eventos en un frame, zona nacida fuera del foco).
+- **Todo lo que ponga cuerpos en el campo debe usar `enemies.waveHpMultiplier`**
+  — `spawnAt` por defecto pone vida ×1, que en el minuto 20 es un quinto de lo
+  que lleva el enjambre alrededor.
+- **Durante el finale NO entran oleadas** (`enemies.wavesPaused`, derivado de
+  `runFlow.finaleStarted` cada frame). Sin eso el reinicio de arena duraría
+  veinte segundos. Los refuerzos de la Fase 2 sí entran: van por `spawnAt`.
+- Instrumentos: `pnpm test` incluye `tools/final-boss.test.mjs`;
+  `pnpm test:finale-runtime` mide 5 llegadas en el Mapa 2 real dentro de
+  Electron y deja frames en `tmp/finale-runtime-output/`. **Tecla Y**
+  (`DEV_TOOLS.finaleKey`): salta al finale desde cualquier punto del arco
+  conservando la build viva, igual que la T. En el último mapa la T hace lo
+  mismo; ambas comparten `windClockToFinale()`.
+- **Abierto:** balance del encuentro con runs humanas y audio propio del boss
+  (los ataques emiten `boss-attack`, que hoy no tiene asset y suena en silencio).
+
+## Estado histórico (2026-08-18) — `codex/map-2` **0.14.0**
 
 > ## ℹ️ Flags de dev encendidas — normal en desarrollo
 >
-> `DEV_TOOLS.mapTransitionKey` y `DEV_TOOLS.difficultyReadout` están en `true`
+> `DEV_TOOLS.mapTransitionKey`, `DEV_TOOLS.finaleKey` y
+> `DEV_TOOLS.difficultyReadout` están en `true`
 > para poder iterar el balance del Mapa 2 sin jugar 10 minutos por prueba. Esto es
 > el estado NORMAL mientras se desarrolla, no una deuda: `check-release-flags.mjs`
 > ya bloquea `pnpm package`, que es exactamente su trabajo, y solo hay que

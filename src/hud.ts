@@ -439,6 +439,7 @@ export class Hud {
         </div>
         <div id="boss-bar" class="hidden">
           <div id="boss-title"><img id="boss-portrait" alt="" /><div id="boss-name"></div></div>
+          <div id="boss-phase" class="hidden"></div>
           <div id="boss-bar-track"><div id="boss-bar-fill"></div><span id="boss-hp-text"></span></div>
         </div>
         <div id="summon-prompt" class="hidden"></div>
@@ -2749,13 +2750,25 @@ export class Hud {
     prompt.classList.remove('hidden');
   }
 
-  updateBoss(status: { name: string; hp: number; maxHp: number } | null): void {
+  updateBoss(
+    status: { name: string; hp: number; maxHp: number; phase?: number; phaseCount?: number } | null,
+  ): void {
     if (!status) {
       this.bossBar.classList.add('hidden');
       return;
     }
     this.bossBar.classList.remove('hidden');
     this.bossName.textContent = status.name;
+    // Only the finale has phases. Without this line the escalation is only
+    // legible in the moment the banner flashes, and a player who looked away
+    // has no way to tell which fight they are in.
+    const phaseLabel = mustGet('boss-phase');
+    if (status.phase && status.phaseCount) {
+      phaseLabel.textContent = `PHASE ${status.phase}/${status.phaseCount}`;
+      phaseLabel.classList.remove('hidden');
+    } else {
+      phaseLabel.classList.add('hidden');
+    }
     this.bossFill.style.width = `${Math.max(0, (status.hp / status.maxHp) * 100)}%`;
     mustGet('boss-hp-text').textContent =
       `${Math.max(0, Math.round(status.hp))}/${Math.round(status.maxHp)}`;

@@ -214,11 +214,30 @@ function createWorldMapController(scene: THREE.Scene): WorldMapController {
  *  2026-07-06: different count/position every playthrough, never walling
  *  off the totem or overlapping between the two prop types. Returns every
  *  mesh added so a caller can `clearProps()` them before regenerating. */
+/** Radius a gate reaches from the point scatterPoints placed it at.
+ *
+ *  A gate is not a point: its two containers sit `gapHalf + length/2` out to
+ *  either side of that point and their capsule colliders spread further along
+ *  the container's own axis. Avoiding a zone by the gate's CENTRE therefore
+ *  leaves colliders inside it — measured in the finale arena, where a 28-unit
+ *  clear circle came back with a container 26.6 from the middle. */
+function gateReach(config: typeof CONTAINER_PROP | typeof FOUNDRY_CONTAINER_PROP): number {
+  const offset = Math.max(...config.colliderOffsets.map((value) => Math.abs(value)));
+  return config.gapHalf + config.length / 2 + offset + config.colliderRadius;
+}
+
 export function placeRandomProps(
   scene: THREE.Scene,
   avoid: AvoidPoint[],
   mapId: string = MAPS[0].id,
+  /** Radius around the arena centre that must end up EMPTY (the finale arena).
+   *  Applied per prop family, inflated by each family's own reach, because a
+   *  single shared radius would either leave gate ends inside the circle or
+   *  push the small props absurdly far out to protect against the largest. */
+  centreClearRadius = 0,
 ): { obstacles: Obstacle[]; meshes: THREE.Object3D[] } {
+  const clearFor = (reach: number): AvoidPoint[] =>
+    centreClearRadius > 0 ? [{ x: 0, z: 0, radius: centreClearRadius + reach }] : [];
   // Each map owns its own prop vocabulary. Scrapyard scatter (containers +
   // drums) on a foundry floor would undo the sector change the transition
   // just sold, so the set is chosen by map rather than shared.
@@ -228,30 +247,47 @@ export function placeRandomProps(
     // a pillar and turn cover into a dead end.
     // Placeholder tinted to the violet variant, not to grey: the box shown
     // before the voxel model resolves should already read as the right object.
-    const gates = buildContainerProps(scene, avoid, FOUNDRY_CONTAINER_PROP, 0x6b5a93);
+    const gates = buildContainerProps(
+      scene,
+      [...avoid, ...clearFor(gateReach(FOUNDRY_CONTAINER_PROP))],
+      FOUNDRY_CONTAINER_PROP,
+      0x6b5a93,
+    );
     const gateAvoid: AvoidPoint[] = [
       ...avoid,
       ...gates.centers.map((c) => ({ x: c.x, z: c.z, radius: FOUNDRY_CONTAINER_PROP.minSeparation / 2 })),
     ];
     // Pillars next: they are far larger than the cells, so the cells scatter
     // around them rather than the other way round.
-    const pillars = buildScatterProps(scene, gateAvoid, FOUNDRY_PILLAR_PROP);
+    const pillars = buildScatterProps(
+      scene,
+      [...gateAvoid, ...clearFor(FOUNDRY_PILLAR_PROP.colliderRadius)],
+      FOUNDRY_PILLAR_PROP,
+    );
     const cellAvoid: AvoidPoint[] = [
       ...gateAvoid,
       ...pillars.obstacles.map((o) => ({ x: o.x, z: o.z, radius: FOUNDRY_PILLAR_PROP.cellClearance })),
     ];
-    const cells = buildScatterProps(scene, cellAvoid, POWERCELL_PROP);
+    const cells = buildScatterProps(
+      scene,
+      [...cellAvoid, ...clearFor(POWERCELL_PROP.colliderRadius)],
+      POWERCELL_PROP,
+    );
     return {
       obstacles: [...gates.obstacles, ...pillars.obstacles, ...cells.obstacles],
       meshes: [...gates.meshes, ...pillars.meshes, ...cells.meshes],
     };
   }
-  const containers = buildContainerProps(scene, avoid);
+  const containers = buildContainerProps(scene, [...avoid, ...clearFor(gateReach(CONTAINER_PROP))]);
   const barrelAvoid: AvoidPoint[] = [
     ...avoid,
     ...containers.centers.map((c) => ({ x: c.x, z: c.z, radius: BARREL_PROP.containerClearance })),
   ];
-  const barrels = buildScatterProps(scene, barrelAvoid, BARREL_PROP);
+  const barrels = buildScatterProps(
+    scene,
+    [...barrelAvoid, ...clearFor(BARREL_PROP.colliderRadius)],
+    BARREL_PROP,
+  );
   const scaffold = SCAFFOLD_PROP.enabled ? buildScaffoldProps(scene) : { obstacles: [], meshes: [] };
   return {
     obstacles: [...containers.obstacles, ...barrels.obstacles, ...scaffold.obstacles],

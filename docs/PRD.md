@@ -818,3 +818,185 @@ Ahora: el reloj se adelanta a un Mapa 1 completo (sin rebobinar nunca), la build
 vivo manda siempre, y la grabación de respaldo exige `durationS >= MAPS[0].durationS`
 — `sectorsCleared` y `mapsReached` **los falsifica el propio atajo**, porque la T
 pasa por el mismo `enterMap` que un cruce real.
+
+---
+
+## Hazard Marshal — llegada telegrafiada y moveset de 3 fases (2026-08-19, v0.15.0)
+
+Cierra 3.A.1 y las tres fases de 3.B de `PLAN_MAPA2.md`. Sustituye al arnés
+provisional de integración: el boss final ya no es "un cuerpo que persigue y
+descarga", sino un encuentro con entrada propia y escalada legible.
+
+### El sector se reabre como ARENA antes de que llegue el boss
+
+Al agotarse el reloj no aparece el boss encima de lo que hubiera: **se reinicia
+el Mapa 2 detrás de la MISMA cortina de fundido que usa un cruce de sector**
+(`MAP_TRANSITION`, etiqueta `SECTOR SEALED`). A negro pleno —donde el proyecto ya
+aprendió que hay que esconder cualquier swap— pasa esto:
+
+- Se limpian todos los actores locales (`resetForMapTransition`): enjambre,
+  proyectiles, pickups, orbes, oro suelto, chatarrero, marcadores. El jugador
+  vuelve al **centro** (lo hace ya `player.enterMap()`).
+- Se **vuelven a tirar los props con el centro vacío**: nada de escenografía
+  dentro de `FINAL_BOSS.arena.clearRadius` (28). El resto de la fundición sigue
+  ahí — los props se redistribuyen hacia fuera, no se borran: 124 colisionadores
+  siguen en pie tras el reinicio.
+- Se cura a tope si `FINAL_BOSS.arena.healToFull` (por defecto sí, misma lógica
+  que el cruce de 0.3: llegar al clímax con 4 de vida decide la pelea antes de
+  empezarla). **El oro NO se pone a cero**, al revés que un cruce: la run no
+  abre economía nueva, cierra la que tenía.
+
+**No es un cruce de sector**: `openFinaleArena` no llama a `transitionToMap`, no
+acredita sector, no cambia de mapa y no toca el estado del arco — el sector lo
+cierra la muerte del boss, como antes. Y si la colocación falla, **reintenta la
+LLEGADA, nunca la cortina**: un finale no puede reiniciar el sector dos veces.
+
+**Trampa medida al implementarlo:** una sola zona de exclusión en el centro no
+vacía el centro. Los gates (`buildContainerProps`) se colocan por su punto
+CENTRAL y luego extienden dos contenedores `gapHalf + length/2` a cada lado con
+colisionadores repartidos por su eje — con un círculo de 28 apareció un
+contenedor a **26,6** del medio. `placeRandomProps` aplica ahora el radio
+**por familia de prop, inflado por el alcance de cada una** (`gateReach`).
+
+### La llegada: mismo lenguaje que un boss del Mapa 1, sin portal
+
+`advanceRunFlow` sigue emitiendo su `start-finale` al agotarse los 10 minutos;
+lo que cambia es lo que ocurre después. Antes el cuerpo aparecía de golpe a
+`px + 24`. Ahora, **con la arena ya reabierta y la cortina levantada**, se abre
+una **llegada telegrafiada de 2,5 s** —el
+mismo `BOSS.summonDelayS` de un tótem— con el haz estroboscópico y los anillos
+de aviso rojos sobre el punto de aterrizaje, pero **sin la puerta del portal
+visible**: el Marshal no se invoca, llega. El cuerpo se materializa por el
+**mismo camino de código** que un summon normal, así que el banner `HAZARD
+MARSHAL AWAKENS`, la erupción de cubos, el anillo de choque y el temblor son
+literalmente el mismo beat, no una segunda implementación que pueda divergir.
+Durante el telegrafiado no se añade colisión en ese punto: hay un aviso en el
+suelo, no un muro invisible.
+
+### Dónde aterriza: tres reglas medidas, no una distancia a ojo
+
+`FINAL_BOSS.arrival`, con la colocación en `BossSystem.findArrivalSpot`:
+
+1. **Fuera de alcance.** Anillo de 11–15 unidades alrededor del JUGADOR. El
+   contacto son 3,8 (radio del boss 3,1 + jugador 0,7), así que 11 es 2,9× esa
+   distancia — y nada puede estar ahí cuando cae, porque el aviso dura 2,5 s.
+2. **Dentro del cuadro, entero.** No basta con proyectar el punto del suelo: la
+   cámara mira hacia abajo, así que un cuerpo de 9,87 unidades con los pies
+   cómodamente en pantalla pierde la cabeza por el borde superior (medido: a 19
+   unidades hacia arriba de pantalla la cabeza cae en ndc.y 1,12). Se proyecta
+   la **caja del cuerpo** —cabeza, pies y ambos flancos— a través de la cámara
+   viva, nunca un radio fijo: el cuadro depende del aspect ratio y se movería
+   con cualquier resize.
+3. **Con sitio para pelear.** Libre de props, torres y pickups por su radio
+   **más 3,5 unidades** de holgura. Map 2 esparce ~130 colisionadores; "libre" y
+   "con espacio para moverse" no son la misma pregunta.
+
+Entre los puntos que cumplen las tres, gana el **mejor encuadrado**: se prefiere
+la banda central del cuadro, porque la franja superior lleva el reloj y la vida
+y la inferior la barra del boss — un Marshal ahí está técnicamente en pantalla y
+prácticamente medio tapado. Si nada cumple, se relaja en dos pasos documentados
+(primero la holgura, luego el encuadre) y en último caso el frame siguiente
+reintenta: un finale que no llega es peor fallo que uno descentrado.
+
+### Las tres fases (`src/final-boss.ts`)
+
+Acumulativas y **por VIDA, nunca por reloj** (un temporizador castigaría a la
+build que mata rápido). Umbrales en `FINAL_BOSS.phaseThresholds` (66% / 33%).
+Cada cambio de fase **aturde** al boss 1,4 s, revienta cubos ámbar + núcleo
+blanco + anillo rojo, sacude la cámara y anuncia: `ASSEMBLY LINES ONLINE`,
+`CORE OVERLOAD`. Ese es el evento raro que reserva el clip `hit` de 3.A.2; el
+daño corriente sigue siendo solo tinte.
+
+- **Base (todas las fases) — descarga radial.** El comportamiento que el pase de
+  integración ya validó, conservado como latido del combate. Su cooldown se
+  acorta por fase (6,5 → 5,5 → 4,5 s).
+- **Fase 1 — barrido sectorial.** El boss se planta, se enciende una **cuña** de
+  42° y 20 unidades apuntada al jugador durante 1,3 s, y descarga: 26 de daño
+  dentro de la cuña más un abanico de cubos por el arco. **La puntería se fija
+  al empezar el telegrafiado**, no al disparar: una cuña que persiguiera sería
+  un impacto inevitable disfrazado de aviso.
+- **Fase 2 — líneas de ensamblaje.** Abre **bahías en el perímetro** del lado en
+  que se está jugando, avisa 1,6 s **en la bahía** (no en el boss) y mete 5
+  refuerzos por bahía. Van con el **multiplicador de vida de la oleada viva**
+  (`EnemySystem.waveHpMultiplier`), no con el 1 por defecto de `spawnAt`, o
+  serían enemigos de papel en el minuto más duro. Techo duro de 320 cuerpos: el
+  spawner ya está rellenando hacia su propio cap y el finale no puede duplicarlo.
+- **Fase 3 — sobrecarga del núcleo.** Cadena de 4 **zonas de peligro** que nacen
+  en el boss y erupcionan hacia fuera por la línea del jugador, una cada 0,45 s;
+  22 de daño por zona. El boss además acelera ×1,15.
+
+**Una sola telegrafía a la vez**, y es regla, no ajuste: la única zona de suelo
+que este proyecto rechazó de un vistazo (Crusher etapa C, 2026-08-07) falló
+porque cuatro eventos compartían un frame y la zona nacía fuera del foco que el
+resto ya había capturado. Aquí origen y destino siempre están en pantalla y nada
+más dispara durante una cadena.
+
+### Telegrafías de suelo: la regla de render que ya mordió dos veces
+
+Cuña y zonas viven en la cola **opaca** (`transparent: false`), con la opacidad
+**horneada en el color** —`material.opacity` se ignora fuera de la cola
+transparente— y `renderOrder` puesto **por malla**, que no se hereda del grupo.
+Así la escenografía no las corta y ellas no tapan los cuerpos. `reset()` apaga
+todas: un aviso que sobrevive a su dueño es una mentira pintada en el suelo.
+
+### HUD
+
+La barra del boss gana una línea ámbar `PHASE n/3`, solo en el finale. Sin ella
+la escalada solo era legible en el instante en que parpadea el banner.
+
+### Verificación
+
+- `pnpm test` incluye `tools/final-boss.test.mjs` (14 pruebas): geometría de la
+  cuña contra su regla de impacto, puntería fijada, escalada de fases, refuerzos
+  con la vida correcta y con techo, una telegrafía por frame, `reset` limpio,
+  reglas de render, y el anillo de llegada contra proyecciones reales a 16:9,
+  16:10 y 4:3.
+- `pnpm test:finale-runtime` mide el finale **en Electron, sobre el Mapa 2 real**
+  (5 llegadas independientes): distancia, caja del cuerpo dentro del cuadro,
+  holgura contra los colisionadores del mapa, **centro vacío tras el reinicio de
+  arena** (obstáculo más cercano al medio ≥ 28), escenografía conservada,
+  jugador en el centro, alto/ancho reales del modelo contra los de `config`, y
+  las tres fases con sus banners, **y que ninguna oleada se une a la pelea**
+  (20 muestras en 10 s). Guarda frames en `tmp/finale-runtime-output/`. Llega al
+  finale con una sola pulsación de Y desde el Mapa 1, así que requiere
+  `DEV_TOOLS.finaleKey`.
+
+### Pendiente
+
+- Balance del encuentro con datos de runs humanas (`pnpm stats`): los números de
+  daño, cooldowns y umbrales son primeros valores razonados, no medidos en juego.
+- Audio propio (3.B.5): los ataques emiten `boss-attack`, que hoy no tiene asset
+  y suena en silencio; el cambio de fase reutiliza `boss-awaken`.
+- Arena reactiva de 2.4 (suelo sectorizado, bahías visibles, suelo modular): las
+  fases funcionan hoy con telegrafías propias, sin depender del layout.
+### Decisión 0.8 CERRADA: durante el finale no entran oleadas
+
+`enemies.wavesPaused` se deriva de `runFlow.finaleStarted` cada frame, así que
+desde el instante en que el finale se dispara **el spawner no emite nada**. El
+reinicio de arena sería si no un efecto de veinte segundos: en el pico de la
+fundición el spawner rellena hacia ~437 cuerpos, o sea que el suelo limpio sobre
+el que aterriza el boss desaparecería antes de que terminara de llegar.
+
+Los **refuerzos de la Fase 2 no se ven afectados**: entran por `spawnAt`
+directamente, no por el spawner, así que la única presión añadida durante la
+pelea es la que el propio Marshal decide llamar. Medido en runtime: 20 muestras
+en 10 s con el boss vivo en Fase 1 dan **1 cuerpo** (él).
+
+Detalle: la pausa se comprueba ANTES del temporizador de oleada. Un spawner
+pausado que siguiera descontando soltaría una oleada entera al reanudarse — en
+el pico de la fundición, dieciséis cuerpos de golpe.
+
+### Atajo de dev: Y salta al finale desde cualquier punto del arco
+
+`DEV_TOOLS.finaleKey` (gateado, y `check-release-flags.mjs` aborta el
+empaquetado con él encendido). **T** ya llegaba al finale, pero solo desde
+dentro de la fundición; desde una run nueva verlo costaba un Mapa 1 entero, un
+boss y diez minutos más. **Y** cruza lo que quede del arco por el mismo
+`enterMap` de `run-flow` —crédito de sector incluido, igual que la T— y después
+adelanta el reloj del mapa, así que el encuentro sigue llegando por el
+`start-finale` estructural y no por una puerta trasera. **La build en vivo se
+conserva**, exactamente igual que con la T (`overlayLatestRecordedBuild` solo
+actúa si la run no tiene progreso propio).
+
+Las dos teclas comparten un único `windClockToFinale()`: dos copias del disparo
+acabarían divergiendo el día que cambie el trigger.

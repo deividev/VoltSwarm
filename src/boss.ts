@@ -5,17 +5,18 @@ import {
   CRUSHER_KING_TYPE_INDEX,
   TESLA_TITAN_TYPE_INDEX,
   ENEMY_TYPES,
-  FINAL_BOSS_PROVISIONAL,
+  FINAL_BOSS,
   FINAL_BOSS_TYPE_INDEX,
   isBossTypeIndex,
 } from './config';
 import { CHARGE } from './enemies';
 import type { EnemySystem } from './enemies';
 import type { EnemyProjectiles } from './enemy-projectiles';
+import { FinalBossFight, type BossEffects } from './final-boss';
 import { litMaterial } from './toon';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
-import { findClearSpot, findRandomClearSpot, type Obstacle } from './world';
+import { findClearSpot, findRandomClearSpot, isClearPosition, type Obstacle } from './world';
 
 /** The voxel size the portal's surrounding primitives — beam, warning ring,
  *  placeholder pillar — were authored against. Their literals below are all
@@ -40,6 +41,10 @@ export interface BossStatus {
   name: string;
   hp: number;
   maxHp: number;
+  /** 1-based phase, and how many there are. Only the finale has phases; the
+   *  Map 1 bosses report undefined and the HUD shows nothing extra. */
+  phase?: number;
+  phaseCount?: number;
 }
 
 /** The live boss's physical presence, for player collision and ram response.
@@ -71,10 +76,12 @@ export class BossSystem {
   private baseSpeed = 0;
   // Tesla timer.
   private burstTimer = 0;
-  // Hazard Marshal provisional arena loop. This proves the final-boss seam;
-  // it is intentionally not the final authored moveset.
-  private finalPhase: 'cooldown' | 'telegraph' = 'cooldown';
-  private finalTimer = 0;
+  /** The Hazard Marshal's three-phase fight. Owns its own telegraphs. */
+  private readonly finalFight: FinalBossFight;
+  /** Game-shell hooks the finale needs (damage, VFX, banner, audio). */
+  private effects: BossEffects | null = null;
+  /** True while the summon telegraph running is the FINALE's, not a totem's. */
+  private finalArrival = false;
   // Run continuity: each defeated boss raises the next one's HP.
   private hpMult = 1;
   private respawnTimer = 0;
@@ -167,6 +174,7 @@ export class BossSystem {
     this.totem.add(this.totemBody, this.beam, this.warnRing);
     this.totem.visible = false;
     scene.add(this.totem);
+    this.finalFight = new FinalBossFight(scene);
 
     // The voxel portal gate loads async and swaps in over the primitives.
     void this.upgradeVoxelModel();
@@ -257,40 +265,104 @@ export class BossSystem {
     this.bossTypeIndex = typeIndex;
   }
 
-  /** Activates the Map 2 finale without entering Map 1's random totem draw. */
-  startFinalBoss(
+  /** Wires the game-shell hooks the finale's attacks need. Called once, from
+   *  Game's constructor, because BossSystem is built before the HUD and the
+   *  particle pools exist. */
+  setEffects(effects: BossEffects): void {
+    this.effects = effects;
+  }
+
+  /** Opens the Map 2 finale: picks where the Hazard Marshal will land and
+   *  starts the SAME arrival telegraph a Map 1 summon gets — strobing beam,
+   *  expanding warning rings, then the eruption — minus the portal gate, which
+   *  it does not come through. The body itself appears when the telegraph ends
+   *  (see `update`), so `startFinale` only has to know whether a spot existed.
+   *
+   *  Placement obeys three separate constraints, in this order:
+   *   - OUT OF REACH: at least `arrival.distMin` from the player, so the boss
+   *     cannot land a free touch on arrival.
+   *   - IN FRAME: `isVisible` is a real projection through the live camera, not
+   *     an angle guess. The camera leaves ~29 units of visible ground above the
+   *     player and only ~13 below, so a fixed offset (the old `px + 24`) put
+   *     the finale off-screen from most positions.
+   *   - ROOM TO FIGHT: clear of every prop, tower and pickup by the boss radius
+   *     PLUS `arrival.clearance`, so it does not arrive wedged into scenery.
+   *
+   *  Returns false when no spot satisfies them; the caller re-arms and retries
+   *  on the next frame. */
+  beginFinalArrival(
     px: number,
     pz: number,
-    playerLevel: number,
-    enemies: EnemySystem,
     obstacles: Obstacle[],
-  ): string | null {
-    this.totem.visible = false;
+    /** Frame score for a candidate: null when the body would not fit on screen,
+     *  otherwise higher is better. Owned by the game because only it has the
+     *  camera. */
+    frameScore: (x: number, z: number) => number | null,
+  ): boolean {
+    const spot = this.findArrivalSpot(px, pz, obstacles, frameScore);
+    if (!spot) return false;
     this.bossTypeIndex = FINAL_BOSS_TYPE_INDEX;
-    const cfg = FINAL_BOSS_PROVISIONAL;
-    const levelScale = Math.min(
-      cfg.hpLevelMax,
-      Math.max(cfg.hpLevelMin, playerLevel / cfg.hpLevelReference),
-    );
-    this.bossIndex = enemies.spawnAt(
-      FINAL_BOSS_TYPE_INDEX,
-      px + cfg.spawnDistance,
-      pz,
-      levelScale,
-      false,
-      obstacles,
-    );
-    this.state = this.bossIndex === -1 ? 'done' : 'active';
-    this.finalPhase = 'cooldown';
-    this.finalTimer = cfg.burstCooldownS;
-    this.baseSpeed = ENEMY_TYPES[FINAL_BOSS_TYPE_INDEX]?.speed ?? 0;
-    if (this.bossIndex === -1) return null;
-    const boss = enemies.pool[this.bossIndex];
-    if (boss) {
-      this.lastSummonAt.x = boss.x;
-      this.lastSummonAt.z = boss.z;
+    this.finalArrival = true;
+    this.totem.position.set(spot.x, 0, spot.z);
+    this.totemObstacle.x = spot.x;
+    this.totemObstacle.z = spot.z;
+    // The gate itself stays hidden: the Marshal is not summoned through a
+    // portal, so only the danger language (beam + warning rings) shows.
+    this.totemBody.visible = false;
+    this.totem.visible = true;
+    this.state = 'summoning';
+    this.summonJustBegan = true;
+    this.summonTimer = FINAL_BOSS.arrival.telegraphS;
+    this.summonElapsed = 0;
+    return true;
+  }
+
+  /** Best arrival spot, or null.
+   *
+   *  Every sample of a pass is scored and the BEST one wins, rather than the
+   *  first that merely fits. All the constraints are pass/fail except framing:
+   *  a body can be entirely on screen and still land under the boss health bar
+   *  or behind the run timer, so the score prefers the band across the middle
+   *  of the frame, where no HUD is drawn.
+   *
+   *  Then it relaxes in two documented steps instead of failing outright: a
+   *  player cornered against a wall behind a tower would otherwise stall the
+   *  finale forever, and a finale that never arrives is a worse failure than
+   *  one that arrives slightly off-centre. */
+  private findArrivalSpot(
+    px: number,
+    pz: number,
+    obstacles: Obstacle[],
+    frameScore: (x: number, z: number) => number | null,
+  ): { x: number; z: number } | null {
+    const cfg = FINAL_BOSS.arrival;
+    const radius = ENEMY_TYPES[FINAL_BOSS_TYPE_INDEX]?.radius ?? BOSS.totemColliderRadius;
+    const passes: { needRoom: boolean; needFrame: boolean }[] = [
+      { needRoom: true, needFrame: true },
+      { needRoom: false, needFrame: true },
+      { needRoom: false, needFrame: false },
+    ];
+    for (const pass of passes) {
+      const spawnRadius = radius + (pass.needRoom ? cfg.clearance : 0);
+      let best: { x: number; z: number } | null = null;
+      let bestScore = -Infinity;
+      for (let attempt = 0; attempt < cfg.placementAttempts; attempt++) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance =
+          cfg.distMin + Math.random() * Math.max(0, cfg.distMax - cfg.distMin);
+        const x = px + Math.cos(angle) * distance;
+        const z = pz + Math.sin(angle) * distance;
+        if (!isClearPosition(x, z, spawnRadius, obstacles)) continue;
+        const score = frameScore(x, z);
+        if (pass.needFrame && score === null) continue;
+        if ((score ?? 0) > bestScore) {
+          bestScore = score ?? 0;
+          best = { x, z };
+        }
+      }
+      if (best) return best;
     }
-    return ENEMY_TYPES[FINAL_BOSS_TYPE_INDEX]?.name ?? null;
+    return null;
   }
 
   /** True while the player stands in the summon zone of the idle totem. */
@@ -353,48 +425,62 @@ export class BossSystem {
       beamMat.opacity = 0.22;
       ringMat.opacity = 0;
 
-      // Materialize at the totem, but never on top of the player: push the
-      // spawn point away along the player→totem direction to a safe radius.
+      // The finale's landing spot was already validated against distance, frame
+      // and room to move when the arrival opened, so it lands exactly there.
+      // A totem summon instead materializes AT the gate, and only then is
+      // pushed away from the player to a safe radius.
       let sx = this.totem.position.x;
       let sz = this.totem.position.z;
-      const dx = sx - px;
-      const dz = sz - pz;
-      const dist = Math.hypot(dx, dz);
-      const minDist = BOSS.spawnMinDistFromPlayer;
-      if (dist < minDist) {
-        const nx = dist > 0.001 ? dx / dist : 1;
-        const nz = dist > 0.001 ? dz / dist : 0;
-        sx = px + nx * minDist;
-        sz = pz + nz * minDist;
-      }
       const spawnObstacles = obstacles.filter((obstacle) => obstacle !== this.totemObstacle);
       const bossRadius = ENEMY_TYPES[this.bossTypeIndex]?.radius ?? BOSS.totemColliderRadius;
-      const clearSpot = findClearSpot(sx, sz, spawnObstacles, bossRadius);
-      if (!clearSpot) {
-        this.state = 'idle';
-        return null;
+      if (!this.finalArrival) {
+        const dx = sx - px;
+        const dz = sz - pz;
+        const dist = Math.hypot(dx, dz);
+        const minDist = BOSS.spawnMinDistFromPlayer;
+        if (dist < minDist) {
+          const nx = dist > 0.001 ? dx / dist : 1;
+          const nz = dist > 0.001 ? dz / dist : 0;
+          sx = px + nx * minDist;
+          sz = pz + nz * minDist;
+        }
+        const clearSpot = findClearSpot(sx, sz, spawnObstacles, bossRadius);
+        if (!clearSpot) {
+          this.state = 'idle';
+          return null;
+        }
+        sx = clearSpot.x;
+        sz = clearSpot.z;
       }
-      sx = clearSpot.x;
-      sz = clearSpot.z;
       this.totem.visible = false;
+      this.totemBody.visible = true;
       this.lastSummonAt.x = sx;
       this.lastSummonAt.z = sz;
       // Level scaling is folded into the HP multiplier the pool already takes,
-      // so nothing downstream needs to know about it.
+      // so nothing downstream needs to know about it. The finale reads its OWN
+      // reference and clamps, and deliberately ignores `hpMult`: the Marshal is
+      // a fixed encounter, not the next rung of Map 1's respawn ladder.
+      const isFinale = this.finalArrival;
+      const scaling = isFinale ? FINAL_BOSS : BOSS;
       const levelScale = Math.min(
-        BOSS.hpLevelMax,
-        Math.max(BOSS.hpLevelMin, playerLevel / BOSS.hpLevelReference),
+        scaling.hpLevelMax,
+        Math.max(scaling.hpLevelMin, playerLevel / scaling.hpLevelReference),
       );
       this.bossIndex = enemies.spawnAt(
         this.bossTypeIndex,
         sx,
         sz,
-        this.hpMult * levelScale,
+        (isFinale ? 1 : this.hpMult) * levelScale,
         false,
         spawnObstacles,
       );
       this.state = this.bossIndex === -1 ? 'done' : 'active';
       this.baseSpeed = ENEMY_TYPES[this.bossTypeIndex]?.speed ?? 3;
+      if (isFinale) {
+        this.finalArrival = false;
+        if (this.state === 'done') return null;
+        this.finalFight.begin(this.baseSpeed);
+      }
       return ENEMY_TYPES[this.bossTypeIndex]?.name ?? null;
     }
 
@@ -416,53 +502,16 @@ export class BossSystem {
     }
 
     if (this.bossTypeIndex === FINAL_BOSS_TYPE_INDEX) {
-      this.updateFinalBossProvisional(dt, boss, px, pz, projectiles, enemies);
+      // Silently skipping the fight would leave a Marshal that only walks, and
+      // the omission would look like a balance choice instead of missing wiring.
+      if (!this.effects) throw new Error('BossSystem.setEffects must run before the finale.');
+      this.finalFight.update(dt, boss, px, pz, projectiles, enemies, obstacles, this.effects);
     } else if (this.bossTypeIndex === CRUSHER_KING_TYPE_INDEX) {
       this.updateCrusher(dt, boss, enemies, obstacles);
     } else {
       this.updateTesla(dt, boss, px, pz, projectiles, enemies);
     }
     return null;
-  }
-
-  /** Provisional foundry-lane pressure: a visible stop, then an aimed radial
-   * discharge that clears the boss's arena. Reusable integration behavior;
-   * not a declaration of Hazard Marshal's final combat design. */
-  private updateFinalBossProvisional(
-    dt: number,
-    boss: { x: number; z: number; speed: number },
-    px: number,
-    pz: number,
-    projectiles: EnemyProjectiles,
-    enemies: EnemySystem,
-  ): void {
-    const cfg = FINAL_BOSS_PROVISIONAL;
-    this.finalTimer -= dt;
-    if (this.finalTimer > 0) return;
-    if (this.finalPhase === 'cooldown') {
-      this.finalPhase = 'telegraph';
-      this.finalTimer = cfg.telegraphS;
-      boss.speed = 0;
-      return;
-    }
-
-    this.finalPhase = 'cooldown';
-    this.finalTimer = cfg.burstCooldownS;
-    boss.speed = this.baseSpeed;
-    enemies.shoveAwayFrom(boss.x, boss.z, cfg.shoveRadius, cfg.shoveForce);
-    const aimedOffset = Math.atan2(px - boss.x, pz - boss.z);
-    for (let index = 0; index < cfg.burstProjectiles; index++) {
-      const angle = aimedOffset + (index / cfg.burstProjectiles) * Math.PI * 2;
-      projectiles.fire(
-        boss.x,
-        boss.z,
-        Math.sin(angle),
-        Math.cos(angle),
-        cfg.projectileSpeed,
-        cfg.projectileDamage,
-        'tesla',
-      );
-    }
   }
 
   /** Crusher King: telegraphed charges plus periodic scrapling reinforcements. */
@@ -576,7 +625,11 @@ export class BossSystem {
   }
 
   appendObstacle(target: Obstacle[]): void {
-    if (this.totem.visible) target.push(this.totemObstacle);
+    // Not during the finale's arrival: there is no gate standing there, only a
+    // warning on the floor, and an invisible wall the player can walk into is
+    // worse than no reservation at all. The spot was validated when the
+    // arrival opened, and the spawn nudges clear of anything that drifted in.
+    if (this.totem.visible && !this.finalArrival) target.push(this.totemObstacle);
   }
 
   /** The live boss body, or null when none is on the field. */
@@ -613,6 +666,15 @@ export class BossSystem {
     const boss = enemies.pool[this.bossIndex];
     const type = ENEMY_TYPES[this.bossTypeIndex];
     if (!boss || !boss.active || !type) return null;
+    if (this.bossTypeIndex === FINAL_BOSS_TYPE_INDEX) {
+      return {
+        name: type.name,
+        hp: boss.hp,
+        maxHp: boss.maxHp,
+        phase: this.finalFight.phaseNumber,
+        phaseCount: FINAL_BOSS.phaseThresholds.length + 1,
+      };
+    }
     return { name: type.name, hp: boss.hp, maxHp: boss.maxHp };
   }
 
@@ -634,6 +696,8 @@ export class BossSystem {
     this.bossesDefeated += 1;
     if (this.bossTypeIndex === FINAL_BOSS_TYPE_INDEX) {
       this.respawnTimer = 0;
+      // A telegraph outliving its owner is a lie painted on the floor.
+      this.finalFight.reset();
     } else {
       this.hpMult *= BOSS.respawnHpGrowth;
       this.respawnTimer = BOSS.respawnDelayS;
@@ -643,20 +707,26 @@ export class BossSystem {
   /** Clears map-local actors while preserving run-wide boss history. */
   clearForMapTransition(): void {
     this.totem.visible = false;
+    this.totemBody.visible = true;
     this.state = 'done';
     this.bossIndex = -1;
     this.respawnTimer = 0;
     this.summonTimer = 0;
     this.playerInSummonZone = false;
+    this.finalArrival = false;
+    this.finalFight.reset();
   }
 
   reset(): void {
     this.totem.visible = false;
+    this.totemBody.visible = true;
     this.state = 'done';
     this.bossIndex = -1;
     this.hpMult = 1;
     this.respawnTimer = 0;
     this.bossesDefeated = 0;
     this.defeatedTypes.clear();
+    this.finalArrival = false;
+    this.finalFight.reset();
   }
 }

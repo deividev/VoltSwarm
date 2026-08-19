@@ -16,6 +16,8 @@ import {
   ELITES,
   ENEMIES,
   ENEMY_TYPES,
+  FINAL_BOSS,
+  FINAL_BOSS_TYPE_INDEX,
   GOLD,
   MAPS,
   POWERCELL_PROP,
@@ -270,7 +272,14 @@ export class Game {
     /** DEV shortcut only: overlay a recorded build at full black, so the jump
      *  lands in the next map equipped instead of with the current one. */
     simulateBuild: boolean;
+    /** The finale's arena reset rather than a sector crossing: same curtain,
+     *  same map, no sector credited and no build overlay. */
+    finale: boolean;
   } | null = null;
+  /** Set when the finale's curtain lifts: the arrival is attempted every frame
+   *  until a spot exists. A failed placement must NOT replay the curtain — the
+   *  sector would reset twice for one finale. */
+  private pendingFinaleArrival = false;
   /** Shared identity for packaged telemetry and the terminal-only local record. */
   private currentRunId: string | null = null;
   /** Terminal side effects (history, telemetry, contracts and HUD) may run once per run. */
@@ -465,9 +474,24 @@ export class Game {
     );
     this.audio = new AudioDirector(this.settings);
     void this.audio.preloadEnabled();
+    // The finale's attacks need the HUD, the particle pools and the audio
+    // director, all of which are born AFTER the boss system. Wiring them here
+    // rather than in BossSystem's constructor keeps that order honest instead
+    // of reshuffling construction to hide it.
+    this.boss.setEffects({
+      damagePlayer: (amount) => this.damagePlayer(amount),
+      burst: (x, z, color, count) => this.burst.spawn(x, z, color, count),
+      ring: (x, z, color, cubes, radius) => this.spawnBurstRing(x, z, color, cubes, radius),
+      shake: (amp) => {
+        this.shakeAmp = Math.max(this.shakeAmp, amp);
+      },
+      banner: (text) => this.hud.banner(text),
+      sound: (id, priority) => this.audio.emit({ id, priority }),
+    });
     if (DEV_TOOLS.auditionKeys) this.installAuditionKeys();
     if (DEV_TOOLS.bossLab) this.installBossLab();
     if (DEV_TOOLS.mapTransitionKey) this.installMapTransitionKey();
+    if (DEV_TOOLS.finaleKey) this.installFinaleKey();
     if (DEV_TOOLS.fatalHitKey) this.installFatalHitKey();
     this.hud.syncSettings(this.settings);
     applyWindowSettings(this.settings);
@@ -589,6 +613,8 @@ export class Game {
     const startMap = MAPS[startMapIndex] ?? MAPS[0];
     this.runFlow = createRunFlowState(startMapIndex);
     this.elapsedS = 0;
+    this.mapTransition = null;
+    this.pendingFinaleArrival = false;
     this.mapObstacles = [...this.worldMaps.setMap(startMap.id)];
     this.obstacles.push(...this.mapObstacles);
     this.currentRunId = createRunId();
@@ -922,7 +948,12 @@ export class Game {
       if (e.code !== 'KeyT' || e.repeat || this.state !== 'playing') return;
       const nextMapIndex = this.runFlow.mapIndex + 1;
       if (nextMapIndex >= MAPS.length) {
-        this.hud.toast('Map transition: already on the last map');
+        // On the LAST map the same key jumps to the finale instead of refusing.
+        // It does it by winding the map clock to its end, so the finale still
+        // arrives through advanceRunFlow's real 'start-finale' action — a hand
+        // rolled call would test a path players never take.
+        e.preventDefault();
+        this.windClockToFinale();
         return;
       }
       e.preventDefault();
@@ -940,6 +971,58 @@ export class Game {
       }
       enterMap(this.runFlow, nextMapIndex);
       this.beginMapTransition(nextMapIndex, true);
+    });
+  }
+
+  /** Winds the CURRENT map's clock to its last second, so `advanceRunFlow`
+   *  issues its own `start-finale` on the next frame. Shared by both dev keys
+   *  because the alternative — calling startFinale() directly — would test a
+   *  path no player can take, and would drift from the real one the day the
+   *  trigger changes. Safe while a curtain is up: update() does not run in the
+   *  'map-transition' state, so the wound clock simply waits for it to lift. */
+  private windClockToFinale(): boolean {
+    if (this.runFlow.finaleStarted) {
+      this.hud.toast('Finale: the Hazard Marshal is already inbound');
+      return false;
+    }
+    const map = MAPS[this.runFlow.mapIndex];
+    if (map) this.runFlow.mapElapsedS = map.durationS;
+    return true;
+  }
+
+  /** DEV (DEV_TOOLS.finaleKey): Y goes straight to the finale from ANYWHERE in
+   *  the arc, carrying the live run exactly as T does.
+   *
+   *  T only reaches it from inside the foundry, so from a fresh run the finale
+   *  still costs a full Map 1, a boss kill and ten more minutes. Y crosses
+   *  whatever is left of the arc through run-flow's own `enterMap` — the same
+   *  call a real crossing makes, sector credit included — and then winds the
+   *  foundry's clock, so the encounter still arrives through the structural
+   *  `start-finale` rather than through a private back door. */
+  private installFinaleKey(): void {
+    window.addEventListener('keydown', (e) => {
+      if (e.code !== 'KeyY' || e.repeat || this.state !== 'playing') return;
+      e.preventDefault();
+      const lastMapIndex = MAPS.length - 1;
+      if (this.runFlow.mapIndex === lastMapIndex) {
+        if (this.windClockToFinale()) this.hud.toast('Finale: winding the foundry clock to its last second');
+        return;
+      }
+      // Same order as the T key, and for the same reason: the arc clock has to
+      // be advanced BEFORE enterMap, which only resets the per-map one.
+      const playedS = this.runFlow.totalElapsedS;
+      const skipped = this.fastForwardArcClockPastMap1();
+      if (skipped > 60 && this.hasLiveProgress()) {
+        this.hud.toast(
+          `Finale: swarm set to a FULL Map 1, but this build only lived ${Math.round(playedS)}s of it — the Marshal will bite harder than in a real arc`,
+        );
+      }
+      enterMap(this.runFlow, lastMapIndex);
+      // The crossing curtain first, then the finale: the clock is wound now and
+      // fires the moment the curtain lifts, because update() is frozen while a
+      // transition runs. Two curtains back to back is what a real arc does too.
+      this.beginMapTransition(lastMapIndex, true);
+      this.windClockToFinale();
     });
   }
 
@@ -1386,9 +1469,26 @@ export class Game {
    *  full black inside tickMapTransition, which is what removes the dry cut. */
   private beginMapTransition(nextMapIndex: number, simulateBuild = false): void {
     const nextMap = MAPS[nextMapIndex] ?? MAPS[MAPS.length - 1] ?? MAPS[0];
-    this.mapTransition = { elapsedS: 0, nextMapIndex, swapped: false, simulateBuild };
+    this.mapTransition = { elapsedS: 0, nextMapIndex, swapped: false, simulateBuild, finale: false };
     this.state = 'map-transition';
     this.hud.showMapFade(0, `ENTERING ${nextMap.title.toUpperCase()}`);
+  }
+
+  /** The finale's arena reset: the SAME curtain a sector crossing uses, on the
+   *  same map. Behind the black the field is wiped, the player returns to the
+   *  centre and the props are rolled again with the middle left empty, so the
+   *  boss fight opens on clean ground instead of wherever ten minutes of run
+   *  happened to leave things. */
+  private beginFinaleArena(): void {
+    this.mapTransition = {
+      elapsedS: 0,
+      nextMapIndex: this.runFlow.mapIndex,
+      swapped: false,
+      simulateBuild: false,
+      finale: true,
+    };
+    this.state = 'map-transition';
+    this.hud.showMapFade(0, 'SECTOR SEALED');
   }
 
   /** Advances the fade curtain: fade out -> swap the world at full black (once)
@@ -1408,7 +1508,8 @@ export class Game {
     // The swap is hidden at full black so the cut is never seen. Doing it here,
     // not in beginMapTransition, is what removes the dry one-frame jump.
     if (!mt.swapped && mt.elapsedS >= fadeOutS) {
-      this.transitionToMap(mt.nextMapIndex);
+      if (mt.finale) this.openFinaleArena();
+      else this.transitionToMap(mt.nextMapIndex);
       // DEV jump only: equip the recorded build behind the black, so the shortcut
       // arrives the way a real crossing would rather than with a stub loadout.
       if (mt.simulateBuild) this.overlayLatestRecordedBuild('Map transition');
@@ -1432,6 +1533,10 @@ export class Game {
       this.hud.hideMapFade();
       // Land exactly on the run level: the per-frame ramp only ever approaches it.
       this.audio.setLoopVolume('foundation-run-loop', AUDIO.music.runLoopVolume);
+      // The arrival telegraph starts once the curtain is OFF: its whole job is
+      // to be seen, and a beam strobing behind full black is a beat spent on
+      // nobody. update() retries it until a spot exists.
+      if (mt.finale) this.pendingFinaleArrival = true;
       this.mapTransition = null;
       this.state = 'playing';
     }
@@ -1465,35 +1570,86 @@ export class Game {
     this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
   }
 
-  private startFinale(): void {
-    const summoned = this.boss.startFinalBoss(
-      this.player.position.x,
-      this.player.position.z,
-      this.progression.level,
-      this.enemies,
-      this.refreshCollisionObstacles(),
-    );
-    if (!summoned) {
-      // Placement can fail in a crowded frame. Re-arm the structural trigger;
-      // the next frame retries after map-local actors have moved.
-      this.runFlow.finaleStarted = false;
-      return;
+  /** True when the world point (x, y, z) is inside the frame, with a margin.
+   *
+   *  A real projection through the live camera, because the visible ground is
+   *  NOT a circle: the camera sits at (0, 24, 19) with a 50 degree vertical
+   *  fov, so it sees ~29 units of floor above the player and only ~13 below,
+   *  and the horizontal reach moves with the window's aspect ratio. Any
+   *  hardcoded radius would be wrong on one axis and wrong again on a resize. */
+  private projectToScreen(x: number, y: number, z: number): THREE.Vector3 {
+    return new THREE.Vector3(x, y, z).project(this.camera);
+  }
+
+  /** A body fits the frame only if its whole BOX does: head, feet and both
+   *  flanks. The camera looks down, so head and feet are far apart on screen —
+   *  measured at 16:9, a Marshal 15 units up-screen has its feet at ndc.y 0.63
+   *  and its head at 1.00, perfectly "visible" by the ground point and beheaded
+   *  by the top edge. The flanks are the same mistake sideways: the first pass
+   *  that only checked the centre put a shoulder off the right edge. */
+  private arrivalFrameScore(x: number, z: number): number | null {
+    const { screenMargin, bodyHeight, bodyHalfWidth } = FINAL_BOSS.arrival;
+    let worstY = 0;
+    for (const offset of [-bodyHalfWidth, 0, bodyHalfWidth]) {
+      for (const y of [0, bodyHeight]) {
+        const point = this.projectToScreen(x + offset, y, z);
+        const limit = 1 - screenMargin;
+        if (Math.abs(point.x) > limit || Math.abs(point.y) > limit || point.z >= 1) return null;
+        worstY = Math.max(worstY, Math.abs(point.y));
+      }
     }
+    // Among the spots that FIT, prefer the ones nearest the middle band of the
+    // frame. Fitting is not the same as being readable: the top strip carries
+    // the run timer and the health bar, the bottom carries the boss bar, and a
+    // Marshal that lands behind either is technically on screen and practically
+    // half hidden.
+    return 1 - worstY;
+  }
+
+  private startFinale(): void {
     telemetry.choice('finale_started', {
-      bossId: summoned,
+      bossId: ENEMY_TYPES[FINAL_BOSS_TYPE_INDEX]?.name ?? 'final-boss',
       mapId: this.currentMap.id,
       totalElapsedS: Math.round(this.elapsedS * 1_000) / 1_000,
     });
-    this.hud.banner(`${summoned.toUpperCase()} AWAKENS`);
-    this.audio.emit({ id: 'boss-awaken', priority: 3 });
-    this.shakeAmp = Math.max(this.shakeAmp, VISUAL.bossSummonVfx.shakeAmp);
+    this.beginFinaleArena();
+  }
+
+  /** Runs at full black, inside the finale's curtain. Deliberately NOT
+   *  transitionToMap: no sector is credited, no map is swapped and the arc
+   *  state is untouched — this is the same sector reopening as an arena. */
+  private openFinaleArena(): void {
+    this.resetForMapTransition();
+    if (FINAL_BOSS.arena.healToFull) this.player.hp = this.player.maxHp;
+    // Gold is NOT zeroed, unlike a sector crossing: the run is not starting a
+    // new economy, it is finishing this one, and the scrapper is already gone.
+    this.regenerateProps(this.currentMap.id, FINAL_BOSS.arena.clearRadius);
+    telemetry.choice('finale_arena', {
+      mapId: this.currentMap.id,
+      clearRadius: FINAL_BOSS.arena.clearRadius,
+      totalElapsedS: Math.round(this.elapsedS * 1_000) / 1_000,
+    });
+  }
+
+  /** Opens the arrival once the arena is up. The telegraph, the AWAKENS banner,
+   *  the eruption and the shake all come from the shared summon path — this
+   *  only has to decide WHERE, and keep trying until it can. */
+  private tickPendingFinaleArrival(): void {
+    if (!this.pendingFinaleArrival) return;
+    const opened = this.boss.beginFinalArrival(
+      this.player.position.x,
+      this.player.position.z,
+      this.refreshCollisionObstacles(),
+      (x, z) => this.arrivalFrameScore(x, z),
+    );
+    if (opened) this.pendingFinaleArrival = false;
   }
 
   /** Clears the previous container/barrel layout and rolls a fresh one,
    *  avoiding the boss totem (must be placed via boss.startRun() first) —
    *  user request 2026-07-06: different count/position every playthrough,
    *  not just every app launch. */
-  private regenerateProps(mapId: string): void {
+  private regenerateProps(mapId: string, centreClearRadius = 0): void {
     clearProps(this.scene, this.propMeshes);
     const totem = this.boss.totemTarget();
     // Each map's scatter props declare their own totem clearance; using Map 1's
@@ -1520,7 +1676,11 @@ export class Game {
     for (const structure of this.mapObstacles) {
       avoid.push({ x: structure.x, z: structure.z, radius: structure.radius + PROP_STRUCTURE_CLEARANCE });
     }
-    const props = placeRandomProps(this.scene, avoid, mapId);
+    // The finale's arena empties the middle of the map. The radius is applied
+    // per prop family inside placeRandomProps, inflated by each family's own
+    // reach: a gate avoids by its CENTRE, so one shared radius left container
+    // ends inside the supposedly clear circle (measured at 26.6 of 28).
+    const props = placeRandomProps(this.scene, avoid, mapId, centreClearRadius);
     // Rebuild from the map's OWN structural collision (Map 2's perimeter
     // towers) plus the fresh props. Resetting to props alone silently deleted
     // the towers' colliders, which only showed up as enemies walking through
@@ -1566,7 +1726,19 @@ export class Game {
       this.endRun(flowAction.outcome, flowAction.reason);
       return;
     }
-    if (flowAction.type === 'start-finale') this.startFinale();
+    if (flowAction.type === 'start-finale') {
+      // The arena reset takes over the frame: it leaves 'playing', so nothing
+      // below this line may run on a world that is being torn down.
+      this.startFinale();
+      return;
+    }
+    this.tickPendingFinaleArrival();
+    // Once the finale is inbound the ambient waves STOP. The arena reset would
+    // otherwise be a twenty-second effect: at the foundry's peak the spawner
+    // refills toward ~437 bodies, so the clean floor the boss lands on would be
+    // gone before it finished arriving. The Marshal's own phase-2 reinforcements
+    // are unaffected — they spawn directly, not through the spawner.
+    this.enemies.wavesPaused = this.runFlow.finaleStarted;
     const activeMap = MAPS[this.runFlow.mapIndex] ?? MAPS[0];
     const remaining = Math.max(0, activeMap.durationS - this.runFlow.mapElapsedS);
 

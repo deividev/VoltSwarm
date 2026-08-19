@@ -1343,6 +1343,19 @@ body:has(#end-overlay:not(.hidden)) #build-panel {
   margin-bottom: 4px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
 }
+/* Finale only: which of the Hazard Marshal's three phases is live. Amber, its
+   own body colour, so it reads as the boss speaking rather than as HUD chrome
+   competing with the red danger language of the bar itself. */
+#boss-phase {
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: #fdb601;
+  margin-bottom: 4px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+#boss-phase.hidden {
+  display: none;
+}
 #boss-bar-track {
   height: 12px;
   background: rgba(20, 24, 30, 0.85);

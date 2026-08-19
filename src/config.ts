@@ -65,6 +65,7 @@ export const DEV_TOOLS: {
   startingMapSelector: boolean;
   simulateMap1Handoff: boolean;
   mapTransitionKey: boolean;
+  finaleKey: boolean;
   fatalHitKey: boolean;
   shortMaps: boolean;
   difficultyReadout: boolean;
@@ -97,6 +98,16 @@ export const DEV_TOOLS: {
    *  advances through run-flow's own enterMap, so the shortcut cannot drift from
    *  the real crossing. check-release-flags.mjs fails the build while this is true. */
   mapTransitionKey: true,
+  /** Y mid-run: jump straight to the FINALE — the arena reset plus the Hazard
+   *  Marshal's arrival — carrying the live run exactly as T does.
+   *
+   *  T already reaches it from inside the foundry, but only by winding that
+   *  map's clock, so seeing the finale from a fresh run still costs a full Map 1
+   *  plus a boss kill plus ten more minutes. Y crosses whatever is left of the
+   *  arc through run-flow's own `enterMap` and then arms the same structural
+   *  `start-finale`, so the shortcut cannot show a beat players never get.
+   *  check-release-flags.mjs fails the build while this is true. */
+  finaleKey: true,
   /** K mid-run: apply a guaranteed lethal hit through the REAL damage funnel.
    *  The defeat beat is otherwise only reachable by dying for real, which makes
    *  measuring its phases, audio and freeze rules a matter of luck. It goes
@@ -1487,20 +1498,203 @@ export function isBossTypeIndex(typeIndex: number): boolean {
   return ENEMY_TYPES[typeIndex]?.isBoss === true;
 }
 
-/** Provisional, reusable arena behavior for the first playable Map 2 pass.
- * This is an integration harness, not the final Hazard Marshal moveset. */
-export const FINAL_BOSS_PROVISIONAL = {
-  spawnDistance: 24,
+/** Hazard Marshal — the fixed finale of the arc (docs/PLAN_MAPA2.md §3).
+ *
+ *  Two separate things live here. ARRIVAL: the Marshal enters when Map 2's
+ *  waves end, not through an optional portal, and it is presented with the
+ *  SAME telegraph language every Map 1 boss gets. PHASES: the three-phase
+ *  moveset of 3.B, cumulative on purpose — each threshold ADDS a verb instead
+ *  of replacing the previous one, so the escalation is legible without asking
+ *  the player to re-learn the fight twice mid-kill. */
+export const FINAL_BOSS = {
+  arrival: {
+    /** Ring around the PLAYER the Marshal materializes in.
+     *
+     *  `distMin` is a no-touch guarantee: player radius 0.7 + boss radius 3.1
+     *  = 3.8 units of contact, so 15 leaves the arrival outside any chance of
+     *  a free hit and still inside the player's reaction space. It matches
+     *  BOSS.spawnMinDistFromPlayer's intent (14) for the same reason.
+     *
+     *  `distMax` is bounded by the FRAME, not by taste. The camera sits at
+     *  (0, 24, 19) with a 50 degree vertical fov, which leaves roughly 29
+     *  units of visible ground above the player and only ~13 below — the ring
+     *  is therefore filtered by a real projection test at placement time
+     *  (Game.isPointOnScreen), never by a hardcoded angle that would go wrong
+     *  the moment the aspect ratio changes.
+     *
+     *  15-21 -> 11-15 (2026-08-19), because the frame test grew teeth: it now
+     *  checks the whole BODY BOX — head and both flanks — instead of the point
+     *  the feet stand on (see bodyHeight/bodyHalfWidth). Measured at 16:9, a
+     *  Marshal standing 19 units up-screen projects its head off the top of
+     *  the frame: on screen by its feet, decapitated by the edge. Against the
+     *  real body the old ring left 8% of its bearings usable at 16:9 and almost
+     *  none at 4:3; this one leaves 51%, 39% at 16:10 and 19% at 4:3.
+     *
+     *  11 is still 2.9x the 3.8 units of contact reach, and nothing can be
+     *  standing there when it lands: the arrival telegraphs for 2.5 seconds. */
+    distMin: 11,
+    distMax: 15,
+    /** Height of the Marshal's body in world units, for the frame test.
+     *
+     *  The camera looks DOWN, so a body's feet and its head are far apart on
+     *  screen — checking the ground point alone is what let an arrival lose its
+     *  head to the top edge. MEASURED off the live model (geometry bounding box
+     *  x instance scale = 9.87), not estimated: the first guess here was 7, and
+     *  tools/finale-runtime-check.mjs is what caught it. That check re-measures
+     *  every run and fails if the model ever outgrows this number. */
+    bodyHeight: 10,
+    /** Half the body's width, same job on the horizontal axis: an arrival whose
+     *  centre clears the right edge can still have a shoulder outside it. */
+    bodyHalfWidth: 3.5,
+    /** Free ring around the body ON TOP of its own radius. The Marshal must
+     *  land with room to move, not wedged between two foundry pillars: Map 2
+     *  scatters 54 props plus a perimeter tower ring, so "somewhere clear" and
+     *  "somewhere it can fight" are not the same question. */
+    clearance: 3.5,
+    /** Fraction of the half-frame kept as a margin in the projection test, so
+     *  the arrival can never land flush against the screen edge. 0.15 -> 0.06
+     *  once the test started checking the whole body box: the margin used to be
+     *  a blunt stand-in for the body's own size, and now that the size is
+     *  measured directly, keeping both would reject bearings that read fine. */
+    screenMargin: 0.06,
+    /** Same telegraph window as a Map 1 summon (BOSS.summonDelayS = 2.5): beam
+     *  strobe plus expanding warning rings at the arrival point before the body
+     *  exists. Kept as its own number because the finale may want a longer
+     *  build-up later without lengthening every totem summon in the game. */
+    telegraphS: 2.5,
+    /** Placement samples before the arrival gives up and the finale retries on
+     *  the next frame (Game.startFinale re-arms the structural trigger). */
+    placementAttempts: 96,
+  },
+  /** The arena the finale is fought in. When Map 2's clock runs out the sector
+   *  is RESET behind the same fade curtain a sector crossing uses: the field is
+   *  wiped, the player returns to the centre, and the scatter props are rolled
+   *  again with the middle of the map left empty. The fight then opens on clean
+   *  ground instead of wherever the last ten minutes happened to leave things. */
+  arena: {
+    /** No scatter prop may stand within this radius of the arena centre.
+     *
+     *  28 covers everything the encounter needs room for: the arrival ring
+     *  (15 max) plus the boss's own body and its clearance (3.1 + 3.5 = 6.6),
+     *  with space left to circle it. Beyond that the foundry keeps its
+     *  scenery — an arena swept clean to the walls would stop reading as the
+     *  same map. Map 2's props scatter from 8 (cells), 18 (gates) and 22
+     *  (pillars) out to 86, so this pushes them outward rather than deleting
+     *  them: the count is unchanged. */
+    clearRadius: 28,
+    /** Heal to full when the arena resets.
+     *
+     *  Same reasoning as the sector crossing (PLAN_MAPA2 0.3): surviving the
+     *  foundry's ten minutes is the achievement, and arriving at the climax on
+     *  4 HP decides it before it starts. It is a flag rather than a hardcoded
+     *  heal because it is a design call, not a mechanic — flip it to false and
+     *  the finale becomes a survival test of everything before it. */
+    healToFull: true,
+  },
+  /** Height of every ground telegraph this fight draws. Just under the player
+   *  marker (0.075) so the two never z-fight when the player stands in a zone,
+   *  and above the floor plane so a foundry plate cannot swallow it. */
+  markerY: 0.06,
+  /** HP scales with the level the run arrives at, same contract as BOSS. */
   hpLevelReference: 30,
   hpLevelMin: 0.85,
   hpLevelMax: 1.6,
-  burstCooldownS: 5.5,
-  telegraphS: 1.1,
-  burstProjectiles: 16,
-  projectileSpeed: 13,
-  projectileDamage: 16,
-  shoveRadius: 12,
-  shoveForce: 14,
+  /** HP fractions where phase 2 and phase 3 begin. Descending, by LIFE and
+   *  never by clock: a fight that changes on a timer punishes a strong build
+   *  for killing fast. */
+  phaseThresholds: [0.66, 0.33],
+  /** The phase change itself: the boss roots, flares, and announces. This is
+   *  the rare event the `hit`/stagger clip is reserved for (3.A.2) — routine
+   *  damage stays tint-only because it arrives too often for a clip to finish. */
+  phaseChange: {
+    staggerS: 1.4,
+    shakeAmp: 0.5,
+    burstColor: 0xfdb601,
+    burstCount: 34,
+    hotColor: 0xf8fbff,
+    hotCount: 12,
+    ringColor: 0xff3355,
+    ringCubes: 26,
+    ringRadius: 5.4,
+  },
+  /** Baseline discharge, live in every phase — the fight's heartbeat, and the
+   *  behavior the provisional integration pass already validated. Cooldown is
+   *  indexed BY PHASE, so the same verb tightens as the fight escalates. */
+  discharge: {
+    cooldownS: [6.5, 5.5, 4.5],
+    telegraphS: 1.1,
+    projectiles: 16,
+    projectileSpeed: 13,
+    projectileDamage: 16,
+    shoveRadius: 12,
+    shoveForce: 14,
+  },
+  /** PHASE 1 — sector sweep. A wedge of the floor lights up, aimed at the
+   *  player, and then discharges.
+   *
+   *  Damage is above a boss touch (16) on purpose: this one is telegraphed for
+   *  1.3s and has a way out, so paying attention has to be worth more than
+   *  tanking it. It is still nowhere near the 62.5 DPS that got a boss's touch
+   *  rejected in 2026-07-30, because it fires at most once per cooldown. */
+  sweep: {
+    firstDelayS: 3.4,
+    cooldownS: [7, 6, 4.6],
+    telegraphS: 1.3,
+    halfAngleDeg: 42,
+    radius: 20,
+    damage: 26,
+    /** Amber: the Marshal's own body colour, so origin and destination of the
+     *  attack wear the same colour (rule of two halves). */
+    color: 0xfdb601,
+    hotColor: 0xf8fbff,
+    /** Cube fans thrown along the arc when it discharges. */
+    arcSteps: 9,
+    burstPerStep: 3,
+  },
+  /** PHASE 2 — assembly lines. The Marshal opens intake bays on the perimeter
+   *  and feeds reinforcements in. Telegraphed at the BAY, not at the boss:
+   *  the player has to be told where the floor is about to fill. */
+  assembly: {
+    cooldownS: 9,
+    telegraphS: 1.6,
+    bays: 2,
+    perBay: 5,
+    /** Voltling + Sparkrunner: the cheap, fast pressure of the foundry roster.
+     *  Heavier types would turn a pressure beat into a second boss fight. */
+    typeIndexes: [0, 1],
+    /** Distance from the ARENA CENTRE the bays open at — the perimeter, so
+     *  reinforcements walk in and are seen coming, rather than appearing on
+     *  top of the player. */
+    bayDistance: 46,
+    /** Hard stop: never top the field up past this many live bodies. The
+     *  spawner is already refilling toward its own cap and the finale must not
+     *  double-fill it (the measured lesson from the Crusher's slam). */
+    maxActiveBodies: 320,
+    color: 0x2ee6de,
+  },
+  /** PHASE 3 — core overload. A chain of hazard zones erupts outward FROM the
+   *  boss along the player's bearing, one after another.
+   *
+   *  Deliberately anchored to the boss and marching outward: the one previous
+   *  ground-zone attempt in this project (Crusher stage C, rejected on sight
+   *  2026-08-07) was born 7 units away from a focus the boss had just grabbed
+   *  elsewhere, so it read as unrelated. Origin and destination are both on
+   *  screen here, and nothing else fires during the chain. */
+  overload: {
+    cooldownS: 8,
+    telegraphS: 1.15,
+    zones: 4,
+    /** Delay between consecutive zones in the chain — the "sequential" part. */
+    zoneStepS: 0.45,
+    firstDistance: 6.5,
+    stepDistance: 6.5,
+    zoneRadius: 4.4,
+    damage: 22,
+    color: 0xff3355,
+    hotColor: 0xf8fbff,
+    /** The Marshal itself gets faster for the last third. */
+    speedMult: 1.15,
+  },
 } as const;
 
 export const ENEMIES = {
