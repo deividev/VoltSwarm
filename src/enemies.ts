@@ -345,17 +345,45 @@ export class EnemySystem {
   /**
    * Advances spawning, per-behavior AI, separation and instance transforms.
    * `difficulty` is the unified scalar from config.difficultyScalar.
+   *
+   * TWO clocks on purpose, and they diverge from Map 2 onwards:
+   * - `elapsedS` is the map's COMBAT clock (difficultyOffsetS + map time). It
+   *   drives presentation phases only.
+   * - `arcElapsedS` is the RUN's clock, which never rewinds at a crossing. How
+   *   STRONG a body is rides this one — enemy HP and the elite ramp — because
+   *   the player does not get weaker by walking through a door. Feeding them the
+   *   combat clock made the foundry open at a 2.2x HP multiplier right after Map
+   *   1 ended at 4.0x: the swarm went soft exactly where the build peaked.
+   * - `rosterElapsedS` is the map's own introduction clock, and it DOES restart
+   *   at a crossing. WHICH types appear is a matter of staging, not of power: a
+   *   new sector earns its own opening, a flood of basics that escalates back to
+   *   the full cast on that map's schedule. Strength and staging are separate
+   *   questions and were conflated into one clock until this split.
+   *
+   * `rewardScale` is deliberately NOT `difficulty`: see config.rewardScalar.
    */
   update(
     dt: number,
     elapsedS: number,
+    arcElapsedS: number,
+    rosterElapsedS: number,
     difficulty: number,
+    rewardScale: number,
     playerX: number,
     playerZ: number,
     obstacles: Obstacle[],
     projectiles: EnemyProjectiles,
   ): void {
-    this.updateSpawner(dt, elapsedS, difficulty, playerX, playerZ, obstacles);
+    this.updateSpawner(
+      dt,
+      arcElapsedS,
+      rosterElapsedS,
+      difficulty,
+      rewardScale,
+      playerX,
+      playerZ,
+      obstacles,
+    );
     // Heavy bodies join the avoidance set for this frame, so the rest of the
     // swarm steers AROUND them instead of damming up behind them.
     const steerObstacles = this.rebuildDynamicObstacles(obstacles);
@@ -905,10 +933,14 @@ export class EnemySystem {
     }
   }
 
+  /** Wave strength runs on the ARC clock (see `update`), never on the per-map
+   *  combat clock: crossing a sector boundary must not rewind the swarm. */
   private updateSpawner(
     dt: number,
-    elapsedS: number,
+    arcElapsedS: number,
+    rosterElapsedS: number,
     difficulty: number,
+    rewardScale: number,
     playerX: number,
     playerZ: number,
     obstacles: Obstacle[],
@@ -937,16 +969,18 @@ export class EnemySystem {
       ),
       Math.max(0, maxActive - this.activeCount),
     );
-    const hpMultiplier = (1 + (elapsedS / 60) * ENEMIES.hpRampPerMinute) * Math.max(1, difficulty);
+    const hpMultiplier =
+      (1 + (arcElapsedS / 60) * ENEMIES.hpRampPerMinute) * Math.max(1, difficulty);
     this.spawnTimer = interval;
 
     for (let n = 0; n < waveSize; n++) {
-      const type = pickEnemyType(elapsedS);
+      // Staging, not strength: this is the ONLY thing the roster clock decides.
+      const type = pickEnemyType(rosterElapsedS);
       const elite =
-        elapsedS >= ELITES.minRunTimeS &&
+        arcElapsedS >= ELITES.minRunTimeS &&
         ELITES.behaviors.includes(type.behavior) &&
         Math.random() < Math.max(ELITES.chanceFloor, ELITES.chanceAtMaxDifficulty * difficulty);
-      this.spawn(type, hpMultiplier, playerX, playerZ, elite, obstacles, elapsedS, difficulty);
+      this.spawn(type, hpMultiplier, playerX, playerZ, elite, obstacles, arcElapsedS, rewardScale);
     }
   }
 
@@ -958,7 +992,7 @@ export class EnemySystem {
     elite: boolean,
     obstacles: Obstacle[],
     elapsedS = 0,
-    difficulty = 1,
+    rewardScale = 1,
   ): void {
     const scaleMultiplier = elite ? ELITES.scaleMultiplier : 1;
     const radius = type.radius * scaleMultiplier;
@@ -979,7 +1013,7 @@ export class EnemySystem {
       elite,
       obstacles,
       elapsedS,
-      difficulty,
+      rewardScale,
     );
   }
 
@@ -992,9 +1026,9 @@ export class EnemySystem {
     hpMultiplier = 1,
     elite = false,
     obstacles: Obstacle[] = [],
-    /** Only used to ramp elite HP and payout — plain spawns ignore both. */
+    /** ARC clock. Only used to ramp elite HP and payout — plain spawns ignore both. */
     elapsedS = 0,
-    difficulty = 1,
+    rewardScale = 1,
   ): number {
     const type = ENEMY_TYPES[typeIndex];
     if (!type) return -1;
@@ -1025,10 +1059,11 @@ export class EnemySystem {
     const eliteHpMultiplier = elite
       ? THREE.MathUtils.lerp(ELITES.hpMultiplierEarly, ELITES.hpMultiplier, eliteRamp)
       : 1;
-    // Payout scales only with difficulty ABOVE 1, which time alone never
-    // exceeds — so this rewards stacked Cursed Core, not simply surviving.
+    // Payout scales only with pressure the CLOCK did not create — see
+    // config.rewardScalar. Surviving into a harder map is not a pay raise;
+    // stacking Cursed Core is.
     const rewardMultiplier =
-      elite && ELITES.rewardScalesWithDifficulty ? Math.max(1, difficulty) : 1;
+      elite && ELITES.rewardScalesWithDifficulty ? Math.max(1, rewardScale) : 1;
     e.maxHp = Math.round(type.hp * hpMultiplier * eliteHpMultiplier);
     e.hp = e.maxHp;
     e.speed = type.speed;
@@ -1121,8 +1156,10 @@ export class EnemySystem {
    *  that makes an isolated boss test worthless. Uses the actual spawner so
    *  the mix of types, the HP ramp and the cap all come out right. */
   devFillToCap(
-    elapsedS: number,
+    arcElapsedS: number,
+    rosterElapsedS: number,
     difficulty: number,
+    rewardScale: number,
     playerX: number,
     playerZ: number,
     obstacles: Obstacle[],
@@ -1139,7 +1176,16 @@ export class EnemySystem {
     while (guard++ < 400 && this.activeCount !== previous && this.activeCount < cap) {
       previous = this.activeCount;
       this.spawnTimer = 0;
-      this.updateSpawner(0, elapsedS, difficulty, playerX, playerZ, obstacles);
+      this.updateSpawner(
+        0,
+        arcElapsedS,
+        rosterElapsedS,
+        difficulty,
+        rewardScale,
+        playerX,
+        playerZ,
+        obstacles,
+      );
     }
 
     // Then fix WHERE they are. The spawner drops everything into the 32-44

@@ -2387,6 +2387,19 @@ export class Hud {
     this.fpsCounter.textContent = `${fps} FPS`;
   }
 
+  /** Live difficulty readout (dev instrument, gated by DEV_TOOLS.difficultyReadout).
+   *
+   *  Shares the FPS corner rather than adding a second overlay: the point is to
+   *  answer "did the curve I just edited actually run?" without finishing a run
+   *  and reading the history afterwards. Three separate sessions were spent
+   *  guessing at that question before this existed. */
+  updateDevReadout(lines: string[]): void {
+    this.fpsCounter.classList.remove('hidden');
+    this.fpsCounter.textContent = lines.join('\n');
+    this.fpsCounter.style.whiteSpace = 'pre';
+    this.fpsCounter.style.textAlign = 'right';
+  }
+
   /** Build UI, split in two: the always-on left panel shows owned weapons
    *  with levels (the build caps at 2, so it stays tiny in-run), and the
    *  FULL 21-stat sheet renders into #stat-sheet inside the level-up

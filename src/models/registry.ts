@@ -319,6 +319,38 @@ export const FOUNDRY_IRON_CASING = 0x332b25;
 export const FOUNDRY_IRON_PLATE = 0x57493d;
 export const FOUNDRY_GRAPHITE_CASING = 0x191d20;
 export const FOUNDRY_GRAPHITE_PLATE = 0x33393d;
+/** Foundry container ramps.
+ *
+ *  Two rules decided these, and the first attempt broke both.
+ *
+ *  1. They must sit ABOVE the floor's ~62 luma, not under it. A chimney is
+ *     skyline the eye reads by silhouette; a container is COVER, and the player
+ *     has to spot it at a glance while running from 300 bodies.
+ *  2. They must land in a hue nothing else owns. The first pass used steel and
+ *     iron — which is exactly what the power cells (hue 205) and the chimney
+ *     recolours (204-208 and 26-28) already are, so the map gained props and no
+ *     variety at all.
+ *
+ *  MEASURED HUE CENSUS of everything already spoken for: 0-45 red/orange/amber
+ *  (boss signal, muzzle flash, bronze, barrels, and the GOLD that means loot),
+ *  ~99 the blinking acid status tint, ~146 the chimney conduit, 176-194
+ *  teal/cyan (Sparkrunner, Tesla, cell cores, the logo), 200-220 the industrial
+ *  greys AND the floor's own blue channels (#3b8fff), ~300 the elite ring
+ *  (0xff6bff), 312-315 Map 1's mauve containers.
+ *
+ *  That leaves two windows. These take both: violet at 258 sits in the widest
+ *  empty band in the project — 38 hue clear of the floor's blue on one side and
+ *  42 clear of the elite magenta on the other — and moss at 88 takes the
+ *  olive-green window. Moss is the riskier of the two, being 11 hue from the
+ *  acid tint, but that tint is bright (luma 173), saturated and BLINKING on a
+ *  moving body, against a still, dark, half-saturated wall. If they ever read as
+ *  the same thing in play, moss is the one to move, not violet. */
+export const FOUNDRY_CONTAINER_VIOLET_LIGHT = 0x9a86c4;
+export const FOUNDRY_CONTAINER_VIOLET = 0x6b5a93;
+export const FOUNDRY_CONTAINER_VIOLET_DARK = 0x443a5e;
+export const FOUNDRY_CONTAINER_MOSS_LIGHT = 0x86a85f;
+export const FOUNDRY_CONTAINER_MOSS = 0x5e7742;
+export const FOUNDRY_CONTAINER_MOSS_DARK = 0x3b4c2a;
 // Scrapper (merchant) palette — MEASURED per-region from
 // ref-scrapper-front-v1.png (v2 2026-07-09: first pass missed the TOOL GRAYS
 // entirely — the wrench/pipes cluster collapsed into bronze/olive mush — and
@@ -941,6 +973,45 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
       [TEAL_LIGHT]: CONTAINER_MAUVE_LIGHT,
       [TEAL]: CONTAINER_MAUVE,
       [TEAL_DARK]: CONTAINER_MAUVE_DARK,
+    },
+    previewScale: 0.55,
+  },
+  // Foundry container variants (2026-08-18). Same geometry and the same
+  // recolor-the-output technique as the orange/mauve pair — the model is reused
+  // ON PURPOSE as a cheap test of whether Map 2 needs long cover at all, before
+  // any bespoke foundry prop is authored. If the geography earns its place, a
+  // purpose-built model replaces these; if it does not, nothing was spent.
+  'container-foundry-violet': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-container-front-v3.png',
+    refSide: 'assets/2d/prop-container-side-v3.png',
+    refBack: 'assets/2d/prop-container-back-v3.png',
+    targetWidth: 26,
+    voxelSize: 0.12,
+    bodyColor: TEAL,
+    palette: [TEAL_LIGHT, TEAL, TEAL_DARK, CONTAINER_FRAME, DARK, BONE],
+    frontOnly: [],
+    recolorMap: {
+      [TEAL_LIGHT]: FOUNDRY_CONTAINER_VIOLET_LIGHT,
+      [TEAL]: FOUNDRY_CONTAINER_VIOLET,
+      [TEAL_DARK]: FOUNDRY_CONTAINER_VIOLET_DARK,
+    },
+    previewScale: 0.55,
+  },
+  'container-foundry-moss': {
+    kind: 'prop',
+    ref: 'assets/2d/prop-container-front-v3.png',
+    refSide: 'assets/2d/prop-container-side-v3.png',
+    refBack: 'assets/2d/prop-container-back-v3.png',
+    targetWidth: 26,
+    voxelSize: 0.12,
+    bodyColor: TEAL,
+    palette: [TEAL_LIGHT, TEAL, TEAL_DARK, CONTAINER_FRAME, DARK, BONE],
+    frontOnly: [],
+    recolorMap: {
+      [TEAL_LIGHT]: FOUNDRY_CONTAINER_MOSS_LIGHT,
+      [TEAL]: FOUNDRY_CONTAINER_MOSS,
+      [TEAL_DARK]: FOUNDRY_CONTAINER_MOSS_DARK,
     },
     previewScale: 0.55,
   },

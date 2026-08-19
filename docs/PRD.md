@@ -719,3 +719,100 @@ Tres mecánicas se llegaron a construir y se apilaron sobre la misma pelea sin j
 
 - **`BOSS.crusher.speed` y `BOSS.tesla.speed` eran valores MUERTOS.** `boss.ts` lee la velocidad base de `ENEMY_TYPES`. Tunear la clave "obvia" no habría hecho nada — mismo fallo que tuvo `BOSS.tesla.preferredDist` hasta el 2026-07-30. Ambas claves eliminadas.
 - **`BOSS_TYPE_INDEXES[0]` se usaba como identidad.** Dos sitios de `boss.ts` despachaban así, y con un pool sin King ese `[0]` pasa a ser el Tesla: lo habría ejecutado por `updateCrusher` — embistiendo, invocando scraplings y sin disparar una sola ráfaga. Ahora se pregunta por `CRUSHER_KING_TYPE_INDEX` / `TESLA_TITAN_TYPE_INDEX`.
+
+## Presión y balance del Mapa 2 — Implementado 2026-08-18 (v0.14.0)
+
+Cierra el Workstream 4 de `docs/PLAN_MAPA2.md`, donde vive el detalle completo con
+sus mediciones. **Ninguno de estos ejes tiene todavía una run humana detrás**: están
+medidos, cubiertos por tests y razonados, pero medido no es jugado.
+
+### Tres relojes en vez de uno
+
+`EnemySystem.update` recibía un solo reloj y de él derivaba tanto la presentación
+como la fuerza de la oleada. Se separan porque son preguntas distintas:
+
+| Reloj | Qué decide | ¿Rebobina al cruzar de mapa? |
+| --- | --- | --- |
+| `elapsedS` | fases visuales (parpadeos, auras, wobble) | sí |
+| `arcElapsedS` | vida de enemigo, rampa de élites | **nunca** |
+| `rosterElapsedS` | qué tipos de enemigo aparecen | **sí, a propósito** |
+
+El síntoma que lo destapó: el Mapa 2 abría con un multiplicador de vida de 2.2×
+justo después de que el Mapa 1 cerrara en 4.0×. El enjambre se ablandaba justo
+donde la build del jugador estaba en su pico.
+
+`rosterElapsedS = mapElapsedS × MAPS[].rosterSpeed`. El Mapa 2 usa `2.5`, así que
+replantea las presentaciones (Voltling a 0:00, elenco completo de vuelta a 2:48) y
+la fundición tiene una apertura propia en vez de heredar el reparto terminado del
+mapa anterior.
+
+### Curva de dificultad por mapa
+
+`MAPS[].difficulty = { floor, peak, rampS }` sustituye a `difficultyOffsetS`.
+
+- **Mapa 1: `{ floor: 0, peak: 1, rampS: 480 }`** — reproduce la fórmula global
+  histórica **bit a bit**, verificado en 7 puntos de tiempo y congelado por test.
+- **Mapa 2: `{ floor: 0.7, peak: 1.15, rampS: 600 }`** — abre en la presión del
+  minuto 5 del Mapa 1 (277 cuerpos) y cierra en 437, por encima de cualquier cosa
+  que el Mapa 1 alcance.
+
+`peak > 1` es significativo: el motor ya multiplicaba cap de vivos, tamaño de
+oleada y vida por todo lo que pase de 1, pero solo el mod Cursed llegaba ahí.
+
+`rewardScalar(difficulty, curve)` acompaña al cambio: la XP y el oro de élite
+pagaban un bonus por "dificultad por encima de 1", regla que solo se sostenía
+mientras 1 fuera también el techo del reloj. Ahora el exceso se mide contra el
+techo DEL MAPA, así que vale exactamente 1.0 cuando la presión la puso el reloj.
+
+### Jerarquía de golpe, por mapa
+
+`MAPS[].contactDamageMult` y `MAPS[].bossContactDamageMult`, más
+`BOSS.contactDamage` de 12 a 16.
+
+| Mapa | Grunt | Élite | Boss | Muere en |
+| --- | --- | --- | --- | --- |
+| Scrapyard | 8.0 (20 dps) | 10.8 (27) | 16.0 (40) | 2.5 s |
+| Swarm Foundry | 12.0 (30) | 16.2 (41) | 20.0 (50) | 2.0 s |
+
+Los proyectiles de boss y los disparos del Gunner quedan **fuera** del
+multiplicador de mapa a propósito: tienen su propio tuneo y el jefe final vive en
+el Mapa 2.
+
+Un test congela, para cada mapa, `grunt < élite < boss` y que el DPS de boss se
+mantenga por debajo del que se midió y rechazó el 2026-07-30 (62.5, muerte en
+1.6 s). Esta jerarquía se había invertido en silencio.
+
+### Cobertura y variedad de props
+
+- **`FOUNDRY_CONTAINER_PROP`**: 7-9 puertas de contenedor, pasillo de 5.4 de medio
+  ancho, en violeta (hue 258) y musgo (hue 88) — las dos únicas ventanas de matiz
+  que el proyecto tenía libres. Reutiliza el modelo del Mapa 1 recoloreado, como
+  test barato de si la fundición quiere esta geografía antes de autorar arte.
+  El conteo va por debajo de las 10-13 del Mapa 1 porque los obstáculos bloquean
+  también las armas del jugador (`hasLineOfSight`), y el apuntado es automático.
+- **`pickSpatialVariant()`** elige la variante más rara entre los props ya puestos
+  dentro de un radio. El scatter sorteaba de forma independiente por prop, lo que
+  produce rachas de 4-5 iguales por aritmética. Vecinos del mismo color: celdas
+  34.6% → 10.4%, puertas 50.7% → 19.0%. El Mapa 1 conserva su comportamiento
+  (`BARREL_PROP.variantSeparation: 0`).
+
+### Instrumento: readout de dificultad en vivo
+
+`DEV_TOOLS.difficultyReadout` pinta en la esquina mapa, los tres relojes, la
+dificultad contra el suelo/techo de su mapa, el multiplicador de vida, el daño de
+contacto vigente y los cuerpos vivos. Todos los valores se **leen** de lo que usan
+los sistemas. Existe porque "¿se aplicó el cambio de balance?" era irrespondible
+jugando: los números solo salían en el historial al terminar una run. Gateado, y
+`check-release-flags.mjs` aborta el empaquetado con él encendido.
+
+### Atajos de dev que mentían
+
+La tecla **T** saltaba a la transición sin tocar el reloj de arco, así que pulsarla
+en el segundo 30 metía al jugador en un Mapa 2 con vida ×1.15 en vez de ×4.0. Y
+`applyRecordedBuild` **machacaba la build en vivo** con una grabación vieja, o sea
+que jugar el Mapa 1 de verdad y pulsar T te cruzaba con otra build.
+
+Ahora: el reloj se adelanta a un Mapa 1 completo (sin rebobinar nunca), la build en
+vivo manda siempre, y la grabación de respaldo exige `durationS >= MAPS[0].durationS`
+— `sectorsCleared` y `mapsReached` **los falsifica el propio atajo**, porque la T
+pasa por el mismo `enterMap` que un cruce real.

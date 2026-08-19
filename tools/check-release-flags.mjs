@@ -23,6 +23,7 @@ const GUARDED = [
   { block: 'DEV_TOOLS', key: 'mapTransitionKey', why: 'the T jump-to-transition hotkey would let players skip a whole map' },
   { block: 'DEV_TOOLS', key: 'fatalHitKey', why: 'the K instant-death hotkey would let players end a run on demand' },
   { block: 'DEV_TOOLS', key: 'shortMaps', why: 'the validation rig would ship four-minute maps instead of the real ten' },
+  { block: 'DEV_TOOLS', key: 'difficultyReadout', why: 'the live difficulty debug readout would ship to players' },
   { block: 'RECORDING', key: 'enabled', why: 'the level-up draft is rigged for capture' },
   { block: 'RECORDING', key: 'forceGreenChests', why: 'chest tiers are rigged for capture' },
   { block: 'RECORDING', key: 'forceOrbSiphonReward', why: 'the chest reward is rigged for capture' },

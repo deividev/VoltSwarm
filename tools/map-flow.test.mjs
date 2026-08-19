@@ -62,13 +62,53 @@ test('several bosses on one map still clear exactly one sector', () => {
 });
 
 test('Map 2 opens above Map 1 while keeping room to ramp', () => {
-  // Decision 0.2: the foundry must not restart Map 1's curve from zero (that made
-  // it a clone), and must not sit at or past the 480s difficulty cap either — an
-  // offset >= the cap would open Map 2 permanently flat at maximum pressure.
+  // Decision 0.2: the foundry must not restart Map 1's curve from zero (that
+  // made it a clone) and must not open already pinned at its ceiling either.
+  //
+  // The offset this replaces could only ever do one of those two things: it slid
+  // a 480s curve forward, so a Map 2 that opened high also SATURATED early and
+  // spent its back half flat. A floor/peak/ramp triple is what lets the map open
+  // hot AND keep climbing for its whole ten minutes.
   const map2 = MAPS.find((map) => map.id === 'megafactory');
-  assert.equal(map2?.difficultyOffsetS, 240);
-  assert.ok((map2?.difficultyOffsetS ?? 0) > (MAPS[0].difficultyOffsetS ?? 0));
-  assert.ok((map2?.difficultyOffsetS ?? 0) < 480);
+  assert.ok(map2, 'the foundry must remain in the arc');
+  assert.ok(map2.difficulty.floor > MAPS[0].difficulty.floor, 'Map 2 must open above Map 1');
+  assert.ok(map2.difficulty.peak > map2.difficulty.floor, 'Map 2 must have room to ramp');
+  assert.ok(map2.difficulty.peak > MAPS[0].difficulty.peak, 'Map 2 must exceed Map 1 s ceiling');
+  // The sweep must span the whole map, not a fraction of it.
+  assert.ok(map2.difficulty.rampS >= map2.durationS, 'Map 2 must not go flat before it ends');
+  // Values above 1 multiply live cap, wave size and enemy HP; 1.6 is the hard
+  // clamp in difficultyScalar, and reaching it on the clock alone would leave
+  // Cursed Core with nothing to add.
+  assert.ok(map2.difficulty.peak < 1.6, 'Map 2 must leave headroom above the clock');
+});
+
+test('Map 2 replays the enemy introductions on its own compressed clock', () => {
+  // Staging is separate from strength: enemy HP rides the arc clock and never
+  // rewinds, but WHICH types appear restarts, so a new sector gets an opening of
+  // its own instead of inheriting the finished cast of the previous map.
+  const map2 = MAPS.find((map) => map.id === 'megafactory');
+  assert.ok(map2, 'the foundry must remain in the arc');
+  assert.ok(map2.rosterSpeed > 1, 'Map 2 must replay the introductions faster than Map 1');
+  // The authored schedule must FINISH well inside the map. At 1.0 the last type
+  // arrives at 420s and the foundry would spend most of its length short of its
+  // heavies; the whole cast should be back in roughly the first third.
+  const lastUnlockS = Math.max(
+    ...ENEMY_TYPES.filter((type) => type.weight > 0 && Number.isFinite(type.unlockAtS)).map(
+      (type) => type.unlockAtS,
+    ),
+  );
+  assert.ok(
+    lastUnlockS / map2.rosterSpeed <= map2.durationS / 3,
+    'Map 2 must have its full cast back inside the first third',
+  );
+});
+
+test('Map 1 keeps the exact curve every existing playtest was tuned against', () => {
+  // Decision 0.2 isolates Map 1 from Map 2's recalibration. These three numbers
+  // reproduce the historical global formula; changing any of them invalidates
+  // every recorded run, not just the foundry's.
+  assert.deepEqual({ ...MAPS[0].difficulty }, { floor: 0, peak: 1, rampS: 480 });
+  assert.equal(MAPS[0].contactDamageMult, 1);
 });
 
 test('clearing every sector needs the Map 1 boss and the finale', () => {

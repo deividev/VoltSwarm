@@ -6,6 +6,7 @@ import {
   BARREL_PROP,
   CAMERA,
   CONTAINER_PROP,
+  FOUNDRY_CONTAINER_PROP,
   FOUNDRY_PILLAR_PROP,
   MAPS,
   MEGAFACTORY_MAP,
@@ -222,17 +223,27 @@ export function placeRandomProps(
   // drums) on a foundry floor would undo the sector change the transition
   // just sold, so the set is chosen by map rather than shared.
   if (mapId === MAPS[1].id) {
-    // Pillars first: they are far larger than the cells, so the cells scatter
-    // around them rather than the other way round.
-    const pillars = buildScatterProps(scene, avoid, FOUNDRY_PILLAR_PROP);
-    const cellAvoid: AvoidPoint[] = [
+    // Gates first: they are the map's TERRAIN, so everything else lays out
+    // around them. Placing them after the scatter would let a corridor open onto
+    // a pillar and turn cover into a dead end.
+    // Placeholder tinted to the violet variant, not to grey: the box shown
+    // before the voxel model resolves should already read as the right object.
+    const gates = buildContainerProps(scene, avoid, FOUNDRY_CONTAINER_PROP, 0x6b5a93);
+    const gateAvoid: AvoidPoint[] = [
       ...avoid,
+      ...gates.centers.map((c) => ({ x: c.x, z: c.z, radius: FOUNDRY_CONTAINER_PROP.minSeparation / 2 })),
+    ];
+    // Pillars next: they are far larger than the cells, so the cells scatter
+    // around them rather than the other way round.
+    const pillars = buildScatterProps(scene, gateAvoid, FOUNDRY_PILLAR_PROP);
+    const cellAvoid: AvoidPoint[] = [
+      ...gateAvoid,
       ...pillars.obstacles.map((o) => ({ x: o.x, z: o.z, radius: FOUNDRY_PILLAR_PROP.cellClearance })),
     ];
     const cells = buildScatterProps(scene, cellAvoid, POWERCELL_PROP);
     return {
-      obstacles: [...pillars.obstacles, ...cells.obstacles],
-      meshes: [...pillars.meshes, ...cells.meshes],
+      obstacles: [...gates.obstacles, ...pillars.obstacles, ...cells.obstacles],
+      meshes: [...gates.meshes, ...pillars.meshes, ...cells.meshes],
     };
   }
   const containers = buildContainerProps(scene, avoid);
@@ -762,14 +773,61 @@ function pickVariant(
   return source[Math.floor(Math.random() * source.length)] ?? variants[0]!;
 }
 
+/** Picks the colour variant that is RAREST among the props already standing
+ *  within `radius` of this spot.
+ *
+ *  Independent random picks look wrong at these counts, and the reason is
+ *  arithmetic rather than bad luck: with three variants and sixty power cells,
+ *  a run of four or five identical neighbours is not an unlucky layout, it is
+ *  the expected one. The player reads that as "the map repeats itself", which is
+ *  exactly what having three variants was meant to prevent.
+ *
+ *  Ties break randomly, so a prop with nothing near it is still uniformly
+ *  random — this only bends the choice where it is actually visible. And it
+ *  never refuses to place: when every variant is already present nearby it takes
+ *  the least-used one rather than leaving a hole in the layout.
+ *
+ *  Supersedes the array-neighbour heuristic the container gates used, which
+ *  approximated angular neighbours by array order (2026-07-08). That held only
+ *  while `scatterPoints` returned points in sector order, and it could not see
+ *  two gates that were close on the ground but far apart in the list — which is
+ *  precisely the case the playtest caught. */
+function pickSpatialVariant(
+  variants: readonly string[],
+  placed: readonly { x: number; z: number; variant: string }[],
+  x: number,
+  z: number,
+  radius: number,
+): string {
+  const radiusSq = radius * radius;
+  const counts = new Map<string, number>(variants.map((v) => [v, 0]));
+  for (const other of placed) {
+    const dx = other.x - x;
+    const dz = other.z - z;
+    if (dx * dx + dz * dz > radiusSq) continue;
+    counts.set(other.variant, (counts.get(other.variant) ?? 0) + 1);
+  }
+  let rarest = Infinity;
+  for (const v of variants) rarest = Math.min(rarest, counts.get(v) ?? 0);
+  const pool = variants.filter((v) => (counts.get(v) ?? 0) === rarest);
+  return pool[Math.floor(Math.random() * pool.length)] ?? variants[0]!;
+}
+
 /** Deliberate chokepoint props: primitive box gates go up immediately (so
  *  colliders are correct from frame one), then swap to the voxelized
  *  container model async — same upgrade pattern as bots/player/ground.
  *  Gate count and layout are randomized per run (user request 2026-07-06),
  *  avoiding whatever's in `avoid` (the boss totem, once it's placed). */
+/** Gate-shaped cover: pairs of long boxes with a corridor between them.
+ *
+ *  Parameterised by config rather than pinned to Map 1's containers, because the
+ *  foundry needs the same GEOMETRY on different numbers — wider corridors for a
+ *  bigger swarm, fewer gates because obstacles cost the player DPS. */
 function buildContainerProps(
   scene: THREE.Scene,
   avoid: AvoidPoint[],
+  config: typeof CONTAINER_PROP | typeof FOUNDRY_CONTAINER_PROP = CONTAINER_PROP,
+  placeholderColor = 0x286b68,
 ): { obstacles: Obstacle[]; centers: { x: number; z: number }[]; meshes: THREE.Object3D[] } {
   const {
     width,
@@ -782,11 +840,12 @@ function buildContainerProps(
     minDistFromCenter,
     maxDistFromCenter,
     minSeparation,
+    variantSeparation,
     variants,
-  } = CONTAINER_PROP;
+  } = config;
   const obstacles: Obstacle[] = [];
   const meshesByVariant = new Map<string, THREE.Mesh[]>();
-  const placeholderMaterial = litMaterial({ color: 0x286b68 });
+  const placeholderMaterial = litMaterial({ color: placeholderColor });
 
   const gateCount = Math.floor(
     countRange[0] + Math.random() * (countRange[1] - countRange[0] + 1),
@@ -799,18 +858,16 @@ function buildContainerProps(
   // angular neighbor — exclude its variant (and the first gate's, for the
   // last one, since the ring wraps around).
   const gates: { x: number; z: number; angleRad: number; gapHalf: number; variant: string }[] = [];
-  for (let i = 0; i < centers.length; i++) {
-    const c = centers[i]!;
+  for (const c of centers) {
     gates.push({
       x: c.x,
       z: c.z,
       angleRad: Math.random() * Math.PI * 2,
       gapHalf,
-      variant: pickVariant(
-        variants,
-        gates[i - 1]?.variant,
-        i === centers.length - 1 ? gates[0]?.variant : undefined,
-      ),
+      // Both containers in a gate share one variant so the wall reads as one
+      // consistent structure, not two mismatched halves. Neighbouring GATES
+      // never share one, measured on the ground rather than by list position.
+      variant: pickSpatialVariant(variants, gates, c.x, c.z, variantSeparation),
     });
   }
 
@@ -1108,6 +1165,9 @@ interface ScatterPropConfig {
   readonly minDistFromCenter: number;
   readonly maxDistFromCenter: number;
   readonly minSeparation: number;
+  /** Radius within which two props of this family must not share a colour.
+   *  0 keeps the old independent random draw. */
+  readonly variantSeparation: number;
   /** Non-empty by type, so the first entry can seed the placeholder tint and
    *  the random pick without an undefined branch that can never happen. */
   readonly variants: readonly [string, ...string[]];
@@ -1133,6 +1193,7 @@ function buildScatterProps(
     minDistFromCenter,
     maxDistFromCenter,
     minSeparation,
+    variantSeparation,
     variants,
     modelScale,
   } = config;
@@ -1149,6 +1210,9 @@ function buildScatterProps(
   );
   const points = scatterPoints(count, minDistFromCenter, maxDistFromCenter, minSeparation, avoid);
 
+  // Placed-so-far, for the colour spacing below. Positions alone are not
+  // enough — the variant has to travel with them.
+  const placed: { x: number; z: number; variant: string }[] = [];
   for (const p of points) {
     const mesh = new THREE.Mesh(
       new THREE.CylinderGeometry(width / 2, width / 2, height, 10),
@@ -1157,7 +1221,13 @@ function buildScatterProps(
     mesh.position.set(p.x, height / 2, p.z);
     mesh.rotation.y = Math.random() * Math.PI * 2;
     scene.add(mesh);
-    const variant = variants[Math.floor(Math.random() * variants.length)] ?? variants[0];
+    // Was an independent random draw per prop, which is why four and five
+    // identical cells kept ending up shoulder to shoulder.
+    const variant =
+      variantSeparation > 0
+        ? pickSpatialVariant(variants, placed, p.x, p.z, variantSeparation)
+        : (variants[Math.floor(Math.random() * variants.length)] ?? variants[0]!);
+    placed.push({ x: p.x, z: p.z, variant });
     const list = meshesByVariant.get(variant) ?? [];
     list.push(mesh);
     meshesByVariant.set(variant, list);

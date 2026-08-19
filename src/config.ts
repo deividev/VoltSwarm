@@ -67,6 +67,7 @@ export const DEV_TOOLS: {
   mapTransitionKey: boolean;
   fatalHitKey: boolean;
   shortMaps: boolean;
+  difficultyReadout: boolean;
 } = {
   /** Main-menu "Unlocks" panel. Holds three actions: unlock every
    *  weapon/core/mod and open all sockets directly; settle every contract
@@ -112,6 +113,15 @@ export const DEV_TOOLS: {
    *  while this is true, so `npm run package` physically cannot produce a
    *  four-minute release. Turn it off when the validation pass is done. */
   shortMaps: false,
+  /** Corner readout of the live difficulty state: which map, both clocks, the
+   *  difficulty scalar against its map's floor/peak, the enemy HP multiplier,
+   *  the contact damage in force and the live body count.
+   *
+   *  It exists because "did the balance change I just made actually apply?" was
+   *  unanswerable in play — the numbers only surfaced in the run history AFTER a
+   *  run ended, and a dev shortcut could quietly hand the map a clock nobody
+   *  intended. Reading it live turns a guess into a measurement. */
+  difficultyReadout: true,
 };
 
 /** Map length while DEV_TOOLS.shortMaps is on. Inert otherwise. */
@@ -231,8 +241,20 @@ export const MAPS = [
     number: 1,
     title: 'Scrapyard',
     durationS: DEV_TOOLS.shortMaps ? SHORT_RUN_DURATION_S : 10 * 60,
-    /** Map 1 owns the full opening difficulty ramp. */
-    difficultyOffsetS: 0,
+    /** Map 1 owns the full opening difficulty ramp: from nothing to the ceiling
+     *  over 480s, which is the curve every existing playtest was tuned against.
+     *  These three numbers reproduce the pre-per-map formula EXACTLY, and that
+     *  is the point — decision 0.2 isolates Map 1 from Map 2's recalibration. */
+    difficulty: { floor: 0, peak: 1, rampS: 480 },
+    /** Swarm contact damage multiplier. Map 1 is the baseline by definition. */
+    contactDamageMult: 1,
+    /** Boss contact multiplier. Map 1 is the baseline: BOSS.contactDamage is
+     *  tuned for this map and the 2026-07-30 lethality measurement was taken
+     *  here. */
+    bossContactDamageMult: 1,
+    /** How fast this map walks through the enemy introductions (`unlockAtS`).
+     *  1 = the authored schedule. Map 1 IS that schedule. */
+    rosterSpeed: 1,
     /** Cold dead-factory dusk. Deeper at the top and a touch brighter at the
      *  horizon than the single global sky it replaces (top 0e1219 / horizon
      *  1c2a38), which read almost flat: the old pair spanned 22 luma steps, this
@@ -246,11 +268,85 @@ export const MAPS = [
     number: 2,
     title: 'Swarm Foundry',
     durationS: DEV_TOOLS.shortMaps ? SHORT_RUN_DURATION_S : 10 * 60,
-    /** Provisional playtest baseline (set 0.13.42, decision 0.2): the foundry
-     *  opens at roughly the pressure Map 1 reaches near minute 4 and keeps ramping
-     *  to the 8-minute difficulty cap — a higher base than Map 1's minute-zero
-     *  start, so Map 2 is not a clone. Tune with the map-segmented `npm run stats`. */
-    difficultyOffsetS: 240,
+    /** The foundry gets its OWN sweep, not a shifted copy of Map 1's.
+     *
+     *  The offset it replaces (240s into a curve that saturates at 480s) meant
+     *  Map 2 hit its ceiling at its own minute 4 and spent its remaining SIX
+     *  minutes completely flat — same cadence, same population, same elite
+     *  chance. Map 1 only goes flat for its last two.
+     *
+     *  floor 0.7 opens at the pressure of Map 1's MINUTE 5 (277 live bodies
+     *  against Map 1's closing 380) — but carrying Map 1's minute-10 enemy HP,
+     *  which never rewinds. The relief is in the body count alone, and that is
+     *  the only place it can be: HP continuity across the crossing is the whole
+     *  point of the arc clock.
+     *
+     *  It opened at 0.9 first (346 bodies) and the user's playtest read that as
+     *  "basically where Map 1 ended". Correct reading — the crescendo has to be
+     *  audible, and a floor that close to the ceiling leaves nothing to climb.
+     *  peak 1.15 ends ABOVE anything Map 1 can reach. Values over 1 are already
+     *  wired — they multiply live cap, wave size and enemy HP — and until now
+     *  only stacked Cursed Core could get there.
+     *  rampS 600 spends that climb across the whole map instead of a quarter.
+     *
+     *  PROVISIONAL: the peak lands ~437 live enemies and the last measured
+     *  validation was 430. Real per-frame work is ~1.5 ms against an 8.33 ms
+     *  vsync period, so the headroom is there, but confirm with a 400+ pass
+     *  before treating this number as settled. */
+    difficulty: { floor: 0.7, peak: 1.15, rampS: 600 },
+    /** Swarm contact damage multiplier — the ONLY lever that moves the damage
+     *  ceiling, because PLAYER.invulnAfterHitS caps swarm DPS at
+     *  contactDamage / 0.4 no matter how many bodies are touching. 8 -> 10 here
+     *  lifts that cap from 20 to 25 DPS.
+     *
+     *  Deliberately narrow: it does NOT touch boss contact, boss projectiles or
+     *  Gunner shots. Those have their own tuning, and the final boss lives on
+     *  this map — folding a map-wide multiplier into it would silently retune an
+     *  encounter nobody balanced yet.
+     *
+     *  1.25 -> 1.5 (2026-08-18, playtest: "the damage still is not enough").
+     *  12 is where this stops, and the stop is principled rather than timid: it
+     *  is exactly BOSS.contactDamage, so a foundry grunt's touch now costs the
+     *  same as a boss's touch. Going past it makes the ambient swarm hit harder
+     *  than a boss, which is a statement about bosses, not about Map 2.
+     *
+     *  If 30 DPS still reads as soft, the next dial is NOT this one — it is
+     *  PLAYER.invulnAfterHitS, which the swarm's whole damage ceiling divides by
+     *  and which its own comment already names the real difficulty dial. That
+     *  one would need a per-map factor it does not have yet.
+     *
+     *  Set this back to 1 to judge the difficulty curve on its own. */
+    contactDamageMult: 1.5,
+    /** Bosses hit harder here too, but NOT by the swarm's 1.5.
+     *
+     *  Riding the swarm factor would put a boss touch at 24, which is 60 DPS —
+     *  within a hair of the 62.5 that was measured and rejected in 2026-07-30 as
+     *  instant death. 1.25 lands on 20 (50 DPS, 2.0s to die): clearly above the
+     *  16.2 of this map's elites, clearly below the number that broke the fight.
+     *
+     *  Deliberately NOT applied to boss projectiles (BOSS.tesla.projectileDamage
+     *  and the finale's discharge). Those are dodgeable telegraphed attacks with
+     *  their own tuning, and folding a map multiplier into them would retune a
+     *  finale encounter nobody has balanced yet. */
+    bossContactDamageMult: 1.25,
+    /** The foundry REPLAYS the introductions on its own clock, at 2.5x speed.
+     *
+     *  Enemy HP still rides the arc clock and never rewinds, so nothing here
+     *  makes a body weaker than the one before the crossing — a Voltling opens
+     *  Map 2 at 60 HP against the 15 it had in Map 1. What restarts is only WHICH
+     *  types appear, and that buys the map an opening of its own: a flood of
+     *  basics at foundry density (277 bodies against Map 1's opening 38) instead
+     *  of the same six-type soup the player just spent three minutes in.
+     *
+     *  Why 2.5 and not a full restart: the authored schedule finishes at 420s, so
+     *  a 1.0 speed would leave the foundry without its heavies for seven of its
+     *  ten minutes. At 2.5 the whole cast is back by 2:48 — long enough to feel
+     *  like a fresh escalation, short enough that variety never goes missing.
+     *
+     *  MEASURED COST: replaying the introductions halves average body HP at the
+     *  opening (60 against 110). That is deliberate — the pressure is meant to
+     *  come from COUNT here, and it climbs back as the schedule replays. */
+    rosterSpeed: 2.5,
     /** Ember dusk over a working foundry. Luminance is deliberately matched to
      *  Map 1's horizon (41 against 39.5) so neither map is brighter than the
      *  other — only WARMER, the same temperature-not-brightness move the tower
@@ -444,6 +540,11 @@ export const CONTAINER_PROP = {
   maxDistFromCenter: ARENA_HALF_SIZE - 10,
   /** Minimum distance between gate centers so two funnels never overlap. */
   minSeparation: 24,
+  /** Implements the 2026-07-08 "angular neighbours never share a colour" rule
+   *  properly. It used to be approximated by list position, which only held
+   *  while scatterPoints returned points in sector order and could not see two
+   *  gates that were close on the ground but far apart in the array. */
+  variantSeparation: 55,
   /** Clearance kept from the boss totem (placed independently per run in
    *  boss.ts) — a gate must never wall off the totem's summon zone. */
   totemClearance: 10,
@@ -490,6 +591,14 @@ export const BARREL_PROP = {
   /** Random count per run, inclusive. Sparse enough to preserve navigation
    *  lanes between containers and loose props. */
   countRange: [36, 50] as [number, number],
+  /** 0 = keep the old independent random draw, so Map 1 looks exactly as it did.
+   *
+   *  Map 1's barrels have the SAME clumping defect the foundry's power cells
+   *  were just fixed for — 36-50 props over three variants produce runs of
+   *  identical neighbours by arithmetic, not by bad luck. It is left off only
+   *  because the request was scoped to Map 2 and Map 1 is the Demo's map.
+   *  Setting this to 20 (the cells' value) fixes it; nothing else is needed. */
+  variantSeparation: 0,
   minDistFromCenter: 8,
   maxDistFromCenter: ARENA_HALF_SIZE - 4,
   /** Minimum distance between barrels. */
@@ -536,6 +645,11 @@ export const POWERCELL_PROP = {
   minDistFromCenter: 8,
   maxDistFromCenter: ARENA_HALF_SIZE - 4,
   minSeparation: 8,
+  /** No two cells within this radius may share a colour (2026-08-18 playtest:
+   *  "four or five brown ones next to each other"). At minSeparation 8, a radius
+   *  of 20 covers roughly the ring of cells a player sees as "this cluster",
+   *  which is the unit the eye actually judges repetition on. */
+  variantSeparation: 20,
   /** Clearance kept from the boss totem's summon zone. */
   totemClearance: 8,
   /** Three recolours, the barrel's structure (2026-08-17). The earlier note here
@@ -546,6 +660,65 @@ export const POWERCELL_PROP = {
    *  identity across all three, so the body tones only have to separate the
    *  props from each other, not carry the map's language. */
   variants: ['powercell', 'powercell-rust', 'powercell-bone'] as const,
+};
+
+/** Map-2 cover: the Map 1 container geometry, foundry-coloured, placed as gates.
+ *
+ *  WHY THIS EXISTS (2026-08-18, user request after playing the new density): the
+ *  foundry had no long cover at all. Its power cells carry the same 0.55 collider
+ *  as a Map 1 barrel — decoration, not terrain — and its chimneys are 7-10 thin
+ *  posts. With 277-437 bodies on the field there was nowhere to brace against.
+ *
+ *  WHY THE CONTAINER SHAPE AND NOT SOMETHING BIGGER: the ask was for a larger
+ *  prop, but larger in HEIGHT is the one direction already measured as harmful.
+ *  This camera hides `height * 0.79` units of ground behind an object, so the
+ *  7.31-tall chimney blanks 5.8 units while the 3.0-tall container blanks 2.4.
+ *  The foundry already owns the tall silhouette; what it lacked was something
+ *  LONG and LOW you can run along. The gate layout (two containers with a gap)
+ *  is the part that actually creates terrain — scattered singles are noise that
+ *  eats shots without splitting the swarm.
+ *
+ *  THE COST, stated plainly: obstacles block the PLAYER's weapons too, through
+ *  hasLineOfSight in weapons.ts, and aiming is automatic so a blocked shot is
+ *  simply a lost one. That is why the count starts BELOW Map 1's 10-13.
+ *
+ *  PROVISIONAL: reusing Map 1's model is a deliberate cheap test of whether the
+ *  foundry wants this geography at all. If it does, a purpose-built foundry prop
+ *  replaces it; if it does not, no art was spent. */
+export const FOUNDRY_CONTAINER_PROP = {
+  width: 3.1,
+  height: 3.0,
+  length: 6.0,
+  colliderRadius: 1.6,
+  colliderOffsets: [-2.1, 0, 2.1],
+  /** Wider than Map 1's 4.2: the swarm running these funnels is up to 437 bodies
+   *  and the player has no dash, so a corridor sized for Map 1's crowd would be a
+   *  trap rather than cover. */
+  gapHalf: 5.4,
+  /** Below Map 1's [10, 13] on purpose — see the weapon-blocking cost above.
+   *  Raise only with a playtest behind it. */
+  countRange: [7, 9] as [number, number],
+  minDistFromCenter: 18,
+  maxDistFromCenter: ARENA_HALF_SIZE - 12,
+  minSeparation: 26,
+  /** Two gates this close must not share a colour — the playtest found "purple
+   *  containers next to literally identical ones". A gate is the biggest
+   *  coloured object on the map, so repetition shows here first.
+   *
+   *  45, and the number is measured rather than picked. Sweeping it over 400
+   *  simulated layouts, the share of nearby gate pairs sharing a colour goes
+   *  25.1% at radius 35, 19.0% at 45, 30.3% at 60. It gets WORSE past a point
+   *  because a radius that swallows the whole arena stops being a local rule and
+   *  turns into global count-balancing, which says nothing about what the player
+   *  sees in one screen. */
+  variantSeparation: 45,
+  totemClearance: 12,
+  /** Violet and moss, picked from the only two hue windows the project has left
+   *  unspoken-for — see the ramp comment in models/registry.ts for the census.
+   *  The first pass used steel and iron and was rejected on sight: those are the
+   *  power cells' and the chimneys' own colours, so the map gained objects and
+   *  no variety. */
+  variants: ['container-foundry-violet', 'container-foundry-moss'] as const,
 };
 
 /** Extra room scatter props keep from a map's own structures (Map 2's towers).
@@ -581,6 +754,9 @@ export const FOUNDRY_PILLAR_PROP = {
   maxDistFromCenter: ARENA_HALF_SIZE - 26,
   /** Wide, so pillars never form an accidental wall the swarm funnels around. */
   minSeparation: 26,
+  /** Comfortably past minSeparation: with only 7-10 pillars on the whole field,
+   *  any two visible at once should differ. */
+  variantSeparation: 55,
   /** Keeps the boss totem's summon zone open. */
   totemClearance: 12,
   /** Radius the power cells keep from each pillar, so the small prop does not
@@ -2336,8 +2512,22 @@ export const BOSS = {
    *  0.85 → 0.4 in the 2026-07-05 playtest, which silently DOUBLED boss
    *  contact DPS, and this number was never revisited. 12 restores roughly the
    *  original 29 DPS. Touching a boss is still by far the worst thing on the
-   *  field — it just stops being instant death. */
-  contactDamage: 12,
+   *  field — it just stops being instant death.
+   *
+   *  12 -> 16 (2026-08-18). NOT a reversal of the above: that fix was calibrated
+   *  against a swarm capped at 20 DPS, and the Map 2 work moved that cap. The
+   *  relationship 12 was protecting — "a boss touch is the worst thing on the
+   *  field" — had quietly broken: the strongest ambient hit in the game (a Map 2
+   *  elite, 8 x 1.35 x 1.5 = 16.2) had grown PAST a boss's touch.
+   *
+   *  16 restores the ordering in Map 1 with room to spare (elite 10.8 -> boss 16,
+   *  48% clear) and still dies at 2.5s against the 1.6s that got 25 rejected.
+   *  The per-map factor below carries it the rest of the way in Map 2.
+   *
+   *  The rule this must keep obeying, and the reason the test exists: on EVERY
+   *  map, ambient < elite < boss, and a boss must never approach the 62.5 DPS
+   *  that made standing next to one an instant loss. */
+  contactDamage: 16,
   /** How hard a connecting ram flings the player. Decays with
    *  STATUS.knockbackDecay like every other knockback, so the distance
    *  travelled is roughly force / decay — 30 / 6 = ~5 units, enough to clear
@@ -2487,9 +2677,39 @@ export function xpForLevel(level: number): number {
  *  A1 floor — two multipliers squeezing the same window. */
 export const DIFFICULTY_CURVE_EXPONENT = 0.78;
 
-export function difficultyScalar(elapsedS: number, cursedBonus: number): number {
-  const timeRamp = Math.pow(Math.min(elapsedS / 480, 1), DIFFICULTY_CURVE_EXPONENT);
-  return Math.min(timeRamp * (1 + cursedBonus) + cursedBonus * 0.15, 1.6);
+/** One map's difficulty sweep: where it opens, where it closes, and how long it
+ *  takes. `peak` above 1 is meaningful — the spawner multiplies live cap, wave
+ *  size and enemy HP by anything over 1. */
+export interface MapDifficultyCurve {
+  readonly floor: number;
+  readonly peak: number;
+  readonly rampS: number;
+}
+
+/** The curve a map falls back to when none is supplied: Map 1's, which is the
+ *  historical global formula. Keeps every existing caller bit-identical. */
+const DEFAULT_DIFFICULTY_CURVE: MapDifficultyCurve = MAPS[0].difficulty;
+
+export function difficultyScalar(
+  mapElapsedS: number,
+  cursedBonus: number,
+  curve: MapDifficultyCurve = DEFAULT_DIFFICULTY_CURVE,
+): number {
+  const timeRamp = Math.pow(Math.min(mapElapsedS / curve.rampS, 1), DIFFICULTY_CURVE_EXPONENT);
+  const base = curve.floor + (curve.peak - curve.floor) * timeRamp;
+  return Math.min(base * (1 + cursedBonus) + cursedBonus * 0.15, 1.6);
+}
+
+/** How much of the current difficulty is NOT owed to the clock.
+ *
+ *  Elite XP and gold pay a bonus for difficulty "above 1" so that stacked
+ *  Cursed Core is rewarded and merely surviving is not. That worked only while
+ *  1 was also the clock's ceiling. Map 2 now reaches 1.15 on time alone, which
+ *  would have quietly handed the foundry a 15% elite-payout raise nobody asked
+ *  for. Measuring the excess against the MAP'S peak restores the original rule
+ *  on both maps: exactly 1.0 when the clock is the only thing driving pressure. */
+export function rewardScalar(difficulty: number, curve: MapDifficultyCurve): number {
+  return Math.max(1, difficulty / curve.peak);
 }
 
 /** Contract thresholds. Every number a contract objective compares against

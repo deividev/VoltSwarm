@@ -156,6 +156,19 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 
 - **✅ TRANSICIÓN MAPA 1 → MAPA 2 COMPLETADA 2026-08-16 (v0.13.40 → 0.13.47).** El arco obedece las decisiones cerradas y el cruce está animado: vida al 100%, oro a 0, build/nivel/descartes conservados, Mapa 2 con reloj y curva propios (`difficultyOffsetS: 240`), cortina animada de 2.8s con la música atada a la misma curva y entrada escalonada del nombre del sector. `npm run stats` segmenta por el mapa donde terminó la run. Atajos de dev gateados (`simulateMap1Handoff`, tecla **T**) para iterar sin jugar 10 minutos. Desglose completo en `docs/PLAN_MAPA2.md`. **Queda de audio:** sting propio y camas por mapa (pendiente 0c).
 
+- **✅ PRESIÓN Y BALANCE DEL MAPA 2 (2026-08-18, v0.14.0).** Seis ejes en una
+  tanda, todos medidos y cubiertos por tests, **ninguno validado por una run
+  humana todavía**: tres relojes separados (arco / mapa / roster) para que la
+  fuerza del enjambre no rebobine al cruzar mientras la puesta en escena sí lo
+  hace · curva de dificultad propia por mapa (`floor`/`peak`/`rampS`) que sustituye
+  al offset y elimina la meseta de 6 minutos del Mapa 2 · daño de contacto por
+  mapa para enjambre y boss, con la jerarquía `grunt < élite < boss` congelada por
+  test · puertas de contenedor como cobertura larga en la fundición · separación
+  espacial de color entre props · readout de dificultad en vivo. El Mapa 1 queda
+  **bit a bit idéntico** por decisión 0.2. Desglose en `docs/PRD.md` y
+  `docs/PLAN_MAPA2.md` §Workstream 4. **Siguiente paso: playtest humano con runs
+  COMPLETAS grabadas antes de tocar un número más.**
+
 ### Bloque Mapa 2 + Hazard Marshal — primera versión jugable PROVISIONAL
 
 La lista levantada 2026-07-26 queda como registro de decisiones. La primera implementación ya resolvió las costuras estructurales; lo que siga marcado como abierto requiere playtest o autoría de contenido antes de considerarse final.

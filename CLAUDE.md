@@ -112,22 +112,34 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 
 ---
 
-## Estado operativo actual (2026-08-17) — `codex/map-2` **0.13.55**
+## Estado operativo actual (2026-08-18) — `codex/map-2` **0.14.0**
 
-> ## 🚨 HAY UN RIG DE PRUEBAS ENCENDIDO — LÉELO ANTES DE TOCAR NADA
+> ## 🚨 DOS FLAGS DE DEV ENCENDIDAS — EL EMPAQUETADO ESTÁ BLOQUEADO
 >
-> **`DEV_TOOLS.shortMaps = true`. Las runs duran 4 MINUTOS, no 10.** Rig de
-> validación temporal para probar el arco completo rápido. Implicaciones:
+> `DEV_TOOLS.mapTransitionKey` y `DEV_TOOLS.difficultyReadout` están en `true`
+> **a propósito**, para poder iterar el balance del Mapa 2 sin jugar 10 minutos
+> por prueba. `check-release-flags.mjs` aborta `pnpm package` mientras sigan así,
+> que es exactamente su trabajo. Apagar ambas antes del congelado del build.
 >
-> - **Cualquier medición hecha ahora está distorsionada.** Densidad, oro, nivel,
->   XP y todos los umbrales de contratos asumen 10 minutos. No calibres nada, no
->   corras `pnpm stats` contra estas runs, y no las trates como datos.
-> - **No se puede empaquetar** mientras esté encendido: `check-release-flags.mjs`
->   aborta `pnpm package` a propósito.
-> - **Revertir = `DEV_TOOLS.shortMaps` a `false`** en `src/config.ts`. Nada más;
->   `SHORT_RUN_DURATION_S` queda inerte.
+> `DEV_TOOLS.shortMaps` está en **`false`**: las runs duran los 10 minutos reales.
+> (El aviso anterior decía lo contrario y llevaba caducado desde el 2026-08-17.)
+
+> ## ⚠️ EL BALANCE DEL MAPA 2 ESTÁ SIN VALIDAR POR UN HUMANO
 >
-> **Antes del congelado del build hay que revertirlo.**
+> La 0.14.0 cambia **seis** ejes de balance a la vez y **ninguno** tiene una run
+> humana detrás: curva de dificultad propia, reloj de roster, daño de contacto del
+> enjambre, daño de contacto de boss, cobertura nueva y separación de color de
+> props. Están medidos y con tests, no adivinados, pero medido ≠ jugado.
+>
+> **No apiles más cambios de balance encima sin una run COMPLETA grabada.** Una
+> run solo se registra si TERMINA (muerte o reloj agotado); salir al menú no
+> guarda nada. `pnpm stats` segmenta por mapa de fin, que es donde se ve.
+>
+> Para leer el estado en vivo mientras jugás: el readout de la esquina
+> (`DEV_TOOLS.difficultyReadout`) muestra los tres relojes, la dificultad contra
+> el suelo/techo de su mapa, el multiplicador de vida, el daño de contacto y los
+> cuerpos vivos. Se añadió porque "¿se aplicó el cambio?" costó tres vueltas de
+> adivinanzas en una sola sesión.
 
 > ## ⚠️ Trampa de rama compartida (mordió el 2026-08-06)
 >
@@ -144,6 +156,36 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 >
 > **Y revalida la rama al RETOMAR trabajo, no solo al empezar.** Esto ya costó un
 > commit en la rama equivocada el 2026-08-06: el árbol se movió entre turnos.
+
+### Balance y presión del Mapa 2 — 0.14.0 (2026-08-18)
+
+Desglose completo en `docs/PLAN_MAPA2.md` §Workstream 4. Lo que hay que saber sin
+abrir el doc, y sobre todo **las reglas que salieron de aquí**:
+
+- **Tres relojes, no uno.** `elapsedS` (combate, solo fases visuales) ·
+  `arcElapsedS` (la run entera, **nunca rebobina** — vida de enemigo y rampa de
+  élites) · `rosterElapsedS` (propio del mapa, **sí reinicia** — qué tipos
+  aparecen). **Fuerza y puesta en escena son preguntas distintas** y estaban
+  metidas en la misma variable: por eso el Mapa 2 abría con enemigos MÁS BLANDOS
+  (2.2×) que el final del Mapa 1 (4.0×).
+- **Curva de dificultad por mapa** (`floor`/`peak`/`rampS`) en vez del
+  `difficultyOffsetS`. Un offset solo puede abrir alto **o** conservar recorrido,
+  nunca las dos: deslizaba una curva de 480s, así que abrir en el minuto 4
+  implicaba saturar en el minuto 4. El Mapa 2 barre 0.70 → 1.15 sobre sus 600s.
+  **El Mapa 1 queda bit a bit idéntico** (`{0, 1, 480}`), verificado y congelado
+  por test.
+- **Jerarquía de golpe, congelada por test en CADA mapa: grunt < élite < boss.**
+  Se rompió en silencio durante dos versiones al subir el multiplicador del
+  enjambre sin mirar al boss. El límite superior también es medido: el DPS de
+  boss debe quedar por debajo del que se rechazó el 2026-07-30 (62.5 = muerte en
+  1.6s).
+- **Los props se colocan mirando el color de sus vecinos** (`pickSpatialVariant`).
+  Un sorteo independiente por prop produce rachas de 4-5 iguales **por
+  aritmética, no por mala suerte**, con 54 props y 3 variantes.
+- **Antes de elegir un color nuevo, hacé el censo de matices.** Hay siete bandas
+  ocupadas (loot, boss, ácido, Sparkrunner, grises + azul del suelo, élite,
+  malva del Mapa 1) y solo dos ventanas libres: **46-98** (oliva) y **225-285**
+  (violeta). Elegir "acero" sin medir dio props nuevos y cero variedad.
 
 ### Escenografía del Mapa 2 — CERRADA 2026-08-17 (0.13.49 → 0.13.55)
 

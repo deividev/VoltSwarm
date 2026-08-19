@@ -14,11 +14,13 @@ import {
   DEV_TOOLS,
   DEFEAT_TRANSITION,
   ELITES,
+  ENEMIES,
   ENEMY_TYPES,
   GOLD,
   MAPS,
   POWERCELL_PROP,
   PROP_STRUCTURE_CLEARANCE,
+  FOUNDRY_CONTAINER_PROP,
   FOUNDRY_PILLAR_PROP,
   MAP_TRANSITION,
   MERCHANT,
@@ -30,6 +32,7 @@ import {
   VISUAL,
   XP_ORBS,
   difficultyScalar,
+  rewardScalar,
   type MapId,
   type WeaponId,
 } from './config';
@@ -304,7 +307,15 @@ export class Game {
    *  end it gives the time-weighted mean, which is what a leaderboard needs. */
   /** This frame's difficulty scalar, kept so death handlers can scale elite
    *  payout without recomputing it. */
+  /** Elite payout multiplier: the share of this frame's difficulty the clock
+   *  did NOT produce. See config.rewardScalar. */
+  private currentRewardScale = 1;
+  /** Latest difficulty scalar, kept for the dev readout (DEV_TOOLS.difficultyReadout). */
   private currentDifficulty = 1;
+  /** Latest roster clock — which enemy introductions this map has reached. */
+  private currentRosterElapsedS = 0;
+  /** Throttles the dev readout to 4 Hz; a per-frame DOM write is not free. */
+  private readoutTimer = 0;
   private runCursedIntegral = 0;
   private runContactS = 0;
   private runEnclosedS = 0;
@@ -634,9 +645,15 @@ export class Game {
     this.prevPz = this.player.position.z;
     this.hud.updateGold(this.gold);
     this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
-    // "As if we had played Map 1 and crossed": overlay the latest recorded run's
-    // build so Map 2 is playtested with a realistic loadout, not a fresh one.
-    if (DEV_TOOLS.simulateMap1Handoff) this.overlayLatestRecordedBuild('Map 2 sim');
+    // "As if we had played Map 1 and crossed": overlay a full Map 1 run's build
+    // so Map 2 is playtested with a realistic loadout, not a fresh one — and
+    // advance the arc clock with it, since the swarm's HP, type mix and elite
+    // ramp all read that clock. Build without clock would pit a finished build
+    // against a minute-zero swarm and call the map easy.
+    if (DEV_TOOLS.simulateMap1Handoff) {
+      this.fastForwardArcClockPastMap1();
+      this.overlayLatestRecordedBuild('Map 2 sim');
+    }
     // state → 'playing' and the clock reset happen at the reveal (tickLoading),
     // after the warmup frames render behind the loading screen.
   }
@@ -697,20 +714,115 @@ export class Game {
     this.player.hp = this.player.maxHp;
   }
 
-  /** DEV: overlays the most recent recorded run's build onto the live run, so a
-   *  development shortcut lands with a realistic loadout instead of a stub one.
-   *  No-ops (with a toast) when nothing has been recorded yet. */
+  /** A recorded run that actually SURVIVED all of Map 1.
+   *
+   *  Duration is the ONLY signal here, and that is the point: `sectorsCleared`
+   *  and `mapsReached` look authoritative but a dev shortcut fakes both, because
+   *  the T key goes through the same `enterMap` a real crossing does. Trusting
+   *  them made a 90-second level-2 run — two weapons at level 1, no cores —
+   *  outrank every genuine Map 1 clear in the history purely by being newest,
+   *  which is exactly the build the shortcut then loaded. A time-on-the-clock
+   *  test cannot be forged by a key press. */
+  private static completedMap1(record: RunRecordV1): boolean {
+    return record.durationS >= (MAPS[0]?.durationS ?? 0);
+  }
+
+  /** One-line description of what a record's build actually contains, so the
+   *  toast proves what got loaded instead of asserting it. */
+  private static describeRecord(record: RunRecordV1): string {
+    const weapons = Object.entries(record.weaponLevels ?? {})
+      .filter(([, level]) => (level as number) > 0)
+      .map(([id, level]) => `${id} ${level}`)
+      .join(', ');
+    const cores = Object.values(record.coreLevels ?? {}).filter((level) => (level ?? 0) > 0).length;
+    const mods = Object.values(record.modCounts ?? {}).filter((count) => (count ?? 0) > 0).length;
+    return `lv ${record.level}, ${cores} cores, ${mods} mods — ${weapons || 'no weapons'}`;
+  }
+
+  /** What a boss's BODY costs to touch on the current map. Covers the ram and
+   *  plain contact alike — one number, so the two can never drift apart.
+   *
+   *  Boss PROJECTILES are deliberately excluded: they are dodgeable telegraphed
+   *  attacks with their own tuning, and the finale's are part of an encounter
+   *  nobody has balanced yet. */
+  private bossContactDamage(): number {
+    return BOSS.contactDamage * (MAPS[this.runFlow.mapIndex]?.bossContactDamageMult ?? 1);
+  }
+
+  /** Has this run actually built something worth carrying across?
+   *
+   *  Anything the player earned in play beats any recording: a recorded build is
+   *  a STAND-IN for a Map 1 nobody played, never a replacement for one they did. */
+  private hasLiveProgress(): boolean {
+    if (this.progression.level > 1) return true;
+    if (Object.values(this.modCounts).some((count) => (count ?? 0) > 0)) return true;
+    if (Object.values(this.coreLevels).some((level) => (level ?? 0) > 0)) return true;
+    return Object.values(this.weaponLevels).some((level) => (level ?? 0) > 1);
+  }
+
+  /** DEV: overlays a recorded run's build onto the live run, so a development
+   *  shortcut lands with a realistic loadout instead of a stub one.
+   *
+   *  Does NOTHING when the live run already has progress. Overwriting a build the
+   *  player just earned in Map 1 with some older recording is the opposite of
+   *  what the shortcut is for: you press T to test the crossing WITH your run,
+   *  and the overlay exists only to cover the case where there is no run to carry.
+   *
+   *  Otherwise prefers the newest run that finished Map 1, falls back to the
+   *  newest run of any kind and SAYS SO — a half-run build silently standing in
+   *  for a full one is exactly how a difficulty test lies. */
   private overlayLatestRecordedBuild(label: string): void {
-    const record = loadRunHistory()
+    if (this.hasLiveProgress()) {
+      const weapons = Object.entries(this.weaponLevels)
+        .filter(([, level]) => (level as number) > 0)
+        .map(([id, level]) => `${id} ${level}`)
+        .join(', ');
+      this.hud.toast(`${label}: carrying THIS run's build (lv ${this.progression.level} — ${weapons})`);
+      return;
+    }
+    const history = loadRunHistory()
       .slice()
-      .sort((a: RunRecordV1, b: RunRecordV1) => Date.parse(b.endedAt) - Date.parse(a.endedAt))[0];
+      .sort((a: RunRecordV1, b: RunRecordV1) => Date.parse(b.endedAt) - Date.parse(a.endedAt));
+    const full = history.find((entry) => Game.completedMap1(entry));
+    // No genuine Map 1 clear on record: take the most ADVANCED run instead of
+    // the most recent one. Recency is worthless here — the newest run is usually
+    // the last thing that died in twenty seconds, and a stub build would make the
+    // foundry look impossible for reasons that have nothing to do with the map.
+    const best = history
+      .slice()
+      .sort((a: RunRecordV1, b: RunRecordV1) => b.level - a.level)[0];
+    const record = full ?? best;
     if (!record) {
       this.hud.toast(`${label}: no recorded run yet — keeping the fresh build`);
       return;
     }
     this.applyRecordedBuild(record);
     this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
-    this.hud.toast(`${label}: loaded build from a recorded run (lv ${record.level})`);
+    this.hud.toast(
+      full
+        ? `${label}: full Map 1 build (${Math.round(record.durationS)}s) — ${Game.describeRecord(record)}`
+        : `${label}: NO full Map 1 clear on record. Loaded the most advanced run instead (${Math.round(record.durationS)}s) — ${Game.describeRecord(record)}`,
+    );
+  }
+
+  /** DEV: pretend a whole Map 1 was played, for the shortcuts that skip it.
+   *
+   *  The arc clock is not cosmetic any more. Enemy HP, the type mix and the
+   *  elite ramp all read it (see EnemySystem.update), so a T pressed at 0:30
+   *  would drop the player into a Swarm Foundry whose swarm is at a 1.15x HP
+   *  multiplier instead of the 4.0x a real crossing hands over — the shortcut
+   *  would report the map as trivial and the report would be pure artifact.
+   *
+   *  Never rewinds: pressing T late in a long Map 1 keeps the real clock.
+   *  Returns the seconds it had to invent, so the caller can say how much of
+   *  Map 1 the build actually lived through. */
+  private fastForwardArcClockPastMap1(): number {
+    const map1Duration = MAPS[0]?.durationS ?? 0;
+    const skipped = Math.max(0, map1Duration - this.runFlow.totalElapsedS);
+    if (skipped <= 0) return 0;
+    this.runFlow.totalElapsedS = map1Duration;
+    this.elapsedS = map1Duration;
+    return skipped;
   }
 
   private enterBossLab(): void {
@@ -742,9 +854,20 @@ export class Game {
     // Fill the arena to its minute-8 population BEFORE the boss lands. A boss
     // dropped onto an empty field tests nothing — the whole difficulty is
     // fighting it while the wave is already on you.
+    // The lab jumps the clock, so it fills against the CURRENT map's curve —
+    // a hardcoded global one would populate the arena for a map the boss is
+    // not standing in.
+    const labCurve = MAPS[this.runFlow.mapIndex]?.difficulty ?? MAPS[0].difficulty;
+    const labDifficulty = difficultyScalar(
+      this.runFlow.mapElapsedS,
+      this.stats.cursedDifficulty,
+      labCurve,
+    );
     const filled = this.enemies.devFillToCap(
       this.elapsedS,
-      difficultyScalar(this.elapsedS, this.stats.cursedDifficulty),
+      this.runFlow.mapElapsedS * (MAPS[this.runFlow.mapIndex]?.rosterSpeed ?? 1),
+      labDifficulty,
+      rewardScalar(labDifficulty, labCurve),
       this.player.position.x,
       this.player.position.z,
       this.refreshCollisionObstacles(),
@@ -803,6 +926,18 @@ export class Game {
         return;
       }
       e.preventDefault();
+      // Order matters: the arc clock is advanced BEFORE enterMap, which resets
+      // only the per-map clock. Skipping this leaves Map 2 running a swarm built
+      // for whatever second of Map 1 the key was pressed on.
+      const playedS = this.runFlow.totalElapsedS;
+      const skipped = this.fastForwardArcClockPastMap1();
+      // The swarm can be told Map 1 is over; a build cannot. Say so, or the
+      // reading gets blamed on the map instead of on the shortcut.
+      if (skipped > 60 && this.hasLiveProgress()) {
+        this.hud.toast(
+          `Map transition: swarm set to a FULL Map 1, but this build only lived ${Math.round(playedS)}s of it — it will bite harder than a real crossing`,
+        );
+      }
       enterMap(this.runFlow, nextMapIndex);
       this.beginMapTransition(nextMapIndex, true);
     });
@@ -1057,6 +1192,34 @@ export class Game {
         this.fpsTime = 0;
       }
     }
+    if (DEV_TOOLS.difficultyReadout && this.state === 'playing') this.tickDifficultyReadout(rawDt);
+  }
+
+  /** DEV: the live difficulty state, refreshed a few times a second.
+   *
+   *  Every number here is READ from the same values the systems use, never
+   *  recomputed from the config by hand — a readout that derives its own answer
+   *  can agree with the design document while the game does something else. */
+  private tickDifficultyReadout(rawDt: number): void {
+    this.readoutTimer -= rawDt;
+    if (this.readoutTimer > 0) return;
+    this.readoutTimer = 0.25;
+    const map = this.currentMap;
+    const config = MAPS[this.runFlow.mapIndex] ?? MAPS[0];
+    const curve = config.difficulty;
+    const clock = (seconds: number): string =>
+      `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}`;
+    const hpMult =
+      (1 + (this.elapsedS / 60) * ENEMIES.hpRampPerMinute) * Math.max(1, this.currentDifficulty);
+    const contact = PLAYER.contactDamage * config.contactDamageMult;
+    this.hud.updateDevReadout([
+      `MAP ${map.number} ${map.title}`,
+      `map ${clock(this.runFlow.mapElapsedS)}  arc ${clock(this.elapsedS)}`,
+      `diff ${this.currentDifficulty.toFixed(2)} (${curve.floor}-${curve.peak})`,
+      `enemy hp x${hpMult.toFixed(2)}  contact ${contact.toFixed(1)}`,
+      `roster ${clock(this.currentRosterElapsedS)} (x${config.rosterSpeed})`,
+      `alive ${this.enemies.activeCount}`,
+    ]);
   }
 
   private handleEscape(): void {
@@ -1340,7 +1503,11 @@ export class Game {
     // cell's 1.6, and letting it sit at the cell's clearance would plant a
     // sight-blocker on the edge of the boss summon zone.
     const clearance = mapId === MAPS[1].id
-      ? Math.max(POWERCELL_PROP.totemClearance, FOUNDRY_PILLAR_PROP.totemClearance)
+      ? Math.max(
+          POWERCELL_PROP.totemClearance,
+          FOUNDRY_PILLAR_PROP.totemClearance,
+          FOUNDRY_CONTAINER_PROP.totemClearance,
+        )
       : CONTAINER_PROP.totemClearance;
     // Scatter props also have to dodge the map's OWN structures. Without this
     // the perimeter towers were invisible to placement: Map 2's power cells
@@ -1460,14 +1627,30 @@ export class Game {
     // The player is the audio listener — drives distance attenuation of
     // world-positioned sounds (acid pool loop, acid drum, dismantler claw).
     this.audio.setListener(px, pz);
-    const combatElapsedS = activeMap.difficultyOffsetS + this.runFlow.mapElapsedS;
-    const difficulty = difficultyScalar(combatElapsedS, this.stats.cursedDifficulty);
+    // Each map sweeps its OWN curve over its OWN clock now, so the combat clock
+    // and the map clock are the same number — the offset that used to separate
+    // them was the thing flattening Map 2's back half.
+    const combatElapsedS = this.runFlow.mapElapsedS;
+    const difficulty = difficultyScalar(
+      combatElapsedS,
+      this.stats.cursedDifficulty,
+      activeMap.difficulty,
+    );
     this.currentDifficulty = difficulty;
+    this.currentRewardScale = rewardScalar(difficulty, activeMap.difficulty);
+
+    // The roster clock runs on the MAP's time, sped up by that map's own factor:
+    // a new sector replays the enemy introductions instead of inheriting the
+    // finished cast of the one before it.
+    this.currentRosterElapsedS = this.runFlow.mapElapsedS * activeMap.rosterSpeed;
 
     this.enemies.update(
       dt,
       combatElapsedS,
+      this.elapsedS,
+      this.currentRosterElapsedS,
       difficulty,
+      this.currentRewardScale,
       px,
       pz,
       collisionObstacles,
@@ -2129,12 +2312,12 @@ export class Game {
     const oz = Math.sin(dropA) * GOLD.dropSeparation;
     let goldValue = 0;
     if (isBoss) goldValue = GOLD.bossBonus;
-    // Same rule as elite XP: only difficulty ABOVE 1 pays, and the clock alone
-    // tops out at exactly 1, so this bonus tracks stacked Cursed Core.
+    // Same rule as elite XP: only pressure the clock did NOT create pays, so
+    // this bonus tracks stacked Cursed Core and never a harder map.
     else if (death.elite) {
       goldValue = Math.round(
         GOLD.eliteBonus *
-          (ELITES.rewardScalesWithDifficulty ? Math.max(1, this.currentDifficulty) : 1),
+          (ELITES.rewardScalesWithDifficulty ? Math.max(1, this.currentRewardScale) : 1),
       );
     }
     // Per-type payout: a 7:00 heavy is worth more than a minute-one grunt.
@@ -2334,13 +2517,19 @@ export class Game {
         if (ram && this.boss.isBossType(e.typeIndex)) {
           if (this.billedRamSerial === ram.ramSerial) continue;
           this.billedRamSerial = ram.ramSerial;
-          this.damagePlayer(BOSS.contactDamage, i);
+          this.damagePlayer(this.bossContactDamage(), i);
           this.flingFromRam(ram, px, pz);
           continue;
         }
+        // The map's contact multiplier is the only thing that can raise the
+        // swarm's damage CEILING: PLAYER.invulnAfterHitS caps it at
+        // contactDamage / 0.4 regardless of how many bodies are touching, so
+        // density alone can never hurt more. Bosses keep their own number.
         const base = this.boss.isBossType(e.typeIndex)
-          ? BOSS.contactDamage
-          : PLAYER.contactDamage * (e.elite ? ELITES.scaleMultiplier : 1);
+          ? this.bossContactDamage()
+          : PLAYER.contactDamage *
+            (e.elite ? ELITES.scaleMultiplier : 1) *
+            (MAPS[this.runFlow.mapIndex]?.contactDamageMult ?? 1);
         this.damagePlayer(base, i);
         // Kick Plate: shove whoever just hit you.
         const kickCopies = this.modCounts['kick-plate'] ?? 0;

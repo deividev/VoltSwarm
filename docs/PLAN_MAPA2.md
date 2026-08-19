@@ -102,6 +102,334 @@ Objetivo del usuario: que **no parezca otro juego**. Alinear props y ambiente co
 5. **El toon cuantiza a 3 pasos.** Tonos separados por ~12 escalones de luma colapsan en superficie plana a distancia. Props oscuros (masa, luma ~38) varían **temperatura y luminancia**; props de tono medio (luma ~77) sí admiten variación de **matiz**.
 6. **La generación de imagen no acierta cuotas de área ni anchos de rasgo pedidos.** Se piden en el prompt y se CORRIGEN por código: `tools/widen-sheet-feature.mjs`, `tools/trim-sheet-tail.mjs` y `recolorMap`. Misma lección que ya había producido `tools/thin-floor-channels.mjs`.
 
+## Workstream 4 — Presión y balance del Mapa 2 ✅ ENTREGADO 2026-08-18 (v0.14.0)
+
+> Abierto 2026-08-18 a pedido del usuario: el Mapa 2 tenía que subir de verdad,
+> "acorde a cómo ha mejorado el jugador". La auditoría encontró **dos** defectos
+> distintos, y la sesión acabó tocando seis ejes.
+>
+> **ESTADO: entregado y verificado (149 tests, `tsc`, `vite build`), PERO sin una
+> sola run humana detrás.** Medido no es jugado. Antes de tocar otro número hace
+> falta un playtest con runs que TERMINEN (una run solo se graba si muere o agota
+> el reloj) y una lectura de `pnpm stats` segmentada por mapa.
+>
+> Lo que quedó deliberadamente sin hacer, con su motivo: **4.5** (XP del Mapa 2 —
+> la evidencia apunta al revés), **4.7** (elenco propio del Mapa 2 — es el cuello
+> de botella real ahora), tercer color para las puertas (bajaría la repetición de
+> 19% a 3.1%) y la separación de color en los bidones del Mapa 1 (mismo defecto,
+> un número). Las cuatro las revisó el usuario y decidió dejarlas.
+
+**Las tres palancas reales** (no hay más): densidad/ritmo vía `difficultyScalar`
+(enemigos vivos 38→380, intervalo y tamaño de oleada, % de élite) · vida de
+enemigos vía `ENEMIES.hpRampPerMinute` · daño de contacto, que es **uno global**
+(`PLAYER.contactDamage: 8`) capado por el i-frame de `0.4s` a **20 DPS pase lo
+que pase** — por eso la densidad NUNCA se lee como daño y subir el daño es la
+palanca más brusca, reservada para el final.
+
+- [x] **4.1 El bajón de vida al cruzar — ARREGLADO (0.13.59).** `enemies.update`
+  recibía UN reloj (`combatElapsedS = difficultyOffsetS + mapElapsedS`) y de él
+  derivaba tanto la presentación como la FUERZA de la oleada. Como el offset del
+  Mapa 2 es 240 y el Mapa 1 termina en 600, el enjambre **rebobinaba** al cruzar.
+  Ahora hay dos relojes explícitos: `elapsedS` (combate, solo fases visuales) y
+  `arcElapsedS` (el de la run, nunca rebobina), y la vida, la mezcla de tipos y
+  la rampa de élites cuelgan del segundo.
+
+  | Momento | Multiplicador de HP antes | ahora |
+  | --- | --- | --- |
+  | Mapa 1 min 0 | 1.00× | 1.00× (intacto) |
+  | Mapa 1 min 10 | 4.00× | 4.00× (intacto) |
+  | Mapa 2 min 0 | **2.20×** | **4.00×** |
+  | Mapa 2 min 10 | 5.20× | 7.00× |
+
+  De regalo, dos cosas que también rebobinaban: las élites entraban al Mapa 2 a
+  4.73× en vez de su 6× pleno (`ELITES.hpFullAtS = 300` contra un reloj de 240),
+  y el tipo de enemigo que se desbloquea a los 420s no existía durante los
+  primeros 3 minutos del Mapa 2. **El Mapa 1 no cambia en absoluto**: ahí los dos
+  relojes son el mismo número (offset 0, primer mapa), como exige la decisión 0.2.
+  Verificado con `tsc`, `vite build` y 147/147 tests; el guardián de deriva de
+  `tools/regen-pressure.test.mjs` se actualizó al nuevo nombre.
+
+- [x] **4.2 Curva propia del Mapa 2 (suelo + techo + tramo) — HECHO (0.13.60),
+  PENDIENTE DE PLAYTEST.** `difficultyOffsetS` desaparece; cada mapa lleva
+  `difficulty: { floor, peak, rampS }` y barre esa curva sobre su PROPIO reloj.
+  El offset solo podía hacer una de dos cosas —abrir alto o mantener recorrido—
+  porque deslizaba una curva de 480s: abrir en el minuto 4 implicaba saturar en
+  el minuto 4. Medido, viejo → nuevo:
+
+  | Minuto del Mapa 2 | Dificultad | Enemigos vivos |
+  | --- | --- | --- |
+  | 0 | 0.58 → **0.70** | 237 → **277** |
+  | 3 | 0.90 → 0.88 | 344 → 338 |
+  | 5 | 1.00 → 0.96 | 380 → 367 |
+  | 10 | 1.00 → **1.15** | 380 → **437** |
+
+  **Suelo retuneado 0.9 → 0.7 tras el primer playtest (2026-08-18).** Con 0.9 el
+  mapa abría en 346 contra los 380 del cierre del Mapa 1 y el usuario lo leyó como
+  "básicamente donde terminó el Mapa 1": lectura correcta, un suelo tan pegado al
+  techo no deja crescendo que oír. 0.7 abre en la presión del **minuto 5 del Mapa
+  1** (277 cuerpos) pero cargando la vida de enemigo del minuto 10, que no
+  rebobina. El alivio vive en el número de cuerpos y solo puede vivir ahí: la
+  continuidad de vida al cruzar es justamente lo que arregló 4.1.
+  El test que acota esto dejó de usar un ratio mágico (`0.8`) y ahora ata el
+  límite inferior al **punto medio de la curva del Mapa 1**.
+
+  El Mapa 1 queda `{ floor: 0, peak: 1, rampS: 480 }`, que reproduce la fórmula
+  global histórica **bit a bit** (verificado en 7 puntos de tiempo) — decisión
+  0.2. Un test nuevo congela esos tres números.
+
+  **Efecto secundario que hubo que arreglar:** la XP y el oro de élite pagaban un
+  bonus por "dificultad por encima de 1", regla que solo funcionaba mientras 1
+  fuera también el techo del reloj. Con el Mapa 2 llegando a 1.15 por tiempo, la
+  fundición se habría llevado un **+15% de pago de élite que nadie pidió**. Ahora
+  `rewardScalar(difficulty, curve)` mide el exceso contra el techo DEL MAPA: vale
+  exactamente 1.0 cuando la presión la puso el reloj, y solo Cursed Core la mueve.
+
+  **Guardarraíl abierto:** el techo aterriza en ~437 enemigos vivos y la última
+  validación medida fue **430**. El trabajo real por frame es ~1.5 ms contra un
+  vsync de 8.33, así que el margen existe, pero hace falta una pasada de 400+
+  antes de dar el número por bueno.
+
+- [x] **4.3 Daño de contacto por mapa — HECHO (0.13.60), PENDIENTE DE PLAYTEST.**
+  `MAPS[].contactDamageMult`: Mapa 1 en `1` (baseline, congelado por test),
+  Mapa 2 en **`1.25`** → el golpe de enjambre pasa de 8 a 10 y el techo de DPS
+  que impone el i-frame sube de **20 a 25**. Es la única palanca que mueve ese
+  techo, porque `PLAYER.invulnAfterHitS` lo capa en `contactDamage / 0.4` haya
+  los cuerpos que haya.
+
+  **Alcance deliberadamente estrecho:** NO toca daño de contacto de boss, ni
+  proyectiles de boss, ni disparos de Gunner. Esos tienen su propio tuneo, y el
+  jefe final vive en este mapa — meterlo en un multiplicador de mapa retunearía
+  en silencio un encuentro que todavía nadie balanceó.
+
+  **Cómo aislarlo:** 4.2 y 4.3 son DOS cambios y el guardarraíl del proyecto pide
+  uno por playtest. Poner `contactDamageMult` del Mapa 2 en `1` deja la curva sola
+  bajo prueba, sin tocar código.
+
+- [x] **4.4 El atajo de dev tenía que dejar de mentir — HECHO (0.13.60).**
+  Consecuencia directa de 4.1: en cuanto la fuerza de la oleada pasó a colgar del
+  reloj de arco, la tecla **T** quedó rota como instrumento. Saltaba a la
+  transición sin tocar ese reloj, así que pulsarla en el segundo 30 metía al
+  jugador en un Mapa 2 con multiplicador de vida **1.15×** en vez del **4.0×** que
+  entrega un cruce real: el atajo habría reportado el mapa como trivial y el
+  reporte habría sido puro artefacto.
+  - `fastForwardArcClockPastMap1()` adelanta el reloj de arco a un Mapa 1 completo
+    antes de `enterMap` (que solo resetea el reloj del mapa). Nunca rebobina, así
+    que pulsar T tarde conserva el reloj real.
+  - **La build en vivo MANDA (arreglado tras el playtest del 2026-08-18).** El
+    atajo llamaba a `applyRecordedBuild` siempre, y eso **machacaba el progreso
+    que el jugador acababa de ganar en el Mapa 1** con una grabación vieja: se
+    jugaban minutos reales de Mapa 1 y al pulsar T se cruzaba con otra build. Ahora
+    `hasLiveProgress()` (nivel > 1, o cualquier mod/core, o un arma por encima de
+    su nivel inicial) corta la superposición en seco. La grabación solo cubre el
+    caso para el que existe: que no haya ninguna run que llevar.
+  - Si no hay build en vivo, usa **la última run que aguantó el Mapa 1 entero**, y
+    "entero" se mide SOLO por `durationS`. **Trampa cazada en el playtest del
+    2026-08-18:** el primer filtro también aceptaba `sectorsCleared > 0` y
+    `mapsReached > 1`, que parecen autoritativos pero **el propio atajo los
+    falsifica** — la tecla T pasa por el mismo `enterMap` que un cruce real. Una
+    run de 90 segundos y nivel 2 (dos armas a nivel 1, cero cores) llevaba esas
+    banderas y, por ser la más reciente, ganaba a todas las pasadas reales del
+    Mapa 1. Era exactamente la build que se cargaba. El reloj no se puede falsificar
+    con una tecla; las banderas sí.
+  - Si no hay ninguna pasada real, carga **la run más AVANZADA**, no la más
+    reciente: la última suele ser lo último que murió en veinte segundos, y una
+    build de muñón haría parecer imposible la fundición por motivos que no tienen
+    nada que ver con el mapa.
+  - El toast **enumera lo cargado** (nivel, cores, mods, armas con su nivel) en vez
+    de afirmar que cargó algo.
+  - El atajo puede adelantar el reloj del enjambre, pero **no puede inventar una
+    build**. Si se pulsa T con progreso en vivo tras saltarse más de un minuto, el
+    toast avisa de cuántos segundos de Mapa 1 vivió realmente esa build, para que
+    una lectura dura se le atribuya al atajo y no al mapa.
+  - Mismo tratamiento para `DEV_TOOLS.simulateMap1Handoff`.
+
+- [x] **4.6 Lectura de dificultad en vivo — HECHO (0.13.60).**
+  `DEV_TOOLS.difficultyReadout` pinta en la esquina el mapa, los DOS relojes
+  (mapa y arco), el escalar de dificultad contra el suelo/techo de su mapa, el
+  multiplicador de vida de enemigo, el daño de contacto vigente y los cuerpos
+  vivos. Todos los valores se LEEN de lo que usan los sistemas; ninguno se
+  recalcula a mano, porque una lectura que deriva su propia respuesta puede
+  coincidir con el documento de diseño mientras el juego hace otra cosa.
+  Existe porque "¿se aplicó el cambio de balance que acabo de hacer?" era
+  irrespondible jugando —los números solo salían en el historial DESPUÉS de
+  terminar una run— y se perdieron tres vueltas adivinándolo. Gateado, y
+  `check-release-flags.mjs` aborta el empaquetado con él encendido (verificado).
+
+- [x] **4.8 Reloj de roster por mapa — HECHO (0.13.60). Revierte a propósito una
+  parte del 4.1.** Petición del usuario tras ver el Mapa 2 abriendo con el elenco
+  completo del final del Mapa 1: quería **entrar con enemigos de principio pero en
+  cantidad**.
+
+  La corrección conceptual que salió de ahí: **fuerza y puesta en escena son dos
+  preguntas distintas** y estaban metidas en el mismo reloj. Ahora se separan.
+  - **Fuerza** (vida de enemigo, rampa de élites) sigue en el reloj de arco y
+    **nunca rebobina** — un Voltling abre el Mapa 2 con 60 HP contra los 15 que
+    tenía en el Mapa 1. Esto es lo que el 4.1 arregló y no se toca.
+  - **Puesta en escena** (qué tipos aparecen) pasa a un reloj propio del mapa,
+    `MAPS[].rosterSpeed`. Mapa 1 en `1` (el calendario autorado, congelado por
+    test); Mapa 2 en **`2.5`**.
+
+  | Tipo | Entra en Mapa 2 | Entraba en Mapa 1 |
+  | --- | --- | --- |
+  | Voltling | 0:00 | 0:00 |
+  | Drone | 0:30 | 1:15 |
+  | Roller | 1:00 | 2:30 |
+  | Sparkrunner | 1:30 | 3:45 |
+  | Gunner | 2:06 | 5:15 |
+  | Rustbrute | **2:48** | 7:00 |
+
+  **Por qué 2.5 y no un reinicio limpio:** el calendario autorado termina a los
+  420s, así que a velocidad 1.0 la fundición pasaría siete de sus diez minutos sin
+  sus pesados. A 2.5 el elenco entero vuelve a las 2:48.
+
+  **COSTE MEDIDO, asumido a conciencia:** replantear las presentaciones **parte por
+  la mitad la vida media por cuerpo al abrir** (60 contra 110). Es deliberado — la
+  presión ahí la pone el CONTEO (277 cuerpos contra los 38 con que abre el Mapa 1)
+  y la vida media trepa sola conforme el calendario se repite.
+
+- [x] **4.9 Cobertura larga para el Mapa 2 — HECHO (0.13.60), reutilizando arte.**
+  Petición del usuario tras jugar la densidad nueva. La auditoría le dio la razón:
+
+  | Clase de prop | Mapa 1 | Mapa 2 (antes) |
+  | --- | --- | --- |
+  | Cobertura larga | 10-13 contenedores (cápsula ~6.4 uds, alto 3.0) | **ninguna** |
+  | Dispersos | 36-50 bidones, collider 0.55 | 46-62 celdas, collider 0.55 |
+  | Verticales | ninguno | 7-10 chimeneas, alto 7.31 |
+
+  Las celdas llevan el MISMO collider que un bidón: son decoración, no terreno.
+
+  **La petición era "un prop más grande" y ahí hubo que corregir la dirección:**
+  más grande en ALTURA es la única dirección ya medida como dañina. Esta cámara
+  esconde `altura × 0.79` unidades de suelo detrás de un objeto, así que una
+  chimenea de 7.31 borra 5.8 y un contenedor de 3.0 borra 2.4. Al Mapa 2 no le
+  faltaba altura —ya la tiene— le faltaba algo **largo y bajo** que se pueda
+  orbitar. Y lo que crea terreno es la **puerta** (dos cuerpos con un pasillo),
+  no el objeto suelto: props dispersos son ruido que come disparos sin partir al
+  enjambre.
+
+  `FOUNDRY_CONTAINER_PROP`: 7-9 puertas (por debajo de las 10-13 del Mapa 1) con
+  pasillo de 5.4 de medio ancho (más que los 4.2 del Mapa 1, porque el enjambre
+  es de hasta 437 cuerpos y no hay dash: un pasillo de talla Mapa 1 sería trampa,
+  no cobertura). Dos recoloreados propios de fundición, acero y hierro, ambos por
+  ENCIMA de la luma ~62 del suelo — al revés que las chimeneas, porque una
+  chimenea se lee por silueta y una cobertura tiene que verse de un vistazo
+  mientras corrés.
+
+  **COSTE ASUMIDO:** los obstáculos bloquean también las armas DEL JUGADOR
+  (`hasLineOfSight` en `weapons.ts`), y como el apuntado es automático un disparo
+  bloqueado es un disparo perdido. Por eso el conteo arranca por debajo del Mapa 1.
+
+  **PROVISIONAL a propósito:** reutiliza el modelo de contenedor del Mapa 1
+  recoloreado. Es un test barato de si la fundición quiere esta geografía; si la
+  quiere, se autora un prop propio, y si no, no se gastó arte.
+
+- [x] **4.10 Daño de contacto subido a ×1.5 (0.13.60)** tras el playtest ("el daño
+  no es suficiente"): 10 → **12** por toque, techo de DPS del enjambre 25 → **30**.
+  **Y ahí se para, por una razón medida:** 12 es exactamente `BOSS.contactDamage`.
+  Pasar de ahí hace que el enjambre ambiental pegue más que un boss, que es una
+  afirmación sobre los bosses, no sobre el Mapa 2.
+  **Si 30 DPS sigue leyéndose blando, la siguiente palanca NO es esta**: es
+  `PLAYER.invulnAfterHitS`, entre la que se divide todo el techo del enjambre y a
+  la que su propio comentario llama "the real difficulty dial". Necesitaría un
+  factor por mapa que hoy no existe.
+
+- [x] **4.11 Daño de boss recalibrado en los DOS mapas (0.13.60).** Consecuencia
+  obligada de 4.10, no un capricho: el `BOSS.contactDamage: 12` estaba calibrado
+  **contra un techo de enjambre de 20 DPS**, y el trabajo del Mapa 2 movió ese
+  techo. La relación que ese número protegía —"tocar un boss es lo peor que hay en
+  el campo"— se había roto en silencio: el golpe ambiental más fuerte del juego
+  (élite del Mapa 2, `8 × 1.35 × 1.5 = 16.2`) había pasado al toque de boss.
+
+  `BOSS.contactDamage` 12 → **16**, más `MAPS[].bossContactDamageMult` (Mapa 1
+  en `1`, Mapa 2 en `1.25`). Jerarquía resultante, medida:
+
+  | Mapa | Grunt | Élite | Boss | Muere en |
+  | --- | --- | --- | --- | --- |
+  | Scrapyard | 8.0 (20 dps) | 10.8 (27) | **16.0 (40)** | 2.5s |
+  | Swarm Foundry | 12.0 (30) | 16.2 (41) | **20.0 (50)** | 2.0s |
+
+  **Por qué el boss del Mapa 2 NO usa el ×1.5 del enjambre:** daría 24, o sea 60
+  DPS, a un pelo de los **62.5 que se midieron y se RECHAZARON el 2026-07-30** por
+  matar a un jugador a vida llena en 1.6s mientras el boss necesitaba ~30s para
+  caer. `1.25` deja 50 DPS: claramente por encima de los élites de su mapa,
+  claramente por debajo del número que rompió la pelea.
+
+  **Alcance:** solo el CUERPO del boss (contacto y embestida comparten una única
+  función, así que no pueden desincronizarse). Los proyectiles de boss quedan
+  fuera a propósito — son ataques telegrafiados y esquivables con su propio tuneo,
+  y el jefe final vive en este mapa.
+
+  **Congelado en test:** para CADA mapa, `grunt < élite < boss`, y el DPS de boss
+  se mantiene por debajo del 85% del que se rechazó. Esta jerarquía se rompió sin
+  que nadie lo viera durante dos versiones; ahora falla el build.
+
+- [x] **4.12 Separación de color entre props — HECHO (0.13.60).** Playtest:
+  "contenedores morados pegados a otros idénticos" y "4 o 5 celdas marrones una al
+  lado de otra". Eran DOS defectos distintos:
+  - **El scatter (celdas, chimeneas) sorteaba la variante de forma independiente
+    por prop, sin ninguna memoria.** Con 54 props y 3 variantes, una racha de
+    cuatro iguales no es mala suerte: es el resultado esperado.
+  - **Las puertas** sí tenían regla, pero aproximaba el vecino angular por
+    **posición en el array**. Solo valía mientras `scatterPoints` devolviera los
+    puntos en orden de sector, y no podía ver dos puertas cercanas en el suelo
+    pero lejanas en la lista — justo el caso que cazó el playtest.
+
+  `pickSpatialVariant()` reemplaza a las dos: elige la variante **más rara entre
+  los props ya colocados dentro de un radio**, con desempate aleatorio (un prop
+  aislado sigue siendo uniformemente aleatorio) y sin negarse nunca a colocar.
+
+  Medido sobre 200-400 layouts simulados:
+
+  | | Antes | Ahora |
+  | --- | --- | --- |
+  | Celdas: vecinas cercanas del mismo color | 34.6% | **10.4%** |
+  | Celdas: peor racha pegada | 3 | **2** |
+  | Puertas: vecinas del mismo color | 50.7% | **19.0%** |
+
+  **El radio se barrió, no se eligió a ojo:** en las puertas da 25.1% a radio 35,
+  19.0% a 45 y **30.3% a 60**. Empeora pasado un punto porque un radio que se
+  traga la arena entera deja de ser una regla local y se vuelve balanceo global de
+  conteos, que no dice nada de lo que el jugador ve en una pantalla.
+
+  **Techo conocido:** las puertas solo tienen DOS colores, así que el 19% es casi
+  su mínimo matemático. Con un tercer color cae a **3.1%**.
+
+  **Mapa 1 NO se tocó** (`BARREL_PROP.variantSeparation: 0`): tiene el mismo
+  defecto con sus 36-50 bidones, pero el pedido era del Mapa 2 y el Mapa 1 es el
+  mapa de la Demo. Ponerlo a 20 lo arregla y no hace falta nada más.
+
+- [ ] **4.7 El elenco del Mapa 2 es ahora el cuello de botella — MEDIDO 2026-08-18.**
+  La dificultad ya sube, pero el mapa **no puede sentirse nuevo**: el roster se
+  satura a los **420s** y a partir de ahí la mezcla no vuelve a cambiar nunca.
+
+  | Reloj | Mezcla ponderada |
+  | --- | --- |
+  | 5 min | Voltling 53% · Sparkrunner 16% · Roller 16% · Drone 16% |
+  | 7 min | Voltling 43% · Sparkrunner 13% · Roller 13% · Drone 13% · Rustbrute 9% · Gunner 9% |
+  | **todo el Mapa 2** | **idéntica a la de 7 min** |
+
+  O sea que el Mapa 2 entero enseña exactamente los mismos 6 tipos que el último
+  tercio del Mapa 1, y el 82% de lo que se ve ya estaba en el minuto 5. Es la
+  decisión **0.5** (reteñido + 1-3 enemigos de firma) sin implementar: `enemies.ts`
+  no tiene ni una rama por mapa. Ninguna curva de dificultad puede tapar eso.
+
+- [ ] **4.5 XP del Mapa 2 — NO SE TOCA TODAVÍA, y la evidencia dice por qué.**
+  Propuesta razonable (si los enemigos aguantan más, el nivel se estanca), pero la
+  única run de arco completo registrada terminó en **nivel 73 con 7.254 kills**,
+  contra un máximo de **nivel 37** en las runs que solo llegaron al Mapa 1. El
+  comentario de `xpForLevel` fija el objetivo de diseño en **~25-30 para 10
+  minutos**; un arco de 20 debería rondar 40-45 si la curva se sostuviera. Llegó a
+  73. O sea que el Mapa 2 **ya paga XP de más**, no de menos, y la subida de vida
+  de 4.1/4.2 empuja hacia el objetivo en vez de alejarse.
+  **n = 1**, así que no es una conclusión cerrada: es la razón para medir antes de
+  actuar. El instrumento ya existe — `pnpm stats` segmenta "nivel alcanzado" por
+  mapa de fin. Si tras el playtest el nivel al cerrar el Mapa 2 cae mucho, la
+  palanca correcta es un `xpMult` por mapa (gemelo de `contactDamageMult`), NUNCA
+  editar `ENEMY_TYPES[].xp`: el roster es global y no hay rama por mapa en
+  `enemies.ts`, así que tocarlo cambiaría también el Mapa 1.
+
+---
+
 ## Workstream 3 — Boss final: Hazard Marshal
 
 **El modelo YA está cerrado.** `src/models/registry.ts` clave `final-boss`: hojas medidas frontal/lateral/trasera (`tools/make-hazard-marshal-sheets.mjs`), cabeza vestida con paleta del logo vía `recolorRegions`, rig de piezas con clips `idle`/`walk`/`hit` (`docs/ANIMACION_RIG.md`). Lo que falta es **engancharlo al juego** y **diseñar el moveset** — sin moveset no hay animaciones de ataque que autorizar.
