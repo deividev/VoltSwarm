@@ -196,8 +196,19 @@ try {
   console.log(`\nPre-death: ${before.state}, ${before.elapsedS.toFixed(1)}s, ${before.activeEnemies} enemies, ${before.kills} kills\n`);
   if (before.state !== 'playing') throw new Error(`Run never reached playing state (was ${before.state})`);
 
+  // Timings come from the config the game is RUNNING, not from numbers typed
+  // here: this check hardcoded 0.75s and would have gone stale the moment the
+  // impact beat grew to let the health bar empty.
+  const timing = (key) => {
+    const found = new RegExp(`${key}:\\s*([\\d.]+)`).exec(config);
+    if (!found) throw new Error(`DEFEAT_TRANSITION.${key} not found in config`);
+    return Number(found[1]);
+  };
+  const hitstopMs = Math.round(timing('fatalHitstopS') * 1000);
+  const titleMs = Math.round(timing('titleRevealS') * 1000);
+
   // The fatal hit, then a timeline sampled off the real clock.
-  const timeline = await page.evaluate(async () => {
+  const timeline = await page.evaluate(async ({ HITSTOP_MS, TITLE_MS }) => {
     const g = window.__voltswarm;
     const sample = (ms) => ({
       ms,
@@ -219,16 +230,24 @@ try {
       title: document.getElementById('end-title').textContent,
       subtitle: document.getElementById('end-subtitle').textContent,
       stats: document.getElementById('end-stats').textContent,
+      // The killing blow has to be READABLE: the bar was never told about it,
+      // so the last thing drawn was the health the player had before dying.
+      // Text is set instantly; the fill is measured COMPUTED, which is the
+      // animated value mid-transition rather than the target.
+      hpText: document.getElementById('hp-text').textContent,
+      hpFillPx: Number.parseFloat(
+        getComputedStyle(document.getElementById('hp-bar-fill')).width,
+      ),
     });
     const out = [];
     const t0 = performance.now();
     window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyK', bubbles: true }));
-    for (const at of [16, 60, 300, 600, 740, 800, 1100, 1250, 1600]) {
+    for (const at of [16, 60, HITSTOP_MS + 40, 300, TITLE_MS - 60, TITLE_MS + 60, 1100, 1250, 1600]) {
       await new Promise((r) => setTimeout(r, Math.max(0, at - (performance.now() - t0))));
       out.push(sample(Math.round(performance.now() - t0)));
     }
     return out;
-  });
+  }, { HITSTOP_MS: hitstopMs, TITLE_MS: titleMs });
 
   console.log('Timeline:');
   for (const s of timeline) {
@@ -246,13 +265,27 @@ try {
   console.log('\nAcceptance:');
   check('lethal hit enters defeat-transition, not the results overlay',
     first.gameState === 'defeat-transition' && !first.endVisible, `state=${first.gameState}`);
-  check('title is hidden before 0.75s', at(600)?.beatVisible === false);
-  check('title is visible by 0.80s', at(800)?.beatVisible === true);
+  check(`title is hidden before ${titleMs}ms`, at(titleMs - 60)?.beatVisible === false);
+  check(`title is visible by ${titleMs + 60}ms`, at(titleMs + 60)?.beatVisible === true);
+  // The user's report: "queda raro ver que tengo 15 de vida y muero". Two
+  // separate things have to be true — the bar is told about the killing blow,
+  // and the overload waits until it has finished emptying.
+  check(
+    'the health bar reads zero from the fatal frame',
+    /^0\//.test(first.hpText ?? ''),
+    `bar read ${first.hpText}`,
+  );
+  const drained = at(hitstopMs + 40);
+  check(
+    'the bar has finished draining before the overload starts',
+    (drained?.hpFillPx ?? 1) <= 1,
+    `${drained?.hpFillPx?.toFixed(1)}px of fill left at ${drained?.ms}ms`,
+  );
   check('summary is hidden before 1.20s', at(1100)?.endVisible === false);
   check('summary is visible by 1.25s', at(1250)?.endVisible === true);
   check('actions arrive disabled and enable after the gate arms',
     at(1250)?.primaryDisabled === false, `disabled=${at(1250)?.primaryDisabled}`);
-  check('chassis is powered down at the title handoff', at(800)?.playerVisible === false);
+  check('chassis is powered down at the title handoff', at(titleMs + 60)?.playerVisible === false);
 
   const frozenPositions = timeline.filter((s) => s.enemyPos).map((s) => `${s.enemyPos.x},${s.enemyPos.z}`);
   check('enemies do not move while the beat runs',

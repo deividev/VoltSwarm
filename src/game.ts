@@ -3355,6 +3355,19 @@ export class Game {
     // One bounded impulse, replacing (not stacking with) the ordinary hit shake.
     this.shakeAmp = DEFEAT_TRANSITION.fatalShakeAmp;
 
+    // The bar has to SHOW the killing blow. updateBars only runs while the run
+    // is `playing`, and the line above already left that state, so without this
+    // the HUD keeps the health the player had before the hit and the overload
+    // plays under a bar reading 15/100. Same flash as any other hit, because a
+    // hit reads the same whatever threw it — this one just empties the bar.
+    this.hud.updateBars(
+      this.player.hp,
+      this.player.maxHp,
+      this.progression.xp,
+      this.progression.xpToNext,
+    );
+    this.hud.flashHp();
+
     this.player.beginDefeatPresentation();
     // A confirm already held when the hit landed must not skip anything, so the
     // pending edges are dropped and the controller's gate arms only on release.

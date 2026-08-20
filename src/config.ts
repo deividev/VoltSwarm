@@ -1242,13 +1242,24 @@ export const VISUAL = {
  *  Timings are absolute seconds measured from the ACCEPTED fatal hit, not from
  *  each other, so a dropped frame cannot slide the reveals apart. */
 export const DEFEAT_TRANSITION = {
-  /** Frozen impact on the fatal frame — the beat that says "that one killed you". */
-  fatalHitstopS: 0.1,
+  /** Frozen impact on the fatal frame — the beat that says "that one killed
+   *  you", and the window the HEALTH BAR uses to empty.
+   *
+   *  0.1 -> 0.15 (user 2026-08-20): "queda raro ver que tengo 15 de vida y
+   *  muero". The bar was never told about the killing blow — `updateBars` is
+   *  skipped the moment the state stops being `playing`, and the fatal hit
+   *  changes it in the same frame — so the last thing drawn was the health the
+   *  player had BEFORE dying, and the chassis overloaded under it. The bar is
+   *  pushed to zero now, and this beat is its own CSS transition
+   *  (`#hp-bar-fill`, `width 0.15s steps(4)`) so the overload starts on the
+   *  frame the bar reaches 0, not over a bar still draining. Frozen by test
+   *  against the stylesheet — changing one without the other is the bug. */
+  fatalHitstopS: 0.15,
   /** Chassis-overload animation, from the end of the hitstop to the title. */
   overloadS: 0.65,
   /** SYSTEM OVERLOAD + subtitle appear. `run-defeat` is emitted HERE, not on
    *  the contact frame: it is a presentation sting, not the physical hit. */
-  titleRevealS: 0.75,
+  titleRevealS: 0.8,
   /** Full results content and the enabled/focused actions. */
   summaryRevealS: 1.2,
   /** Earliest a fresh, debounced confirm may complete the presentation. */

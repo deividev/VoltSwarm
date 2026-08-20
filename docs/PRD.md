@@ -971,6 +971,30 @@ porque cuatro eventos compartían un frame y la zona nacía fuera del foco que e
 resto ya había capturado. Aquí origen y destino siempre están en pantalla y nada
 más dispara durante una cadena.
 
+### La barra tiene que enseñar el golpe que mata (2026-08-20)
+
+Queja del usuario: "queda raro ver que tengo 15 de vida y muero". Y era
+literal, no una sensación: `updateBars` **solo corre mientras la run está
+`playing`**, y el golpe letal cambia de estado en el MISMO frame, así que lo
+último que se dibujaba era la vida que tenías ANTES de morir. La sobrecarga del
+chasis se reproducía debajo de una barra marcando 15/100.
+
+Dos mitades:
+
+1. `beginDefeatTransition` empuja la barra a 0 y le da el mismo flash que
+   cualquier otro golpe — el impacto se lee igual lo lance quien lo lance.
+2. El beat de impacto pasa de 0,10 s a **0,15 s**, que es exactamente la
+   transición real de `#hp-bar-fill` (`width 0.15s steps(4)`). Así la barra
+   termina de vaciarse en el frame en que arranca la animación de muerte, no
+   sobre una barra a medio bajar. `titleRevealS` sube a 0,80 para conservar la
+   regla de que el título es el final de la sobrecarga, no un número suelto.
+
+Las dos constantes son UNA decisión viviendo en dos ficheros, así que hay un
+test que parsea la hoja de estilos y falla si se cambia una sin la otra — misma
+disciplina que los sonidos cortados contra la animación real. Y
+`pnpm test:defeat-runtime` lo mide en Electron: la barra marca `0/…` desde el
+frame del golpe y le quedan **0,0 px de relleno** cuando empieza la sobrecarga.
+
 ### Legibilidad de la salva y capa de las telegrafías (2026-08-20)
 
 Dos quejas del usuario, las dos medidas antes de tocar nada:

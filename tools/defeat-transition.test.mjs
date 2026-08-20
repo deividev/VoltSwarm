@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { DEFEAT_TRANSITION } from '../src/config.ts';
 import {
   actionsAcceptInput,
@@ -135,9 +136,9 @@ test('overload pressure runs 0 to 1 across the overload window only', () => {
 });
 
 test('the approved timings are the ones the controller runs on', () => {
-  assert.equal(DEFEAT_TRANSITION.fatalHitstopS, 0.1);
+  assert.equal(DEFEAT_TRANSITION.fatalHitstopS, 0.15);
   assert.equal(DEFEAT_TRANSITION.overloadS, 0.65);
-  assert.equal(DEFEAT_TRANSITION.titleRevealS, 0.75);
+  assert.equal(DEFEAT_TRANSITION.titleRevealS, 0.8);
   assert.equal(DEFEAT_TRANSITION.summaryRevealS, 1.2);
   assert.equal(DEFEAT_TRANSITION.skipUnlockS, 0.55);
   assert.equal(DEFEAT_TRANSITION.musicFadeS, 0.45);
@@ -148,4 +149,40 @@ test('the approved timings are the ones the controller runs on', () => {
   );
   // A skip must be reachable before the unskipped summary would arrive anyway.
   assert.ok(DEFEAT_TRANSITION.skipUnlockS < DEFEAT_TRANSITION.summaryRevealS);
+});
+
+
+test('the impact beat lasts exactly as long as the health bar takes to empty', async () => {
+  // User call 2026-08-20: "queda raro ver que tengo 15 de vida y muero". The
+  // fix is two-sided — the bar is pushed to zero on the fatal hit, and the
+  // overload waits for it — so these two constants are ONE decision living in
+  // two files. Cut against the real stylesheet value, the same rule the audio
+  // cues follow: an animation-coupled beat is timed against the animation, not
+  // against a number that looked about right.
+  const css = await readFile(new URL('../src/ui.css', import.meta.url), 'utf8');
+  // The v2 rule wins: it is the later of the two #hp-bar-fill blocks.
+  const durations = [...css.matchAll(/#hp-bar-fill\s*\{[^}]*transition:\s*width\s+([\d.]+)s/g)].map(
+    (m) => Number(m[1]),
+  );
+  assert.ok(durations.length > 0, 'the health bar must declare a width transition');
+  const drainS = durations[durations.length - 1];
+  assert.equal(
+    DEFEAT_TRANSITION.fatalHitstopS,
+    drainS,
+    `the bar drains in ${drainS}s but the overload starts at ${DEFEAT_TRANSITION.fatalHitstopS}s`,
+  );
+});
+
+test('the fatal hit empties the bar before anything else happens', async () => {
+  // updateBars is gated on the run being `playing`, and the fatal path leaves
+  // that state in the same frame, so the HUD has to be told explicitly. Without
+  // this line the bar keeps the pre-hit health for the whole death beat.
+  const gameSource = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
+  const transition = gameSource.slice(gameSource.indexOf('private beginDefeatTransition('));
+  const body = transition.slice(0, transition.indexOf('\n  }'));
+  assert.match(body, /this\.hud\.updateBars\(\s*this\.player\.hp,/);
+  assert.ok(
+    body.indexOf('this.hud.updateBars(') < body.indexOf('this.player.beginDefeatPresentation()'),
+    'the bar must be emptied before the chassis presentation is armed',
+  );
 });
