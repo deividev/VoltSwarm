@@ -9,6 +9,15 @@ export type AudioEventId =
   | 'enemy-death' | 'xp-pickup' | 'gold-pickup' | 'levelup-intro' | 'levelup-open' | 'levelup-pick'
   | 'chest-open' | 'chest-spin' | 'chest-reveal' | 'merchant-arrival' | 'shop-purchase'
   | 'boss-portal' | 'boss-awaken' | 'boss-attack' | 'boss-defeat' | 'run-victory' | 'run-defeat'
+  // The Marshal's sector sweep, one cue per moment on screen: the plates go
+  // live, the deadline closes, the arc discharges.
+  | 'boss-sweep-charge' | 'boss-sweep-warn' | 'boss-sweep-fire'
+  // Core overload: the chain unlocking, and each link of it blowing.
+  | 'boss-overload-open' | 'boss-overload-erupt'
+  // The ring of red shots: a battery firing, not an impact.
+  | 'boss-volley'
+  // Bodies materialising at a drop zone — the one electric cue in the fight.
+  | 'boss-assembly-spawn'
   | 'foundation-music' | 'menu-music';
 
 export interface AudioEvent { id: AudioEventId; key?: string; priority?: number; volume?: number; loop?: boolean; bus?: 'sfx' | 'music'; pos?: { x: number; z: number }; }
@@ -272,7 +281,19 @@ export class AudioDirector {
     const bus = event.bus ?? (event.loop ? 'music' : 'sfx'); const cap = bus === 'music' ? AUDIO.voiceCaps.music : AUDIO.voiceCaps.sfx;
     const existing = [...this.voices].filter(v => v.bus === bus);
     if (this.voices.size >= AUDIO.voiceCaps.global || existing.length >= cap) {
-      const victim = existing.sort((a, b) => a.priority - b.priority)[0];
+      // A one-shot may never evict a sustained LOOP. Weapon hums start on an
+      // edge (weapons.ts starts them when the weapon activates, not per frame),
+      // so a stolen loop is gone until that weapon fully stops and restarts —
+      // the blades would go silent mid-fight for no visible reason. One-shots
+      // are the only voices that can be replaced without leaving a hole.
+      // Absolute, not a preference: with nothing but loops holding the bus the
+      // incoming one-shot is DROPPED rather than cutting a hum. Reachable only
+      // in theory (there are at most a handful of weapon loops against a cap of
+      // 14), and a rule with an escape hatch is the kind that fires once, in
+      // front of a player, for reasons nobody can reconstruct.
+      const victim = existing
+        .filter((v) => !v.loop)
+        .sort((a, b) => a.priority - b.priority)[0];
       if (!victim || victim.priority > (event.priority ?? 0)) { this.drops++; return; }
       this.steals++;
       this.stopVoice(victim, AUDIO.fades.defaultS);

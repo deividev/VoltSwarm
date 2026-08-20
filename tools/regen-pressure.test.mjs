@@ -106,7 +106,12 @@ test('Regen HP/min reports recovery against representative real incoming-damage 
     );
   }
   assert.match(enemySource, /projectiles\.fire\(e\.x, e\.z, dx, dz, GUNNER\.projectileSpeed, GUNNER\.projectileDamage\);/);
-  assert.match(gameSource, /\(damage\) => this\.damagePlayer\(damage\)/);
+  // A Gunner's shard still goes through the ordinary funnel, i-frame cap and
+  // all; only the Marshal's own volley pierces it (see final-boss.test.mjs).
+  assert.match(
+    gameSource,
+    /\(damage, kind\) => this\.damagePlayer\(damage, -1, kind === 'marshal'\)/,
+  );
   assert.match(statsSource, /return Math\.max\(1, Math\.round\(damage \* \(1 - reduction\)\)\);/);
 
   const points = [

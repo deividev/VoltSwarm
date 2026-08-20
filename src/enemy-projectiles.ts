@@ -9,7 +9,10 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 // spinning ORANGE voxel shard, the Tesla Titan a bigger BOSS-RED spark star —
 // red stays the exclusive boss-danger language (portal, auras, boss bar).
 
-export type EnemyShotKind = 'gunner' | 'tesla';
+export type EnemyShotKind = 'gunner' | 'tesla' | 'marshal';
+
+/** Every kind, so the per-frame slot bookkeeping below cannot forget one. */
+const SHOT_KINDS: readonly EnemyShotKind[] = ['gunner', 'tesla', 'marshal'];
 
 interface Shot {
   active: boolean;
@@ -28,6 +31,21 @@ const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 
 const GUNNER_SHOT_COLOR = 0xff7a20;
 const TESLA_SHOT_COLOR = 0xff3355;
+/** The Marshal's volley. A harder, more saturated red than the Tesla's, because
+ *  these shots routinely fly THROUGH the sweep's amber wedge and its blast, and
+ *  a pinkish crimson over amber turns into one warm smear. */
+const MARSHAL_SHOT_COLOR = 0xff1024;
+/** The core of that same shot. MEASURED: the volley sat at hue 355 and the
+ *  hazard zones it flies over at hue 350 — five degrees apart, which is why
+ *  making it bigger and more saturated did not help. Nearly white is the one
+ *  value that separates from every red on this floor without stealing another
+ *  system's hue (violet is the Roller's, cyan the drop bays'). */
+const MARSHAL_CORE_COLOR = 0xfff2ee;
+
+function impactColor(kind: EnemyShotKind): number {
+  if (kind === 'marshal') return MARSHAL_SHOT_COLOR;
+  return kind === 'tesla' ? TESLA_SHOT_COLOR : GUNNER_SHOT_COLOR;
+}
 
 /** Gunner shard: a chunky voxel splinter flying point-first. */
 function buildShard(): THREE.BufferGeometry {
@@ -46,16 +64,60 @@ function buildSparkStar(): THREE.BufferGeometry {
   return mergeGeometries([a, b]);
 }
 
+/** Paints a whole geometry one colour, so several can be merged into a single
+ *  vertex-coloured mesh. */
+function paintGeometry(geometry: THREE.BufferGeometry, hex: number): THREE.BufferGeometry {
+  const count = geometry.getAttribute('position').count;
+  const colors = new Float32Array(count * 3);
+  const tint = new THREE.Color(hex);
+  for (let i = 0; i < count; i++) {
+    colors[i * 3] = tint.r;
+    colors[i * 3 + 1] = tint.g;
+    colors[i * 3 + 2] = tint.b;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  return geometry;
+}
+
+/** The Marshal's volley: a WHITE-HOT cube pierced by red spikes.
+ *
+ *  Measured 2026-08-20, after the user reported still losing these shots among
+ *  the other red effects: the previous version painted the whole caltrop red
+ *  and put a white 0.3 cube at its centre — INSIDE a solid 0.75 cube, so the
+ *  one feature meant to separate it could not be seen from any angle. An
+ *  enclosed core is not a core, it is deleted geometry.
+ *
+ *  So the two halves of the star are painted separately instead: the
+ *  axis-aligned cube is the hot core and it IS the surface you see, and the
+ *  rotated one only pokes its corners through as red spikes. White survives
+ *  every background on this floor — a red hazard zone, the amber wedge, its
+ *  blast — which flat red does not, and the shot keeps the boss's colour in the
+ *  spikes rather than in a silhouette that dissolves into whatever it crosses. */
+function buildMarshalStar(): THREE.BufferGeometry {
+  const size = 0.44 * 1.7;
+  const core = paintGeometry(new THREE.BoxGeometry(size, size, size), MARSHAL_CORE_COLOR);
+  const spikes = new THREE.BoxGeometry(size, size, size);
+  spikes.rotateY(Math.PI / 4);
+  spikes.rotateX(Math.PI / 4);
+  return mergeGeometries([core, paintGeometry(spikes, MARSHAL_SHOT_COLOR)]) ?? core;
+}
+
 export class EnemyProjectiles {
   private readonly meshes: Record<EnemyShotKind, THREE.InstancedMesh>;
   private readonly pool: Shot[] = [];
   private spin = 0;
 
   constructor(scene: THREE.Scene) {
-    const build = (geometry: THREE.BufferGeometry, color: number): THREE.InstancedMesh => {
+    const build = (
+      geometry: THREE.BufferGeometry,
+      color: number,
+      vertexColors = false,
+    ): THREE.InstancedMesh => {
       const mesh = new THREE.InstancedMesh(
         geometry,
-        new THREE.MeshBasicMaterial({ color }),
+        vertexColors
+          ? new THREE.MeshBasicMaterial({ vertexColors: true })
+          : new THREE.MeshBasicMaterial({ color }),
         GUNNER.maxProjectiles,
       );
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -67,6 +129,7 @@ export class EnemyProjectiles {
     this.meshes = {
       gunner: build(buildShard(), GUNNER_SHOT_COLOR),
       tesla: build(buildSparkStar(), TESLA_SHOT_COLOR),
+      marshal: build(buildMarshalStar(), MARSHAL_SHOT_COLOR, true),
     };
     for (let i = 0; i < GUNNER.maxProjectiles; i++) {
       this.pool.push({
@@ -105,7 +168,11 @@ export class EnemyProjectiles {
     s.life = GUNNER.projectileLifetimeS;
   }
 
-  /** Moves shots; calls `onHitPlayer(damage)` when one connects. `onImpact`
+  /** Moves shots; calls `onHitPlayer(damage, kind)` when one connects. The kind
+   *  travels with the hit because the Marshal's volley is a BOSS attack and is
+   *  treated as one on arrival (it pierces the i-frame, like every other thing
+   *  the boss telegraphs), while a Gunner's shard is ordinary swarm pressure
+   *  and stays capped by it. `onImpact`
    *  fires at the impact point for VFX (shot-colored pop on the player —
    *  the two-halves rule's destination). */
   update(
@@ -114,7 +181,7 @@ export class EnemyProjectiles {
     pz: number,
     playerRadius: number,
     obstacles: Obstacle[],
-    onHitPlayer: (damage: number) => void,
+    onHitPlayer: (damage: number, kind: EnemyShotKind) => void,
     onImpact?: (x: number, z: number, color: number) => void,
   ): void {
     this.spin += dt * 7;
@@ -140,15 +207,15 @@ export class EnemyProjectiles {
           ),
         )
       ) {
-        onImpact?.(s.x, s.z, s.kind === 'tesla' ? TESLA_SHOT_COLOR : GUNNER_SHOT_COLOR);
+        onImpact?.(s.x, s.z, impactColor(s.kind));
         s.active = false;
         mesh.setMatrixAt(i, HIDDEN);
         continue;
       }
       const dSq = (s.x - px) * (s.x - px) + (s.z - pz) * (s.z - pz);
       if (dSq <= hitSq) {
-        onImpact?.(s.x, s.z, s.kind === 'tesla' ? TESLA_SHOT_COLOR : GUNNER_SHOT_COLOR);
-        onHitPlayer(s.damage);
+        onImpact?.(s.x, s.z, impactColor(s.kind));
+        onHitPlayer(s.damage, s.kind);
         s.active = false;
         mesh.setMatrixAt(i, HIDDEN);
         continue;
@@ -160,25 +227,27 @@ export class EnemyProjectiles {
       }
       // Shards fly point-first with a slow roll; tesla stars tumble fast.
       tmpMatrix.makeRotationY(Math.atan2(s.vx, s.vz));
-      tmpRot.makeRotationZ(this.spin * (s.kind === 'tesla' ? 2 : 1) + i * 1.1);
+      tmpRot.makeRotationZ(this.spin * (s.kind === 'gunner' ? 1 : 2) + i * 1.1);
       tmpMatrix.multiply(tmpRot);
       tmpMatrix.setPosition(s.x, 1, s.z);
       mesh.setMatrixAt(i, tmpMatrix);
-      // Keep the OTHER kind's slot hidden — slots are shared across meshes.
-      this.meshes[s.kind === 'tesla' ? 'gunner' : 'tesla'].setMatrixAt(i, HIDDEN);
+      // Keep every OTHER kind's slot hidden — slots are shared across meshes.
+      // A loop over SHOT_KINDS rather than a hand-picked pair: the pair stopped
+      // covering everything the moment a third kind existed, and the symptom
+      // would have been a ghost shot nobody could trace.
+      for (const kind of SHOT_KINDS) {
+        if (kind !== s.kind) this.meshes[kind].setMatrixAt(i, HIDDEN);
+      }
     }
-    this.meshes.gunner.instanceMatrix.needsUpdate = true;
-    this.meshes.tesla.instanceMatrix.needsUpdate = true;
+    for (const kind of SHOT_KINDS) this.meshes[kind].instanceMatrix.needsUpdate = true;
   }
 
   reset(): void {
     for (let i = 0; i < this.pool.length; i++) {
       const s = this.pool[i];
       if (s) s.active = false;
-      this.meshes.gunner.setMatrixAt(i, HIDDEN);
-      this.meshes.tesla.setMatrixAt(i, HIDDEN);
+      for (const kind of SHOT_KINDS) this.meshes[kind].setMatrixAt(i, HIDDEN);
     }
-    this.meshes.gunner.instanceMatrix.needsUpdate = true;
-    this.meshes.tesla.instanceMatrix.needsUpdate = true;
+    for (const kind of SHOT_KINDS) this.meshes[kind].instanceMatrix.needsUpdate = true;
   }
 }

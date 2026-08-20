@@ -132,7 +132,7 @@ export const DEV_TOOLS: {
    *  unanswerable in play — the numbers only surfaced in the run history AFTER a
    *  run ended, and a dev shortcut could quietly hand the map a clock nobody
    *  intended. Reading it live turns a guess into a measurement. */
-  difficultyReadout: true,
+  difficultyReadout: false,
 };
 
 /** Map length while DEV_TOOLS.shortMaps is on. Inert otherwise. */
@@ -144,7 +144,7 @@ export const AUDIO = {
    *  when the manifest ships an asset for it, so anything audible in a release
    *  is a deliberate choice rather than a leftover. */
   validation: {
-    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'ui-back', 'ui-focus', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'player-fatal', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'foundation-music', 'menu-music'] as readonly string[],
+    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'ui-back', 'ui-focus', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'player-fatal', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'boss-sweep-charge', 'boss-sweep-warn', 'boss-sweep-fire', 'boss-overload-open', 'boss-overload-erupt', 'boss-volley', 'boss-assembly-spawn', 'foundation-music', 'menu-music'] as readonly string[],
   },
   /** Release-owned variant choices. Dev audition pins still override these;
    * events absent here keep their normal random rotation. */
@@ -166,6 +166,11 @@ export const AUDIO = {
     /** Throttles a swarm of blade contacts into a steady tick, not a
      *  machine-gun (frequent = invisible). */
     'blades-hit': 0.09,
+    /** The overload chain fires four links 0.45s apart. This only stops two
+     *  from landing on the same frame if a chain ever overlaps another; the
+     *  steps themselves must stay audible as steps, because reading the
+     *  sequence is how the attack is dodged. */
+    'boss-overload-erupt': 0.12,
   },
   fades: { defaultS: 0.04, pauseDuckS: 0.12, pauseMusicGain: 0.22, menuMusicGain: 0.45 },
   /** Mix-wide calibration sits below the player-facing sliders. The SFX trim
@@ -383,6 +388,15 @@ export const MAP_TRANSITION = {
   fadeOutS: 0.8,
   holdS: 1.1,
   fadeInS: 0.9,
+  /** How long BEFORE the curtain finishes lifting the player's spawn cue fires.
+   *
+   *  It used to fire at the swap, which is at full black — a whole second and a
+   *  half before anything is visible, so the sound had finished before the map
+   *  existed. A materialization cue has to arrive just under the picture it
+   *  belongs to (user 2026-08-19: "unas milesimas antes de mostrar el mapa"),
+   *  which is the same zero-latency rule every other animation-coupled sound in
+   *  the game obeys — cut against the real constant, not by ear. */
+  spawnCueLeadS: 0.16,
 };
 
 export type MapId = (typeof MAPS)[number]['id'];
@@ -780,9 +794,31 @@ export const FOUNDRY_PILLAR_PROP = {
 export const BARRIER_CELL = {
   capacityPerCopy: 1,
   capacityCap: 6,
-  regenS: 8,
-  regenReductionPerExtraCopyS: 1,
-  regenFloorS: 4,
+  /** 8 -> 14 (user playtest 2026-08-19: "en la batalla contra el boss es
+   *  imposible que te bajen la vida").
+   *
+   *  The arithmetic behind the complaint: a charge blocks a FULL hit whatever
+   *  it was worth, so the mod's real output is hits-absorbed-per-minute, and at
+   *  8s that is 7.5. The Marshal's telegraphed kit lands somewhere near ten
+   *  damage events a minute on a player who is moving, so the shield was eating
+   *  three quarters of the fight and the six-charge buffer meant the first
+   *  half-minute cost nothing at all. 14s puts sustained absorption at 4.3/min
+   *  — still the strongest defensive mod in the game, no longer a subscription
+   *  to immunity. 14 -> 30 in the same session's next playtest: at 14s it was
+   *  still 4.3 absorbed hits a minute against a kit that lands about ten, so
+   *  the fight was still being fought through a shield. 30s is 2/min — the mod
+   *  now buys you specific moments, not a state.
+   *
+   *  This is a GLOBAL change, not a boss patch: Barrier Cell is a general mod
+   *  and Map 1 feels it too. That is deliberate — the same arithmetic was
+   *  always true there, the boss fight is just where it became visible. */
+  regenS: 30,
+  /** Scaled with the base so the four post-cap copies still land exactly on the
+   *  floor — that second stage is the only reason to buy copies 7-10. */
+  regenReductionPerExtraCopyS: 3,
+  /** Fully stacked stays ~1.7x faster than base, the same shape the curve had
+   *  at 8s and at 14s. */
+  regenFloorS: 18,
   maxCopies: 10,
 };
 
@@ -997,6 +1033,13 @@ export const VISUAL = {
     enabled: true,
     count: 2,
     critCount: 5,
+    /** Bosses get FEWER, not the same. The counts above are tuned for a body
+     *  0.9 units tall that dies in one or two hits; a boss is 9.87 tall, takes
+     *  hundreds of hits and is often being hit by several weapons at once, so
+     *  the same per-hit spray becomes a permanent fountain. Playtest 2026-08-19:
+     *  "las particulas y el bloom al pegarle es demasiado exagerado". */
+    bossCount: 1,
+    bossCritCount: 2,
   },
   /** Per-weapon in-world VFX knobs (weapon accents live in weapons.ts). */
   weaponVfx: {
@@ -1132,6 +1175,17 @@ export const VISUAL = {
    *  standing on it. Opacity has to be baked into the colours, because
    *  `material.opacity` is ignored outside the transparent queue. */
   groundMarkersOnTop: true,
+  /** …with ONE exception: the final boss's telegraphs (wedge, hazard zones,
+   *  drop bays). User call 2026-08-20 — "los efectos de los ataques predominan
+   *  por encima incluso de los modelos 3d del escenario en vez de representarse
+   *  sobre el mapa/suelo". A 4-unit ring around a player reads fine painted
+   *  over a crate; a 20-unit wedge painted over a 12-unit foundry chimney reads
+   *  as a sheet floating above the map, because the tower stops being IN the
+   *  attack and starts being BEHIND it. Depth-testing these puts them back on
+   *  the floor: the chimney stands in the zone and occludes its own footprint.
+   *  The player, elite and boss rings keep the flag above — that was a separate
+   *  playtest call (2026-07-26) about props chopping SMALL markers. */
+  bossTelegraphsUnderScenery: true,
   /** Draw order for the three ground layers above. */
   renderOrders: { scenery: 0, groundMarker: 1, character: 2 },
   /** Arena wall occlusion fade. The camera trails the player by CAMERA.offsetZ
@@ -1246,6 +1300,16 @@ export interface EnemyTypeDef {
   speed: number;
   scale: number;
   radius: number;
+  /** Radius used for TOUCHING the player — contact damage and the body the
+   *  player cannot walk through. Defaults to `radius`.
+   *
+   *  It exists because `radius` does three other jobs (swarm steering, spawn
+   *  placement, the aura and shadow discs) and one circle cannot describe a
+   *  body that is far wider than it is deep. Measured on the Hazard Marshal:
+   *  half-extents 3.24 wide by 1.33 deep against a radius of 3.10, so walking
+   *  at its face took damage 1.77 units before touching anything visible —
+   *  "me golpea antes de chocar con él" (playtest 2026-08-19). */
+  contactRadius?: number;
   xp: number;
   color: number;
   /** Run time (seconds) at which this type joins the spawn pool. */
@@ -1465,10 +1529,33 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
     modelKey: 'final-boss',
     isBoss: true,
     behavior: 'chase',
-    hp: 7200,
-    speed: 3.2,
+    /** 7200 -> 36000 -> 100000 (user playtests 2026-08-19). The first human
+     *  fight died far too fast for a finale: a late build kills 7200 before the
+     *  boss has reached its second phase, so two thirds of the moveset never
+     *  happened. x5 was not enough either once the fight had something to do.
+     *  Read together with the level clamps below — this is the value at
+     *  FINAL_BOSS.hpLevelReference, scaled 0.85-1.6 by the level you arrive at. */
+    hp: 100000,
+    /** 3.2 -> 4.0 (user playtest 2026-08-19). Still barely a third of the
+     *  player's 11, and it CANNOT be the fix on its own: nothing this side of
+     *  player speed catches a kiting player, which is why the reinforcement
+     *  ring exists. This just stops the body from being trivially outwalked
+     *  while the player fights the things it called.
+     *
+     *  4.0 -> 4.8 (user 2026-08-19). Still 44% of the player's 11: it cannot
+     *  catch anyone who keeps running, and it is not supposed to — this buys it
+     *  the ability to close on someone who stopped to fight the drops. */
+    speed: 4.8,
     scale: 5.2,
     radius: 3.1,
+    /** MEASURED, not chosen: the body is 6.48 wide and 2.66 deep, so its
+     *  half-extents are 3.24 and 1.33. A circle cannot be right on both — 3.10
+     *  overhung the FACE by 1.77 units, and 1.33 would let the player stand
+     *  inside its shoulders. 2.2 splits the error: approaching its face you now
+     *  overlap the body by 0.17 before it hurts, and at its widest you clip
+     *  0.34 into an arm. Both are under half a unit; the old number was a body
+     *  and a half of thin air. */
+    contactRadius: 2.2,
     xp: 300,
     color: 0xfdb601,
     unlockAtS: Infinity,
@@ -1574,14 +1661,22 @@ export const FINAL_BOSS = {
   arena: {
     /** No scatter prop may stand within this radius of the arena centre.
      *
-     *  28 covers everything the encounter needs room for: the arrival ring
-     *  (15 max) plus the boss's own body and its clearance (3.1 + 3.5 = 6.6),
-     *  with space left to circle it. Beyond that the foundry keeps its
-     *  scenery — an arena swept clean to the walls would stop reading as the
-     *  same map. Map 2's props scatter from 8 (cells), 18 (gates) and 22
+     *  28 -> 40 (user playtest 2026-08-19: "se puede quedar el boss pillado con
+     *  ellos y nos interesa el maximo espacio libre"). 28 covered what the
+     *  encounter strictly needs — the arrival ring (15) plus the body and its
+     *  clearance (3.1 + 3.5) — but the Marshal is 6.5 wide and steers around
+     *  obstacles like everything else, so a prop it clips is a boss that stops
+     *  advancing for reasons the player cannot see. 40 is an 80-unit-wide floor
+     *  to fight on, and the foundry still reads as itself from there out to the
+     *  wall at 89. Map 2's props scatter from 8 (cells), 18 (gates) and 22
      *  (pillars) out to 86, so this pushes them outward rather than deleting
-     *  them: the count is unchanged. */
-    clearRadius: 28,
+     *  them. */
+    clearRadius: 40,
+    /** …and the scatter is THINNED on top of that hole. A clear middle with a
+     *  dense rim still funnels the fight into the rim the moment either side
+     *  moves, and the boss is the one that pays: it is the only body on the
+     *  field big enough to snag on a pillar. */
+    propDensity: 0.45,
     /** Heal to full when the arena resets.
      *
      *  Same reasoning as the sector crossing (PLAN_MAPA2 0.3): surviving the
@@ -1590,6 +1685,33 @@ export const FINAL_BOSS = {
      *  heal because it is a design call, not a mechanic — flip it to false and
      *  the finale becomes a survival test of everything before it. */
     healToFull: true,
+  },
+  /** The Marshal coming apart, and the pause before the results.
+   *
+   *  The kill used to open the results screen on the SAME FRAME, so the death
+   *  explosion was drawn once and then covered — the payoff of the whole arc
+   *  lasted 16 milliseconds (user 2026-08-19). The run is over the instant it
+   *  dies; what this buys is the time to watch it happen. */
+  victory: {
+    /** Total hold before the results screen opens. */
+    holdS: 1.6,
+    /** The body comes apart in STAGES rather than one puff: a 9.87-unit machine
+     *  bursting in a single frame reads as an enemy dying, not as a boss. */
+    burstSteps: 5,
+    burstStepS: 0.13,
+    burstPerStep: 26,
+    hotPerStep: 10,
+    /** Spread of each stage around the body, so the explosion has volume. */
+    spread: 3.2,
+    /** Height the debris is thrown from, walking DOWN the body per stage —
+     *  it comes apart from the head first, then collapses. */
+    topHeight: 8.4,
+    color: 0xfdb601,
+    hotColor: 0xf8fbff,
+    ringColor: 0xff3355,
+    ringCubes: 34,
+    ringRadius: 6.5,
+    shakeAmp: 0.9,
   },
   /** Height of every ground telegraph this fight draws. Just under the player
    *  marker (0.075) so the two never z-fight when the player stands in a zone,
@@ -1601,8 +1723,13 @@ export const FINAL_BOSS = {
   hpLevelMax: 1.6,
   /** HP fractions where phase 2 and phase 3 begin. Descending, by LIFE and
    *  never by clock: a fight that changes on a timer punishes a strong build
-   *  for killing fast. */
-  phaseThresholds: [0.66, 0.33],
+   *  for killing fast.
+   *
+   *  Exact thirds (user 2026-08-19). They were already 0.66/0.33, which is
+   *  within 0.7% of this — the change is that the intent is now written down
+   *  rather than approximated, so nobody later "tidies" them to 0.7/0.35 and
+   *  quietly moves where the fight turns. */
+  phaseThresholds: [2 / 3, 1 / 3],
   /** The phase change itself: the boss roots, flares, and announces. This is
    *  the rare event the `hit`/stagger clip is reserved for (3.A.2) — routine
    *  damage stays tint-only because it arrives too often for a clip to finish. */
@@ -1624,8 +1751,21 @@ export const FINAL_BOSS = {
     cooldownS: [6.5, 5.5, 4.5],
     telegraphS: 1.1,
     projectiles: 16,
-    projectileSpeed: 13,
-    projectileDamage: 16,
+    /** 13 -> 18 (measured 2026-08-19). At 13 against a player who runs at 11
+     *  the shots close at 2 units per second: from the 15 units they are fired
+     *  at, a fleeing player is caught in seven and a half seconds, which is
+     *  longer than the shots live. The ring was therefore decoration for
+     *  anybody moving away — it could only ever hit someone standing still.
+     *  18 closes at 7 and catches them in two. 18 -> 21 (user 2026-08-19) —
+     *  10 u/s of closing speed, so the ring is a threat while it crosses rather
+     *  than something a runner slowly loses. */
+    projectileSpeed: 21,
+    /** FRACTION of the player's max HP (user 2026-08-19). Percentages, not flat
+     *  numbers: the fight has to read the same at level 10 and at level 45, and
+     *  a boss tuned against a 100 HP baseline stops threatening the moment Max
+     *  HP cores land. Armor still applies afterwards — this is what the attack
+     *  ASKS for, exactly like every other damage source in the game. */
+    projectileDamagePct: 0.2,
     shoveRadius: 12,
     shoveForce: 14,
   },
@@ -1642,35 +1782,139 @@ export const FINAL_BOSS = {
     telegraphS: 1.3,
     halfAngleDeg: 42,
     radius: 20,
-    damage: 26,
+    /** 25% of the player's max HP. See discharge.projectileDamagePct for why
+     *  every number in this fight is a fraction now. */
+    damagePct: 0.25,
     /** Amber: the Marshal's own body colour, so origin and destination of the
      *  attack wear the same colour (rule of two halves). */
     color: 0xfdb601,
     hotColor: 0xf8fbff,
+    /** The discharge LEAVES THE BODY: cubes erupt from the Marshal's chest at
+     *  this height before the wave travels down the floor (user 2026-08-19,
+     *  "que ese ataque electrico es una descarga que sale del modelo 3d"). The
+     *  model is 9.87 tall, so this is roughly its chest. Without it the attack
+     *  reads as the FLOOR doing something near a boss that happens to be stood
+     *  there — the two-halves rule, which every other effect here obeys. */
+    dischargeHeight: 5.6,
+    dischargeCount: 26,
+    dischargeHotCount: 12,
     /** Cube fans thrown along the arc when it discharges. */
     arcSteps: 9,
     burstPerStep: 3,
+    /** How long before the discharge the "about to blow" cue fires. The WAV is
+     *  authored to be exactly this long so it PEAKS on the hit — the
+     *  zero-latency rule: animation-coupled audio is cut against the real
+     *  constant, never by ear. */
+    warnLeadS: 0.4,
+    /** The blast that replaces the old single puff of cubes. It travels: each
+     *  step throws an arc of cubes further out, so the discharge reads as a
+     *  wave sweeping down the wedge rather than as one flash at the boss. */
+    blastSteps: 4,
+    blastStepS: 0.055,
+    /** Seconds the marker stays up after firing, flashing white and expanding.
+     *  Hiding it on the same frame as the damage is what made the attack look
+     *  like it had simply switched off. */
+    flashS: 0.18,
+    flashScale: 1.06,
+    /** Shake on the discharge. Below the boss-summon 0.72: this happens every
+     *  few seconds, and a screen that never settles stops meaning anything. */
+    shakeAmp: 0.38,
+    /** Ground shock ring at the boss, in the two-halves language: the arc is
+     *  the destination, this is the origin. */
+    ringCubes: 22,
+    ringRadius: 4.2,
   },
-  /** PHASE 2 — assembly lines. The Marshal opens intake bays on the perimeter
-   *  and feeds reinforcements in. Telegraphed at the BAY, not at the boss:
-   *  the player has to be told where the floor is about to fill. */
+  /** ASSEMBLY LINES — the Marshal calls in Voltlings. Live in EVERY phase; the
+   *  phase decides how many lines open, not whether any do.
+   *
+   *  This is the fight's pressure engine, and the reason it exists is measured:
+   *  with the ambient waves paused, NOTHING on the field can reach a player who
+   *  keeps moving. The boss walks at 4 against a player who runs at 11, its
+   *  sweep is telegraphed for 1.3s and its discharge is a 16-shot ring with ~6
+   *  units of gap between shots at the range it is fired from. A first human
+   *  playtest took literally zero damage across a whole fight. Reinforcements
+   *  are what take the player's space away, and only then does the rest of the
+   *  kit have something to punish.
+   *
+   *  They drop AROUND THE PLAYER, not at the perimeter. Perimeter bays were the
+   *  first attempt and they never mattered: 46 units of walking at Voltling
+   *  speed 5.5 is eight seconds against a player who is already somewhere else. */
   assembly: {
-    cooldownS: 9,
-    telegraphS: 1.6,
-    bays: 2,
-    perBay: 5,
-    /** Voltling + Sparkrunner: the cheap, fast pressure of the foundry roster.
-     *  Heavier types would turn a pressure beat into a second boss fight. */
-    typeIndexes: [0, 1],
-    /** Distance from the ARENA CENTRE the bays open at — the perimeter, so
-     *  reinforcements walk in and are seen coming, rather than appearing on
-     *  top of the player. */
-    bayDistance: 46,
-    /** Hard stop: never top the field up past this many live bodies. The
-     *  spawner is already refilling toward its own cap and the finale must not
-     *  double-fill it (the measured lesson from the Crusher's slam). */
+    /** First call of the fight. Short on purpose: the pressure has to arrive
+     *  while the player is still reading the boss, not forty seconds in. */
+    firstDelayS: 4.5,
+    /** Per phase. Tightens as the fight escalates. */
+    cooldownS: [8, 6.5, 5],
+    /** Ground warning before they land. Long enough to move out of one drop,
+     *  short enough that the whole ring cannot be walked out of. */
+    telegraphS: 1.4,
+    /** Drop points per call, per phase (user 2026-08-19: escalate up to six).
+     *  Two is a nudge, four is a box, six is a ring you have to pick a gap in —
+     *  at radius 9 six points leave 9.4 units between them, which is passable
+     *  for a 1.4-wide player but only if they commit early. */
+    dropPoints: [2, 4, 6],
+    /** Bodies per drop point, per phase — coming DOWN as the points go up.
+     *
+     *  Six points at the old five bodies each would be 30 per call every 5s in
+     *  phase 3, which is 6 bodies a second on top of a 320 ceiling: the drops
+     *  would stop being a beat and become the whole fight, and the boss's own
+     *  telegraphed attacks — the part that took three passes to make matter —
+     *  would go back to being scenery. At 3 each the pressure still doubles
+     *  across the fight (8 -> 12 -> 18 per call) while the SHAPE, not the
+     *  volume, is what escalates.
+     *
+     *  RAISED BACK to 4/5/6 after the user playtested it (2026-08-19): 8 / 20 /
+     *  36 bodies per call, 7.2 a second in phase 3. The concern above is on the
+     *  record and was overruled by play, which is the right way round — the
+     *  ceiling of 320 live bodies is what still stops it becoming a wall. */
+    perPoint: [4, 5, 6],
+    /** How far from the player each drop opens. Outside contact reach so
+     *  nothing materializes on top of them, inside the distance a Voltling can
+     *  actually close before the player has left the county. */
+    /** Distance from the (led) player each drop opens at, PER PHASE. It grows
+     *  with the number of points (user 2026-08-19: "que no se te echen todos
+     *  encima de golpe"): six points on a 9-unit ring sit 9 units apart and all
+     *  land inside one reaction, while at 14 they sit 14 apart and there is
+     *  room to slip between two of them. A Voltling covers that extra distance
+     *  in under a second, so the drop still reaches — the fix is spacing, not
+     *  distance for its own sake. */
+    ringRadius: [9, 11, 14],
+    ringRadiusJitter: 2.5,
+    /** Fraction of the telegraph the drop LEADS the player by.
+     *
+     *  Measured, and it is the difference between this attack mattering and not
+     *  existing: the telegraph is 1.4s and the player runs at 11, so a ring
+     *  drawn around where they stand lands 15 units behind a fleeing player —
+     *  further than the ring's own radius of 9. A kiting bot took ZERO hits
+     *  before this. Leading by the telegraph puts the box where they are going.
+     *  Below 1 on purpose: a perfect lead is unfair, this one can be broken by
+     *  turning, which is exactly the skill the attack should ask for. */
+    leadFraction: 0.8,
+    /** Cap on that lead, so a sprint across the arena cannot fling the drop
+     *  into a wall on the far side. */
+    leadMax: 13,
+    /** Voltling + Roller (user 2026-08-19). The Voltling walks straight at you;
+     *  the Roller commits to a heading and barrels through, so the pair makes
+     *  the drop something you have to move AROUND rather than just outrun. That
+     *  is the point of this beat — it takes space, it is not a damage source. */
+    typeIndexes: [0, 3],
+    /** The drop itself hurts: bodies materialize where the marker was, and
+     *  standing in a spawn that was telegraphed for 1.4s should cost something.
+     *  Small on purpose — it is a nudge to move, not one of the three attacks:
+     *  15% of max HP against the 25% the two signature attacks ask for. */
+    damagePct: 0.15,
+    /** On TOP of the live wave multiplier (see EnemySystem.waveHpMultiplier).
+     *  The Marshal's own reinforcements should outlast an ordinary spawn: they
+     *  are there to take space, and a body that dies to one pass of the build
+     *  never takes any. Deliberately modest — this is the pressure knob with
+     *  the shortest path to unfair, because the drops land ON the player. */
+    hpMultiplier: 1.4,
+    /** Hard stop: never top the field up past this many live bodies. */
     maxActiveBodies: 320,
+    /** Cyan: distinct from the sweep's amber and the overload's red, so the
+     *  three telegraphs can never be confused for one another. */
     color: 0x2ee6de,
+    markerRadius: 2.8,
   },
   /** PHASE 3 — core overload. A chain of hazard zones erupts outward FROM the
    *  boss along the player's bearing, one after another.
@@ -1688,10 +1932,79 @@ export const FINAL_BOSS = {
     zoneStepS: 0.45,
     firstDistance: 6.5,
     stepDistance: 6.5,
-    zoneRadius: 4.4,
-    damage: 22,
+    /** THREE PARALLEL LINES with dodge lanes between them (user 2026-08-19),
+     *  fanned across the player's bearing rather than one chain at it. Parallel
+     *  and not radial on purpose: a radial fan wide enough to leave a lane at
+     *  the FIRST zone needs ~88 degrees of spread, which stops reading as one
+     *  attack with lanes and becomes three separate attacks. */
+    lines: 3,
+    /** Lateral gap between line centres. 14 -> 18 (user 2026-08-19: room to
+     *  dodge). With the growth below the lanes are now 11.6 / 10.3 / 8.9 / 7.6
+     *  units against a player 1.4 wide — still narrowing as the wave travels,
+     *  which is the shape that matters, but a lane you can take late instead of
+     *  one you have to commit to before the first step lands. Three lines at
+     *  this offset span 46 units including the far zones, inside the 80-unit
+     *  clear floor the arena reset leaves. */
+    lineOffset: 18,
+    /** Each zone is BIGGER than the one before it (user 2026-08-19): the blast
+     *  grows as it leaves the boss, so the far end of the attack covers more
+     *  ground than its root and the lanes narrow with it. */
+    zoneRadiusStart: 3.2,
+    zoneRadiusEnd: 5.2,
+    /** 25% of max HP per link. Four steps of three lines means a player who
+     *  reads none of it eats several — the lanes are the counterplay, not a
+     *  small number. */
+    damagePct: 0.25,
     color: 0xff3355,
     hotColor: 0xf8fbff,
+    /** The eruption of ONE link. Raised across the board 2026-08-19: at 16+5
+     *  cubes and nothing else it read as a marker switching off, not as a zone
+     *  blowing up. Every number here is per-link, so four of them land inside
+     *  two seconds — which is exactly why the shake is small and the flash is
+     *  short. A big shake four times over is not four times as dramatic, it is
+     *  a camera that never settles. */
+    burstCount: 30,
+    hotCount: 14,
+    ringCubes: 18,
+    /** Just outside the zone's own radius: the ring shows where it STOPPED.
+     *  A multiplier rather than a length, because zones now grow along the
+     *  chain and a fixed ring would land inside the far ones. */
+    ringRadiusScale: 1.14,
+    /** The marker whites out and expands instead of vanishing on the same
+     *  frame as the damage — the same treatment the sweep's wedge gets. */
+    flashS: 0.16,
+    flashScale: 1.35,
+    shakeAmp: 0.2,
+    /** One missile per zone, fired from the Marshal's BACK racks and arriving
+     *  exactly when its zone erupts (user 2026-08-19). The flight time is not a
+     *  number here on purpose: it is the zone's own telegraph, so the missile
+     *  lands ON the eruption by construction rather than by tuning. */
+    missile: {
+      /** Launch point: behind the body, at rack height. */
+      backOffset: 2.4,
+      launchHeight: 6.2,
+      /** Peak of the arc above the straight line, as a fraction of the flight
+       *  distance. Enough to read as a lob over the swarm, not a mortar. */
+      arcHeight: 0.22,
+      /** 0.55 -> 0.9. A single small box read as a dot at this camera height;
+       *  the body is built from voxel-sized blocks like everything else, so it
+       *  has to be big enough for those blocks to be separable on screen. */
+      size: 0.9,
+      color: 0xff3355,
+      hotColor: 0xf8fbff,
+      /** Warhead tint — hotter than the body so the NOSE leads the read. */
+      noseColor: 0xffd166,
+      /** Cubes shed per second along the flight, from the TAIL rather than the
+       *  centre: an exhaust plume, not a body shedding pieces. */
+      trailPerSecond: 60,
+      /** Every Nth trail cube is white-hot, so the plume flickers instead of
+       *  being one flat ribbon of colour. */
+      trailHotEvery: 3,
+      launchBurst: 14,
+      /** Rolls around its own axis in flight. Slow — a fast spin on a body this
+       *  size reads as a glitch rather than as flight. */
+      spinHz: 1.4,
+    },
     /** The Marshal itself gets faster for the last third. */
     speedMult: 1.15,
   },

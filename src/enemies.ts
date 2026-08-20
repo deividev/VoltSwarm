@@ -45,6 +45,9 @@ export interface Enemy {
   speed: number;
   scale: number;
   radius: number;
+  /** Radius for touching the PLAYER only (see EnemyTypeDef.contactRadius).
+   *  Equal to `radius` for everything that does not override it. */
+  contactRadius: number;
   xp: number;
   elite: boolean;
   /** Roller: committed heading (radians). Flyer/others unused. */
@@ -97,6 +100,16 @@ const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 const BASE_TINT = new THREE.Color(1, 1, 1);
 // Values above 1 brighten the vertex colors — used as the damage flash.
 const FLASH_TINT = new THREE.Color(2.5, 2.5, 2.5);
+/** Bosses flash GENTLER, and it is not a taste call.
+ *
+ *  2.5x is tuned for a grunt: a body under a unit tall, flashing once or twice
+ *  before it dies. A boss is 9.87 units tall and takes hundreds of hits, often
+ *  several per frame from different weapons, so `hitFlash` is effectively never
+ *  off — the whole body sits permanently at 2.5x, which is well past the bloom
+ *  threshold (0.85) and turns the fight into a white lamp. 1.45 still reads as
+ *  a hit register on a body that size without pinning the bloom pass.
+ *  (Playtest 2026-08-19: "el bloom al pegarle es demasiado exagerado".) */
+const BOSS_FLASH_TINT = new THREE.Color(1.45, 1.45, 1.45);
 const ELITE_TINT = new THREE.Color(1.6, 0.45, 2.1);
 // State tints, multiplicative over the voxel vertex colors (values past 1
 // brighten). Index = the enemy's tintState: 0 base, 1 electric stun (Stun
@@ -160,6 +173,11 @@ export class EnemySystem {
    *  and are deliberately unaffected. Set from the run flow every frame, so it
    *  cannot be left stuck on by a code path that forgot to clear it. */
   wavesPaused = false;
+  /** A body drawn by something ELSE this frame — today the final boss's part
+   *  rig (see boss-rig.ts). Its instanced slot is hidden so the two do not sit
+   *  inside each other. Set from the boss system every frame rather than
+   *  latched, so a boss that dies mid-frame cannot leave a body invisible. */
+  externallyDrawn: Enemy | null = null;
 
   /** Reused across frames so the dynamic-obstacle pass allocates nothing. */
   private readonly dynamicObstacles: EnemyObstacle[] = [];
@@ -299,6 +317,7 @@ export class EnemySystem {
           speed: 0,
           scale: 1,
           radius: 0.5,
+          contactRadius: 0.5,
           xp: 0,
           elite: false,
           heading: 0,
@@ -909,6 +928,13 @@ export class EnemySystem {
         auraCount++;
       }
 
+      // Drawn by its own part rig this frame: hide the instanced copy, but only
+      // AFTER the shadow and boss ring above — those still belong to the body.
+      if (e === this.externallyDrawn) {
+        mesh.setMatrixAt(e.slot, HIDDEN);
+        continue;
+      }
+
       tmpMatrix.makeRotationY(e.heading);
       if (type.behavior === 'roller') {
         tmpRot.makeRotationX(e.phase);
@@ -1087,6 +1113,7 @@ export class EnemySystem {
     e.speed = type.speed;
     e.scale = type.scale * scaleMultiplier;
     e.radius = radius;
+    e.contactRadius = (type.contactRadius ?? type.radius) * scaleMultiplier;
     e.xp = type.xp * (elite ? ELITES.xpMultiplier : 1) * rewardMultiplier;
     e.heading = Math.random() * Math.PI * 2;
     e.phase = type.behavior === 'gunner' ? Math.random() * GUNNER.shootCooldownS : 0;
@@ -1384,7 +1411,7 @@ export class EnemySystem {
       return { xp: e.xp, x: e.x, z: e.z, elite: e.elite, typeIndex: e.typeIndex };
     }
     e.hitFlash = 0.08;
-    mesh?.setColorAt(e.slot, FLASH_TINT);
+    mesh?.setColorAt(e.slot, isBossTypeIndex(e.typeIndex) ? BOSS_FLASH_TINT : FLASH_TINT);
     return null;
   }
 

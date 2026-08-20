@@ -275,6 +275,19 @@ export class Game {
     /** The finale's arena reset rather than a sector crossing: same curtain,
      *  same map, no sector credited and no build overlay. */
     finale: boolean;
+    /** The spawn cue fires once, just before the curtain finishes lifting. */
+    spawnCued: boolean;
+    /** DEV: overlay the recorded build even over live progress (SHIFT). */
+    forceRecordedBuild: boolean;
+  } | null = null;
+  /** The Marshal's death beat: the explosion plays out and the results screen
+   *  opens when it ends. Non-null only during that hold. */
+  private finaleVictory: {
+    elapsedS: number;
+    step: number;
+    x: number;
+    z: number;
+    outcome: RunOutcome;
   } | null = null;
   /** Set when the finale's curtain lifts: the arrival is attempted every frame
    *  until a spot exists. A failed placement must NOT replay the curtain — the
@@ -479,14 +492,23 @@ export class Game {
     // rather than in BossSystem's constructor keeps that order honest instead
     // of reshuffling construction to hide it.
     this.boss.setEffects({
-      damagePlayer: (amount) => this.damagePlayer(amount),
-      burst: (x, z, color, count) => this.burst.spawn(x, z, color, count),
+      // Telegraphed by definition: everything routed through here is a boss
+      // attack the player was shown before it fired, so it pierces the i-frame.
+      damagePlayer: (amount) => this.damagePlayer(amount, -1, true),
+      // Live, not captured: Max HP cores can land between two attacks.
+      playerMaxHp: () => this.player.maxHp,
+      burst: (x, z, color, count, y) => this.burst.spawn(x, z, color, count, y),
       ring: (x, z, color, cubes, radius) => this.spawnBurstRing(x, z, color, cubes, radius),
       shake: (amp) => {
         this.shakeAmp = Math.max(this.shakeAmp, amp);
       },
       banner: (text) => this.hud.banner(text),
-      sound: (id, priority) => this.audio.emit({ id, priority }),
+      sound: (id, priority, x, z) =>
+        this.audio.emit({
+          id,
+          priority,
+          ...(x === undefined || z === undefined ? {} : { pos: { x, z } }),
+        }),
     });
     if (DEV_TOOLS.auditionKeys) this.installAuditionKeys();
     if (DEV_TOOLS.bossLab) this.installBossLab();
@@ -615,6 +637,7 @@ export class Game {
     this.elapsedS = 0;
     this.mapTransition = null;
     this.pendingFinaleArrival = false;
+    this.finaleVictory = null;
     this.mapObstacles = [...this.worldMaps.setMap(startMap.id)];
     this.obstacles.push(...this.mapObstacles);
     this.currentRunId = createRunId();
@@ -797,8 +820,13 @@ export class Game {
    *  Otherwise prefers the newest run that finished Map 1, falls back to the
    *  newest run of any kind and SAYS SO — a half-run build silently standing in
    *  for a full one is exactly how a difficulty test lies. */
-  private overlayLatestRecordedBuild(label: string): void {
-    if (this.hasLiveProgress()) {
+  private overlayLatestRecordedBuild(label: string, force = false): void {
+    // `force` is the dev shortcut's SHIFT variant: load the recorded test build
+    // over whatever this run has earned. The default still refuses, and that is
+    // still right — you press the key to test the crossing WITH your run — but
+    // testing the boss needs a build the recorded run actually reached, and a
+    // half-played Map 1 is not it.
+    if (!force && this.hasLiveProgress()) {
       const weapons = Object.entries(this.weaponLevels)
         .filter(([, level]) => (level as number) > 0)
         .map(([id, level]) => `${id} ${level}`)
@@ -1003,9 +1031,19 @@ export class Game {
     window.addEventListener('keydown', (e) => {
       if (e.code !== 'KeyY' || e.repeat || this.state !== 'playing') return;
       e.preventDefault();
+      // SHIFT+Y loads the recorded TEST build over whatever this run earned.
+      // Plain Y carries the live run, which is the right default — but a boss
+      // pass needs a build a real run actually reached, and half a played Map 1
+      // is not that. Both are one key press, so neither needs a rebuild.
+      const force = e.shiftKey;
       const lastMapIndex = MAPS.length - 1;
       if (this.runFlow.mapIndex === lastMapIndex) {
-        if (this.windClockToFinale()) this.hud.toast('Finale: winding the foundry clock to its last second');
+        // Already in the foundry: there is no crossing curtain to hide the swap
+        // behind, so the overlay happens here, before the clock is wound.
+        if (force) this.overlayLatestRecordedBuild('Finale', true);
+        if (this.windClockToFinale()) {
+          this.hud.toast('Finale: winding the foundry clock to its last second');
+        }
         return;
       }
       // Same order as the T key, and for the same reason: the arc clock has to
@@ -1021,7 +1059,7 @@ export class Game {
       // The crossing curtain first, then the finale: the clock is wound now and
       // fires the moment the curtain lifts, because update() is frozen while a
       // transition runs. Two curtains back to back is what a real arc does too.
-      this.beginMapTransition(lastMapIndex, true);
+      this.beginMapTransition(lastMapIndex, true, force);
       this.windClockToFinale();
     });
   }
@@ -1467,9 +1505,21 @@ export class Game {
   /** Starts the animated sector transition instead of swapping the world in one
    *  frame. Gameplay freezes (state leaves 'playing'); the real swap happens at
    *  full black inside tickMapTransition, which is what removes the dry cut. */
-  private beginMapTransition(nextMapIndex: number, simulateBuild = false): void {
+  private beginMapTransition(
+    nextMapIndex: number,
+    simulateBuild = false,
+    forceRecordedBuild = false,
+  ): void {
     const nextMap = MAPS[nextMapIndex] ?? MAPS[MAPS.length - 1] ?? MAPS[0];
-    this.mapTransition = { elapsedS: 0, nextMapIndex, swapped: false, simulateBuild, finale: false };
+    this.mapTransition = {
+      elapsedS: 0,
+      nextMapIndex,
+      swapped: false,
+      simulateBuild,
+      finale: false,
+      spawnCued: false,
+      forceRecordedBuild,
+    };
     this.state = 'map-transition';
     this.hud.showMapFade(0, `ENTERING ${nextMap.title.toUpperCase()}`);
   }
@@ -1486,9 +1536,15 @@ export class Game {
       swapped: false,
       simulateBuild: false,
       finale: true,
+      spawnCued: false,
+      forceRecordedBuild: false,
     };
     this.state = 'map-transition';
-    this.hud.showMapFade(0, 'SECTOR SEALED');
+    // Says WHAT is starting, not what just ended: "SECTOR SEALED" described the
+    // door closing behind the player and left the actual event — a boss fight —
+    // to be inferred. UI copy stays English (guardrail 3) even though the call
+    // came in Spanish; there is no Spanish string anywhere in the shipped game.
+    this.hud.showMapFade(0, 'FINAL BOSS PHASE');
   }
 
   /** Advances the fade curtain: fade out -> swap the world at full black (once)
@@ -1512,7 +1568,7 @@ export class Game {
       else this.transitionToMap(mt.nextMapIndex);
       // DEV jump only: equip the recorded build behind the black, so the shortcut
       // arrives the way a real crossing would rather than with a stub loadout.
-      if (mt.simulateBuild) this.overlayLatestRecordedBuild('Map transition');
+      if (mt.simulateBuild) this.overlayLatestRecordedBuild('Map transition', mt.forceRecordedBuild);
       // Announce the sector at the same instant, so the name lands on the black
       // rather than riding in over the map it is replacing.
       this.hud.playMapFadeLabel();
@@ -1528,6 +1584,15 @@ export class Game {
     // as one event: silent at full black, back up as the new map appears. A cut
     // that only faded the picture left the old map's bed playing over the new one.
     this.audio.setLoopVolume('foundation-run-loop', AUDIO.music.runLoopVolume * (1 - opacity));
+
+    // The spawn cue lands just UNDER the reveal, not at the swap: at the swap
+    // the screen is still fully black and the sound is over before the map
+    // exists. Both a sector crossing and the finale arena get it — each one
+    // puts the player down on a floor, which is the same event as a run start.
+    if (!mt.spawnCued && mt.elapsedS >= total - MAP_TRANSITION.spawnCueLeadS) {
+      mt.spawnCued = true;
+      this.audio.emit({ id: 'run-start', priority: 3 });
+    }
 
     if (mt.elapsedS >= total) {
       this.hud.hideMapFade();
@@ -1620,10 +1685,17 @@ export class Game {
    *  state is untouched — this is the same sector reopening as an arena. */
   private openFinaleArena(): void {
     this.resetForMapTransition();
+    // Behind the black: the rig gets the rest of the curtain plus the arrival
+    // telegraph to build, instead of stalling the frame the boss lands on.
+    this.boss.prepareFinalRig();
     if (FINAL_BOSS.arena.healToFull) this.player.hp = this.player.maxHp;
     // Gold is NOT zeroed, unlike a sector crossing: the run is not starting a
     // new economy, it is finishing this one, and the scrapper is already gone.
-    this.regenerateProps(this.currentMap.id, FINAL_BOSS.arena.clearRadius);
+    this.regenerateProps(
+      this.currentMap.id,
+      FINAL_BOSS.arena.clearRadius,
+      FINAL_BOSS.arena.propDensity,
+    );
     telemetry.choice('finale_arena', {
       mapId: this.currentMap.id,
       clearRadius: FINAL_BOSS.arena.clearRadius,
@@ -1649,7 +1721,7 @@ export class Game {
    *  avoiding the boss totem (must be placed via boss.startRun() first) —
    *  user request 2026-07-06: different count/position every playthrough,
    *  not just every app launch. */
-  private regenerateProps(mapId: string, centreClearRadius = 0): void {
+  private regenerateProps(mapId: string, centreClearRadius = 0, densityScale = 1): void {
     clearProps(this.scene, this.propMeshes);
     const totem = this.boss.totemTarget();
     // Each map's scatter props declare their own totem clearance; using Map 1's
@@ -1680,7 +1752,7 @@ export class Game {
     // per prop family inside placeRandomProps, inflated by each family's own
     // reach: a gate avoids by its CENTRE, so one shared radius left container
     // ends inside the supposedly clear circle (measured at 26.6 of 28).
-    const props = placeRandomProps(this.scene, avoid, mapId, centreClearRadius);
+    const props = placeRandomProps(this.scene, avoid, mapId, centreClearRadius, densityScale);
     // Rebuild from the map's OWN structural collision (Map 2's perimeter
     // towers) plus the fresh props. Resetting to props alone silently deleted
     // the towers' colliders, which only showed up as enemies walking through
@@ -1733,6 +1805,7 @@ export class Game {
       return;
     }
     this.tickPendingFinaleArrival();
+    this.tickFinaleVictory(dt);
     // Once the finale is inbound the ambient waves STOP. The arena reset would
     // otherwise be a twenty-second effect: at the foundry's peak the spawner
     // refills toward ~437 bodies, so the clean floor the boss lands on would be
@@ -1927,7 +2000,12 @@ export class Game {
       pz,
       PLAYER.radius,
       collisionObstacles,
-      (damage) => this.damagePlayer(damage),
+      // MEASURED 2026-08-19: the volley connected 6 times in 40 seconds and
+      // landed 0 of them — with the swarm touching the player constantly the
+      // 0.4s i-frame was open almost permanently, so a shot the player was
+      // asked to weave cost nothing. A boss attack pierces it; a Gunner's
+      // shard does not.
+      (damage, kind) => this.damagePlayer(damage, -1, kind === 'marshal'),
       // Impact pop in the shot's own color — the hit on YOU is seen too.
       (x, z, color) => this.burst.spawn(x, z, color, 4),
     );
@@ -1990,6 +2068,44 @@ export class Game {
   }
 
 
+  /** The Marshal coming apart, staged. Runs while the world is still live, so
+   *  the debris, the chests it dropped and the last cubes of the swarm all keep
+   *  moving — a frozen frame would read as a crash, not as a finish. */
+  private tickFinaleVictory(dt: number): void {
+    const victory = this.finaleVictory;
+    if (!victory) return;
+    const cfg = FINAL_BOSS.victory;
+    victory.elapsedS += dt;
+    while (victory.step < cfg.burstSteps && victory.elapsedS >= victory.step * cfg.burstStepS) {
+      // Walks DOWN the body: the head goes first and the machine collapses into
+      // its own footprint, which is what tells a nine-unit boss apart from a
+      // grunt popping.
+      const k = cfg.burstSteps > 1 ? victory.step / (cfg.burstSteps - 1) : 0;
+      const height = cfg.topHeight * (1 - k);
+      const spread = cfg.spread * (0.4 + 0.6 * k);
+      for (let i = 0; i < 3; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * spread;
+        this.burst.spawn(
+          victory.x + Math.cos(angle) * distance,
+          victory.z + Math.sin(angle) * distance,
+          cfg.color,
+          Math.round(cfg.burstPerStep / 3),
+          height,
+        );
+      }
+      this.burst.spawn(victory.x, victory.z, cfg.hotColor, cfg.hotPerStep, height);
+      this.shakeAmp = Math.max(this.shakeAmp, cfg.shakeAmp * (1 - k * 0.5));
+      victory.step++;
+    }
+    if (victory.elapsedS >= cfg.holdS) {
+      // The ground ring lands with the last of it, then the results open.
+      this.spawnBurstRing(victory.x, victory.z, cfg.ringColor, cfg.ringCubes, cfg.ringRadius);
+      this.finaleVictory = null;
+      this.endRun(victory.outcome);
+    }
+  }
+
   private spawnBurstRing(x: number, z: number, color: number, count: number, radius: number): void {
     for (let i = 0; i < count; i++) {
       const a = (i / count) * Math.PI * 2;
@@ -2002,6 +2118,11 @@ export class Game {
    *  One card screen per level gained — applyUpgrade() calls back in here so
    *  a triple level-up queues three separate choices, never collapsed. */
   private maybeShowLevelUp(): void {
+    // Not during the Marshal's death beat. The run is decided, so a card screen
+    // has nothing left to buy — and it would freeze the explosion mid-air,
+    // which is the one thing that beat exists to show. Same call the defeat
+    // transition already makes: an unclaimed level-up simply never opens.
+    if (this.finaleVictory) return;
     if (this.pendingLevelUps <= 0 || this.state !== 'playing') return;
     this.pendingLevelUps--;
     if (VISUAL.levelUpIntro.enabled) {
@@ -2283,11 +2404,14 @@ export class Game {
     // Hit spark in the weapon's icon accent — every landed hit is SEEN at
     // the victim (two-halves rule; crits pop bigger).
     if (hitColor !== undefined && VISUAL.hitSparks.enabled) {
+      const boss = this.boss.isBossType(enemy.typeIndex);
       this.burst.spawn(
         enemy.x,
         enemy.z,
         hitColor,
-        hit.crit ? VISUAL.hitSparks.critCount : VISUAL.hitSparks.count,
+        hit.crit
+          ? (boss ? VISUAL.hitSparks.bossCritCount : VISUAL.hitSparks.critCount)
+          : (boss ? VISUAL.hitSparks.bossCount : VISUAL.hitSparks.count),
       );
     }
     this.damageNumbers.show(enemy.x, enemy.z, amount, hit.crit);
@@ -2374,8 +2498,25 @@ export class Game {
   }
 
   /** Single intake funnel for player damage: evasion, armor, shield, thorns. */
-  private damagePlayer(rawDamage: number, attackerIndex = -1): void {
-    if (this.player.isDead || this.player.invulnerable) return;
+  /** @param pierceIframe A TELEGRAPHED attack that must land regardless of the
+   *  contact i-frame. Measured 2026-08-19: the Marshal's sweep asked for damage
+   *  five times in forty seconds and landed ZERO — every single one arrived
+   *  inside the 0.4s window opened by a Voltling touching the player, and
+   *  damagePlayer drops a hit whole rather than reducing it. The i-frame exists
+   *  to cap SWARM dps (it is the difficulty dial for diving into a crowd); a
+   *  boss attack you were shown 1.3 seconds in advance is not swarm chip
+   *  damage, and swallowing it made the boss's signature move do nothing. */
+  private damagePlayer(rawDamage: number, attackerIndex = -1, pierceIframe = false): void {
+    if (this.player.isDead) return;
+    // The run is already won: a leftover Voltling landing a hit during the
+    // Marshal's death beat must not turn a completed arc into a defeat.
+    if (this.finaleVictory) return;
+    if (this.player.invulnerable) {
+      if (!pierceIframe) return;
+      // Cleared rather than ignored, so everything downstream — evasion, the
+      // shield, armor, thorns — still runs exactly once on the real funnel.
+      this.player.clearInvulnerability();
+    }
 
     if (Math.random() < dodgeChance(this.stats.evasion)) {
       this.damageNumbers.show(this.player.position.x, this.player.position.z, 'MISS', false);
@@ -2424,6 +2565,11 @@ export class Game {
     this.audio.emit({ id: 'player-hit', priority: 3 });
     this.shakeAmp = Math.max(this.shakeAmp, VISUAL.screenShake.hitAmp);
     this.hud.flashHp();
+    // Every hit reads the SAME, whatever threw it (user call 2026-08-19): flash,
+    // shake and the player-hit cue. A damage number only for boss attacks was
+    // tried and rejected — it made one source of damage speak a language the
+    // rest of the game does not, and the player has to learn one contract for
+    // "I am being hurt", not two.
 
     // Loose Bolts: taking a real hit scatters damaging bolts around you.
     const boltCopies = this.modCounts['loose-bolts'] ?? 0;
@@ -2578,7 +2724,20 @@ export class Game {
       markMapBossDefeated(this.runFlow);
       if (this.boss.isFinalBossType(death.typeIndex)) {
         const fullArcCompleted = completeFinale(this.runFlow, MAPS);
-        this.endRun(fullArcCompleted ? 'run-complete' : 'sector-cleared');
+        // NOT endRun on this frame: the results screen used to cover the
+        // explosion it was celebrating, so the payoff of the whole arc lasted
+        // one frame. The run is already decided — this only buys the time to
+        // watch the Marshal come apart.
+        // Nothing may interrupt the beat: the boss pays a lot of XP and the
+        // level-up it triggers would otherwise open on top of the explosion.
+        this.pendingLevelUps = 0;
+        this.finaleVictory = {
+          elapsedS: 0,
+          step: 0,
+          x: death.x,
+          z: death.z,
+          outcome: fullArcCompleted ? 'run-complete' : 'sector-cleared',
+        };
       }
     }
   }
@@ -2664,7 +2823,9 @@ export class Game {
     for (let i = 0; i < this.enemies.pool.length; i++) {
       const e = this.enemies.pool[i];
       if (!e || !e.active) continue;
-      const reach = PLAYER.radius + e.radius;
+      // contactRadius, not radius: for most bodies they are the same number,
+      // but a boss's steering radius is not the shape the player can touch.
+      const reach = PLAYER.radius + e.contactRadius;
       const dSq = (e.x - px) * (e.x - px) + (e.z - pz) * (e.z - pz);
       if (dSq <= reach * reach) {
         // Stun Bumper: a ready charge zaps the toucher instead of it hitting you.

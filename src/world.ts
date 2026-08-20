@@ -235,6 +235,9 @@ export function placeRandomProps(
    *  single shared radius would either leave gate ends inside the circle or
    *  push the small props absurdly far out to protect against the largest. */
   centreClearRadius = 0,
+  /** Multiplies every family's count. 1 is the map as authored; the finale
+   *  thins the whole floor so the boss has somewhere to walk. */
+  densityScale = 1,
 ): { obstacles: Obstacle[]; meshes: THREE.Object3D[] } {
   const clearFor = (reach: number): AvoidPoint[] =>
     centreClearRadius > 0 ? [{ x: 0, z: 0, radius: centreClearRadius + reach }] : [];
@@ -252,6 +255,7 @@ export function placeRandomProps(
       [...avoid, ...clearFor(gateReach(FOUNDRY_CONTAINER_PROP))],
       FOUNDRY_CONTAINER_PROP,
       0x6b5a93,
+      densityScale,
     );
     const gateAvoid: AvoidPoint[] = [
       ...avoid,
@@ -263,6 +267,7 @@ export function placeRandomProps(
       scene,
       [...gateAvoid, ...clearFor(FOUNDRY_PILLAR_PROP.colliderRadius)],
       FOUNDRY_PILLAR_PROP,
+      densityScale,
     );
     const cellAvoid: AvoidPoint[] = [
       ...gateAvoid,
@@ -272,13 +277,20 @@ export function placeRandomProps(
       scene,
       [...cellAvoid, ...clearFor(POWERCELL_PROP.colliderRadius)],
       POWERCELL_PROP,
+      densityScale,
     );
     return {
       obstacles: [...gates.obstacles, ...pillars.obstacles, ...cells.obstacles],
       meshes: [...gates.meshes, ...pillars.meshes, ...cells.meshes],
     };
   }
-  const containers = buildContainerProps(scene, [...avoid, ...clearFor(gateReach(CONTAINER_PROP))]);
+  const containers = buildContainerProps(
+    scene,
+    [...avoid, ...clearFor(gateReach(CONTAINER_PROP))],
+    CONTAINER_PROP,
+    0x286b68,
+    densityScale,
+  );
   const barrelAvoid: AvoidPoint[] = [
     ...avoid,
     ...containers.centers.map((c) => ({ x: c.x, z: c.z, radius: BARREL_PROP.containerClearance })),
@@ -287,6 +299,7 @@ export function placeRandomProps(
     scene,
     [...barrelAvoid, ...clearFor(BARREL_PROP.colliderRadius)],
     BARREL_PROP,
+    densityScale,
   );
   const scaffold = SCAFFOLD_PROP.enabled ? buildScaffoldProps(scene) : { obstacles: [], meshes: [] };
   return {
@@ -864,6 +877,7 @@ function buildContainerProps(
   avoid: AvoidPoint[],
   config: typeof CONTAINER_PROP | typeof FOUNDRY_CONTAINER_PROP = CONTAINER_PROP,
   placeholderColor = 0x286b68,
+  densityScale = 1,
 ): { obstacles: Obstacle[]; centers: { x: number; z: number }[]; meshes: THREE.Object3D[] } {
   const {
     width,
@@ -883,8 +897,11 @@ function buildContainerProps(
   const meshesByVariant = new Map<string, THREE.Mesh[]>();
   const placeholderMaterial = litMaterial({ color: placeholderColor });
 
-  const gateCount = Math.floor(
-    countRange[0] + Math.random() * (countRange[1] - countRange[0] + 1),
+  const gateCount = Math.max(
+    0,
+    Math.round(
+      (countRange[0] + Math.random() * (countRange[1] - countRange[0] + 1)) * densityScale,
+    ),
   );
   const centers = scatterPoints(gateCount, minDistFromCenter, maxDistFromCenter, minSeparation, avoid);
   // Both containers in a gate share one variant so the wall reads as one
@@ -1220,6 +1237,7 @@ function buildScatterProps(
   scene: THREE.Scene,
   avoid: AvoidPoint[],
   config: ScatterPropConfig,
+  densityScale = 1,
 ): { obstacles: Obstacle[]; meshes: THREE.Object3D[] } {
   const {
     width,
@@ -1241,8 +1259,11 @@ function buildScatterProps(
     color: VOXEL_MODELS[variants[0]]?.bodyColor ?? 0x7c631b,
   });
 
-  const count = Math.floor(
-    countRange[0] + Math.random() * (countRange[1] - countRange[0] + 1),
+  const count = Math.max(
+    0,
+    Math.round(
+      (countRange[0] + Math.random() * (countRange[1] - countRange[0] + 1)) * densityScale,
+    ),
   );
   const points = scatterPoints(count, minDistFromCenter, maxDistFromCenter, minSeparation, avoid);
 

@@ -12,6 +12,7 @@ import {
 import { CHARGE } from './enemies';
 import type { EnemySystem } from './enemies';
 import type { EnemyProjectiles } from './enemy-projectiles';
+import { BossRig } from './boss-rig';
 import { FinalBossFight, type BossEffects } from './final-boss';
 import { litMaterial } from './toon';
 import { buildGridGeometry } from './models/voxel-builder';
@@ -78,10 +79,16 @@ export class BossSystem {
   private burstTimer = 0;
   /** The Hazard Marshal's three-phase fight. Owns its own telegraphs. */
   private readonly finalFight: FinalBossFight;
+  /** Animated part rig for the final boss — the one body on screen that can
+   *  afford limbs (docs/ANIMACION_RIG.md). */
+  private readonly finalRig: BossRig;
   /** Game-shell hooks the finale needs (damage, VFX, banner, audio). */
   private effects: BossEffects | null = null;
   /** True while the summon telegraph running is the FINALE's, not a totem's. */
   private finalArrival = false;
+  /** Phase the rig last reacted to. 0 = no rig running yet, so the first frame
+   *  of a fight does not fire a recoil for simply existing. */
+  private riggedPhase = 0;
   // Run continuity: each defeated boss raises the next one's HP.
   private hpMult = 1;
   private respawnTimer = 0;
@@ -175,6 +182,7 @@ export class BossSystem {
     this.totem.visible = false;
     scene.add(this.totem);
     this.finalFight = new FinalBossFight(scene);
+    this.finalRig = new BossRig(scene);
 
     // The voxel portal gate loads async and swaps in over the primitives.
     void this.upgradeVoxelModel();
@@ -263,6 +271,19 @@ export class BossSystem {
    *  fight can be re-tested against the SAME boss instead of a coin flip. */
   devSetBossType(typeIndex: number): void {
     this.bossTypeIndex = typeIndex;
+  }
+
+  /** Builds the final boss's part rig AHEAD of time.
+   *
+   *  It used to be built on the first frame the body existed, and carving eight
+   *  parts out of the voxel grid and meshing them is not free — the arrival
+   *  landed together with a stall, which is exactly when the player is looking.
+   *  Called from behind the arena curtain, it has the whole fade plus the 2.5s
+   *  telegraph to finish, and the instanced body still covers for it if it does
+   *  not. Safe to call repeatedly; the rig is built once. */
+  prepareFinalRig(): void {
+    const modelKey = ENEMY_TYPES[FINAL_BOSS_TYPE_INDEX]?.modelKey;
+    if (modelKey) this.finalRig.load(modelKey);
   }
 
   /** Wires the game-shell hooks the finale's attacks need. Called once, from
@@ -506,12 +527,46 @@ export class BossSystem {
       // the omission would look like a balance choice instead of missing wiring.
       if (!this.effects) throw new Error('BossSystem.setEffects must run before the finale.');
       this.finalFight.update(dt, boss, px, pz, projectiles, enemies, obstacles, this.effects);
+      this.tickFinalRig(dt, boss, enemies);
     } else if (this.bossTypeIndex === CRUSHER_KING_TYPE_INDEX) {
       this.updateCrusher(dt, boss, enemies, obstacles);
     } else {
       this.updateTesla(dt, boss, px, pz, projectiles, enemies);
     }
     return null;
+  }
+
+  /** Swaps the Marshal's instanced body for its animated part rig, and picks
+   *  the clip from what the fight is actually doing: it walks while it moves,
+   *  breathes while a telegraph roots it, and recoils once per phase change.
+   *
+   *  The rig loads async; until it is ready `update` reports false and the
+   *  instanced body keeps drawing, so a slow model decode degrades to the old
+   *  behaviour rather than to an invisible boss. */
+  private tickFinalRig(
+    dt: number,
+    boss: { x: number; z: number; heading: number; scale: number; speed: number },
+    enemies: EnemySystem,
+  ): void {
+    const modelKey = ENEMY_TYPES[FINAL_BOSS_TYPE_INDEX]?.modelKey;
+    if (!modelKey) return;
+    this.finalRig.load(modelKey);
+    // Watched rather than plumbed through the effects hooks: the phase number
+    // IS the event, and a second channel for it could disagree with the bar.
+    const phase = this.finalFight.phaseNumber;
+    if (phase !== this.riggedPhase) {
+      if (this.riggedPhase !== 0) this.finalRig.playHit();
+      this.riggedPhase = phase;
+    }
+    const drew = this.finalRig.update(
+      dt,
+      boss.x,
+      boss.z,
+      boss.heading,
+      boss.scale,
+      boss.speed > 0.01,
+    );
+    enemies.externallyDrawn = drew ? (enemies.pool[this.bossIndex] ?? null) : null;
   }
 
   /** Crusher King: telegraphed charges plus periodic scrapling reinforcements. */
@@ -639,7 +694,10 @@ export class BossSystem {
     if (!boss || !boss.active) return null;
     this.bossBody.x = boss.x;
     this.bossBody.z = boss.z;
-    this.bossBody.radius = boss.radius;
+    // The body the PLAYER meets — see EnemyTypeDef.contactRadius. Using the
+    // steering radius here is what put an invisible wall (and a hit) almost two
+    // units in front of the Marshal's face.
+    this.bossBody.radius = boss.contactRadius;
     this.bossBody.heading = boss.heading;
     this.bossBody.ramming =
       this.chargePhase === 'charging' && this.bossTypeIndex === CRUSHER_KING_TYPE_INDEX;
@@ -696,8 +754,11 @@ export class BossSystem {
     this.bossesDefeated += 1;
     if (this.bossTypeIndex === FINAL_BOSS_TYPE_INDEX) {
       this.respawnTimer = 0;
-      // A telegraph outliving its owner is a lie painted on the floor.
+      // A telegraph outliving its owner is a lie painted on the floor, and a
+      // rig outliving it is a corpse standing up.
       this.finalFight.reset();
+      this.finalRig.hide();
+      this.riggedPhase = 0;
     } else {
       this.hpMult *= BOSS.respawnHpGrowth;
       this.respawnTimer = BOSS.respawnDelayS;
@@ -715,6 +776,8 @@ export class BossSystem {
     this.playerInSummonZone = false;
     this.finalArrival = false;
     this.finalFight.reset();
+    this.finalRig.hide();
+    this.riggedPhase = 0;
   }
 
   reset(): void {
@@ -728,5 +791,7 @@ export class BossSystem {
     this.defeatedTypes.clear();
     this.finalArrival = false;
     this.finalFight.reset();
+    this.finalRig.hide();
+    this.riggedPhase = 0;
   }
 }

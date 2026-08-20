@@ -659,6 +659,62 @@
           "sha256": "3d7ea695f41026360488e1c1a9e23b7c6cb48f48e8a5141577da6d05ffe86af5"
         }
       }
+    ],
+    "boss-sweep-charge": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-sweep-charge.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "boss-sweep-warn": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-sweep-warn.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "boss-sweep-fire": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-sweep-fire.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "boss-overload-open": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-overload-open.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "boss-overload-erupt": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-overload-erupt.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "boss-volley": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-volley.wav",
+          "format": "wav"
+        }
+      }
+    ],
+    "boss-assembly-spawn": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-assembly-spawn.wav",
+          "format": "wav"
+        }
+      }
     ]
   }
 }

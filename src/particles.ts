@@ -52,7 +52,11 @@ export class VoxelBurst {
   }
 
   /** Pops `count` cubes of `color` at (x, z). */
-  spawn(x: number, z: number, color: number, count: number): void {
+  /** @param y Height the cubes are born at. Defaults to ground level, which is
+   *  right for a body coming apart; an effect that leaves a BODY — the
+   *  Marshal's chest discharge, its back-mounted launchers — has to start where
+   *  that body is, or the two halves of the effect never connect. */
+  spawn(x: number, z: number, color: number, count: number, y = 0): void {
     if (!this.mesh) return;
     const cfg = VISUAL.deathBurst;
     for (let i = 0; i < count; i++) {
@@ -62,7 +66,7 @@ export class VoxelBurst {
       const speed = cfg.horizontalSpeed * (0.4 + Math.random() * 0.6);
       p.life = cfg.lifeS * (0.7 + Math.random() * 0.3);
       p.x = x;
-      p.y = 0.4 + Math.random() * 0.5;
+      p.y = y + 0.4 + Math.random() * 0.5;
       p.z = z;
       p.vx = Math.cos(angle) * speed;
       p.vy = cfg.upwardSpeed * (0.5 + Math.random() * 0.5);
