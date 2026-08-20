@@ -831,7 +831,9 @@ descarga", sino un encuentro con entrada propia y escalada legible.
 
 Al agotarse el reloj no aparece el boss encima de lo que hubiera: **se reinicia
 el Mapa 2 detrás de la MISMA cortina de fundido que usa un cruce de sector**
-(`MAP_TRANSITION`, etiqueta `SECTOR SEALED`). A negro pleno —donde el proyecto ya
+(`MAP_TRANSITION`, etiqueta **`FINAL BOSS PHASE`** — antes decía `SECTOR SEALED`,
+que describía la puerta cerrandose detras del jugador y dejaba el evento real,
+una pelea de boss, a que se dedujera). A negro pleno —donde el proyecto ya
 aprendió que hay que esconder cualquier swap— pasa esto:
 
 - Se limpian todos los actores locales (`resetForMapTransition`): enjambre,
@@ -911,25 +913,88 @@ daño corriente sigue siendo solo tinte.
   integración ya validó, conservado como latido del combate. Su cooldown se
   acorta por fase (6,5 → 5,5 → 4,5 s).
 - **Fase 1 — barrido sectorial.** El boss se planta, se enciende una **cuña** de
-  42° y 20 unidades apuntada al jugador durante 1,3 s, y descarga: 26 de daño
-  dentro de la cuña más un abanico de cubos por el arco. **La puntería se fija
+  42° y 20 unidades apuntada al jugador durante 1,3 s, y descarga: **25% de la
+  vida máxima** dentro de la cuña más un abanico de cubos por el arco. **La puntería se fija
   al empezar el telegrafiado**, no al disparar: una cuña que persiguiera sería
   un impacto inevitable disfrazado de aviso.
 - **Fase 2 — líneas de ensamblaje.** Abre **bahías en el perímetro** del lado en
-  que se está jugando, avisa 1,6 s **en la bahía** (no en el boss) y mete 5
-  refuerzos por bahía. Van con el **multiplicador de vida de la oleada viva**
+  que se está jugando, avisa 1,4 s **en la bahía** (no en el boss) y mete 4-6
+  refuerzos por bahía. Las bahías se abren en un anillo alrededor del jugador
+  que **crece con la fase** (9 → 11 → 14 unidades): con 6 puntos sobre el anillo
+  de 9 los vecinos quedaban a 9 unidades y caían todos dentro de una sola
+  reacción; a 14 quedan a 14 y hay hueco para colarse entre dos.
+  Van con el **multiplicador de vida de la oleada viva**
   (`EnemySystem.waveHpMultiplier`), no con el 1 por defecto de `spawnAt`, o
   serían enemigos de papel en el minuto más duro. Techo duro de 320 cuerpos: el
   spawner ya está rellenando hacia su propio cap y el finale no puede duplicarlo.
 - **Fase 3 — sobrecarga del núcleo.** Cadena de 4 **zonas de peligro** que nacen
   en el boss y erupcionan hacia fuera por la línea del jugador, una cada 0,45 s;
-  22 de daño por zona. El boss además acelera ×1,15.
+  **25% de la vida máxima** por zona. Son **3 líneas paralelas** separadas 18
+  unidades entre centros, y cada zona nace más grande que la anterior (3,2 →
+  5,2 de radio), así que los carriles se estrechan de 11,6 a 7,6 unidades según
+  avanza la oleada: se elige carril pronto o no se elige. El boss además acelera
+  ×1,15.
+
+### El daño del boss es un PORCENTAJE de la vida del jugador (2026-08-19)
+
+Decisión del usuario. Los cuatro ataques piden una fracción de la **vida
+MÁXIMA** —`player.maxHp`, nunca la vida que queda en la barra—, leída en el
+momento del impacto para que un core de Max HP a mitad de pelea cuente:
+**cuña 25% · zonas rojas 25% · balas rojas 20% · caer dentro de una bahía 15%**. Un número plano se calibra contra
+una vida concreta y deja de significar lo mismo en cuanto entran cores de Max
+HP: el mismo golpe que quitaba un cuarto de la barra al llegar al finale pasaba
+a quitar un octavo. El porcentaje mantiene el peso del encuentro constante en
+cualquier build, y **todo lo demás del embudo sigue igual** — evasión, escudo y
+armadura se aplican después, exactamente como con cualquier otro daño.
+
+Un porcentaje sobre la vida ACTUAL haría lo contrario de lo que hace falta: el
+boss se ablandaría cuanto más cerca estuviera de matarte y ningún ataque podría
+rematar a nadie. Congelado en dos sitios: `tools/final-boss.test.mjs` comprueba
+la fuente, y `pnpm test:finale-runtime` lo MIDE en el frame de la descarga con
+la barra retenida a un tercio — pidió 28 (25% de 110 de máximo) y no 416.655
+(25% de lo que quedaba).
+
+La jerarquía está congelada por test: bahía (nudge para moverse) < balas <
+los dos ataques firma; y ninguno pasa del 35% de la barra, porque un ataque que
+mata en tres golpes se lee como injusto, no como difícil. A la vida base de 100
+el 15% de la bahía queda por debajo del roce del boss (16), y es deliberado: ese
+marcador está para empujarte fuera, no para matarte.
+
+**Las balas rojas también atraviesan el i-frame.** MEDIDO: conectaban 6 veces en
+40 s y aterrizaban 0, porque con el enjambre encima la ventana de 0,4 s está
+abierta casi siempre. El i-frame es el tope del DPS del ENJAMBRE; el proyectil
+de un boss es un ataque que se ve venir. La esquirla del Gunner conserva el tope.
 
 **Una sola telegrafía a la vez**, y es regla, no ajuste: la única zona de suelo
 que este proyecto rechazó de un vistazo (Crusher etapa C, 2026-08-07) falló
 porque cuatro eventos compartían un frame y la zona nacía fuera del foco que el
 resto ya había capturado. Aquí origen y destino siempre están en pantalla y nada
 más dispara durante una cadena.
+
+### Legibilidad de la salva y capa de las telegrafías (2026-08-20)
+
+Dos quejas del usuario, las dos medidas antes de tocar nada:
+
+- **"Sigo confundiendo las balas rojas con otros efectos."** Censo de tonos: la
+  salva estaba en **hue 355** y las zonas de peligro sobre las que vuela en
+  **350** — cinco grados. Por eso subirle tamaño y saturación no arregló nada.
+  Además, el "núcleo blanco" que se le había puesto para separarla era un cubo
+  de 0,3 **dentro** de uno sólido de 0,75: encerrado en un cuerpo opaco no se ve
+  desde ningún ángulo, o sea que no existía. Ahora las dos mitades de la
+  estrella se pintan por separado: el cubo alineado es el **núcleo casi blanco y
+  es la superficie que se ve**, y el girado solo asoma las puntas en rojo. El
+  blanco sobrevive a cualquier fondo de este suelo; el rojo plano no. No se
+  cambió el tono a violeta ni a verde porque **el violeta es del Roller** (uno
+  de los dos tipos que suelta el propio boss) y el cian es de sus bahías.
+- **"Los efectos predominan por encima de los modelos 3D del escenario."** Las
+  telegrafías del finale eran las únicas marcas de suelo grandes y llevaban el
+  `depthTest` apagado como el resto: un anillo de 4 unidades pintado sobre una
+  caja pasa desapercibido, una cuña de 20 sobre una chimenea de 12 se lee como
+  una lámina flotando sobre el nivel. `VISUAL.bossTelegraphsUnderScenery` les
+  devuelve el test de profundidad — **solo a ellas**: el marcador del jugador,
+  el de élite y el del boss conservan la decisión de playtest del 2026-07-26.
+  Siguen en la cola opaca, sin escribir profundidad y por debajo de los cuerpos,
+  así que la chimenea se planta DENTRO de la zona en vez de quedar detrás.
 
 ### Telegrafías de suelo: la regla de render que ya mordió dos veces
 
@@ -969,6 +1034,11 @@ la escalada solo era legible en el instante en que parpadea el banner.
   y suena en silencio; el cambio de fase reutiliza `boss-awaken`.
 - Arena reactiva de 2.4 (suelo sectorizado, bahías visibles, suelo modular): las
   fases funcionan hoy con telegrafías propias, sin depender del layout.
+- **Decisión 0.8 sigue abierta a medias:** el reinicio limpia el campo, pero el
+  spawner normal sigue corriendo, así que el enjambre se rellena mientras se
+  pelea (identidad bullet heaven; los refuerzos de Fase 2 se suman encima). Si
+  el playtest pide una arena de boss "pura", la palanca es pausar el spawner
+  mientras `finaleStarted`, no bajar la curva.
 ### Decisión 0.8 CERRADA: durante el finale no entran oleadas
 
 `enemies.wavesPaused` se deriva de `runFlow.finaleStarted` cada frame, así que
@@ -1000,3 +1070,494 @@ actúa si la run no tiene progreso propio).
 
 Las dos teclas comparten un único `windClockToFinale()`: dos copias del disparo
 acabarían divergiendo el día que cambie el trigger.
+
+
+### Pase de presión tras el primer playtest humano (2026-08-19)
+
+**Reporte:** "el boss no me ha quitado vida ni una vez". Se midió en vez de
+suponer, con una sonda nueva (`node tools/finale-runtime-check.mjs --pressure`)
+que juega la pelea con la vida SIN rellenar, tres patrones de movimiento y
+atribución de cada impacto por la distancia al boss en el momento de recibirlo
+(contacto vs kit a distancia). Los tres defectos que salieron:
+
+1. **Nada en la pelea es más rápido que el jugador.** El Marshal caminaba a 3,2
+   contra 11. Sin oleadas ambientales —que se acababan de quitar— no quedaba
+   nada que le robara espacio, así que todo su kit telegrafiado se esquivaba
+   andando. Un bot quieto recibía 97 impactos en 45 s; uno kiteando, 0.
+2. **Los refuerzos aterrizaban DETRÁS.** Se colocaban en un anillo alrededor de
+   la posición actual del jugador, pero la telegrafía dura 1,4 s y a 11 de
+   velocidad eso son **15,4 unidades** — más que el radio del propio anillo (9).
+   Contra alguien corriendo, la caja se cerraba sobre suelo vacío.
+3. **La descarga radial no podía alcanzar a nadie que huyera.** Proyectil a 13
+   contra jugador a 11 cierra a **2 u/s**: desde las 15 unidades a las que se
+   dispara, tarda 7,5 s en alcanzarlo, más de lo que vive el proyectil. El
+   anillo solo podía golpear a quien estuviera quieto.
+
+**Cambios (decisión del usuario + lo que la medición exigía):**
+
+- **Vida ×5** (7200 → 36000 en `hpLevelReference`): la primera pelea humana
+  moría antes de la Fase 2, así que dos tercios del moveset no llegaban a pasar.
+- **Velocidad 3,2 → 4,0.** No puede ser el arreglo por sí sola —nada por debajo
+  de 11 atrapa a quien kitea—, solo evita que el cuerpo se deje atrás andando.
+- **Los refuerzos son ahora el motor de presión y viven en TODAS las fases**
+  (la fase decide cuántas líneas se abren: 1 → 3 → 3 puntos, 4 → 4 → 5
+  Voltlings). Caen **alrededor del jugador** (radio 9 ± 2,5), no en el
+  perímetro: 46 unidades a velocidad 5,5 son ocho segundos y el jugador ya no
+  está ahí.
+- **Lideran el objetivo**: el punto de caída se adelanta `velocidad ×
+  telegrafía × 0,8`, con tope de 13 unidades. El 0,8 es deliberado — un lidereo
+  perfecto sería injusto; este se rompe girando, que es justo la habilidad que
+  el ataque debe pedir.
+- **Proyectil 13 → 18** (cierra a 7 u/s, alcanza en 2 s).
+
+**Medido después, 40 s por patrón, Fase 1:** quieto 89 impactos · órbita cerrada
+12 (10 a distancia) · kiteo ancho **0 → 5, todos a distancia**. La pelea sigue
+premiando jugar bien; ya no es imposible que te toque.
+
+**Sigue abierto:** el balance fino es cosa de tus runs, no de la sonda. Si aún
+se siente inofensiva, las dos palancas siguientes en orden son la DENSIDAD de la
+descarga (16 disparos dejan ~6 unidades de hueco a la distancia a la que cruzan
+al jugador: un abanico apuntado cerraría el carril) y el número de puntos de
+caída por llamada.
+
+
+### Segundo pase de playtest: cuña, VFX, animación y collider (2026-08-19)
+
+Cuatro reportes, cuatro causas medidas.
+
+**1. "Si estoy dentro de la onda ámbar no me quita daño."** El barrido pedía
+daño y **el daño se lo comían los i-frames**: medido, 5 peticiones en 40 s y
+**0 aterrizajes**, todas dentro de la ventana de 0,4 s que acababa de abrir un
+Voltling al tocarte. `damagePlayer` descarta el golpe entero, no lo reduce.
+
+El i-frame existe para **capar el DPS del ENJAMBRE** —es la palanca de dificultad
+de meterse en una multitud—; un ataque que se te enseña 1,3 s antes no es daño de
+roce. Ahora los ataques del boss pasan por `damagePlayer(..., pierceIframe)`, que
+**limpia** la invulnerabilidad en vez de ignorarla, así que evasión, escudo,
+armadura y espinas siguen ejecutándose una vez cada uno por el embudo real. Solo
+pincha el hook de la pelea: contacto y proyectiles conservan el cap.
+Medido después: 5 pedidos → 3 aterrizados (los otros 2, esquiva/escudo).
+
+**2. "Las partículas y el bloom al pegarle son exagerados."** Dos causas
+sumadas, ambas por tamaño: las chispas por impacto (2, 5 en crítico) están
+calibradas para un cuerpo de 0,9 unidades que muere en dos golpes, y el tinte de
+golpe es **2,5×** durante 0,08 s. Un boss mide 9,87, recibe cientos de impactos y
+a menudo varios por frame, así que `hitFlash` no se apaga nunca: el cuerpo entero
+vive a 2,5×, muy por encima del umbral de bloom (0,85). Ahora hay
+`VISUAL.hitSparks.bossCount/bossCritCount` (1/2) y un `BOSS_FLASH_TINT` de 1,45.
+
+**3. "No está la animación de caminar."** Estaba construida (`src/models/rig.ts`,
+clips `idle`/`walk`/`hit`) pero **solo se veía en el previsualizador**: el boss se
+dibujaba por el `InstancedMesh` compartido, y una instancia no tiene miembros.
+Nuevo `src/boss-rig.ts`: talla el rig del **mismo VoxelGrid** que el cuerpo
+instanciado (un modelo, no dos assets), lo coloca por un grupo aparte —`poseRig`
+sobrescribe el transform de la raíz cada frame— y **oculta la instancia**
+(`EnemySystem.externallyDrawn`) para que el cuerpo no se dibuje dos veces. La
+sombra y el doble anillo rojo se siguen dibujando: son del cuerpo, no del mesh.
+Clip por lo que hace la pelea: `walk` al moverse, `idle` cuando una telegrafía lo
+planta, `hit` una vez por cambio de fase. Carga async: hasta que está listo sigue
+dibujando la instancia, así que un decode lento degrada al comportamiento de
+antes, nunca a un boss invisible. Verificado en runtime: 8 piezas, instancia
+oculta, y **0,48 rad de movimiento de articulaciones en 0,4 s** — un rig
+congelado y uno vivo son idénticos en una captura fija.
+
+**4. "El collider es raro, me golpea antes de chocar."** Medido: el cuerpo tiene
+semiejes **3,24 de ancho y 1,33 de fondo**, contra un `radius` de **3,10**. De
+frente, el daño saltaba **1,77 unidades antes** de tocar nada visible.
+
+La causa de fondo es que `radius` hace otros tres trabajos (esquiva del enjambre,
+colocación de spawns, discos de aura y sombra), así que tocar al jugador tiene
+ahora su propio número: `EnemyTypeDef.contactRadius`, usado por el contacto y por
+el cuerpo que el jugador no puede atravesar. Un círculo no puede acertar en un
+cuerpo 2,4 veces más ancho que profundo, así que **2,2 reparte el error**: de
+frente lo solapás 0,17 antes de que duela; por el costado te metés 0,34 en un
+brazo. Ambos por debajo de media unidad, contra el cuerpo y medio de aire de antes.
+
+
+### El barrido: SÍ golpea — lo que faltaba era poder notarlo (2026-08-19)
+
+Reporte: "el área dorada sigue sin golpear al jugador si estoy dentro cuando
+explota". Se instrumentó el **frame exacto de la descarga** (posición del
+jugador, ángulo respecto al eje del ataque, rotación del marcador dibujado vs
+la del arco probado, y si se pidió daño). Resultado, tres descargas seguidas:
+
+```
+discharge: player 2.9 away, 0 deg off the aim  drawn 2.206 vs aim 2.206  -> DAMAGE
+```
+
+**3 de 3 con el jugador dentro hicieron daño**, y el marcador dibujado coincide
+con el arco probado hasta el último decimal. El mecanismo estaba bien; lo que
+fallaba era el **feedback**: un impacto de 26 producía exactamente lo mismo que
+el roce de un Voltling —flash rojo, un temblor y un pelín de barra— y ninguna
+cifra. Con una barra de vida crecida por cores, eso es invisible.
+
+De paso, el primer instrumento **pasó en vacío** (0 descargas registradas) porque
+escribía en `__voltswarm.__sweeps` y leía `window.__sweeps`. Una comprobación que
+pasa sin muestras es peor que no tenerla: ahora "0 descargas" es un FALLO
+explícito, y si no registra nada imprime la traza de estado de la pelea.
+
+**Lo que se añadió, que es lo que el reporte pedía:**
+
+- **Número de daño sobre el jugador: PROBADO Y REVERTIDO** (decisión del usuario,
+  mismo día). Un número solo para ataques de boss hacía que una fuente de daño
+  hablara un idioma que el resto del juego no habla; el jugador tiene que
+  aprender UN contrato de "me están haciendo daño", no dos. El feedback vuelve a
+  ser el de siempre para todo: flash de vida, temblor y `player-hit`. Lo que SÍ
+  se queda es el pinchazo del i-frame, que es lo que hace que el golpe exista.
+- **La explosión ya no es un puf**: el marcador **no se apaga** en el frame del
+  daño. Se pone blanco, se expande un 6% y se desvanece en 0,18 s mientras una
+  **onda viaja** por la cuña — 4 arcos de cubos a radios crecientes, uno cada
+  0,055 s, con el frente en blanco caliente. Más anillo de choque en el boss y
+  temblor de 0,38 (por debajo del 0,72 de la llegada: esto pasa cada pocos
+  segundos y una pantalla que nunca se asienta deja de significar nada).
+- **Tres sonidos propios** (`tools/audio/prototype-r35-sweep.mjs`, DSP
+  determinista). **Dirección: MAQUINARIA INDUSTRIAL PESADA** (decisión del
+  usuario 2026-08-19). La primera versión se hizo como arma de energía —anillo
+  de condensador, oleada eléctrica— y se **rechazó entera**. Dos razones que son
+  el brief de la actual: la fundición es el escenario, y el arsenal del JUGADOR
+  ya es dueño del registro eléctrico (bolt, pulse, welder), así que un boss cuyo
+  ataque estrella también es eléctrico compite con las armas en vez de
+  imponerse. Es una prensa, no un rayo: aire, acero y masa.
+  `boss-sweep-charge` al encenderse (válvula neumática y las placas asentándose,
+  metal AMORTIGUADO — es la carga, no el golpe), `boss-sweep-warn` en los
+  últimos 0,4 s (trinquete cuyos clics aceleran sobre un siseo de presión que
+  sube) y `boss-sweep-fire` en la descarga (impacto de banda ancha, caída de sub
+  como una masa cayendo, la placa resonando ABIERTA —lo contrario de la carga,
+  para que cargar y disparar no se confundan— y vapor soltándose detrás). Los tres son
+  espaciales (`effects.sound(id, priority, x, z)` → regla de distancia).
+  El WAV de aviso dura **exactamente `sweep.warnLeadS`**, así que su última
+  muestra ES el impacto: regla de latencia cero, cortado contra la constante
+  real y no de oído. Verificado en runtime: los tres eventos llegan al director.
+
+**Pendiente tuyo:** el veredicto de los sonidos es siempre in-game. Si alguno no
+encaja con "Neon Horizon", se regenera con otra semilla en el mismo script.
+
+### Sonido de la sobrecarga del núcleo — el otro ataque de área (2026-08-19)
+
+`tools/audio/prototype-r36-overload.mjs`, misma familia industrial que el
+barrido y deliberadamente **la otra mitad de ella**: el barrido es una prensa
+que BAJA y golpea; esto es presión que ESCAPA. Si los dos fueran impactos serían
+un solo ataque con dos colores y el jugador no tendría nada que aprender.
+
+- `boss-overload-open` — el núcleo se desbloquea: un pestillo cediendo, metal
+  bajo tensión (modos graves de decaimiento lento, distinto de la placa
+  GOLPEADA del barrido) y presión subiendo. Suena una vez, EN el boss: mitad de
+  origen.
+- `boss-overload-erupt` — un eslabón reventando, **a propósito más pequeño que
+  el pisotón del barrido**: caen cuatro en dos segundos y la pirámide de volumen
+  dice que lo que pasa cuatro veces no puede ser lo más fuerte de la pelea.
+  Golpe sordo desde abajo, escoria y grava saltando, y se acaba. Cola corta a
+  propósito: una larga fundiría la cadena en un rugido continuo y la SECUENCIA
+  —que es lo que el jugador lee para esquivar— dejaría de oírse como pasos.
+  Suena en la posición de CADA zona, así que una cadena que se aleja se oye
+  alejarse. Cooldown de 0,12 s: impide dos en un frame sin comerse los pasos
+  (el intervalo real entre eslabones es 0,45 s).
+
+Verificado en runtime: los dos eventos llegan al director durante la Fase 3.
+
+**Siguen mudos a propósito** (emiten `boss-attack`, que no tiene asset): la
+descarga radial y la llamada de refuerzos. Son los siguientes candidatos si el
+combate pide más voz.
+
+### Por qué no se oían: el manifiesto de runtime es un artefacto de build (2026-08-19)
+
+Reporte: "los sonidos del cono naranja no se escuchan". Mi comprobación anterior
+decía que los tres eventos "sonaban", y **era un instrumento débil**:
+`AudioDirector.lastEvent` se sella en `emit()` **antes** de resolver ruta, buffer,
+hueco de voz y estado del contexto. Un evento puede figurar como reproducido y no
+producir un solo sample.
+
+Medida la cadena entera (asset → decode → voz), el resultado fue inequívoco:
+
+```
+asset boss-sweep-charge: not in manifest
+voices boss-sweep-fire: started 0
+```
+
+**Causa:** `public/assets/audio/prototypes/manifest.json` **lo reescribe
+`prebuild`** en cada build (`audio:generate` → `tools/audio/ui-navigation.mjs`)
+desde la fuente `tools/audio/prototype-manifest.json`. Las entradas que había
+añadido a mano al de runtime sobrevivieron hasta el siguiente `pnpm build` y
+desaparecieron sin avisar. Los cinco cues quedaron **habilitados, emitidos y
+mudos**: todos los síntomas decían "sonó" menos los altavoces.
+
+**Arreglo:** registrados en el manifiesto FUENTE. Medido después: los assets
+decodifican (0,60 / 0,40 / 1,00 s) y los cinco arrancan voces reales.
+
+**Dos guardas nuevas** (`tools/audio-selection.test.mjs`), que es lo que habría
+cazado esto en el minuto uno: todo id de `enabledEvents` debe tener entrada en el
+manifiesto fuente, y el generado no puede contener eventos que la fuente no tenga.
+Y el chequeo de runtime ahora cuenta VOCES arrancadas, envolviendo
+`AudioDirector.play`, en vez de fiarse de `lastEvent`.
+
+**Dato del margen:** de cuatro descargas medidas, una perdió su cue por el tope de
+14 voces de SFX (prioridad 4 contra los loops de arma, que van a 5). Con el
+enjambre del bot muriendo alrededor es el peor caso; si en juego real se nota que
+falta el golpe, la palanca es la prioridad del evento, no el volumen.
+
+### Cuarta tanda de playtest: spawn, balas rojas, y la zona roja más explosiva (2026-08-19)
+
+1. **Sonido de spawn del jugador en los sitios nuevos.** `run-start` —el mismo cue
+   que suena al materializarte al empezar una run— se emite ahora también al
+   cruzar a un mapa nuevo y al reabrirse la arena del finale. Es literalmente el
+   mismo evento (el chasis puesto en el suelo), y oírlo otra vez es lo que dice
+   que el suelo que pisás es nuevo.
+
+2. **Voz para la descarga radial** (`tools/audio/prototype-r37-volley.mjs`): las
+   dieciséis balas rojas eran el tercer y último ataque mudo. Mismo idioma
+   industrial y **otro verbo**, que es la regla que mantiene los tres ataques
+   distinguibles: el barrido es una prensa que BAJA, la sobrecarga es presión
+   que ESCAPA, y esto es una BATERÍA que dispara — dieciséis tubos neumáticos
+   soltando en medio segundo con el bastidor traqueteando debajo. Los tiempos
+   van desiguales a propósito: espaciarlos igual convierte la ráfaga en zumbido
+   de ametralladora y se pierde la cuenta. Sin cue de carga propia: el boss se
+   planta 1,1 s, esa es la telegrafía, y otro riser encima sonaría al barrido.
+
+3. **La erupción, rehecha como explosión.** La primera era un golpe sordo: todo
+   cuerpo y ningún frente, así que leía como algo que ATERRIZA, no como algo que
+   DETONA. Ahora lleva delante un crack de banda ancha, la caída de sub es más
+   corta y más profunda (96→38 en 0,10 s pasó a 118→28 en 0,075 s: una caída más
+   empinada es lo que suena a detonación en vez de a bombo), una ráfaga de
+   presión que antes no existía, y escombros que sobreviven al golpe. Sigue
+   siendo el cue más corto de la pelea, y esa restricción no se ha movido.
+
+4. **La explosión visual de cada zona, subida de nivel.** El marcador ya **no se
+   apaga** en el frame del daño: detona — se pone blanco, se expande un 35% y se
+   desvanece en 0,16 s. Encima, tres capas en el mismo idioma que el resto de
+   detonaciones del juego (cuerpo del estallido 16→30 cubos, núcleo blanco 5→14,
+   y un anillo de suelo de 18 cubos a radio 5 que enseña dónde PARÓ) más un
+   temblor pequeño de 0,2 — pequeño a propósito: caen cuatro en dos segundos, y
+   una sacudida grande cuatro veces seguidas no es cuatro veces más dramática,
+   es una cámara que no se asienta nunca.
+
+### Y una corrección: el tope de voces NO era el problema
+
+Al medir esto vi "la mitad de las descargas del barrido descartadas por el tope
+de voces" y actué: protegí los loops de ser desalojados y subí la prioridad de
+los ataques del boss. **La medición era mía y estaba mal.** `play()` es async, así
+que cualquier otro `emit` que caiga durante sus awaits mueve el contador global
+de descartes, y leer ese delta como "este cue se descartó" es una carrera. Medido
+en limpio: **pico de 4 voces contra un tope de 14 y cero robos** — el tope nunca
+se acercó.
+
+Los dos cambios se quedan porque se sostienen solos, no porque los justificara
+esa lectura: un one-shot desalojando un LOOP es un fallo latente real (los hums
+de arma arrancan por flanco en `weapons.ts`, así que un loop robado no vuelve
+hasta que el arma para y rearranca), y un ataque telegrafiado de boss por debajo
+de un disparo rutinario de arma es un orden equivocado si algún día el bus se
+llena. El instrumento ya no atribuye descartes por evento: cuenta voces
+arrancadas y comprueba la salud del bus globalmente.
+
+### Quinta tanda: spawn bajo el telón, drops que muerden, y ataques con cuerpo (2026-08-19)
+
+1. **El cue de spawn suena bajo la imagen, no detrás del negro.** Antes se
+   emitía en el swap, que ocurre a negro pleno: la sonido terminaba **1,7 s
+   antes** de que el mapa fuera visible. Ahora sale a `MAP_TRANSITION.spawnCueLeadS`
+   (0,16 s) del final del fundido, cortado contra la constante real de la
+   cortina como manda la regla de latencia cero. Vale para el cruce de sector y
+   para la arena del finale.
+
+2. **Las zonas azules muerden y hablan.** Materializarse encima cuesta 12 (el
+   marcador estuvo encendido 1,4 s: quedarse ahí es una decisión), y el cobro va
+   ANTES del tope de cuerpos — la zona se abrió con independencia de si el campo
+   tenía sitio. Sonido nuevo `boss-assembly-spawn`
+   (`tools/audio/prototype-r38-assembly.mjs`): **el único cue eléctrico de la
+   pelea**, y se lo puede permitir porque no es un ataque sino materia
+   apareciendo — chasquido, un brillo digital que **resuelve hacia abajo** hasta
+   un golpe sólido (hacia arriba leería como desmaterializarse). Y el reparto
+   pasa a **Voltling + Roller**: el primero va recto a por vos, el segundo se
+   compromete con un rumbo y atropiesa, así que el drop es algo que hay que
+   RODEAR en vez de solo dejar atrás.
+
+3. **Vida del boss a 100.000** (con el escalado por nivel: 85.000 llegando a
+   nivel 20, 100.000 a nivel 30, y el techo de 150.000 a partir de nivel 48).
+
+4. **El cono sale del CUERPO.** La descarga revienta primero a la altura del
+   pecho (5,6 de los 9,87 del modelo) y solo después contesta el suelo. Sin eso
+   el ataque leía como que el SUELO hacía algo al lado de un boss que casualmente
+   estaba ahí. `VoxelBurst.spawn` acepta ahora una altura opcional; por defecto
+   sigue naciendo a ras de suelo, que es lo correcto para un cuerpo que se
+   deshace.
+
+5. **La cadena roja se dispara: un misil por zona desde la ESPALDA.** Sale de
+   `back = -(sin h, cos h)` (el modelo mira a +Z rotado por su heading), a 6,2 de
+   altura, describe una parábola y **aterriza exactamente cuando su zona
+   revienta** — el tiempo de vuelo no es un número ajustable, es la telegrafía de
+   la propia zona, así que no puede desincronizarse por tuneo. Deja estela de
+   cubos en el aire y va en la capa de personaje, para que los marcadores de
+   suelo a los que vuela no lo pinten por encima.
+
+Verificado en runtime: 4 misiles en el aire a la vez, 34 muestras por encima del
+suelo, y los cinco cues nuevos arrancando voces reales.
+
+### Sexta tanda: la zona azul avisa, y los misiles se ven (2026-08-19)
+
+1. **El cue de la zona azul, mucho más eléctrico.** La primera versión resolvía
+   en un golpe mecánico seco: decía "ha aterrizado un bot" —cierto— pero no
+   decía nada de que el suelo estuviera vivo. La información que tiene que
+   llevar no es "ha llegado algo", es **"no te quedes aquí"**, así que la
+   llegada va ahora metida DENTRO de un evento eléctrico: arco duro de
+   apertura, un chisporroteo irregular que sigue escupiendo después, y un
+   zumbido cargado que queda flotando sobre el punto mientras se apaga. El
+   chisporroteo es la capa que hace el trabajo: un tono continuo lee como
+   máquina zumbando; escupir irregular lee como algo que no hay que tocar.
+
+2. **Los misiles, rehechos.** Eran una caja roja lisa —a la altura de esta
+   cámara, un punto. Ahora son un cuerpo voxel de 8 bloques (192 vértices
+   contra los 24 de una caja): cuerpo, morro escalonado en dos bloques (un cono
+   voxel), cuatro aletas y un bloque de escape blanco. Material sin iluminar y
+   con color por vértice, así el bloom coge los blancos sin tocar el rojo.
+   Además ruedan sobre su eje (1,4 Hz — lento, un giro rápido en un cuerpo así
+   lee como glitch), y la estela sale de la **COLA**, no del centro: una pluma
+   detrás lee como empuje, cubos cayéndose del medio leen como daño. Un cubo de
+   cada tres va en blanco caliente para que la pluma parpadee en vez de ser una
+   cinta plana. La bocanada de lanzamiento va en dos colores.
+
+3. **Los refuerzos de la zona azul aguantan más:** ×1,4 sobre el multiplicador
+   de la oleada viva. Son los del boss y tienen que sobrevivir lo suficiente
+   para quitar espacio; un cuerpo que muere a la primera pasada de la build no
+   quita ninguno. Modesto a propósito — es la palanca con el camino más corto a
+   lo injusto, porque estos caen ENCIMA del jugador.
+
+**Y un tropiezo del instrumento, otra vez el mismo:** el chequeo de misiles dio
+FALLO con 0 en el aire en un juego que funcionaba, porque acorté su ventana de
+muestreo a 7,2 s contra una cadena que sale cada 8. Ahora la ventana es de 19,5 s
+y lo dice en el comentario: **tiene que sobrevivir al cooldown de lo que mide**.
+
+### Séptima tanda: la muerte se ve, el spawn no corta, y el escudo deja de blindar (2026-08-19)
+
+1. **El beat de muerte del Marshal.** El kill abría la pantalla de resultados en
+   el MISMO frame, así que la explosión que celebraba duraba 16 ms. Ahora el
+   cuerpo se deshace en **5 estallidos escalonados** (uno cada 0,13 s) que
+   **bajan por el cuerpo** —la cabeza primero, después el colapso sobre su
+   propia huella, que es lo que distingue una máquina de 9,87 unidades de un
+   grunt reventando— con temblor decreciente y un anillo de suelo al final. La
+   pantalla llega **1,6 s** después (medido en runtime: 1607 ms).
+   Dos cosas que el beat no permite: **el nivel no interrumpe** (los level-up
+   pendientes se descartan, igual que ya hacía la derrota — si no, la tarjeta
+   congela la explosión en el aire), y **un Voltling rezagado no puede convertir
+   una run ganada en derrota** (el embudo de daño se cierra durante el hold).
+
+2. **El microcorte al aparecer el boss: era el RIG.** Se construía en el primer
+   frame en que el cuerpo existía —tallar ocho piezas del grid y mallarlas no es
+   gratis— así que la llegada venía con una parada justo cuando estás mirando.
+   Ahora se construye **detrás de la cortina** (`prepareFinalRig()` desde
+   `openFinaleArena`), con el fundido entero más los 2,5 s de telegrafía para
+   terminar, y si no llega el cuerpo instanciado sigue cubriéndolo.
+   Medido con `PerformanceObserver` de longtasks: antes **14 tareas largas, la
+   peor de 114 ms**; ahora **cero dentro de los 0,7 s del spawn**. Las que
+   quedan (7, peor 111 ms) caen TODAS en estado `map-transition`, o sea detrás
+   del negro — que es exactamente donde se quieren.
+
+3. **Barrier Cell: recarga 8 s → 14 s** (suelo 4 → 8, reducción por copia extra
+   1 → 1,5). La aritmética detrás de la queja: una carga bloquea un golpe
+   ENTERO valga lo que valga, así que el rendimiento real del mod son golpes
+   absorbidos por minuto — a 8 s eran **7,5/min**, y el kit telegrafiado del
+   Marshal ronda los diez eventos de daño por minuto contra alguien que se
+   mueve. El escudo se comía tres cuartas partes de la pelea y el buffer de seis
+   cargas hacía gratis el primer medio minuto. A 14 s la absorción sostenida
+   baja a **4,3/min**. Sigue siendo el mod defensivo más fuerte del juego.
+   **Es un cambio GLOBAL, no un parche del boss:** Barrier Cell es un mod normal
+   y el Mapa 1 también lo nota. Deliberado — la aritmética era la misma allí, la
+   pelea del boss es solo donde se hizo visible.
+
+**Y tres tropiezos del arnés, todos del mismo tipo:** el chequeo culpaba a la
+llegada de tareas largas que eran de otro sitio (ahora se ancla al frame del
+`boss-awaken`); daba "los resultados no abren nunca" porque nadie cerraba los
+overlays y el juego estaba en pausa; y su "muerte" del boss se quedaba **325 de
+vida corta** porque `dealDamage` pasa el número por `rollHit`, que lo escala por
+el daño del jugador (×0,95).
+
+### Octava tanda: escudo a 30 s, fases en tercios exactos, y el anillo de drops (2026-08-19)
+
+1. **Barrier Cell: 14 s → 30 s** (suelo 8 → 18, reducción por copia extra
+   1,5 → 3, manteniendo la forma de la curva). Absorción sostenida: **2,0
+   golpes/min** con cualquier número de copias hasta el tope de capacidad, 3,3
+   con las diez. Sigue siendo global, Mapa 1 incluido.
+
+2. **Umbrales de fase en tercios EXACTOS** (2/3 y 1/3). Ya estaban en 0,66 y
+   0,33 —a un 0,7% de eso—, así que en juego no cambia nada perceptible; lo que
+   cambia es que la intención queda escrita y nadie los "ordena" luego a 0,7/0,35
+   moviendo en silencio dónde gira la pelea.
+
+3. **El anillo de drops crece por fase: 2 → 4 → 6 puntos**, y los cuerpos por
+   punto BAJAN con ellos (4 → 3 → 3). Total por llamada: **8 / 12 / 18**.
+
+   Seis puntos con los cinco cuerpos de antes habrían sido 30 por llamada cada
+   5 s en Fase 3 — **6 cuerpos por segundo** sobre un techo de 320. Los drops
+   dejarían de ser un beat para ser la pelea entera, y los ataques telegrafiados
+   del boss (lo que costó tres pasadas hacer que importara) volverían a ser
+   decorado. Con 3 por punto la presión sigue duplicándose a lo largo del
+   combate, pero lo que escala es la **FORMA**, no el volumen: a radio 9, seis
+   puntos dejan **9,4 unidades** de hueco entre ellos — pasable para un jugador
+   de 1,4 de ancho, pero solo si se compromete pronto. Eso es una decisión;
+   treinta cuerpos son un muro.
+
+**Cuarto tropiezo del arnés en la misma sesión:** el chequeo de "no entran
+oleadas" tenía la lista de tipos llamados ESCRITA A MANO (solo Voltling) y se
+quedó vieja al añadir Rollers, denunciando los refuerzos del propio boss como
+fuga del spawner. Ahora la lee de `FINAL_BOSS.assembly.typeIndexes`.
+
+### Novena tanda: la ráfaga se distingue, la arena se despeja, el boss aprieta (2026-08-19)
+
+1. **Las balas rojas: propias, más grandes, más rojas y más rápidas.** Antes
+   reutilizaban la estrella del Tesla Titan. Ahora la ráfaga tiene su propio
+   tipo de proyectil (`marshal`): la misma caltrop a **1,7×**, en un rojo más
+   duro y saturado (`0xff1024` contra el carmesí rosado del Tesla) y con un
+   **núcleo BLANCO**. El núcleo es lo que resuelve tu problema real: el tamaño
+   solo no basta, una forma roja más grande cruzando la cuña ámbar sigue siendo
+   roja sobre ámbar — el blanco se lee contra cualquier color de este suelo, así
+   que el disparo conserva un centro inconfundible vuele sobre lo que vuele.
+   Es el mismo truco que el morro del misil. Velocidad **18 → 21** (cierra a
+   10 u/s contra el jugador).
+
+   De paso, un fallo latente: el bucle de dibujo ocultaba "el OTRO tipo" de
+   proyectil con un par escrito a mano, que dejaba de cubrirlo todo en cuanto
+   existiera un tercero — el síntoma habría sido un disparo fantasma
+   irrastreable. Ahora itera sobre la lista de tipos.
+
+2. **La arena del finale: hueco de 28 → 40 y la mitad de props** (`propDensity`
+   0,45). El Marshal mide 6,5 de ancho y esquiva obstáculos como todo el mundo,
+   así que un prop con el que roza es un boss que deja de avanzar por razones
+   que el jugador no ve. Un centro limpio con un borde denso tampoco vale:
+   embudona la pelea hacia el borde en cuanto cualquiera de los dos se mueve.
+   Medido: obstáculo más cercano al centro **40,9**, y quedan **66** en pie —
+   la fundición sigue leyéndose como ella misma de 40 hasta el muro en 89.
+
+3. **Velocidad del boss 4,0 → 4,8.** Sigue siendo el 44% de los 11 del jugador:
+   no atrapa a quien corre, y no debe — lo que compra es poder cerrar sobre
+   alguien que se paró a pelear con los drops.
+
+### Décima tanda: la cadena roja se convierte en tres carriles (2026-08-19)
+
+1. **Cada zona es más grande que la anterior**: 3,2 → 5,2 de radio a lo largo de
+   la cadena. El estallido crece según se aleja del boss, y el anillo de suelo de
+   cada erupción escala con SU zona (`ringRadiusScale`) — un radio fijo se
+   quedaría dentro de las lejanas y fuera de las cercanas, que es peor que no
+   tener anillo.
+
+2. **Tres líneas PARALELAS con carriles**, no una sola cadena. Paralelas y no en
+   abanico por una razón medida: un abanico radial lo bastante ancho como para
+   dejar carril en la PRIMERA zona necesita ~88° de apertura, y a esa separación
+   deja de leerse como un ataque con huecos y pasa a ser tres ataques distintos.
+   Con separación lateral de 14 y las zonas creciendo, los carriles miden
+   **7,6 / 6,3 / 4,9 / 3,6** unidades contra un jugador de 1,4: ancho al salir
+   del boss, cerrándose según viaja la onda. Esquivás pronto o te aprietan.
+   Las tres líneas de un mismo paso erupcionan A LA VEZ — esa simultaneidad es
+   lo que las convierte en un muro con carriles en vez de en ruido.
+
+   Son 12 zonas y **12 misiles en el aire a la vez** (verificado en runtime), con
+   una bocanada de lanzamiento por OLEADA en vez de por misil: tres en el mismo
+   punto y el mismo frame es la misma imagen al triple de coste.
+
+3. **5-6 enemigos por área en el anillo azul** (`perPoint` 4/5/6): **8 / 20 / 36**
+   cuerpos por llamada, 7,2 por segundo en Fase 3. Esto revierte la recomendación
+   que hice la vuelta pasada, y así es como debe ser: la hice sobre el papel y el
+   playtest la tumbó. El techo de 320 cuerpos vivos sigue siendo lo único que
+   impide que se convierta en un muro, y ahora es un test quien lo vigila (una
+   llamada no puede pasar de un cuarto del techo).
+
+**Test nuevo con dientes:** los carriles se calculan y se exigen ≥ 2,5 unidades
+en CADA paso. Por debajo de eso no es una decisión, es una moneda al aire contra
+el resolver de colisiones — y ese número cae solo si alguien toca `lineOffset` o
+el crecimiento de las zonas sin mirar al otro.

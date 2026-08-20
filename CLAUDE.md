@@ -58,6 +58,26 @@ Regla general: si el pedido no encaja claro en una fila, `docs/PRD.md` primero (
 ## Reglas de render que ya mordieron
 
 - **Three.js dibuja TODA la cola transparente después de todos los opacos.** Por eso `renderOrder` no basta para que un marcador de suelo pase por delante de la escenografía y por detrás del personaje: hay que sacarlo de la cola transparente (`transparent: false`, el blending aditivo funciona igual) y hornear la opacidad en el color, porque `material.opacity` se ignora fuera de esa cola. Capas: escenografía 0 → marcadores 1 → personajes 2 (`VISUAL.renderOrders`).
+- **Un núcleo encerrado dentro de un sólido NO EXISTE.** El "núcleo blanco" de
+  la salva del boss era un cubo de 0,3 en el centro de uno opaco de 0,75: cero
+  píxeles desde cualquier ángulo. Para que un rasgo interior se lea tiene que
+  ser la SUPERFICIE (pintar las mitades por separado), no una pieza escondida.
+- **Marca de suelo grande = con `depthTest`.** El truco de apagarlo
+  (`groundMarkersOnTop`) sirve para anillos pequeños; una cuña de 20 unidades
+  pintada sobre una chimenea de 12 se lee como lámina flotante. Las telegrafías
+  del boss final van por `VISUAL.bossTelegraphsUnderScenery`, aparte.
+- **Antes de elegir un color, censo de tonos.** La salva estaba a 5° de las
+  zonas rojas y el violeta "libre" es el del Roller: se mide, no se estima.
+- **Un núcleo encerrado dentro de un sólido NO EXISTE.** El "núcleo blanco" de
+  la salva del boss era un cubo de 0,3 en el centro de uno opaco de 0,75: cero
+  píxeles desde cualquier ángulo. Para que un rasgo interior se lea tiene que
+  ser la SUPERFICIE (pintar las mitades por separado), no una pieza escondida.
+- **Marca de suelo grande = con `depthTest`.** El truco de apagarlo
+  (`groundMarkersOnTop`) sirve para anillos pequeños; una cuña de 20 unidades
+  pintada sobre una chimenea de 12 se lee como lámina flotante. Las telegrafías
+  del boss final van por `VISUAL.bossTelegraphsUnderScenery`, aparte.
+- **Antes de elegir un color, censo de tonos.** La salva estaba a 5° de las
+  zonas rojas y el violeta "libre" es el del Roller: se mide, no se estima.
 - **`renderOrder` NO se hereda de un `Group`.** Three.js ordena por malla; ponerlo en el grupo no hace nada. Usar el helper `setRenderOrder()` de `player.ts`.
 
 ## Mapa de documentación (referencia completa)
@@ -147,7 +167,46 @@ de 3 fases". Lo que hay que saber sin abrir el doc, y las reglas que salieron:
   que lleva el enjambre alrededor.
 - **Durante el finale NO entran oleadas** (`enemies.wavesPaused`, derivado de
   `runFlow.finaleStarted` cada frame). Sin eso el reinicio de arena duraría
-  veinte segundos. Los refuerzos de la Fase 2 sí entran: van por `spawnAt`.
+  veinte segundos. Los refuerzos del boss sí entran: van por `spawnAt`.
+- **NADA en la pelea es más rápido que el jugador (11).** El boss anda a 4 y los
+  Voltlings a 5,5, así que **la presión la dan los refuerzos que caen alrededor
+  del jugador**, no la persecución. Dos números que hay que respetar en
+  cualquier ataque nuevo: una telegrafía de 1,4 s son **15,4 unidades** de
+  jugador corriendo (por eso los refuerzos LIDERAN el objetivo), y un proyectil
+  a 13 contra 11 cierra a 2 u/s, o sea que **nunca alcanza a quien huye** (por
+  eso van a 18).
+- **El i-frame de 0,4 s se come los ataques telegrafiados si no se le dice lo
+  contrario.** Medido: la cuña pidió daño 5 veces y aterrizó 0, todas dentro de
+  la ventana que abría un Voltling al rozarte. Los ataques del boss van por
+  `damagePlayer(..., pierceIframe)`, que LIMPIA la invulnerabilidad (evasión,
+  escudo y armadura siguen aplicándose). El i-frame capa el enjambre, no un
+  ataque que se enseña 1,3 s antes.
+- **`radius` NO es el cuerpo que toca el jugador.** Hace otros tres trabajos
+  (esquiva del enjambre, spawns, aura/sombra). Para tocar existe
+  `EnemyTypeDef.contactRadius`: el Marshal mide 3,24 × 1,33 de semiejes y su
+  radius de 3,10 pegaba 1,77 unidades antes de tocarlo.
+- **Un boss va con `hitSparks.bossCount` y `BOSS_FLASH_TINT`, no con los del
+  enjambre.** Las cifras normales están calibradas para un cuerpo de 0,9 que
+  muere en dos golpes; sobre 9,87 unidades golpeadas varias veces por frame, el
+  tinte 2,5× no se apaga nunca y revienta el bloom (umbral 0,85).
+- **La animación del boss va por `src/boss-rig.ts`**, tallada del MISMO grid que
+  el cuerpo instanciado, que se oculta vía `EnemySystem.externallyDrawn`. Rig
+  solo para 1 instancia en pantalla — el guardarraíl de InstancedMesh sigue
+  intacto para todo lo demás.
+- **"No me hace daño" casi nunca significa que no haga daño.** El barrido se
+  midió en el frame exacto de la descarga: 3 de 3 con el jugador dentro hacían
+  daño. Faltaba el FEEDBACK — 26 de daño daba el mismo flash rojo que el roce de
+  un Voltling y ningún número. Los ataques de boss ahora pintan cifra sobre el
+  jugador; el roce del enjambre no, a propósito.
+- **Una comprobación que pasa sin muestras es peor que no tenerla.** El primer
+  instrumento del barrido dio PASS con 0 descargas registradas (escribía en
+  `__voltswarm.__sweeps` y leía `window.__sweeps`). Toda medición nueva tiene
+  que fallar cuando la muestra está vacía.
+- **Para juzgar si el boss pega, medí, no mires:** `node
+  tools/finale-runtime-check.mjs --pressure` juega la pelea sin rellenar vida
+  con tres patrones de movimiento y atribuye cada impacto a contacto o a
+  distancia. "No me quita vida" y "solo me quita si me quedo quieto" se ven
+  iguales en la barra y significan cosas opuestas.
 - Instrumentos: `pnpm test` incluye `tools/final-boss.test.mjs`;
   `pnpm test:finale-runtime` mide 5 llegadas en el Mapa 2 real dentro de
   Electron y deja frames en `tmp/finale-runtime-output/`. **Tecla Y**
@@ -404,6 +463,24 @@ murió** — el beat del boss y el del payoff quedan conectados por causa.
 Se conserva por contexto, ya NO es la especificación vigente — `PRD.md` y `ROADMAP_STEAM.md` mandan sobre esto. Ejemplos de lo que cambió: "3 tipos de enemigo" → 6 tipos + 2 bosses; "sin meta-progresión" → roadmapeada (Fase 5-6); "3-4 armas" → 11; "itch.io el mismo día" → plan de Steam completo.
 
 Concepto original: Vampire Survivors-like en 3D retro low-poly, presentación como diferenciador. Ambientación original: industrial/scrap con geometría primitiva — superseded por "juguete industrial" + arco futurista. Fases originales (MVP 1 día): escena+jugador+cámara → enemigos+IA+spawner → armas+XP+upgrades → timer+dificultad+rendimiento — ya completadas y superadas. Fuera del MVP original (ya no todo aplica): meta-progresión (roadmapeada), múltiples personajes (bocetados, roadmapeados), obstáculos (implementado), sonido (roadmapeado), modelado 3D custom (roadmapeado vía `PROMPTS_IMAGENES.md`).
+
+## TRAMPA de audio — el manifiesto de runtime es un ARTEFACTO DE BUILD (2026-08-19)
+
+`public/assets/audio/prototypes/manifest.json` **lo reescribe `prebuild`** en cada
+`pnpm build` (`audio:generate` → `tools/audio/ui-navigation.mjs`) a partir de la
+fuente **`tools/audio/prototype-manifest.json`**. Editar el de runtime "funciona"
+hasta el siguiente build y después desaparece sin decir nada.
+
+Así se colaron cinco cues del boss final **habilitadas, emitidas y completamente
+mudas**: `emit()` las aceptaba, `resolvePath` no encontraba nada y no se creaba
+ninguna voz — o sea que todos los síntomas decían "sonó" menos los altavoces.
+
+Dos consecuencias de método, ya cubiertas por test (`tools/audio-selection.test.mjs`):
+- Todo id de `AUDIO.validation.enabledEvents` tiene que tener entrada en el
+  manifiesto **fuente**.
+- **"Aceptado" NO es "audible".** `lastEvent` se sella antes de resolver ruta,
+  buffer y voz. Para comprobar que un sonido suena hay que contar VOCES
+  (`tools/finale-runtime-check.mjs` envuelve `AudioDirector.play`).
 
 ## REGLA PERMANENTE de audio — latencia cero (2026-07-18, orden directa del usuario)
 
