@@ -641,7 +641,7 @@ test('both boss attacks have their own voice, and it is not the same voice', asy
   const source = await readFile(new URL('../src/final-boss.ts', import.meta.url), 'utf8');
   // The sweep is a press coming down; the overload is pressure escaping. If
   // they shared cues they would be one attack wearing two colours.
-  for (const id of ['boss-sweep-charge', 'boss-sweep-warn', 'boss-sweep-fire', 'boss-overload-open', 'boss-overload-erupt', 'boss-volley']) {
+  for (const id of ['boss-sweep-charge', 'boss-sweep-warn', 'boss-sweep-fire', 'boss-overload-open', 'boss-overload-erupt', 'boss-volley', 'boss-assembly-open', 'boss-assembly-spawn']) {
     assert.ok(VISUAL !== undefined);
     assert.ok(
       config.AUDIO.validation.enabledEvents.includes(id),
@@ -656,12 +656,14 @@ test('both boss attacks have their own voice, and it is not the same voice', asy
   assert.match(source, /effects\.sound\('boss-overload-open', \d+, boss\.x, boss\.z\)/);
   assert.match(source, /effects\.sound\('boss-sweep-fire', \d+, boss\.x, boss\.z\)/);
   assert.match(source, /effects\.sound\('boss-volley', \d+, boss\.x, boss\.z\)/);
-  // The reinforcement call is KNOWINGLY still on the silent placeholder id:
-  // nobody has asked for a cue for it, and inventing one is a taste decision
-  // that belongs to a playtest, not to a test file. Asserting it away would
-  // hide that, so this asserts the shape instead — exactly one silent hook.
-  const silent = [...source.matchAll(/'boss-attack'/g)];
-  assert.equal(silent.length, 1, 'only the reinforcement call may still be silent');
+  assert.match(source, /effects\.sound\('boss-assembly-open', \d+, boss\.x, boss\.z\)/);
+  // The reinforcement call used to sit on a `boss-attack` placeholder that was
+  // never enabled, so emit() dropped it and the telegraph had no sound at all.
+  // The id is gone from the codebase now — a dead cue that every symptom says
+  // "played" is worse than an obviously missing one.
+  assert.equal([...source.matchAll(/'boss-attack'/g)].length, 0, 'the silent placeholder is gone');
+  const audioSource = await readFile(new URL('../src/audio.ts', import.meta.url), 'utf8');
+  assert.doesNotMatch(audioSource, /'boss-attack'/);
   // The chain fires four links inside two seconds: throttled so two can never
   // land on one frame, but NOT so much that the steps stop being audible as
   // steps — reading the sequence is how the attack is dodged.

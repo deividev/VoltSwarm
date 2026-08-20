@@ -15,6 +15,14 @@ import { hasLineOfSight, segmentHitsObstacle, type Obstacle } from './world';
 export interface CombatCtx {
   stats: PlayerStats;
   enemies: EnemySystem;
+  /** Hold fire: nothing may DISCHARGE this frame, though everything keeps
+   *  animating — orbits turn, projectiles already in the air travel, puddles
+   *  tick. Set while the Hazard Marshal's arrival telegraph runs (user
+   *  2026-08-20): the arena is empty and the waves are paused, so four weapons
+   *  that do not check for targets were slamming, spraying acid and clawing at
+   *  nothing over the boss's entrance. Cooldowns keep running, so the fight
+   *  opens with the salvo they were owed instead of a dead beat. */
+  holdFire: boolean;
   /** Snapshot compatibility only; combat must not read aggregate WeaponPower. */
   weaponPower: WeaponPower;
   /** Sole source of live weapon-upgrade scaling. */
@@ -307,7 +315,7 @@ export class BoltWeapon {
   update(dt: number, px: number, pz: number, level: number, ctx: CombatCtx): void {
     if (level > 0) {
       this.cooldown -= dt;
-      if (this.cooldown <= 0 && ctx.enemies.activeCount > 0) {
+      if (this.cooldown <= 0 && !ctx.holdFire && ctx.enemies.activeCount > 0) {
         this.cooldown = WEAPONS.bolt.cooldownS / (
           ctx.stats.attackSpeed * branchMultiplier(ctx, 'bolt', 'cycle')
         );
@@ -475,7 +483,7 @@ export class PulseWeapon {
     const radius =
       levelScale(WEAPONS.pulse.radius, WEAPONS.pulse.radiusPctPerLevel, 1 + (ctx.weaponBranches.pulse.radius ?? 0)) * ctx.stats.area;
     this.cooldown -= dt;
-    if (this.cooldown <= 0) {
+    if (this.cooldown <= 0 && !ctx.holdFire) {
       this.cooldown = WEAPONS.pulse.cooldownS / (
         ctx.stats.attackSpeed * branchMultiplier(ctx, 'pulse', 'cycle')
       );
@@ -548,14 +556,19 @@ export class BladeWeapon {
           )
         : 0;
     // Orbiting saws are continuous: the rev one-shot fires on the spin-up edge,
-    // then a sustained hum loops for as long as the blades are up.
-    if (count > 0 && !this.wasActive) {
+    // then a sustained hum loops for as long as the blades are up. The saws
+    // keep TURNING while fire is held — they are the one weapon whose visual is
+    // its weapon — but the hum stops, because a sustained loop over a boss
+    // entrance is exactly the noise this hold exists to remove. Coming back it
+    // revs again, which is the right sound for the fight starting.
+    const audible = count > 0 && !ctx.holdFire;
+    if (audible && !this.wasActive) {
       ctx.weaponActivated('blades');
       ctx.startWeaponLoop('blades');
-    } else if (count === 0 && this.wasActive) {
+    } else if (!audible && this.wasActive) {
       ctx.stopWeaponLoop('blades');
     }
-    this.wasActive = count > 0;
+    this.wasActive = audible;
     const damage = levelScale(
       WEAPONS.blades.damage,
       WEAPONS.blades.damagePctPerLevel,
@@ -762,7 +775,7 @@ export class PressWeapon {
       levelScale(WEAPONS.press.width, WEAPONS.press.widthPctPerLevel, 1 + (ctx.weaponBranches.press.width ?? 0)) * ctx.stats.area;
 
     this.cooldown -= dt;
-    if (this.cooldown <= 0) {
+    if (this.cooldown <= 0 && !ctx.holdFire) {
       // Aim the lane at the nearest enemy; hold fire when nothing is in reach.
       const target = findNearestVisible(ctx, px, pz, length);
       const e = ctx.enemies.pool[target];
@@ -866,7 +879,7 @@ export class TireWeapon {
   update(dt: number, px: number, pz: number, level: number, ctx: CombatCtx): void {
     if (level > 0) {
       this.cooldown -= dt;
-      if (this.cooldown <= 0 && ctx.enemies.activeCount > 0) {
+      if (this.cooldown <= 0 && !ctx.holdFire && ctx.enemies.activeCount > 0) {
         const count = 1 + quantityBonus(level) + ctx.stats.projectileCount;
         const target = findNearestVisible(ctx, px, pz, WEAPONS.tire.targetRange);
         const e = ctx.enemies.pool[target];
@@ -999,7 +1012,7 @@ export class OilWeapon {
     if (level > 0) {
       this.dropTimer -= dt;
       const moved = Math.hypot(px - this.lastX, pz - this.lastZ);
-      if (this.dropTimer <= 0 && moved > 0.6) {
+      if (this.dropTimer <= 0 && moved > 0.6 && !ctx.holdFire) {
         this.dropTimer = WEAPONS.oil.dropIntervalS;
         this.lastX = px;
         this.lastZ = pz;
@@ -1117,7 +1130,7 @@ export class AcidWeapon {
   update(dt: number, px: number, pz: number, level: number, ctx: CombatCtx): void {
     if (level > 0) {
       this.cooldown -= dt;
-      if (this.cooldown <= 0) {
+      if (this.cooldown <= 0 && !ctx.holdFire) {
         const target = findNearestVisible(
           ctx,
           px,
@@ -1281,7 +1294,7 @@ export class TurbineWeapon {
   update(dt: number, px: number, pz: number, level: number, ctx: CombatCtx): void {
     if (level > 0) {
       this.cooldown -= dt;
-      if (this.cooldown <= 0 && ctx.enemies.activeCount > 0) {
+      if (this.cooldown <= 0 && !ctx.holdFire && ctx.enemies.activeCount > 0) {
         const target = findNearestVisible(ctx, px, pz, WEAPONS.turbine.targetRange);
         const e = ctx.enemies.pool[target];
         if (target !== -1 && e) {
@@ -1431,7 +1444,7 @@ export class RicochetWeapon {
   update(dt: number, px: number, pz: number, level: number, ctx: CombatCtx): void {
     if (level > 0) {
       this.cooldown -= dt;
-      if (this.cooldown <= 0 && ctx.enemies.activeCount > 0) {
+      if (this.cooldown <= 0 && !ctx.holdFire && ctx.enemies.activeCount > 0) {
         const target = findNearestVisible(
           ctx,
           px,
@@ -1598,7 +1611,7 @@ export class DismantlerWeapon {
     }
 
     this.cooldown -= dt;
-    if (this.cooldown <= 0) {
+    if (this.cooldown <= 0 && !ctx.holdFire) {
       const range = WEAPONS.dismantler.range * ctx.stats.attackRange *
         branchMultiplier(ctx, 'dismantler', 'range');
       // Hunter: one heavy committed strike per cooldown belongs on the big

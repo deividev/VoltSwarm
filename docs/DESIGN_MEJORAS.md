@@ -1,5 +1,11 @@
 # Voltswarm — Diseño de mejoras
 
+> **Estado vigente 2026-08-20:** 11 armas registradas / 10 jugables (Oil Sprayer
+> deshabilitada), 20 Cores y 17 Mods. Capacidad: armas 2→3, Cores 2→4 y
+> descartes 3→4. Skip/descartes está implementado; Reroll y Banish siguen
+> pendientes. Field Engineer es el único personaje implementado y no hay
+> contratos activos de personaje.
+
 No copiamos el contenido de Megabonk: extraemos las bases de su planteamiento y generamos ideas propias con identidad de scrapyard, ancladas a los sistemas que ya existen en el prototipo (cofres con beam, enjambre denso, kiting, rampa lineal). Este método aplica a TODOS los sistemas futuros — ver `METODO_DISENO.md`. Dirección de arte en `DIRECCION_ARTE.md`.
 
 ---
@@ -112,8 +118,9 @@ Chaos Module reutiliza ese guardarraíl y la misma regla de valor marginal del d
 
 ### Mecánicas del pool (base Megabonk, adopción directa)
 
-- **Reroll** (N por run) y **Skip** — 🟡
-- **Banish**: eliminar una carta del pool el resto del run — 🟡
+- **Skip / descartes** — ✅ implementado, 3 de inicio → 4 por contrato.
+- **Reroll** (N por run) — 🟡 pendiente.
+- **Banish**: eliminar una carta del pool el resto del run — 🟡 pendiente.
 
 ---
 
@@ -201,10 +208,10 @@ Arma al máximo + stat relacionado alto → forma evolucionada (ej. Oil Sprayer 
 
 La base Megabonk que adoptamos: items = categoría separada del draft, obtenida explorando/gastando (sus cofres + Shady Guy → nuestra ruleta de cofre + chatarrero). El contenido es nuestro. Reglas de la categoría:
 
-- **Un único pool, dos puertas**: la **ruleta del cofre** lo tira gratis (pesada por tier) y el **chatarrero** lo vende por **oro in-run** (dropean los kills), apareciendo periódicamente cerca del jugador con 2-3 mods.
+- **Un único pool, dos puertas**: la **ruleta del cofre pagado** entrega Mods, pesa por tier y cobra `tierPrice × 0.5`; el **chatarrero** vende Mods por **oro in-run**, apareciendo periódicamente cerca del jugador con 2-3 mods.
 - Dos naturalezas dentro del pool: **consumibles** (efecto al momento, re-obtenibles siempre) y **permanentes** (comportamientos que duran el run).
 - **Los stats permanentes del draft son Cores**; los Mods no entran en sockets. Excepcion intencional: Barrier Cell modifica la defensa como comportamiento de Mod y se obtiene solo por cofre/chatarrero.
-- **Copias sanas por Mod**: los permanentes escalan con su suelo/tope propio. Barrier Cell tiene cap duro de 10 copias: 1-6 suman carga hasta 6; 7-10 reducen recarga de 8s a 4s; al cap se filtra de cofre y chatarrero. Orb Siphon es una excepción por puerta: tras obtenerlo una vez, deja de ser candidato de cofre durante esa run, aunque el chatarrero conserva su comportamiento de copias existente.
+- **Copias sanas por Mod**: los permanentes escalan con su suelo/tope propio. Barrier Cell tiene cap duro de 10 copias: 1-6 suman carga hasta 6; 7-10 reducen la recarga **30 s → 27 → 24 → 21 → 18 s** (−3 s por copia, mínimo 18 s); al cap se filtra de cofre y chatarrero. Orb Siphon es una excepción por puerta: tras obtenerlo una vez, deja de ser candidato de cofre durante esa run, aunque el chatarrero conserva su comportamiento de copias existente.
 - El tier fija precio en el chatarrero y peso en la ruleta. Reparto: 12 default / 5 por contrato: Overload Trigger, Phase Chassis y Magnetron Heart son premios firma; Endurance consume Coolant Burst y Chain Relay, y Endurance III queda seco/de repuesto.
 
 | Mod | Tier | Efecto (in-game, EN) | Stack por copia | Icono | Origen |
@@ -217,7 +224,7 @@ La base Megabonk que adoptamos: items = categoría separada del draft, obtenida 
 | Kick Plate | ⚪ Gris | Enemies that hit you are knocked back | +fuerza/radio | Placa de acero + flechas de empuje | Default |
 | Loose Bolts | ⚪ Gris | Taking a hit scatters 3 damaging bolts around you | +2 pernos | Pernos hexagonales volando | Default |
 | Detonator Rig | 🟢 Verde | Every 25 kills, the next kill explodes in an AoE | −5 kills (mín. 10) | Caja detonadora con émbolo | Default |
-| Barrier Cell | Blue Azul | Blocks a full hit; copies 1-6 add charges to 6, copies 7-10 reduce recharge 8s to 4s | +1 charge, then -1s recharge; cap 10 copies | Reuses `icon-stat-shield-v2.png` | Default |
+| Barrier Cell | Blue Azul | Blocks a full hit; copies 1-6 add charges to 6, copies 7-10 reduce recharge 30s to 18s | +1 charge, then −3s recharge; cap 10 copies | Reuses `icon-stat-shield-v2.png` | Default |
 | Coolant Burst | 🟢 Verde | When a shield charge breaks, coolant freezes nearby enemies 2s | +radio | Bidón cian agrietado | Contrato |
 | Orb Siphon | 🟣 Morado | Opening a chest pulls every XP orb on the map to you | +2s haste por copia adicional comprada; máximo 1 premio de cofre por run | Cofre + chorro de orbes azules | Default |
 | Chain Relay | 🔵 Azul | Critical hits arc lightning to up to 3 nearby enemies | +1 salto | Relé industrial + arco bifurcado | Contrato |
@@ -270,7 +277,7 @@ The first playable character is **Field Engineer**, a recognizable evolution of 
 
 - **Rol:** perfil inicial legible y perdonador: 110 HP, Armor rating 5%, Damage ×0.95, Move Speed 11, Attack Speed ×1, crítico 5%/+50%, Luck/Regen 0.
 - **Signature — Field Repair:** instalar o subir de tier cualquier Core excepto Hull Plates durante gameplay cura 1% de HP máximo después de aplicar el Core, con clamp y sin overheal. No dispara en load/replay/Boss Lab/rebuild.
-- **Elección temprana:** Bolt Cannon conserva sus odds normales. Si aparece naturalmente, su tarjeta muestra `Recommended`; no se garantiza ni equipa por obligación.
+- **Elección temprana:** Bolt Cannon conserva sus odds normales. Si aparece naturalmente, su tarjeta muestra `Suggested Start`; no se garantiza ni equipa por obligación.
 - **Identidad:** supervivencia por HP/Armor y relación con Cores, NUNCA por movilidad. Field Repair dobla un sistema existente; Hull Plates queda excluido para que aumentar Max HP nunca cure por una vía indirecta.
 - **Visual:** casco de seguridad naranja grande, visor oscuro, cuerpo hueso/charcoal, mochila-taller unida, herramienta asimétrica en hombro derecho, refuerzos en antebrazos/botas, columna de energía cian y exactamente tres alojamientos grandes de Core conectados con cables gruesos. La lectura cenital debe ser casco + hombro herramienta + mochila.
 - **Status:** gameplay, selection, persistence, and UI are implemented. Runtime model v1 is definitively approved in-game after the 0°/90°/180°/270° preview, rear-view locomotion check, and 400+ swarm gate (431–440 enemies, 118.87 average FPS, 92.41 minimum bucket, 8.5 ms p99, 0 page errors, and 431/431 enemies moving). Files under `art/concept/field-engineer/` remain conversion and provenance sources, not pending shipped-art candidates.

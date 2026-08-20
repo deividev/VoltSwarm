@@ -1,9 +1,9 @@
 # PLAN — Bloque Mapa 2 (Swarm Foundry): transición · visual · Hazard Marshal
 
-> Estado 2026-08-17: **Paso 0 CERRADO · Workstream 1 COMPLETADO** (v0.13.40→0.13.47) · **Workstream 2 EN CURSO** (v0.13.49→0.13.55: suelo, props y perímetro hechos; ambiente y arena del boss pendientes). Workstream 3 (Hazard Marshal) sin empezar.
+> Estado vigente 2026-08-20: **Paso 0 y Workstreams 1, 3 y 4 CERRADOS**. Hazard Marshal tiene baseline jugable aceptada en el candidato 0.22.0. Workstream 2 conserva solo el remate visual: colada/chispas y reteñido/elenco propio; cielo/niebla por mapa y arena base con muro ya están hechos.
 > Alcance: cerrar la run completa **Mapa 1 (10 min de oleadas + gate de boss) → transición → Mapa 2 (10 min de oleadas) → Hazard Marshal (jefe final, 3 fases)**.
-> Rama de trabajo: `codex/map-2` (worktree `chest-marker-demo`). Config ya titula el mapa como **"Swarm Foundry"** (`config.ts` ~línea 209). Cambios de gameplay portan a `codex/demo-map1` según la regla de ramas.
-> Fuente de verdad de orden: `docs/ROADMAP_STEAM.md` §"Bloque Mapa 2 + Volt Warden". Este doc es el desglose accionable de ese bloque.
+> Rama de trabajo: `codex/map-2`. Config titula el mapa como **"Swarm Foundry"**. La Demo vive separada en `codex/demo-map1` (`0.13.39-demo`); no se portan Mapa 2 ni Hazard Marshal.
+> Fuente de verdad de orden: `docs/ROADMAP_STEAM.md` §"Bloque Mapa 2 + Hazard Marshal". Este doc conserva el desglose y la historia de implementación.
 
 ---
 
@@ -33,11 +33,15 @@ No son burocracia: cada una cambia qué se implementa. Marcar cuando el usuario 
 - [x] **0.8 Estructura del clímax del Mapa 2 — CERRADA 2026-08-15.** El Hazard Marshal es el **jefe final fijo** del arco: entra **al terminar las oleadas del Mapa 2 (su minuto 10)**, no por portal opcional como el gate del Mapa 1. La curva propia del Mapa 2 (0.2) alcanza su pico justo al entrar el boss, dando un handoff limpio de tensión. **Resuelto 2026-08-19 (decisión del usuario): durante la pelea NO entran oleadas normales — solo los refuerzos de la Fase 2.** Además el sector se reinicia como arena al agotarse el reloj: campo limpio, jugador al centro y props con el centro vacío. Sin la pausa del spawner ese reinicio duraría veinte segundos, porque en el pico la fundición rellena hacia ~437 cuerpos.
 
 **Instrumentación irrecuperable — hay que meterla ANTES de la primera run del Mapa 2:**
-- [x] **0.6 Campo `map` en el registro de muerte — HECHO 2026-08-15.** Al revisarlo, la mitad ya existía en esta rama: `RunSnapshot.map` (`{id,number,title}`) + `mapsReached`, y `game.ts` graba `map: this.currentMap` (getter que deriva de `runFlow.mapIndex`), así que **la atribución de muerte por mapa ya era correcta** (una run que muere en el Mapa 2 graba `megafactory`). Lo que faltaba y se añadió: **`npm run stats` (`tools/run-stats.mjs`) ahora segmenta por el mapa en el que terminó la run** — conteo, outcomes y distribuciones de duración/kills/nivel, con los registros sin `map` en un bucket aparte (nunca plegados al Mapa 1). Verificado contra datos reales: 89% de runs terminan en el Mapa 1, 11% ya alcanzan el Mapa 2 (1 arco completo).
+- [x] **0.6 Campo `map` en el registro de muerte — HECHO 2026-08-15.** Al revisarlo, la mitad ya existía en esta rama: `RunSnapshot.map` (`{id,number,title}`) + `mapsReached`, y `game.ts` graba `map: this.currentMap` (getter que deriva de `runFlow.mapIndex`), así que **la atribución de muerte por mapa ya era correcta** (una run que muere en el Mapa 2 graba `megafactory`). Lo que faltaba y se añadió: **`pnpm stats` (`tools/run-stats.mjs`) ahora segmenta por el mapa en el que terminó la run** — conteo, outcomes y distribuciones de duración/kills/nivel, con los registros sin `map` en un bucket aparte (nunca plegados al Mapa 1). Verificado contra datos reales: 89% de runs terminan en el Mapa 1, 11% ya alcanzan el Mapa 2 (1 arco completo).
 
 ---
 
 ## Workstream 1 — Transición Mapa 1 → Mapa 2 ✅ COMPLETADO 2026-08-16
+
+> **HISTÓRICO:** el log siguiente conserva el offset y los flags usados durante
+> la implementación. La dificultad vigente está en Workstream 4 y en el bloque
+> de estado inicial; no reconstruir el offset provisional.
 
 > **CIERRE 2026-08-16 (v0.13.40 → 0.13.47).** El arco Mapa 1 → Mapa 2 obedece las decisiones del Paso 0 de punta a punta y la transición está animada con imagen y sonido.
 >
@@ -76,10 +80,9 @@ Depende de: 0.1 (cerrada), 0.2, 0.3, 0.6 (hecha), 0.7.
 
 ## Workstream 2 — Pase visual del Mapa 2 (Swarm Foundry)
 
-> **ESTADO 2026-08-17 (v0.13.49 → 0.13.55).** Suelo, props y perímetro cerrados.
-> Quedan **2.4** (layout del arena, acoplado al moveset del boss) y **2.5**
-> (VFX de ambiente). El reteñido del elenco a la paleta de fundición (decisión
-> 0.5) tampoco está hecho: `enemies.ts` no tiene ninguna rama por mapa.
+> **ESTADO 2026-08-20.** Suelo, props, perímetro, cobertura, cielo/niebla por mapa
+> y arena base con muro están cerrados. Queda **2.5** (VFX de ambiente) y el
+> reteñido/elenco propio. La arena reactiva/modular es opcional y no reabre el boss.
 
 Objetivo del usuario: que **no parezca otro juego**. Alinear props y ambiente con el lenguaje del Mapa 1 (misma familia voxel, mismos materiales `litMaterial()`, misma dirección de silueta) pero en el tema **fundición** del arco de arte (chatarrería → **fundición** → ciudad neón, `DIRECCION_ARTE.md`).
 
@@ -89,8 +92,8 @@ Objetivo del usuario: que **no parezca otro juego**. Alinear props y ambiente co
   - **Celda de energía** (`powercell` + `-rust` + `-bone`), 46-62 por partida.
   - **Chimenea de fundición** (`foundry-stack` + `-iron` + `-graphite`), 22 en el anillo a radio 82 con tres escalas uniformes, más 7-10 repartidas por el campo a escala 0.85.
   - Cantidad y posición **aleatorias por partida y por cruce de mapa** (`regenerateProps` se llama en `startRun` y en la transición).
-- [ ] **2.4 Layout que sirva al boss.** SIN EMPEZAR. Sigue acoplado al Workstream 3: suelo dividido en sectores (Fase 1), bahías de entrada en el perímetro (Fase 2), suelo modular peligroso (Fase 3). Diseñar entorno y arena juntos.
-- [ ] **2.5 Iluminación/VFX de ambiente.** SIN EMPEZAR. Resplandor de colada y chispas en lenguaje voxel de partículas. **Nota medida:** cielo, niebla y rig de luces son GLOBALES (`world.ts:155-166`, creados una vez en `createWorld`); `setMap` solo cambia suelo, torres y props. El Mapa 2 se juega bajo el cielo del desguace, y el horizonte ocupa una fracción grande de pantalla — es el cambio de más retorno por esfuerzo que queda en este workstream.
+- [x] **2.4 Arena base que sirve al boss.** HECHA: reinicio con centro despejado, pared/muro y espacio legible para las tres fases. El suelo sectorizado, bahías físicas y modularidad reactiva quedan como mejora opcional.
+- [ ] **2.5 VFX de ambiente.** Resplandor de colada y chispas en lenguaje voxel de partículas. **Cielo y niebla por mapa ya están implementados**; no volver a tratarlos como deuda.
 - [x] **2.6 Validación de rendimiento — HECHA.** 430 enemigos, mediana de frametime **8.30 ms** y p99 **8.50 ms** contra un período de vsync de 8.33: el juego sigue limitado por el refresco, no por la carga, con las chimeneas nuevas a 13.688 triángulos por instancia.
 
 ### Lecciones medidas de este workstream (evitan repetir tres rondas perdidas)
@@ -437,11 +440,11 @@ palanca más brusca, reservada para el final.
 
 ---
 
-## Workstream 3 — Boss final: Hazard Marshal
+## Workstream 3 — Boss final: Hazard Marshal ✅ BASELINE CERRADA 2026-08-20 (0.22.0)
 
-**El modelo YA está cerrado.** `src/models/registry.ts` clave `final-boss`: hojas medidas frontal/lateral/trasera (`tools/make-hazard-marshal-sheets.mjs`), cabeza vestida con paleta del logo vía `recolorRegions`, rig de piezas con clips `idle`/`walk`/`hit` (`docs/ANIMACION_RIG.md`). Lo que falta es **engancharlo al juego** y **diseñar el moveset** — sin moveset no hay animaciones de ataque que autorizar.
+**Modelo, integración y combate baseline están cerrados.** `src/models/registry.ts` conserva la clave histórica `final-boss`; la pelea tiene llegada propia, arena despejada con muro, fuego retenido en las 11 armas, tres fases, sweep/volley/assembly/overload, refuerzos, audio y desenlace. Balance fino con runs humanas y una arena reactiva/modular quedan diferidos.
 
-> ## ✅ 3.A.1 y 3.B.1–3.B.4 ENTREGADOS 2026-08-19 (v0.15.0)
+> ## HISTÓRICO — entrega intermedia 2026-08-19 (v0.15.0)
 >
 > Detalle completo en `docs/PRD.md` §"Hazard Marshal — llegada telegrafiada y
 > moveset de 3 fases". Titulares: el sector se **reabre como arena** al agotarse
@@ -456,12 +459,12 @@ palanca más brusca, reservada para el final.
 >
 > Verificado por `tools/final-boss.test.mjs` (en `pnpm test`) y por
 > `pnpm test:finale-runtime`, que mide 5 llegadas en el Mapa 2 real dentro de
-> Electron. Siguen abiertos 3.B.5 (audio) y 3.B.6 (balance con datos humanos).
+> Electron. El audio se cerró después en 0.22.0; el balance humano permanece diferido.
 
 ### 3.A Integración (sin diseño nuevo)
 - [x] **3.A.1 Instanciar el Hazard Marshal como jefe final del Mapa 2**, **disparado al terminar las oleadas (minuto 10 del Mapa 2)** — no por portal — en `boss.ts` / `enemies.ts`. HECHO 2026-08-19: la llegada abre una telegrafía de 2,5 s en un punto elegido por distancia, encuadre y holgura, y el cuerpo se materializa por el MISMO camino que un summon de tótem (banner AWAKENS, erupción, anillo de choque y temblor compartidos).
-- [ ] **3.A.2 Feedback de daño = tinte + brillo, NO animación** (`ANIMACION_RIG.md` §8): recibe demasiados impactos/segundo para que un clip termine. El clip `hit` se reserva para eventos raros (cambio de fase, rotura de armadura, stagger).
-- [ ] **3.A.3 Lenguaje visual anti-confusión.** El boss es ámbar+carbón y los Voltling también; a tamaño de boss (medido 244×293 px vs 50×58 del jugador) + doble anillo rojo se distingue, pero **revisar en vivo contra el elenco del Mapa 2** (0.5).
+- [x] **3.A.2 Feedback de daño = tinte + brillo, NO animación.** El clip `hit` se reserva para eventos raros.
+- [x] **3.A.3 Lenguaje visual baseline.** Tamaño de boss, doble anillo rojo, proyectiles con núcleo blanco y telegrafías bajo escenografía separan el encuentro. El futuro reteñido/elenco de Foundry deberá conservar esa lectura.
 
 ### 3.B Moveset por fases (dirección inicial del usuario — a prototipar y medir)
 Un cambio a la vez; validar cada fase in-game antes de la siguiente. Números en `config.ts`.
@@ -470,18 +473,18 @@ Un cambio a la vez; validar cada fase in-game antes de la siguiente. Números en
 - [x] **3.B.2 Fase 2 — Líneas de ensamblaje.** HECHO 2026-08-19: bahías en el perímetro del lado en que se juega, avisadas 1,6 s **en la bahía**, 5 refuerzos por bahía con el multiplicador de vida de la oleada viva y techo de 320 cuerpos para no pelearse con el cap del spawner. Las cintas visibles siguen dependiendo de 2.4.
 - [x] **3.B.3 Fase 3 — Sobrecarga del núcleo.** HECHO 2026-08-19: cadena de 4 zonas que nacen EN el boss y erupcionan hacia fuera por la línea del jugador, una cada 0,45 s. Anclada al boss a propósito — la etapa C del Crusher se rechazó porque la zona nacía fuera del foco que otro evento acababa de capturar. El suelo modular de 2.4 sigue pendiente.
 - [x] **3.B.4 Transiciones de fase** HECHO 2026-08-19: umbrales por vida en `FINAL_BOSS.phaseThresholds` (66%/33%), stagger de 1,4 s + erupción + banner + temblor. El clip `hit` del rig sigue sin engancharse al runtime de combate (el enjambre usa la malla instanciada), así que el beat es VFX + aturdimiento.
-- [ ] **3.B.5 Audio del boss** (Fase 4b del roadmap): telegrafías, ataques y capa musical de boss; se audita como contenido nuevo, no reabre audio v1.
-- [ ] **3.B.6 Balance del encuentro** medido sobre build comparable; sin apuntado manual (guardarraíl #4), validado a 400+ con los refuerzos activos.
+- [x] **3.B.5 Audio del boss.** Cues cableadas: `boss-sweep-charge/warn/fire`, `boss-volley`, `boss-assembly-open/spawn` y `boss-overload-open/erupt`. `boss-assembly-open` forma parte de la generación canónica de `pnpm audio:generate`.
+- [ ] **3.B.6 Balance fino** con runs humanas terminadas y `pnpm stats`. No reabre la baseline.
 
 ---
 
-## Orden sugerido
+## Backlog vigente después del cierre
 
-1. **Paso 0 — DECISIONES CERRADAS** (0.1, 0.2, 0.3, 0.4, 0.5, 0.7, 0.8). Queda solo **0.6**, que no es decisión sino tarea obligatoria: el campo `map` en el registro de muerte, ANTES de la primera run del Mapa 2.
-2. **Workstream 2** (visual foundry) en paralelo con **Workstream 1** (transición): el arena de 2.4 y el moveset de 3.B se diseñan juntos.
-3. **3.A** (enganchar el modelo ya cerrado) — barato, da un boss jugable base.
-4. **3.B** fase por fase, un cambio por playtest.
-5. Balance y audio de boss al final del bloque; playtests humanos cuando el arco entero exista en una build comparable.
+1. Remate visual de Foundry: colada/chispas y reteñido/elenco propio.
+2. Dos personajes restantes; Field Engineer ya está aprobado y no hay contratos activos de personaje.
+3. Runs humanas terminadas + `pnpm stats` para balance y retención.
+4. Pasada de cohesión de audio del contenido nuevo.
+5. Steamworks y cierre técnico. Una arena reactiva/modular sigue opcional.
 
 ## Guardarraíles que aplican a todo el bloque
 - InstancedMesh por tipo · 60 FPS con 400+ · números en `config.ts` · sin apuntado manual · nada de clonar Megabonk 1:1 · subir `version` antes de cada commit · `PROFILE` se muta en su sitio · código/UI en inglés.

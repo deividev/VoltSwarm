@@ -2,7 +2,7 @@
 
 Decisión del 2026-07-02: mantenemos la ambientación scrapyard pero la dirección de arte pasa de "óxido realista" a **juguete industrial** — robots de metal pintado con colores saturados, tipo maquinaria de obra, sobre un suelo oscuro neutro. Dibujo animado, no Mad Max.
 
-**Alcance de variantes:** el juego completo (`codex/map-2`) recorre Scrapyard / Mapa 1 → Swarm Foundry / Mapa 2 → Hazard Marshal; el arco ya es jugable, aunque su arte y combate final siguen provisionales. La Steam Demo separada contiene solo Scrapyard / Mapa 1 y termina a los 10 minutos; no transiciona a otro mapa. Volt Warden queda como diseño histórico/futuro.
+**Alcance de variantes:** el juego completo (`codex/map-2`) recorre Scrapyard / Mapa 1 → Swarm Foundry / Mapa 2 → Hazard Marshal; la baseline del combate final está cerrada en 0.22.0. La Steam Demo separada contiene solo Scrapyard / Mapa 1: boss derrotado → `Sector Cleared`, timeout sin boss → `Sector Held`; no transiciona a otro mapa ni contiene Hazard Marshal. Volt Warden queda como diseño histórico/futuro.
 
 ## Contrato visual de UI para todo personaje jugable
 
@@ -12,7 +12,7 @@ Checklist obligatorio antes de dar por integrada una incorporación:
 - [ ] La frontal transparente se muestra sobre el tile gris compartido `#444e5e`, borde `#2b3340`. La tarjeta izquierda siempre conserva retrato + nombre + estado y selección cian.
 - [ ] El estado desbloqueado dice `Unlocked`. El bloqueado usa texto visible exacto `Locked` + `assets/2d/icon-ui-lock-v2.png`; nunca emoji ni arte de candado nuevo.
 - [ ] El detalle usa un icono existente, distinto y veraz por stat; no agrupa stats no relacionados y jamás representa Armor con Shield. Números/unidades proceden de config/`CharacterDef`.
-- [ ] Encabezado de arquetipo, firma con magnitud config-derived, Recommended Weapon solo de presentación, tradeoff y Contract/progreso bloqueado son módulos obligatorios.
+- [ ] Encabezado de arquetipo, firma con magnitud config-derived, `Suggested Start` solo de presentación, tradeoff y Contract/progreso bloqueado son módulos obligatorios.
 - [ ] Menú y pre-run comparten renderer, automatización `data-character-*`, navegación teclado/gamepad, scroll responsive y gating de Confirm. La UI vigente no muestra visor 3D; la infraestructura de preview queda dormida para futuro.
 
 **Implementación vigente, no historia:** Field Engineer ya satisface este contrato usando `ref-field-engineer-front-v1.png`. Las notas cronológicas posteriores explican cómo se obtuvo el asset, pero no sustituyen este checklist.
@@ -24,12 +24,12 @@ Decisión del 2026-07-03 (usuario): el juego es de estética FUTURISTA — todos
 | Mapa | Escenario | Lenguaje visual |
 | --- | --- | --- |
 | 1 | **Fábrica abandonada** (redefinido 2026-07-06, antes "scrapyard") | Industrial con TOQUE futurista: planchas metálicas oscuras, remaches, franjas de peligro amarillas/negras, líneas de conducto cian tenues (apagadas, sin energía activa — es una fábrica MUERTA, no una en marcha) |
-| 2 | **Megafábrica futurista activa** — suelo y props CERRADOS 2026-08-17, ambiente pendiente | Centro de combate abierto; escala monumental concentrada en el perímetro mediante chimeneas de fundición. El acento de infraestructura pasó de cian a **blanco** (ver contrato abajo). Fusiona la fundición activa con el salto futurista que antes se atribuía a la ciudad orbital. |
+| 2 | **Megafábrica futurista activa** — suelo, props, cobertura, muro y cielo/niebla CERRADOS; VFX ambientales pendientes | Centro de combate abierto; escala monumental concentrada en el perímetro mediante chimeneas de fundición. El acento de infraestructura pasó de cian a **blanco** (ver contrato abajo). Fusiona la fundición activa con el salto futurista que antes se atribuía a la ciudad orbital. |
 | Post-v1 | Ciudad neón / estación orbital | Dirección conservada para un mapa posterior: emisivos, holografía y futurismo puro; ya no describe el Mapa 2 del arco base. |
 
 Regla: cada mapa nuevo se ve MÁS "futuro" que el anterior — empezás en la fábrica apagada del mundo y peleás hacia la fuente que fabrica a los robots. Las armas-herramienta (Press, Welder, Tire) viajan con el jugador y mantienen su identidad de desguace en cualquier mapa.
 
-**v1 usa 2 mapas:** Mapa 1 (fábrica abandonada/desguace) + Mapa 2 (megafábrica futurista activa y boss final). **Actualizado 2026-08-17:** el Mapa 2 ya tiene textura raster cenital final y props voxel finales (chimenea de fundición y celda de energía, tres variantes de color cada una). Lo que sigue SIN cerrar del arte del mapa es la **pasada ambiental** (resplandor de colada, chispas, y un cielo/niebla propios — hoy son globales y el Mapa 2 se juega bajo los del desguace) y el **arena del boss**. Ciudad neón/estación orbital conserva su historia como dirección futura, no se borra ni se reetiqueta retroactivamente.
+**v1 usa 2 mapas:** Mapa 1 (fábrica abandonada/desguace) + Mapa 2 (megafábrica futurista activa y boss final). **Actualizado 2026-08-20:** el Mapa 2 ya tiene textura raster cenital final, props voxel finales, cobertura, cielo/niebla propios y arena base con muro. Lo que sigue SIN cerrar es la **pasada ambiental** (resplandor de colada y chispas) y el reteñido/elenco propio. Una arena reactiva/modular queda como mejora opcional. Ciudad neón/estación orbital conserva su historia como dirección futura, no se borra ni se reetiqueta retroactivamente.
 
 ### Mapa 2 — contrato visual (actualizado 2026-08-17)
 
@@ -38,7 +38,7 @@ Regla: cada mapa nuevo se ve MÁS "futuro" que el anterior — empezás en la f�
 - **Energía: BLANCO, no cian (decisión del usuario 2026-08-17).** El cian nunca estuvo libre: es el cuerpo del Sparkrunner y el lenguaje de la maquinaria del suelo. Se evaluó la rueda entera por matiz y todo hueco saturado está tomado por el elenco o por el botín — rojo 0-20° (Rustbrute, boss), ámbar 30-45° (jugador, oro, carriles térmicos), amarillo 50-60° (Voltling), lima 95° (Gunner), cian 176° (Sparkrunner), azul 210-230° (canales del suelo), violeta 275° (Roller), magenta 320° (Drone, élites). El blanco no puede colisionar con ninguna señal de gameplay por construcción.
 - **Los props no compiten con la acción, pero cada uno a su manera.** Estructura grande = masa oscura por debajo de la luminancia del suelo (~62); prop pequeño = tono medio que destaca de él. Por eso la chimenea usa cinco de los siete tonos medidos de la celda de energía pero al revés: la celda toma los claros, la torre los oscuros.
 - **Variantes de color:** props OSCUROS varían **temperatura y luminancia**, porque el toon cuantiza a 3 pasos y a luma ~38 un cambio de matiz puro desaparece; props de TONO MEDIO sí admiten **matiz**, que es por lo que el trío mostaza/teal/mauve del Mapa 1 funciona y no se puede copiar tal cual a una torre.
-- **Pendiente:** pasada ambiental (2.5 de `PLAN_MAPA2.md`) y arena del boss (2.4). Cielo, niebla y luces siguen siendo GLOBALES: el Mapa 2 se juega bajo los del Mapa 1.
+- **Pendiente:** pasada ambiental (2.5 de `PLAN_MAPA2.md`) y reteñido/elenco propio. La arena base, el muro, cielo y niebla por mapa ya están implementados.
 
 ## Por qué
 

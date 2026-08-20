@@ -2,7 +2,20 @@
 
 ## Alcance de variantes — fuente de verdad
 
-**Juego completo (`codex/map-2`):** Mapa 1 / Scrapyard → Mapa 2 **Swarm Foundry** → **Hazard Marshal**. El arco y el finale ya son jugables; Hazard Marshal conserva `modelKey: 'final-boss'`. Su integración y combate actuales son provisionales: faltan moveset autorado definitivo, arena y balance. Volt Warden es diseño histórico/futuro, no el boss final vigente.
+**Juego completo (`codex/map-2`):** Mapa 1 / Scrapyard → Mapa 2 **Swarm Foundry** → **Hazard Marshal**. Hazard Marshal conserva `modelKey: 'final-boss'` y su baseline jugable quedó **CERRADA en el candidato 0.22.0**: llegada propia, arena despejada con muro, fuego retenido en las 11 armas, combate de tres fases, sweep/volley/assembly/overload, refuerzos, audio y desenlace. Solo quedan diferidos el balance fino con runs humanas y una posible arena reactiva/modular. Volt Warden es diseño histórico/futuro, no el boss final vigente.
+
+### Snapshot vigente — candidato 0.22.0 (2026-08-20)
+
+| Área | Estado real |
+| --- | --- |
+| Arco | Mapa 1 exige 10:00 + ≥1 boss; sin boss termina `OBJECTIVE FAILED` (`boss-required`). El cruce conserva build, nivel, XP y descartes, cura al 100% y deja oro en 0. El crédito final depende de sectores acreditados; matar solo al boss final sin crédito previo no produce `run-complete`. |
+| Foundry | Suelo raster, chimeneas/celdas, cobertura, muro de arena y cielo+niebla propios ya están implementados. Curva `{ floor: 0.7, peak: 1.15, rampS: 600 }`; HP usa el reloj del arco; roster local ×2.5; contacto swarm ×1.5 y boss ×1.25. Pendientes: colada/chispas y reteñido o elenco propio. |
+| Perfil y contenido | Armas 2→3; Cores 2→4; descartes 3→4. 11 armas registradas / 10 jugables (Oil deshabilitada), 20 Cores, 17 Mods y 29 contratos declarados / 27 activos / 2 latentes. Field Engineer es el único personaje implementado; no hay contratos activos de personaje. |
+| Recompensas | Cofres pagados a 0.5× entregan Mods. Skip/descartes está implementado; Reroll y Banish siguen pendientes. Barrier Cell: 30 s base, −3 s por copias 7–10, mínimo 18 s, cap 10. La recomendación de arma del personaje se presenta como `Suggested Start`, nunca como obligación. |
+| Audio | Audio v1 aceptado. Las recetas y manifiestos están versionados, pero la reconstrucción completa del pack runtime activo aún no está unificada en un solo comando; `pnpm audio:generate` sí cubre foundation, navegación UI y `boss-assembly-open`. El finale tiene cues propias `boss-sweep-charge/warn/fire`, `boss-volley`, `boss-assembly-open/spawn` y `boss-overload-open/erupt`. Oil emite `oil-drop`, pero el evento no está enabled ni en el manifiesto y permanece silencioso. |
+| Entrega | Working tree `0.22.0`; `HEAD` todavía `0.21.0`. `shortMaps=false`; `mapTransitionKey=true` y `finaleKey=true`, por lo que `pnpm package` sigue bloqueado. No existe paquete 0.22.0. |
+
+**Siguiente secuencia:** remate visual de Foundry → 2 personajes restantes → runs humanas y `pnpm stats` para balance/retención → cohesión de audio del contenido nuevo → Steamworks/cierre.
 
 ## Swarm Foundry — escenografía del Mapa 2 (2026-08-17, v0.13.49 → 0.13.55)
 
@@ -20,9 +33,9 @@
 
 **Rendimiento validado:** 430 enemigos, mediana de frametime 8.30 ms y p99 8.50 ms contra un período de vsync de 8.33 — sigue limitado por el refresco, no por la carga.
 
-**Pendiente del bloque visual:** pasada ambiental (resplandor de colada, chispas), cielo/niebla propios del mapa (hoy son globales y el Mapa 2 usa los del Mapa 1), arena del boss y reteñido del elenco de enemigos a la paleta de fundición.
+**Pendiente del bloque visual:** pasada ambiental (resplandor de colada, chispas) y reteñido/elenco propio de enemigos. El cielo y la niebla por mapa, el despeje del arena y su muro base ya están implementados; una arena reactiva/modular queda como mejora opcional.
 
-**Steam Demo (`codex/demo-map1`, separada):** solo Scrapyard / Mapa 1; termina a los 10 minutos como `SECTOR CLEARED`, sin transición a Mapa 2. No describe el flujo ni los metadatos de producto de esta rama de juego completo.
+**Steam Demo (`codex/demo-map1`, snapshot separado `0.13.39-demo`):** solo Scrapyard / Mapa 1. Boss derrotado → `SECTOR CLEARED`; timeout sin boss → `SECTOR HELD`. No transiciona a Mapa 2 ni contiene Hazard Marshal, y no describe el flujo ni los metadatos de producto de esta rama de juego completo.
 
 Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decisiones del playtest del usuario y el estudio de la base de Megabonk. Método: `docs/METODO_DISENO.md`. Arte: `docs/DIRECCION_ARTE.md`. Diseño de mejoras: `docs/DESIGN_MEJORAS.md`.
 
@@ -67,7 +80,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
 3. ⏸️ **Preparación/viabilidad multijugador — DIFERIDA A POST-LANZAMIENTO (decisión del usuario 2026-07-25).** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno, para una feature que `MULTIPLAYER_FEASIBILITY.md` documenta como no diferenciadora, no prometida y que puede terminar NO-GO — mientras el contenido que decide si el juego vale su precio quedaba comprimido. Del gate se rescató solo la mitad barata: cobertura de smoke tests. **El determinismo de tick fijo, el RNG sembrado y los snapshots siguen sin implementar**, y por eso tampoco se guarda semilla en los registros de run. Si el gate se retoma y da GO, el primer objetivo sigue siendo exactamente 2 jugadores local split-screen; online peer-host exige aprobación posterior; hybrid y dedicated servers quedan fuera de alcance.
-4. 🟡 **AHORA:** arco completo jugable (Mapa 1 → Mapa 2 conservando build → Hazard Marshal provisional). **Escenografía del Mapa 2 cerrada 2026-08-17** (v0.13.49→0.13.55): suelo raster, chimeneas de fundición en anillo y campo, celdas de energía, todo con variantes de color y rendimiento validado a 430 enemigos. Queda del bloque visual: pasada ambiental, cielo/niebla por mapa, arena del boss y reteñido del elenco. El siguiente trabajo grande es el **moveset definitivo del Hazard Marshal**; después, 3 personajes diferenciados → balance y retención con datos reales → catálogo de audio → Steamworks/cierre.
+4. 🟡 **AHORA:** arco completo jugable con Hazard Marshal baseline cerrada en 0.22.0. El siguiente trabajo es el remate visual de Foundry (colada/chispas + reteñido/elenco propio); después, 2 personajes restantes → balance y retención con runs humanas → cohesión de audio del contenido nuevo → Steamworks/cierre.
 
 ## P1 — Estructural
 
@@ -88,11 +101,11 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
   - **Sustain (2026-08-11):** Nanobot Swarm cura `1/6, 2/6, 3/6, 4/6, 5/6` HP cada 10 s por tier; tanto la carta como la ficha lo presentan como `1/2/3/4/5 HP/min`, derivado de la misma configuración. Hull Plates aumenta solo el Max HP: no modifica el HP actual ni activa Field Repair. Field Repair cura 1% del HP máximo tras instalar o subir cualquier otro Core durante gameplay. La ficha muestra una fila `Max HP` con el total vivo del jugador. Leech Coil usa `0.1/0.5/1/1.5/2%` de probabilidad por golpe para curar exactamente 1 HP, con un cooldown global de 1 s entre curaciones.
   - **Compatibilidad del draft (2026-07-17):** un core dependiente de arma solo entra si al menos un arma o mod instalado consume realmente ese stat. La matriz explícita cubre Range, Projectile Speed, Area, Duration y Projectile Count; los stats universales permanecen siempre disponibles. Así una elección de socket permanente nunca es una carta sin efecto para la build actual.
   - Chaos Module usa la misma matriz y la misma regla de valor marginal que el draft directo: no puede elegir un stat incompatible ni Crit Chance o Lifesteal cuando ya alcanzaron su cap efectivo. Crit Chance y Lifesteal se limitan además a 100%; Crit Damage y los stats sin techo siguen sin cap artificial.
-  - **Mods:** cada mod tiene **UN tier FIJO e intrínseco** (definido en `MOD_REGISTRY`, no se tira). Los 17 mods se reparten así: **5 gris, 4 verde, 3 azul, 4 morado, 1 dorado**. El cofre/tienda tira un tier (luck-weighted) y entrega un mod de ESE tier; nunca cambia el tier de un mod concreto. Barrier Cell es azul: sus copias 1–6 suman una carga hasta 6; las 7–10 bajan la recarga de 8 a 4 s. Al llegar a 10 copias deja de entrar en cofre/tienda. Overload Trigger y Orb Siphon son morados/Epic. Overload conserva x2 attack speed durante 5 s y cada copia adicional añade 2 s. Orb Siphon solo puede ser premio de cofre una vez por run; después se excluye de candidatos de cofres, sin cambiar su efecto ni el comportamiento existente del chatarrero.
+  - **Mods:** cada mod tiene **UN tier FIJO e intrínseco** (definido en `MOD_REGISTRY`, no se tira). Los 17 mods se reparten así: **5 gris, 4 verde, 3 azul, 4 morado, 1 dorado**. El cofre/tienda tira un tier (luck-weighted) y entrega un mod de ESE tier; nunca cambia el tier de un mod concreto. Barrier Cell es azul: sus copias 1–6 suman una carga hasta 6; las 7–10 bajan la recarga 30→27→24→21→18 s (−3 s por copia, mínimo 18 s). Al llegar a 10 copias deja de entrar en cofre/tienda. Overload Trigger y Orb Siphon son morados/Epic. Overload conserva x2 attack speed durante 5 s y cada copia adicional añade 2 s. Orb Siphon solo puede ser premio de cofre una vez por run; después se excluye de candidatos de cofres, sin cambiar su efecto ni el comportamiento existente del chatarrero.
   - **Armas / Habilidades (cambio de playtest 2026-07-17):** progresan por **NIVEL (Lv1-20)**, pero cada mejora de un arma YA instalada tira tier. El tier escala la magnitud de ESE incremento siguiendo el patrón de referencia de Megabonk: gris/Common ×1 · verde/Uncommon ×1.2 · azul/Rare ×1.4 · morado/Epic ×1.6 · dorado/Legendary ×2. La carta muestra el valor real resultante (p. ej. Tire Fire: +10/+12/+14/+16/+20% damage). Desbloquear un arma sigue siendo azul/base y los milestones discretos de cantidad en Lv3/Lv5 siguen otorgando +1 unidad solo a Bolt Cannon, Orbital Blades, Tire Fire, Turbine Fan y Junk Ricochet; la rareza escala sus mejoras continuas, no proyectiles fraccionarios.
   - Precios de cofre/tienda por tier (escalan con el minuto de run): gris 25 / verde 45 / azul 80 / morado 140 / dorado 240 (`MERCHANT.tierPrices`).
 - **Contrato visual de cofres (playtest 2026-08-09):** cada cofre activo que esté dentro de la pantalla muestra permanentemente un marcador compacto con SOLO el icono de chatarra y su precio vigente. Verde indica que se puede pagar y rojo que falta chatarra; no muestra tier, texto de estado, panel, fondo, borde ni información adicional. El marcador se proyecta desde el mundo sin depender de la distancia ni aplicar escalado manual; UI Scale lo amplía mediante el zoom global de Electron. Los cofres fuera de pantalla no generan flechas. Este marcador es informativo: solo `nearestOpenable()` y `CHEST.interactRadius` habilitan la interacción, y la fórmula económica permanece `round(tierPrice × CHEST.priceMult)`.
-- Cofres: recompensas de stats generales estilo Megabonk — +Luck, +Area, +Dificultad (con +XP a cambio) — además de reparar/cache/frenzy/haste existentes.
+- **HISTÓRICO / SUPERSEDED:** el diseño temprano de cofres con recompensas directas de stats generales fue retirado. El cofre vigente es de pago (`tierPrice × 0.5`), fija su tier al aparecer y entrega exclusivamente un Mod elegible de ese tier.
 - Los cofres pagados excluyen Repair Kit cuando el jugador ya está a vida completa. Si el propio cofre entrega la primera copia de Orb Siphon, ese mismo cofre ya activa la aspiración global; desde entonces Orb Siphon deja de entrar en candidatos de cofres durante esa run. Barrier Cell es un Mod azul unificado de cofre/tienda, nunca una carta de level-up ni Chaos: cada copia tiene valor visible y acumulativo, primero capacidad y luego recarga.
 - Pase Steam 2026-07-15: abrir un cofre dispara un burst voxel dorado/blanco y shake corto; si Orb Siphon está activo, la vacuum de XP usa burst azul/blanco en el jugador y los orbes arrancan más rápido con un pulso de escala para leerse mejor en GIFs.
 - TEMP test 2026-07-15 → REVERTIDO Y CERRADO 2026-07-17: `RECORDING.chestTesting.forceGreenChests`, `forceOrbSiphonReward` y `RECORDING.levelUpDraft.enabled` están en `false`; `GOLD.startingGold` está en `0`. Todos los rigs temporales de captura están desactivados.
@@ -196,13 +209,13 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 - En el Mapa 1, matar al boss NO termina el sector: suelta 3 cofres + su orbe de XP y a los ~25 s se alza un nuevo tótem cuyo boss tiene +60% de vida. Al llegar a 10:00, la run cruza al Mapa 2 solo si ya cayó un boss; si no, termina inmediatamente como derrota. Cuando cruza, el reloj del mapa se reinicia, pero el reloj total y la build continúan.
 - Cada final de run persiste un registro local versionado con resultado, mapa donde terminó, versión del build, fecha, duración total, `sectorsCleared`, `mapsReached`, nivel, kills, bosses, build completa y daño real por arma. Son datos crudos para poder separar rendimiento por mapa y distinguir una run completa de una derrota larga sin inferirlo por duración.
 - Pase Steam 2026-07-15: el spawn de boss tiene beat de materialización reforzado con burst rojo, núcleo blanco, anillo de impacto y shake dedicado (`VISUAL.bossSummonVfx`) para que el título `AWAKENS` sea capturable.
-- **Primera versión jugable del arco (2026-08-09, PROVISIONAL):** Mapa 1 durante 10 minutos + boss obligatorio → transición → Mapa 2 durante 10 minutos → Hazard Marshal → `RUN COMPLETE` únicamente al derrotarlo. Se limpian solo actores y efectos locales del mapa; el jugador reaparece en el centro seguro.
+- **Arco vigente (actualizado 2026-08-20):** Mapa 1 durante 10 minutos + boss obligatorio → transición → Mapa 2 durante 10 minutos → Hazard Marshal baseline 0.22.0. `RUN COMPLETE` requiere crédito estructural de ambos sectores; se limpian actores/efectos locales y el jugador reaparece en el centro seguro.
 - **🔑 Qué se conserva al cruzar (decisión cerrada 2026-08-15, v0.13.41 — sustituye al comportamiento anterior de arrastrar oro y HP):**
   - **Se conserva:** armas, cores, mods, niveles, potencia acumulada, **descartes de level-up** y contadores de run. El reloj total sigue corriendo.
   - **Vida: se cura al 100%.** Cruzar es un premio, no un castigo por haber sobrevivido justo.
   - **Oro: empieza de 0.** La economía del Mapa 2 arranca limpia.
   - **XP:** el nivel se conserva y la curva no se toca — `xpForLevel` depende solo del nivel, así que subir "alineado a la oleada" ocurre por construcción (el Mapa 2, más denso, suelta más orbes).
-  - **Dificultad:** el Mapa 2 tiene su propio reloj y arranca en `difficultyOffsetS: 240` (≈ la presión del minuto 4 del Mapa 1) para no ser un clon; valor provisional, a calibrar con `npm run stats` segmentada por mapa.
+  - **Dificultad vigente:** Foundry usa `{ floor: 0.7, peak: 1.15, rampS: 600 }`; HP lee el reloj de arco y el roster avanza con reloj local ×2.5. Calibrar con `pnpm stats` segmentada por mapa.
 - **Transición animada de sector (2026-08-16, v0.13.43-0.13.47):** el cambio de mapa dejó de ser un salto de un frame. Estado `map-transition` (espeja a `defeat-transition`): cortina a negro → **el mundo se cambia oculto en el negro pleno** → hold sobre el nombre del sector → fundido de entrada. Duración total **2.8s** en `config.MAP_TRANSITION` (0.8 / 1.1 / 0.9), alargada desde 1.55s tras playtest. La **música cabalga la misma curva** que la cortina (silencio al negro, vuelta al aparecer el mapa), y el nombre del sector entra con animación escalonada `steps()` al llegar al negro. Pendiente: sting propio y camas de música por mapa (0c del roadmap).
 - **Fallo del gate = `OBJECTIVE FAILED` (2026-08-15, v0.13.41):** si la run llega a 10:00 sin haber derrotado un boss, la pantalla de resultados dice explícitamente que faltó el objetivo, en vez del `SYSTEM OVERLOAD` genérico de muerte. La muerte por daño conserva su pantalla de siempre.
 - **Atajos de desarrollo del arco (gateados, el guard de release aborta el empaquetado si quedan encendidos):** `DEV_TOOLS.simulateMap1Handoff` arranca la run directamente en el Mapa 2 con la build de la última run grabada superpuesta, como si se hubiera cruzado; `DEV_TOOLS.mapTransitionKey` añade la tecla **T**, que ejecuta la transición REAL (con su animación) y aterriza en el mapa siguiente con esa misma build. El avance del arco usa la función `enterMap` de `run-flow.ts`, la misma del cruce real, para que el atajo no pueda divergir de lo que ve el jugador.
@@ -291,7 +304,7 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 ## Pipeline de modelos voxel 2D→3D — Implementado 2026-07-04
 
 - **Sistema**: referencia frontal plana por personaje (`assets/2d/ref-*.png`, gpt-image) → voxelización automática (`src/models/icon-voxelizer.ts`) → registro central (`src/models/registry.ts`). `EnemySystem.upgradeVoxelModels()` intercambia async la geometría de cualquier tipo de enemigo/boss registrado; sin entrada o si falla la carga, se mantienen las primitivas (fallback seguro).
-- **Estado actual**: los modelos del enjambre están cableados y validados visualmente con densidad alta. **Hazard Marshal** ocupa el slot `final-boss` y ya entra en juego provisionalmente mediante `EnemySystem`; el pod **Volt Warden** reconstruido conserva sus hojas como diseño disponible para un enemigo futuro.
+- **Estado actual**: los modelos del enjambre están cableados y validados visualmente con densidad alta. **Hazard Marshal** ocupa el slot `final-boss` y su baseline jugable está cerrada en 0.22.0; el pod **Volt Warden** reconstruido conserva sus hojas como diseño disponible para un enemigo futuro.
 - **Herramientas**: `tools/capture-model-preview.mjs <clave>` (viewer con luz del juego) y `tools/capture-ingame.mjs [segundos]` (arranca el juego headless, juega y captura).
 - **Criterio de aceptación por modelo**: silueta distinguible a distancia de cámara, paleta exacta, triángulos por instancia en presupuesto (enemigos ~3-6k), y validación final con 400+ enemigos activos.
 - **Pase de fidelidad 2026-07-13 (gate de captura)**: los 6 enemigos + jugador migrados de extrusión front-only al pipeline de hojas MEDIDAS de los bosses (`sideProfileRef` + `backPaintRef` — la cámara a 52° ve espaldas/techos y ahora están pintados de verdad); Sparkrunner rediseñado a v5 con brazos (aprobado); excepción Drone (solo espalda pintada — el perfil medido del rotor tapaba el techo); **greedy meshing en Y** en `voxel-builder.ts` (-27% a -66% de triángulos, visual idéntico). Rim light probado y rechazado por el usuario (revertido).
@@ -300,7 +313,7 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 ## v3 — Expansión de contenido (implementada 2026-07-03, del plan de COMPARATIVA_MEGABONK.md)
 
 - **Sistema de estados alterados**: slow (factor + duración), daño en el tiempo (ticks de 0.5 s por el embudo normal de daño) y knockback con decaimiento. Bosses inmunes al knockback. API en `EnemySystem.applySlow/applyDot/applyKnockback`.
-- **Capas defensivas**: Evasion (esquiva con retornos decrecientes, muestra "MISS"), Shield (absorbe antes que la vida; solo existe si la build tiene Barrier Cell y se representa como placas cian orbitando al jugador — `Player.setShieldCharges`, NO una barra en el HUD; cada carga bloquea un golpe completo. `MODS.barrierCell` define 1–6 cargas y copias 7–10 de recarga 8→4 s), Thorns (refleja al contacto), Lifesteal (% de robar 1 HP por golpe). Embudo único de daño al jugador en `Game.damagePlayer`.
+- **Capas defensivas**: Evasion (esquiva con retornos decrecientes, muestra "MISS"), Shield (absorbe antes que la vida; solo existe si la build tiene Barrier Cell y se representa como placas cian orbitando al jugador — `Player.setShieldCharges`, NO una barra en el HUD; cada carga bloquea un golpe completo. `MODS.barrierCell` define 1–6 cargas y copias 7–10 de recarga 30→27→24→21→18 s, −3 s por copia y mínimo 18 s), Thorns (refleja al contacto), Lifesteal (% de robar 1 HP por golpe). Embudo único de daño al jugador en `Game.damagePlayer`.
 - **Cartas nuevas**: Ghost Plating, Rusty Spikes, Leech Coil, Capacitor Bank (Duration: alarga buffs y estados) y Chaos Module (stat aleatorio a la rareza de la carta). Barrier Cell pertenece al pool unificado de Mods, no a cartas.
 - **5 armas nuevas (draft de 11)**: Oil Sprayer (charcos que ralentizan, 0 daño — control puro), Acid Drum (zonas corrosivas con DoT; renombrada de "Acid Flask" el 2026-07-05 para encajar con la estética industrial/futurista), Turbine Fan (tornados con knockback), Junk Ricochet (rebota entre enemigos), Dismantler (garra que EJECUTA no-bosses bajo 15% de vida — primera arma "twist").
 - Verificado headless: estados, defensas, cartas y las 5 armas ejercitadas; 120 FPS con zonas activas y enjambre.
@@ -322,7 +335,7 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 ## Fuera de alcance actual
 - Multiplayer/co-op: no implementado ni anunciado; solo existe el gate interno de viabilidad de `docs/MULTIPLAYER_FEASIBILITY.md`. Local/Remote Play persistiría solo en el save host/local; la progresión por cuenta de invitados no está prometida. Native online solo podría persistir cuentas propias tras validación host-authoritative.
 - Dedicated servers: fuera de alcance.
-- Meta-progresión entre runs, moneda, mapas múltiples y evolución de armas: post-validación. **Field Engineer** is the playable starting character, and its runtime model v1 is definitively approved in-game. The other two launch characters remain out of scope with no committed designs (`DISENO_PERSONAJES.md`).
+- **Ya no están fuera de alcance:** la meta-progresión por perfil/Contratos y el arco de dos mapas están implementados. Siguen fuera del cierre actual una moneda meta y la evolución de armas. **Field Engineer** is the playable starting character, and its runtime model v1 is definitively approved in-game. The other two launch characters remain out of scope with no committed designs (`DISENO_PERSONAJES.md`).
 
 ### Personajes — Field Engineer
 
@@ -379,7 +392,7 @@ Successful local packaged Electron run via `pnpm benchmark:audio`: deterministic
 
 ## Perfil persistente y Contratos — Implementado 2026-07-25 (v0.5.6)
 
-La release activa de Steam Playtest Wave 1 en `main` es `0.10.5-beta`: admite exclusivamente esa build empaquetada y reutiliza la epoch `wave-1-rc-2026-08`. La rama de desarrollo `codex/map-2` usa `0.12.6` con el master desactivado y `resetEpoch: null`, así que ni procesa un marcador pendiente ni vuelve a resetear grabaciones. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
+**Snapshot operativo histórico (SUPERSEDED):** Steam Playtest Wave 1 en `main` usaba `0.10.5-beta` y `codex/map-2` usaba `0.12.6` con telemetría desactivada. Se conserva para explicar la costura de reset/consentimiento, no como versión vigente. El consentimiento de telemetría nunca autoriza un borrado, que exige confirmación propia. El marcador `userData/playtest-reset.json` sigue siendo transaccional y settings/consentimiento/identidad/cola quedan fuera del reset.
 
 Reemplaza al panel dev de Unlocks como motor de progresión. **No hay moneda meta**: los contratos son el único motor (decisión cerrada).
 
@@ -402,7 +415,7 @@ Reglas que no se rompen:
 
 Los registros pasan a `userData/run-history.json` (antes solo `localStorage`, dentro del LevelDB de Chromium, ilegible para herramientas). `migrateRunHistory()` corre al arrancar, no de forma perezosa: migrar dentro de `loadRunHistory()` solo se disparaba al TERMINAR una run. **Aviso: `localStorage` es por ORIGEN** — lo escrito por un build empaquetado vive bajo `file://` y una sesión de dev server ve otro almacén.
 
-Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (reservado), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, `sectorsCleared`, `mapsReached` y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). La completitud es **estructural** (`run-complete` o todos los sectores), nunca `durationS >= N`: una derrota larga en el Mapa 2 no es una run completa. Los registros antiguos conservan compatibilidad sin inventar progreso a partir del reloj. **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
+Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (activo: hoy registra Field Engineer y queda listo para ampliar el roster), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, `sectorsCleared`, `mapsReached` y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). La completitud es **estructural** (`run-complete` o todos los sectores), nunca `durationS >= N`: una derrota larga en el Mapa 2 no es una run completa. Los registros antiguos conservan compatibilidad sin inventar progreso a partir del reloj. **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
 
 ### Ciclo reutilizable de telemetría privada — `main` activa / Mapa 2 inert
 
@@ -507,7 +520,9 @@ El aterrizaje y el reveal son **una única aparición continua** del premio. La 
 
 **Volt Pulse: cooldown 2.4 → 1.4s, daño sin tocar.** Su daño no era el problema: a 10 por pulso cada 2.4s necesita ~4 enemigos en el radio solo para igualar a Bolt Cannon, y esa densidad no existe en los primeros minutos — un arma de media run en manos de quien empieza. Subir el daño habría inflado el late, donde ya es fuerte. El coste real era el aire muerto: a diferencia de Orbital Blades, donde el jugador controla el contacto moviéndose, Pulse no ofrece nada que hacer entre disparo y disparo.
 
-## Mapa 2 + boss final — primera versión jugable PROVISIONAL (2026-08-02, v0.10.6-beta)
+## HISTÓRICO/SUPERSEDED — primera versión jugable provisional del Mapa 2 (2026-08-02, v0.10.6-beta)
+
+> Este snapshot explica el origen del bloque, pero ya no describe el estado actual. La fuente vigente está al principio del PRD y en la sección Hazard Marshal de 0.22.0.
 
 ### Megafábrica futurista activa
 
@@ -546,7 +561,7 @@ Dos, ambas opt-in, ninguna cambia el comportamiento de los modelos existentes:
 - **`recolorRegions`** (`registry.ts`): igual que `recolorMap` pero acotado a una banda de altura, con `from`/`to` como fracciones **desde arriba** (la convención de `segments`) mientras la Y de la malla va de abajo arriba. Es lo que permite que un modelo lleve dos esquemas de color a la vez.
 - **`sidePaint`** (`icon-voxelizer.ts`): usa los COLORES de la hoja lateral, no solo su profundidad, para pintar las caras exteriores izquierda/derecha. Sin esto la lateral se consumía solo para `rowHalfDepth` y los flancos vestían el color del borde de la silueta frontal estirado hacia atrás. El flanco es exactamente el X mínimo/máximo de cada `(y, z)`, así que pinta dato real **sin poder alterar la silueta** — esa es la diferencia con `voxelizeMultiView`, que también pinta color lateral pero talla el hull como producto cruzado y **fusiona los miembros que cuelgan sueltos**. Probado en este modelo: fusionó los guanteletes al torso, descartado.
 
-### Pendiente
+### Pendiente en aquel snapshot (SUPERSEDED por 0.22.0)
 
 - **Gameplay final:** faltan fases, telegrafías y patrones autorados, relación definitiva con el arena y animaciones de ataque. El patrón radial actual es provisional y reemplazable.
 - **Arte final del mapa:** no existen todavía assets raster finales, props voxel finales ni una pasada de iluminación/ambiente aprobada por el usuario.
@@ -821,11 +836,16 @@ pasa por el mismo `enterMap` que un cruce real.
 
 ---
 
-## Hazard Marshal — llegada telegrafiada y moveset de 3 fases (2026-08-19, v0.15.0)
+## Hazard Marshal — baseline jugable CERRADA (2026-08-20, candidato v0.22.0)
 
-Cierra 3.A.1 y las tres fases de 3.B de `PLAN_MAPA2.md`. Sustituye al arnés
+Cierra el Workstream 3 de `PLAN_MAPA2.md`. Sustituye al arnés
 provisional de integración: el boss final ya no es "un cuerpo que persigue y
 descarga", sino un encuentro con entrada propia y escalada legible.
+
+> **Cómo leer esta sección:** es un changelog cronológico del cierre. Los valores
+> de las primeras tandas (por ejemplo, el despeje inicial del arena) son historia
+> de implementación; las tandas posteriores y el snapshot al principio del PRD
+> mandan cuando un número o estado evolucionó.
 
 ### El sector se reabre como ARENA antes de que llegue el boss
 
@@ -971,6 +991,42 @@ porque cuatro eventos compartían un frame y la zona nacía fuera del foco que e
 resto ya había capturado. Aquí origen y destino siempre están en pantalla y nada
 más dispara durante una cadena.
 
+### La entrada del boss es suya: fuego en pausa y la orden se oye (2026-08-20)
+
+Dos huecos que quedaban abiertos del finale, los dos del mismo momento.
+
+**1. Las armas disparaban sobre la llegada.** Durante los 2,5 s del aviso el
+campo está vacío (arena reiniciada + `enemies.wavesPaused`), pero solo 4 de las
+11 armas comprueban si hay enemigos antes de disparar. Volt Pulse, Hydraulic
+Press, Acid Drum y Dismantler seguían soltando losas, ácido y zarpazos contra la
+nada, con las sierras zumbando encima, justo en el momento más importante del
+arco. Ahora `CombatCtx.holdFire` corta la DESCARGA mientras corre el
+telegrafiado (`FINAL_BOSS.arrival.holdPlayerFire`): las órbitas siguen girando y
+los cooldowns siguen corriendo — la pelea abre con la salva que se les debía —
+pero nada dispara ni suena encima de la entrada. **Solo el finale**: en el Mapa 1
+el portal se carga con el enjambre encima y frenar el fuego mataría al jugador.
+
+**2. La orden de abrir las líneas de ensamblaje no sonaba.** Emitía
+`boss-attack`, un id que nunca estuvo en `enabledEvents`, así que moría dentro de
+`emit()`; sonaba solo su consecuencia (`boss-assembly-spawn`, cada bahía
+materializando cuerpos) y no la causa. Nueva cue **`boss-assembly-open`**
+(`tools/audio/prototype-r39-assembly-open.mjs`): dos contactores cerrando y los
+motores de línea arrancando, en el boss, 1,4 s antes de que caiga nada. El id
+genérico se eliminó del código: una cue muerta que aparenta sonar es peor que
+uno que falta.
+
+Se diseñó **midiendo**, no de oído, contra las cues hermanas. La primera versión
+salió con centroide 230 Hz y un 1% de energía sobre 2 kHz — más oscura que
+`boss-overload-open` (313 Hz), que es justo la que tiene que distinguirse — y con
+la misma envolvente descendente. La versión final invierte las dos cosas:
+**29% de energía en medios** contra el 10% de la de sobrecarga (mecánico, no
+presión) y una envolvente que **CRECE hasta 0,4 s** mientras la otra decae. Esa
+diferencia de forma sobrevive a una mezcla cargada mejor que cualquier
+diferencia de timbre.
+
+Verificado en Electron: `boss-assembly-open` arranca voz real, y durante el
+telegrafiado se cuentan **0 voces de arma**.
+
 ### La barra tiene que enseñar el golpe que mata (2026-08-20)
 
 Queja del usuario: "queda raro ver que tengo 15 de vida y muero". Y era
@@ -1035,7 +1091,7 @@ la escalada solo era legible en el instante en que parpadea el banner.
 
 ### Verificación
 
-- `pnpm test` incluye `tools/final-boss.test.mjs` (14 pruebas): geometría de la
+- `pnpm test` incluye `tools/final-boss.test.mjs`; el cierre del candidato suma **36/36 pruebas del boss**: geometría de la
   cuña contra su regla de impacto, puntería fijada, escalada de fases, refuerzos
   con la vida correcta y con techo, una telegrafía por frame, `reset` limpio,
   reglas de render, y el anillo de llegada contra proyecciones reales a 16:9,
@@ -1050,19 +1106,18 @@ la escalada solo era legible en el instante en que parpadea el banner.
   finale con una sola pulsación de Y desde el Mapa 1, así que requiere
   `DEV_TOOLS.finaleKey`.
 
-### Pendiente
+### Fuera del cierre de la baseline
 
 - Balance del encuentro con datos de runs humanas (`pnpm stats`): los números de
   daño, cooldowns y umbrales son primeros valores razonados, no medidos en juego.
-- Audio propio (3.B.5): los ataques emiten `boss-attack`, que hoy no tiene asset
-  y suena en silencio; el cambio de fase reutiliza `boss-awaken`.
+- Audio propio **cerrado para esta baseline**: `boss-sweep-charge/warn/fire`,
+  `boss-volley`, `boss-assembly-open/spawn` y `boss-overload-open/erupt` están
+  cableados. `boss-assembly-open` se reproduce desde un checkout limpio mediante
+  la ruta canónica `pnpm audio:generate`; `boss-attack` fue retirado.
 - Arena reactiva de 2.4 (suelo sectorizado, bahías visibles, suelo modular): las
   fases funcionan hoy con telegrafías propias, sin depender del layout.
-- **Decisión 0.8 sigue abierta a medias:** el reinicio limpia el campo, pero el
-  spawner normal sigue corriendo, así que el enjambre se rellena mientras se
-  pelea (identidad bullet heaven; los refuerzos de Fase 2 se suman encima). Si
-  el playtest pide una arena de boss "pura", la palanca es pausar el spawner
-  mientras `finaleStarted`, no bajar la curva.
+- **Oleadas normales: CERRADO.** `enemies.wavesPaused` permanece activo durante
+  el finale; solo entran los refuerzos que el propio Marshal invoca.
 ### Decisión 0.8 CERRADA: durante el finale no entran oleadas
 
 `enemies.wavesPaused` se deriva de `runFlow.finaleStarted` cada frame, así que
@@ -1279,9 +1334,10 @@ un solo ataque con dos colores y el jugador no tendría nada que aprender.
 
 Verificado en runtime: los dos eventos llegan al director durante la Fase 3.
 
-**Siguen mudos a propósito** (emiten `boss-attack`, que no tiene asset): la
-descarga radial y la llamada de refuerzos. Son los siguientes candidatos si el
-combate pide más voz.
+**HISTÓRICO / SUPERSEDED:** en esta tanda la descarga radial y la llamada de
+refuerzos seguían mudas y emitían el placeholder `boss-attack`. El estado vigente
+retiró ese id genérico: assembly usa `boss-assembly-open/spawn` y el resto del
+finale dispone de sus cues específicas documentadas en la baseline 0.22.0.
 
 ### Por qué no se oían: el manifiesto de runtime es un artefacto de build (2026-08-19)
 

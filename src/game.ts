@@ -1684,6 +1684,10 @@ export class Game {
    *  transitionToMap: no sector is credited, no map is swapped and the arc
    *  state is untouched — this is the same sector reopening as an arena. */
   private openFinaleArena(): void {
+    // WeaponManager.reset() clears its loop edge trackers, not AudioDirector's
+    // keyed voices. Retire the old arena's sustained loops while the curtain is
+    // black so returning to `playing` cannot restore them over the arrival.
+    this.audio.stopLoopsByKeyPrefix('weapon-loop-');
     this.resetForMapTransition();
     // Behind the black: the rig gets the rest of the curtain plus the arrival
     // telegraph to build, instead of stalling the frame the boss lands on.
@@ -1918,6 +1922,13 @@ export class Game {
     const ctx: CombatCtx = {
       stats: combatStats,
       enemies: this.enemies,
+      // Weapons hold while the Marshal is arriving (user 2026-08-20). The arena
+      // was reset and the waves are paused, so the four weapons that never
+      // check for a target were slamming, spraying and clawing at an empty
+      // floor across the boss's 2.5s entrance — the loudest moment of the arc
+      // shared with a build hitting nothing. Scoped to the FINALE telegraph:
+      // a Map 1 summon happens with the swarm still on the player.
+      holdFire: FINAL_BOSS.arrival.holdPlayerFire && this.boss.finalArrivalPending,
       weaponPower: this.weaponPower,
       weaponBranches: this.weaponBranches,
       obstacles: collisionObstacles,

@@ -803,7 +803,12 @@ export class FinalBossFight {
       // markers are. Without the burst at the body it reads as the floor
       // deciding to spawn enemies on its own.
       effects.burst(boss.x, boss.z, cfg.color, 12);
-      effects.sound('boss-attack', 2);
+      // The ORDER, at the boss, 1.4s before the bays land their bodies. It used
+      // to emit a `boss-attack` placeholder that was never enabled, so it died
+      // inside emit() and this telegraph had no sound at all — only its child,
+      // `boss-assembly-spawn`, did. Priority above that child: one order, up to
+      // six spawns, and the order must not be stolen by its own consequences.
+      effects.sound('boss-assembly-open', 4, boss.x, boss.z);
     }
   }
 

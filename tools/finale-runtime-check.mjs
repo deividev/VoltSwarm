@@ -375,6 +375,59 @@ try {
       // the floor, and the body that lands on it.
       await waitWhilePlaying(() => window.__voltswarm?.boss?.state === 'summoning', 'the arrival telegraph', 15_000);
       await page.screenshot({ path: resolve(OUTPUT, 'finale-telegraph.png') });
+
+      // HOLD FIRE (user 2026-08-20): the arena is empty and the waves are
+      // paused, so anything the player owns that fires here is firing at
+      // nothing, over the entrance. Counted as VOICES across the telegraph —
+      // the whole telegraph, not a sample of it — because a weapon that fires
+      // once in 2.5s is exactly the failure this is meant to catch.
+      const weaponVoices = await page.evaluate(async () => {
+        const g = window.__voltswarm;
+        const isWeapon = (id) =>
+          // The music bed is a loop too, and it is supposed to be playing.
+          !/music|foundation/.test(id) &&
+          (id === 'weapon-activation' ||
+            /-(fire|slam|throw|spin|launch|swipe|beam|loop)$/.test(id) ||
+            id === 'bolt-cannon-fire' ||
+            id === 'oil-drop');
+        const count = () => (g.__plays ?? []).filter((p) => p.dv > 0 && isWeapon(p.id)).length;
+        const before = count();
+        const seen = new Set((g.__plays ?? []).map((p, i) => i));
+        const heard = new Set();
+        const liveKeys = new Set();
+        let maxExistingGain = 0;
+        let during = 0;
+        // Watch until the body lands, and SNAPSHOT INSIDE the window. Counting
+        // after the loop exits caught the salvo the weapons are owed the moment
+        // the hold lifts — the fight opening, not a weapon firing over the
+        // entrance — and reported the feature working as the feature broken.
+        while (g.boss.finalArrivalPending) {
+          during = count() - before;
+          (g.__plays ?? []).forEach((play, index) => {
+            if (!seen.has(index) && play.dv > 0 && isWeapon(play.id)) heard.add(play.id);
+          });
+          for (const voice of g.audio.voices) {
+            if (!voice.loop || voice.bus !== 'sfx' || !voice.key?.startsWith('weapon-loop-')) continue;
+            liveKeys.add(voice.key);
+            maxExistingGain = Math.max(maxExistingGain, voice.gain.gain.value);
+          }
+          await new Promise((resolve) => setTimeout(resolve, 16));
+        }
+        return {
+          during,
+          ids: [...heard],
+          liveKeys: [...liveKeys],
+          maxExistingGain,
+        };
+      });
+      check(
+        'nothing the player owns fires over the arrival',
+        weaponVoices.during === 0 && weaponVoices.liveKeys.length === 0 && weaponVoices.maxExistingGain <= 0.001,
+        `${weaponVoices.during} weapon voices during the telegraph` +
+          `${weaponVoices.ids.length ? ` (${weaponVoices.ids.join(', ')})` : ''}` +
+          `${weaponVoices.liveKeys.length ? `; existing loops: ${weaponVoices.liveKeys.join(', ')}` : ''}` +
+          `; max existing gain ${weaponVoices.maxExistingGain.toFixed(4)}`,
+      );
     }
     await waitWhilePlaying(
       () => window.__voltswarm?.boss?.status(window.__voltswarm.enemies) !== null,
@@ -1235,13 +1288,17 @@ try {
       'boss-overload-open',
       'boss-overload-erupt',
       'boss-volley',
+      // Both halves of the reinforcement beat: the ORDER at the boss and the
+      // materialisation at each bay. The order shipped mute for a whole pass —
+      // it emitted an id that was never enabled — so it is checked as a voice.
+      'boss-assembly-open',
       'boss-assembly-spawn',
       'run-start',
     ].filter((id) => started.has(id));
   });
   check(
-    'the red chain, the volley and both spawn cues started real voices',
-    overloadHeard.length === 5,
+    'the red chain, the volley and both halves of the reinforcement beat started real voices',
+    overloadHeard.length === 6,
     `voiced: ${overloadHeard.join(', ') || 'none'}`,
   );
 

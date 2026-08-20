@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -44,7 +44,7 @@
     "test:contracts-browser": "node tools/contracts-browser.test.mjs",
     "stats": "node tools/run-stats.mjs",
     "reset:profile": "node tools/reset-profile.mjs",
-    "audio:generate": "node tools/audio/generate.mjs && node tools/audio/ui-navigation.mjs",
+    "audio:generate": "node tools/audio/generate.mjs && node tools/audio/prototype-r39-assembly-open.mjs && node tools/audio/ui-navigation.mjs",
     "audio:validate": "node tools/audio/validate.mjs",
     "audio:foundation-check": "node tools/audio/foundation-check.mjs",
     "benchmark:audio": "node tools/benchmark-audio-electron.mjs",

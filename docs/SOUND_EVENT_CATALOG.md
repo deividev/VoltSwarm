@@ -3,6 +3,17 @@
 **Rewritten 2026-07-18** against the settled style foundation. The old
 industrial-toy material catalog and its six-prototype gate are SUPERSEDED.
 
+> **Current status 2026-08-20:** audio v1 is accepted/closed and its offline
+> pipeline is operational, with tracked recipes and manifests. Canonical generation
+> is only partially unified: `pnpm audio:generate` covers foundation, UI navigation
+> and `boss-assembly-open`, not every WAV in the active prototype manifest. This
+> catalog remains open for future content and cohesion work; "v1 closed" does not
+> mean every future event exists or that the complete runtime pack can be rebuilt
+> by one command yet.
+> Hazard Marshal's baseline cues are wired. The only known emitted silent hook is
+> Oil Sprayer's `oil-drop`, which is not enabled or present in the runtime manifest;
+> Oil itself is disabled from the playable path.
+
 > ⚠️ **PENDING — HIGH PRIORITY (user 2026-07-21): full SFX VOLUME-BALANCE pass.**
 > The set is not level-balanced — some sounds sit right, some too low, some too
 > high (surfaced when the welder was nearly inaudible over music at ~50%). Must be
@@ -73,23 +84,29 @@ Current runtime source of truth: `AUDIO.validation.enabledEvents` (config.ts) +
 | `run-victory` / `run-defeat` | `run-victory-b` / `run-defeat` | anthem: build → major-chord landing / machine power-down | WIRED (batch C; victory reworked to an anthem) |
 | `merchant-arrival` | `merchant-arrival` | whoosh → landing thunk → inviting chime | WIRED (batch D) |
 | `shop-purchase` | `shop-purchase` x2 | mechanical accept clunk + rising confirm bloom | WIRED (batch D) |
+| `ui-back` | `ui-back-v1` | Back/Leave, Settings Escape and gamepad B share one semantic cue | DONE |
+| `boss-sweep-charge` / `boss-sweep-warn` / `boss-sweep-fire` | finale sweep family | charge, locked warning and firing beat | WIRED |
+| `boss-volley` | finale volley | dedicated projectile-volley cue | WIRED |
+| `boss-assembly-open` / `boss-assembly-spawn` | finale assembly family | line contactors/motors, then bay spawn | WIRED; `boss-assembly-open` regenerates through `pnpm audio:generate` |
+| `boss-overload-open` / `boss-overload-erupt` | finale overload family | overload opening and chained eruptions | WIRED |
 
-## 2. Silent hooks — ALL CLEARED ✅
+## 2. Silent hooks
 
-Every hook the game emits now has a wired sound (batches A–D done). The only
-remaining event ids are TYPE-ONLY (nothing emits them yet) — see §3. Next:
-the closing validation passes, then the Phase 5 catalog scale-out (§4).
+Foundation batches A–D are cleared. One known hook remains intentionally silent:
+
+| Event | Runtime state | Next action |
+| --- | --- | --- |
+| `oil-drop` | Oil emits it, but it is absent from `AUDIO.validation.enabledEvents` and the manifest; Oil is disabled from the playable path | Author and enable only if Oil returns to the playable roster |
 
 ## 3. Type-only events (id exists, emit missing)
 
 | Event | Where the emit belongs |
 |---|---|
-| `ui-back` | `ui-back-v1` | Back/Leave and Settings Escape use exactly this one semantic cue; gamepad B inherits the chosen Back action | DONE |
 | `levelup-pick` | card chosen in draft (distinct from generic ui-confirm?) — decide if needed |
 | `weapon-activation` | generic weapon proc — probably replaced by per-weapon events (below) |
-| `boss-attack` | boss telegraphs (Crusher slam, Tesla grid) |
+| ~~`boss-attack`~~ | RETIRADO 2026-08-20: era un hueco genérico que el Hazard Marshal emitía sin estar en `enabledEvents`, así que `emit()` lo tiraba y el telegrafiado quedaba mudo. Cada telegrafía de boss lleva su propia cue (`boss-sweep-*`, `boss-overload-*`, `boss-assembly-open`); un id genérico solo sirve para que algo suene "aceptado" y no suene |
 
-## 4. No hook yet — full-game needs (Phase 5+ scale-out)
+## 4. Full-game catalog and remaining scale-out
 
 ### Weapons — hooks wired for ALL 11 (`WEAPON_FIRE_SFX` in game.ts maps each
 WeaponId → its own event; weapons without an enabled asset fall back to the
@@ -105,7 +122,7 @@ vs deaths, frequent=invisible, keyed loops per owner (never per projectile).
 | Saw Blades | `blades-spin` + `blades-loop` + `blades-hit` | DONE (user-accepted 2026-07-21): rev one-shot on the spin-up edge + a **seamless breathing loop** (`blades-loop`, sfx-bus keyed, suspended under overlays) + a **metallic SHEAR hit** (`blades-hit` v7 — resonant-noise shear, NOT modal ring; modal read as "struck glass", same as the ricochet). First sfx-bus keyed loop — see the sfx-loop infra note below. |
 | Welder | `welder-beam` | DONE (user-accepted 2026-07-21 "el sonido de arc me vale"): sustained electric-arc LOOP via the sfx-bus keyed-loop path. Beam ignites (acquires target) → `startWeaponLoop`; drops target → `stopWeaponLoop`. Removed from `WEAPON_FIRE_SFX` (its `weaponActivated` fires per tick → would machine-gun a one-shot). |
 | Tire | `tire-launch` | WIRED (2026-07-21, v2 pending verdict): "Tire Fire" = burning tire rolls in a line. v1 (rubber scrub + spring) REJECTED — represented nothing of the weapon. v2 = fiery WHOOMP + heavy dark-rubber thud + rolling flame-crackle tail that dopplers away. |
-| Oil Sprayer | `oil-drop` | periodic — viscous drop |
+| Oil Sprayer | `oil-drop` | SILENT HOOK: emitted but not enabled/manifested; weapon disabled from the playable path |
 | Acid | `acid-throw` | WIRED (2026-07-22, pending verdict): "Acid Drum — lobs drums that burst into a corrosive zone". Lob whoosh → wet BURST/splash → corrosive FIZZ + discrete chemical BUBBLE blips + an energized green edge (palette tie). Chemical fizz+bubble = a signature nobody else has. `prototype-r31-acid.mjs`. **Pool-sizzle loop DONE 2026-07-22 (`acid-loop`, DISTANCE-ATTENUATED):** one shared corrosive sizzle (fizz + bubbles + low hum, seamless) plays while ANY zone lives; its volume fades with the player's distance to the NEAREST pool (world-positioned sound). `prototype-r32-acid-loop.mjs`; config `AUDIO.acidLoop` (baseVolume 0.42, maxHearingDistance 32). |
 | Turbine | `turbine-launch` + `turbine-loop` | WIRED (2026-07-22, pending verdict). **Launch (v1 RESTORED):** airy fan spin-up whine + swirling wind-VORTEX whoosh + launch gust + airy top. The v2 "electric energy vortex" was REJECTED ("no me gusta nada") — reverted to the airier v1 the user preferred. `prototype-r30-turbine.mjs`. **Travel-roar LOOP (`turbine-loop`):** a swirling wind roar while any tornado flies, DISTANCE-ATTENUATED to the nearest tornado (the world-distance rule) — it fades as the tornado spins off. `prototype-r33-turbine-loop.mjs`, config `AUDIO.turbineLoop`. Named user-facing unit "vortex" (not "tornado"). |
 | Dismantler | `dismantler-swipe` | DONE (user-accepted 2026-07-22): "Heavy claw strike, executes <15% HP". Light STRIKE lead-in + mechanical servo + a DOMINANT, clearly-articulated TRIPLE torn shred ("shk-shk-shk", spaced ~45ms, gritty low-Q rakes) + amber edge. v1's shred was masked under a heavy strike+sub; v2 made the shred lead the mix. Heavier/darker than the light blades-shear so the two don't collide. `prototype-r29-dismantler.mjs`. |
@@ -180,13 +197,15 @@ Two passes before audio is declared done, in a real long run with music playing:
 
 ## Production notes
 
-- All current assets are DSP-generated by `tools/audio/prototype-*.mjs`
-  (deterministic, seeds in-script) — regenerate, never hand-edit wavs.
+- Current prototype assets originate from deterministic DSP recipes, but not every
+  active WAV is wired into the canonical generation command yet. Regenerate through
+  its owning recipe when available; never hand-edit WAVs.
 - ElevenLabs (`tools/audio/elevenlabs-sfx*.mjs`, key in `.env`) remains the
   texture-rich alternative; every timing-critical asset must be trimmed to its
   animation window.
 - Storm rules unchanged: voice caps, cooldowns, aggregation, keyed loops
   (`AUDIO.voiceCaps`, `AUDIO.cooldownS`).
-- The legacy pack under `assets/audio/sfx/` + `paths.finalManifest` is still
-  the REJECTED tech fixture; final shipping assets will graduate from the
-  prototypes manifest into a regenerated final pack with provenance.
+- Audio v1's active generated pack is accepted and its recipes/manifests are tracked;
+  full one-command reconstruction remains incomplete. Historical rejected fixtures
+  remain historical only; do not relabel the current v1 pack as rejected. Future catalog scale-out still needs
+  the same provenance, in-game judgment and cohesion pass.

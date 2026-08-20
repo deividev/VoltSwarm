@@ -8,7 +8,7 @@ export type AudioEventId =
   | 'tire-launch' | 'oil-drop' | 'acid-throw' | 'acid-loop' | 'turbine-launch' | 'turbine-loop' | 'ricochet-throw' | 'dismantler-swipe'
   | 'enemy-death' | 'xp-pickup' | 'gold-pickup' | 'levelup-intro' | 'levelup-open' | 'levelup-pick'
   | 'chest-open' | 'chest-spin' | 'chest-reveal' | 'merchant-arrival' | 'shop-purchase'
-  | 'boss-portal' | 'boss-awaken' | 'boss-attack' | 'boss-defeat' | 'run-victory' | 'run-defeat'
+  | 'boss-portal' | 'boss-awaken' | 'boss-defeat' | 'run-victory' | 'run-defeat'
   // The Marshal's sector sweep, one cue per moment on screen: the plates go
   // live, the deadline closes, the arc discharges.
   | 'boss-sweep-charge' | 'boss-sweep-warn' | 'boss-sweep-fire'
@@ -16,6 +16,10 @@ export type AudioEventId =
   | 'boss-overload-open' | 'boss-overload-erupt'
   // The ring of red shots: a battery firing, not an impact.
   | 'boss-volley'
+  // The ORDER that opens the assembly lines: contactors closing and line motors
+  // spinning up, at the boss, 1.4s before anything lands. Mechanical on purpose
+  // — its child below is the electric half of the same beat.
+  | 'boss-assembly-open'
   // Bodies materialising at a drop zone — the one electric cue in the fight.
   | 'boss-assembly-spawn'
   | 'foundation-music' | 'menu-music';
@@ -227,6 +231,16 @@ export class AudioDirector {
     // (welder re-attack bug, 2026-07-21). onended's identity check (keyed.get ===
     // voice) stops it from clobbering a newer voice that reclaimed the key.
     if (this.keyed.get(key) === voice) this.keyed.delete(key);
+  }
+  /** Stop every sustained loop owned by one key namespace without resetting
+   * decoded audio. Used when a world reset invalidates weapon-side edge
+   * trackers while their AudioDirector voices are still alive. */
+  stopLoopsByKeyPrefix(prefix: string): void {
+    for (const [key, voice] of [...this.keyed]) {
+      if (!key.startsWith(prefix) || !voice.loop) continue;
+      this.stopVoice(voice, AUDIO.fades.defaultS);
+      if (this.keyed.get(key) === voice) this.keyed.delete(key);
+    }
   }
   diagnostics(): AudioDiagnostics { return { activeVoices: this.voices.size, peakActiveVoices: this.peakActiveVoices, drops: this.drops, steals: this.steals, loadFailures: this.loadFailures, leakedVoices: this.leaks, attempts: this.attempts, accepted: this.accepted, contextState: this.context?.state ?? 'unavailable' }; }
   resetDiagnostics(): void { this.drops = 0; this.steals = 0; this.loadFailures = 0; this.leaks = 0; this.attempts = 0; this.accepted = 0; this.peakActiveVoices = this.voices.size; }

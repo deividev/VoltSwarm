@@ -393,6 +393,14 @@ export class BossSystem {
    *  caller can start the portal-charge sound in sync with the spin-up. */
   summonJustBegan = false;
 
+  /** True while the FINALE's arrival telegraph is running — the 2.5s between
+   *  the arena reset and the Marshal's body landing. Only the finale: a Map 1
+   *  summon telegraphs with the whole swarm still on the player, and anything
+   *  that reads this to hold something back would get them killed. */
+  get finalArrivalPending(): boolean {
+    return this.finalArrival && this.state === 'summoning';
+  }
+
   /** Returns the summoned boss's name when the summon triggers this frame.
    *  The summon only fires when the player presses the summon key inside the
    *  zone — walking through the scrapyard never triggers it by accident. */

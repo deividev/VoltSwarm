@@ -144,7 +144,7 @@ export const AUDIO = {
    *  when the manifest ships an asset for it, so anything audible in a release
    *  is a deliberate choice rather than a leftover. */
   validation: {
-    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'ui-back', 'ui-focus', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'player-fatal', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'boss-sweep-charge', 'boss-sweep-warn', 'boss-sweep-fire', 'boss-overload-open', 'boss-overload-erupt', 'boss-volley', 'boss-assembly-spawn', 'foundation-music', 'menu-music'] as readonly string[],
+    enabledEvents: ['bolt-cannon-fire', 'ui-confirm', 'ui-back', 'ui-focus', 'enemy-death', 'xp-pickup', 'gold-pickup', 'levelup-intro', 'levelup-open', 'panel-open', 'chest-open', 'chest-spin', 'chest-reveal', 'player-hit', 'player-fatal', 'shield-block', 'boss-portal', 'boss-awaken', 'boss-defeat', 'run-start', 'menu-enter', 'pause', 'resume', 'run-victory', 'run-defeat', 'merchant-arrival', 'shop-purchase', 'pulse-fire', 'press-slam', 'ricochet-throw', 'blades-spin', 'blades-loop', 'blades-hit', 'welder-beam', 'tire-launch', 'dismantler-swipe', 'turbine-launch', 'turbine-loop', 'acid-throw', 'acid-loop', 'boss-sweep-charge', 'boss-sweep-warn', 'boss-sweep-fire', 'boss-overload-open', 'boss-overload-erupt', 'boss-volley', 'boss-assembly-open', 'boss-assembly-spawn', 'foundation-music', 'menu-music'] as readonly string[],
   },
   /** Release-owned variant choices. Dev audition pins still override these;
    * events absent here keep their normal random rotation. */
@@ -1660,6 +1660,12 @@ export const FINAL_BOSS = {
      *  exists. Kept as its own number because the finale may want a longer
      *  build-up later without lengthening every totem summon in the game. */
     telegraphS: 2.5,
+    /** Nothing the player owns discharges while that telegraph runs (user
+     *  2026-08-20). Orbits keep turning and cooldowns keep running — the fight
+     *  opens with the salvo they were owed — but no shot, no slab, no acid and
+     *  no weapon cue lands on top of the entrance. Only here: on Map 1 the
+     *  swarm is still on the player while the portal charges. */
+    holdPlayerFire: true,
     /** Placement samples before the arrival gives up and the finale retries on
      *  the next frame (Game.startFinale re-arms the structural trigger). */
     placementAttempts: 96,

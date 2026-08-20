@@ -1,12 +1,12 @@
 # Voltswarm — Roadmap a Steam
 
-Fecha: 2026-08-04. Versión de máquina actual en `codex/map-2`: **0.12.6** (UI: **0.12.6**).
+Actualizado: 2026-08-20. Candidato en el working tree de `codex/map-2`: **0.22.0**; `HEAD` sigue en **0.21.0** hasta commit y no existe paquete 0.22.0. Rama Demo separada: `codex/demo-map1` (`0.13.39-demo`).
 
 ## Alcance de variantes — decisión vigente
 
-**Juego completo (`codex/map-2`):** Mapa 1 / Scrapyard → Mapa 2 **Swarm Foundry** → **Hazard Marshal**. El arco y el finale ya son jugables; Hazard Marshal conserva `modelKey: 'final-boss'`. Su integración y combate actuales son provisionales: faltan moveset autorado definitivo, arena y balance. Volt Warden es diseño histórico/futuro, nunca el boss final vigente.
+**Juego completo (`codex/map-2`):** Mapa 1 / Scrapyard → Mapa 2 **Swarm Foundry** → **Hazard Marshal**. El arco y el finale ya son jugables; Hazard Marshal conserva `modelKey: 'final-boss'`. **El combate final queda CERRADO como baseline jugable en v0.22.0:** llegada propia, arena despejada, moveset autorado de tres fases, telegrafías, refuerzos, audio y desenlace están integrados y validados. El balance fino con runs humanas y una posible arena reactiva quedan diferidos; no bloquean el roadmap. Volt Warden es diseño histórico/futuro, nunca el boss final vigente.
 
-**Steam Demo (`codex/demo-map1`, separada):** solo Scrapyard / Mapa 1; termina a los 10 minutos con `SECTOR CLEARED`, sin transición a Mapa 2. No amplía ni sustituye este backlog del juego completo.
+**Steam Demo (`codex/demo-map1`, separada):** solo Scrapyard / Mapa 1. Boss derrotado → `SECTOR CLEARED`; timeout sin boss → `SECTOR HELD`. No transiciona a Mapa 2, no incluye Hazard Marshal y no amplía ni sustituye este backlog del juego completo.
 
 **Checklist de aceptación congelado de Demo:**
 - [x] Solo Scrapyard / Mapa 1 es seleccionable o jugable.
@@ -18,7 +18,7 @@ Fecha: 2026-08-04. Versión de máquina actual en `codex/map-2`: **0.12.6** (UI:
 
 **⚠️ ORDEN REORDENADO POR DECISIÓN DEL USUARIO (2026-07-25): el gate de viabilidad multijugador se DIFIERE a post-lanzamiento.** Se conserva la cobertura de smoke tests; el determinismo de tick fijo sigue diferido.
 
-**Orden vigente del juego completo:** higiene de release + smoke ✅ → perfil persistente + Contratos ✅ → audio v1 ✅ → **Mapa 2 Swarm Foundry + Hazard Marshal provisional** → arte/gameplay final del bloque → **3 personajes diferenciados** → playtests humanos, balance y retención → Steamworks/cierre. El gate multijugador se reevalúa **después** del lanzamiento.
+**Orden vigente del juego completo:** higiene de release + smoke ✅ → perfil persistente + Contratos ✅ → audio v1 ✅ → Mapa 2 Swarm Foundry + **Hazard Marshal baseline ✅** → **remate visual de Swarm Foundry** → **2 personajes diferenciados restantes** (Field Engineer ya aprobado) → playtests humanos, balance y retención → Steamworks/cierre. El gate multijugador se reevalúa **después** del lanzamiento.
 
 Orden anterior (superseded): foundation de audio → viabilidad multijugador → contenido/balance/retención → catálogo de audio → Steamworks. **Nombre: Voltswarm — CERRADO (confirmado 2026-07-05).** Precio objetivo histórico: **$4.99** con descuento de lanzamiento 10-15%; revisión de mercado previa al lanzamiento pendiente.
 
@@ -28,7 +28,7 @@ Orden anterior (superseded): foundation de audio → viabilidad multijugador →
 
 **Objetivo interno de RC de la Demo: fin de agosto de 2026.** No es fecha pública, promesa de disponibilidad ni predicción de revisión externa. Se revalida contra su checklist congelado y no fija la fecha del juego completo. El objetivo anterior del 4 de noviembre queda como registro histórico, no como gobernanza vigente.
 
-**Estado operativo:** el paquete/handoff comercial y audio v1 no significan que el juego completo esté cerrado. Mapa 2 + Hazard Marshal ya tienen una primera versión jugable. **Actualizado 2026-08-17:** la escenografía del Mapa 2 (suelo raster, chimeneas de fundición, celdas de energía, variantes de color, rendimiento validado a 430 enemigos) está CERRADA en v0.13.49→0.13.55. Faltan pasada ambiental, cielo/niebla por mapa, reteñido del elenco, y del boss: moveset autorado, arena y balance. Después vienen 3 personajes diferenciados. Los playtests humanos y la calibración de balance se harán cuando ese contenido exista en una build comparable.
+**Estado operativo:** el paquete/handoff comercial y audio v1 no significan que el juego completo esté cerrado. **Actualizado 2026-08-20:** la escenografía base del Mapa 2 (suelo raster, chimeneas/celdas, cobertura, muro y cielo/niebla por mapa) está hecha, y Hazard Marshal queda CERRADO como baseline jugable en v0.22.0. Faltan VFX ambientales de colada/chispas y el reteñido/elenco propio; después, los 2 personajes de lanzamiento restantes. Los playtests humanos y la calibración final se harán sobre esa build comparable.
 
 ## Hecho (pase de endurecimiento, 2026-07-04)
 
@@ -141,7 +141,7 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 
 ## Fase 5 — Arco completo, personajes y balance
 
-**Prioridad interna vigente:** validar y completar la primera versión jugable PROVISIONAL de Mapa 2 + Hazard Marshal; después 3 personajes diferenciados; finalmente playtests humanos, balance y retención sobre una build comparable.
+**Prioridad interna vigente:** rematar la presentación visual de Swarm Foundry; después completar los 2 personajes diferenciados restantes; finalmente ejecutar playtests humanos, balance y retención sobre una build comparable. Hazard Marshal ya no bloquea esta secuencia: su baseline jugable quedó aceptada en v0.22.0.
 
 - ✅ **Tanda de playtest 2 — tiers de armas, oclusión y feedback (2026-07-17):** mejoras de arma con potencia escalada por tier y persistida; targeting al enemigo visible más cercano; proyectiles/beam/AoE/procs bloqueados por obstáculos; números de daño mayores; feedback `+XP/+GOLD` junto al jugador; oleadas conservan el anillo de spawn incluso junto al borde. El tratamiento visual definitivo del perímetro exterior queda pendiente de elección artística con el usuario.
 - ✅ **Recalibración inicial de economía y rareza (2026-07-17):** el drop normal mantiene 25% de frecuencia pero entrega 2 unidades para no aumentar pickups; los pesos sin Luck pasan a 62/27/9/1.8/0.2, haciendo que morado/dorado sea un jackpot inicial y que Lucky Gear tenga una función real. Validar capacidad de compra y calidad de drafts en el siguiente playtest antes de tocar precios o `luckShift`.
@@ -151,10 +151,10 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 - ✅ **Historial local de runs (actualizado 2026-08-02):** movido de `localStorage` a `userData/run-history.json` legible por herramientas, con migración al arrancar. Registra además arma inicial, dificultad, tipos de boss derrotados, daño recibido, oro, cofres por tier, compras, `sectorsCleared` y `mapsReached` — todos irrecuperables a posteriori. La completitud ya es estructural (`run-complete`), no una inferencia por duración. Es la base del leaderboard de Fase 6; `submittedTo` reserva el bookkeeping de envío.
 - Playtests con datos del desglose por arma (55 combinaciones de build) — **diferidos hasta que Mapa 2, Hazard Marshal y los personajes estén integrados en una build comparable**. No bloquear el trabajo de contenido final esperando una muestra humana que se recogerá más adelante.
 - Selector de dificultad alimentando `difficultyScalar` + persistencia de mejor run — los registros ya se estampan con `difficulty: 'standard'` para que las runs de esta época sigan siendo rankeables cuando el selector exista
-- 🟡 **Primera versión jugable del arco integrada (2026-08-02, PROVISIONAL):** Mapa 1 durante 10 minutos → transición automática conservando build y estado de run → Mapa 2 durante otros 10 minutos → enfrentamiento final contra **Hazard Marshal** → `RUN COMPLETE` al derrotarlo.
+- ✅ **Arco completo vigente:** Mapa 1 exige 10 minutos + ≥1 boss. Sin boss termina `OBJECTIVE FAILED`; con ambas condiciones cruza conservando build, nivel, XP y descartes, curando al 100% y reiniciando oro a 0. Tras Mapa 2 entra Hazard Marshal. `RUN COMPLETE` exige crédito estructural de los sectores: matar solo al final sin crédito previo no completa el arco.
 - **✅ Visibilidad del boss/portal corregida (confirmado por el usuario 2026-07-29).** Las primeras 6 runs humanas, con 0 bosses invocados, describen el build anterior al arreglo y quedan como evidencia histórica, no como bloqueo vigente ni como motivo para retrasar Mapa 2. **✅ Gate de transición CERRADO 2026-08-15:** cruzar exige **AMBAS** cosas — derrotar ≥1 boss **y** aguantar los 10 min. Si el reloj llega sin boss, la run se corta y la pantalla de resultados dice `OBJECTIVE FAILED`; sin muerte súbita ni boss forzado. El objetivo es visible como misión en el HUD durante todo el Mapa 1.
 
-- **✅ TRANSICIÓN MAPA 1 → MAPA 2 COMPLETADA 2026-08-16 (v0.13.40 → 0.13.47).** El arco obedece las decisiones cerradas y el cruce está animado: vida al 100%, oro a 0, build/nivel/descartes conservados, Mapa 2 con reloj y curva propios (`difficultyOffsetS: 240`), cortina animada de 2.8s con la música atada a la misma curva y entrada escalonada del nombre del sector. `npm run stats` segmenta por el mapa donde terminó la run. Atajos de dev gateados (`simulateMap1Handoff`, tecla **T**) para iterar sin jugar 10 minutos. Desglose completo en `docs/PLAN_MAPA2.md`. **Queda de audio:** sting propio y camas por mapa (pendiente 0c).
+- **✅ TRANSICIÓN MAPA 1 → MAPA 2 COMPLETADA 2026-08-16 (v0.13.40 → 0.13.47).** El cruce está animado: vida al 100%, oro a 0, build/nivel/XP/descartes conservados, cortina de 2.8s con música y entrada escalonada del sector. La dificultad ya no usa el offset provisional: Foundry aplica `{ floor: 0.7, peak: 1.15, rampS: 600 }`, HP usa el reloj del arco y el roster su reloj local ×2.5. `pnpm stats` segmenta por mapa. Atajo T gateado para iteración. **Pendiente de audio general:** sting/camas por mapa y crossfade entre camas distintas.
 
 - **✅ PRESIÓN Y BALANCE DEL MAPA 2 (2026-08-18, v0.14.0).** Seis ejes en una
   tanda, todos medidos y cubiertos por tests, **ninguno validado por una run
@@ -171,15 +171,15 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
   (runs que TERMINEN) para que `pnpm stats` pueda calibrar. Validación externa con
   conocidos, después. **Es contenido del juego completo: NO va a la rama Demo.**
 
-### Bloque Mapa 2 + Hazard Marshal — primera versión jugable PROVISIONAL
+### Bloque Mapa 2 + Hazard Marshal — baseline jugable cerrada
 
-La lista levantada 2026-07-26 queda como registro de decisiones. La primera implementación ya resolvió las costuras estructurales; lo que siga marcado como abierto requiere playtest o autoría de contenido antes de considerarse final.
+La lista levantada 2026-07-26 queda como registro histórico de decisiones. El cierre de v0.22.0 sustituye el arnés provisional del boss por una pelea autorada y validada. Los puntos de balance fino y arena reactiva que siguen abiertos son mejoras posteriores, no requisitos para avanzar al siguiente bloque.
 
-**1. Gate de transición — RESUELTO PARA EL MVP:** el corte es temporal. Al llegar a 10:00 en el Mapa 1 se cruza automáticamente; los bosses opcionales del tótem siguen siendo contenido/recompensa del sector, no la llave de salida. Provisional hasta validar el ritmo del arco.
+**1. Gate de transición — CERRADO:** cruzar exige 10:00 **y** ≥1 boss derrotado. Si vence el reloj sin boss, la run termina como `OBJECTIVE FAILED` / `boss-required`; el boss ya no es opcional para el arco.
 
-**2. Continuidad de la dificultad — BASELINE PROVISIONAL PARA PLAYTEST:** cada mapa tiene reloj propio; Mapa 2 arranca con `difficultyOffsetS = 0`, equivalente al minuto 0 del Mapa 1. La presión posterior queda abierta y se calibrará con datos humanos.
+**2. Continuidad de la dificultad — IMPLEMENTADA:** Foundry usa `{ floor: 0.7, peak: 1.15, rampS: 600 }`; la vida enemiga escala con el reloj del arco, el roster local avanza ×2.5 y el daño de contacto aplica swarm ×1.5 / boss ×1.25. Falta calibración con runs humanas terminadas, no la arquitectura.
 
-**3. Qué se conserva al cruzar — RESUELTO PARA EL MVP:** armas, cores, mods, niveles, potencia por ramas/tiers, oro, HP actual/máximo, XP/progresión, descartes y contadores de run. Se limpian solo actores y efectos locales; el jugador reaparece en el centro sin curación gratuita. Provisional hasta playtest.
+**3. Qué se conserva al cruzar — CERRADO:** armas, cores, mods, nivel, XP/progresión, descartes y contadores. El jugador reaparece al centro, se cura al 100% y el oro se reinicia a 0. Se limpian actores y efectos locales.
 
 **4. ¿Una run o dos? — RESUELTO:** un registro por arco. Los contratos de run completa usan progreso estructural, no segundos; `Second Wind` y `Purist` exigen los dos sectores.
 
@@ -187,40 +187,38 @@ La lista levantada 2026-07-26 queda como registro de decisiones. La primera impl
 
 **6. Duración total — PROVISIONAL:** 10+10 minutos sin checkpoint. El riesgo de perder 17+ minutos sigue ABIERTO y debe medirse; la primera implementación no lo convierte en decisión final de retención.
 
-**7. Boss final — INTEGRACIÓN PROVISIONAL:** Hazard Marshal está enganchado como tipo de boss mediante la clave histórica `final-boss` y se dibuja con el `InstancedMesh` de `EnemySystem`. Al agotar el reloj del Mapa 2 aparece fuera del sorteo de tótems y su muerte cierra la run. Su comportamiento actual —persecución, parada telegrafiada, empuje y descarga radial orientada— es un arnés de integración reutilizable, **NO el moveset final**. El rig `idle`/`walk`/`hit` existente no convierte esos patrones en diseño cerrado.
+**7. Boss final — BASELINE CERRADA EN v0.22.0:** Hazard Marshal está integrado mediante la clave histórica `final-boss` y se dibuja con el `InstancedMesh` de `EnemySystem`. Tiene llegada propia con fuego del jugador retenido, arena despejada, combate autorado de tres fases, barrido, líneas de ensamblaje, sobrecarga, telegrafías, refuerzos, cues espaciales y desenlace diferido para que el golpe mortal se lea. El cierre pasó 36/36 tests, typecheck y el check runtime automatizado del finale. **Fuera del cierre:** balance fino basado en runs humanas terminadas y una posible arena reactiva/modular.
 
-**Sigue faltando el combate final autorado:** fases, telegrafías, patrones definitivos, interacción con el arena y animaciones de ataque. **Aviso de lenguaje visual:** el boss es ámbar+carbón y los Voltling del enjambre también; a tamaño de boss más el doble anillo rojo se distingue, pero debe revisarse con el elenco definitivo del Mapa 2.
-
-**8. Mapa y elenco — PRIMERA VERSIÓN JUGABLE:** megafábrica futurista activa procedural, centro abierto y perímetro monumental con torres, conductos cian y carriles térmicos. Reutiliza el elenco actual para probar el arco. **No hay assets raster finales, props finales ni enemigos propios aprobados**; todo contenido nuevo deberá validar el enjambre a 400+.
+**8. Mapa y elenco — BASE VISUAL HECHA:** suelo raster, chimeneas, celdas, cobertura, muro de arena y cielo/niebla propios ya están integrados. Reutiliza el elenco actual; faltan VFX ambientales de colada/chispas y reteñido o enemigos propios. Todo contenido nuevo deberá validar el enjambre a 400+.
 
 **Instrumentación lista para la primera run:** mapa final, `sectorsCleared`, `mapsReached`, completitud estructural y distribución en `pnpm stats`. Los playtests humanos se harán sobre una build comparable; no convierten esta primera versión procedural en arte final.
 - Semilla de layout aleatoria por run, escalera extendida de bosses/elites, meta-progresión ligera y contenido adicional desbloqueable.
-- **Boss final del Mapa 2:** modelo cerrado e integración provisional jugable; falta su **gameplay final** (fases, telegrafías, patrones, arena y ataques autorados). El pod Volt Warden reconstruido se conserva como diseño disponible para un enemigo futuro.
+- **Boss final del Mapa 2:** modelo, integración y gameplay baseline cerrados en v0.22.0. El balance fino y una posible arena reactiva se difieren hasta disponer de runs humanas comparables. El pod Volt Warden reconstruido se conserva como diseño disponible para un enemigo futuro.
 - **Playable character differentiation** (a dedicated workstream immediately after Map 2 + Hazard Marshal and before human playtests): **Field Engineer has an approved in-game first version** — registry/persistence, selector, roster, stat profile, 1% Field Repair excluding Hull Plates, non-binding Bolt recommendation, and runtime model v1. The model passed the 0°/90°/180°/270° preview, rear-view locomotion check, and 400+ gate (431–440 enemies, 118.87 average FPS, 92.41 minimum bucket, 8.5 ms p99, 0 page errors, and 431/431 enemies moving). Source sheets remain conversion and provenance inputs, not pending shipped-art approval. The other two launch characters remain uncreated and unseen; they will arrive through signature contracts with thresholds derived from Contracts rather than duplicated in UI.
 - **Field Engineer locomotion — accepted for Demo/current build:** the current whole-body hop/rock motion is approved and does not block the Demo. During final full-game release polish, reconsider whether to integrate or refine the existing articulated walk rig.
-- **CANDIDATO DE DISEÑO — Dash (origen: comentario en X al post del 2026-07-22).** Idea del usuario: que todos los personajes tengan un dash para dar más movimiento al combate. **Veredicto de diseño (a favor, con condiciones):** encaja en ESTE juego — el jugador solo controla el movimiento (auto-apuntado innegociable), así que un dash **enriquece la única capa de skill** sin romper esa regla; la presentación 3D "juguete" lo hace verse/sentirse genial (burst de estela voxel = propulsor de robot, on-theme); es feature moderna esperada. **RIESGO PRINCIPAL:** puede **trivializar la tensión central del swarm** (que NO puedas escapar fácil) — sobre todo con i-frames + cooldown corto, que aplanan el "quedar rodeado". **Recomendaciones para cuando se prototipe:** (1) **arrancar SIN i-frames** — dash de puro reposicionamiento, seguís vulnerable; agregar i-frames solo si el feel lo pide (conecta con la duda ya pendiente "i-frames en dodge/block ¿intencional?" más abajo). (2) **NO idéntico para todos** — que sea base pero **tuneado por personaje** (distancia/cooldown, o cambiarlo por más HP/escudo en algún personaje); un dash fotocopiado gasta una palanca de diferenciación. **Timing:** decisión de feel núcleo, prototipar en la pasada de movimiento/personajes de Fase 5, NO mid-audio. Es sistémico: toca cooldown, distancia, i-frames, interacción con knockback/slows, bindings teclado+gamepad, VFX y SFX, y obliga a re-balancear densidad/velocidad de enemigos.
+- **Dash — decisión vigente:** diferido hasta que densidad y peligro importen. Cuando llegue será universal e idéntico; nunca será identidad ni palanca de balance por personaje. Ver `DISENO_FRENESI.md` §4.
 - **Retención (gap-analysis vs Megabonk completo, 2026-07-04):**
   - ✅ **Contratos de Desguace** — implementados 2026-07-25, ver arriba y en `PRD.md`. Pendiente solo la calibración de umbrales con datos reales.
   - **Desbloqueos de contenido**: el perfil empieza con 5 armas y puede obtener 5 más por contratos (Junk Ricochet + 4 de Arsenal). Oil Sprayer existe, pero está explícitamente deshabilitada y fuera del camino de desbloqueo.
   - **Modo Overload (endless)**: al sobrevivir los 10 min, opción de seguir con la dificultad descapada hasta morir — alimenta el leaderboard con puntuación no acotada (gemelo del "Final Swarm" de Megabonk).
-  - **Reroll / Skip / Banish** en el level-up (ya diseñado en DESIGN_MEJORAS.md; N usos por run).
+  - **Skip/descartes está implementado** (3→4 por contrato). **Reroll y Banish** siguen pendientes.
 - INFO pendientes de los juicios: subida multinivel de XP por orbe, `BOSS_TYPE_INDEXES` posicional → campo `isBoss`, wrap del `gen % 1000`, alocación en `pickEnemyType`, `ELITES.scaleMultiplier` separado visual/daño, i-frames en dodge/block (¿intencional?)
 
-## Fase 4b — Extensión de audio para contenido nuevo (DESPUÉS de Mapa 2 y personajes)
+## Fase 4b — Cohesión de audio para contenido nuevo (DESPUÉS de personajes y balance humano)
 
 - **Audio v1 está cerrado.** Esta fase ya no es una deuda del build actual.
-- Cuando Mapa 2, Hazard Marshal y los personajes estén cerrados, re-auditar solo los eventos nuevos y hacer la pasada de cohesión final contra el contenido real.
+- Después de rematar Foundry, completar los personajes y obtener runs humanas comparables, re-auditar los eventos nuevos y hacer la pasada de cohesión final contra el contenido real.
 - La música o mezcla adicional se adelanta únicamente si el tráiler final la necesita.
 
 ## Fase 6 — Steamworks técnico + cierre
 
-0b. **Pantalla "PRESS ANY KEY" antes del menú principal** (apuntado 2026-07-19): resuelve el silencio de autoplay del arranque — el primer gesto activa el AudioContext y el tema de menú entra desde el primer frame del menú. Estándar comercial; pieza de pulido de cierre, no bloquea nada antes.
-0d. **Secuencia de muerte del jugador** (apuntado 2026-07-19): hoy al morir se salta INSTANTÁNEamente a la pantalla de resultados, sin respiro. Añadir una transición/animación de muerte (p.ej. reventón voxel del jugador + slow-mo/fundido breve + stinger de audio `run-defeat`) entre el fin de la partida y la pantalla de datos. Game-feel de cierre; combina con el stinger de derrota del Batch C de audio.
+0b. ✅ **Pantalla "PRESS ANY KEY" implementada:** el primer gesto activa Web Audio, arranca el tema y revela el menú sin filtrar ese input a la navegación.
+0d. ✅ **Secuencia de derrota implementada:** transición propia, barra de HP visible a 0, sobrecarga/reventón y stinger antes de resultados.
 0c. **Crossfade entre pistas de música** (apuntado 2026-07-19): fade out/in en toda transición de música (menú → run, run → menú, futuras camas por mapa y capa de boss) en vez del corte seco actual (`stopLoop` ya desvanece la saliente vía `fades.defaultS`, pero la entrante arranca en seco). Implementación esperada: rampa de gain por voz al emitir loops keyed, duraciones en `AUDIO.fades` (config). Pulido de Fase 6 junto a 0b; si el catálogo de audio de Fase 4b mete la capa de boss antes, adelantarlo ahí.
-1. `steamworks.js` a dependencies + `asarUnpack`, logros definidos y llamados (boss kill, survive, nivel X, N runs)
+1. 🟡 **Seam Steam parcial:** fachada lazy/IPC ya existe, pero `steamworks.js` no está en dependencies y no están cerrados logros ni leaderboards. Completar integración, `asarUnpack`, IDs/eventos y pruebas antes del RC.
 1b. **Leaderboards de Steam** (API de leaderboards vía steamworks.js): comparar runs propios y de otros jugadores. Decisiones de diseño pendientes: métrica principal (kills totales vs bosses derrotados vs nivel alcanzado — recomendación: un leaderboard por mapa con kills como métrica, y el detalle del run en el desglose), y asumir que es client-authoritative (falsificable — estándar aceptado en indies de este tamaño, no invertir en anti-cheat)
 2. Legal: créditos, licencias de terceros (three.js MIT), EULA si aplica
-3. Firma de código (presupuestar certificado o aceptar SmartScreen "Unknown Publisher")
+3. Firma de código (presupuestar certificado o aceptar SmartScreen "Unknown Publisher"). Legal, firma, build RC y release flags siguen abiertos; hoy `mapTransitionKey` y `finaleKey` bloquean `pnpm package`.
 4. **Histórico superseded (2026-07-14):** la decisión de no Demo/Next Fest fue reemplazada por la Steam Demo de Mapa 1. No gobierna el plan actual ni limita la Demo.
 
 ## Post-lanzamiento (del gap-analysis vs Megabonk; NO bloquean v1)

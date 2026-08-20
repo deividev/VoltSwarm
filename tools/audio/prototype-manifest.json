@@ -708,6 +708,14 @@
         }
       }
     ],
+    "boss-assembly-open": [
+      {
+        "runtime": {
+          "path": "assets/audio/prototypes/boss-assembly-open.wav",
+          "format": "wav"
+        }
+      }
+    ],
     "boss-assembly-spawn": [
       {
         "runtime": {

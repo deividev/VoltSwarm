@@ -1,11 +1,14 @@
 # Trailer v1 — Steam Demo launch trailer
 
-> **Status:** PLANNED. Nothing here is captured, edited, approved, or published.
-> This document records the structure and the ordering constraints agreed on
-> 2026-08-06; it does **not** claim that footage, music, or a cut exist.
+> **Status 2026-08-20:** PLANNED / NOT PRODUCED. No footage has been captured,
+> no edit or final export exists, and nothing is approved or published. Music
+> materials `CUT A/B/C/D` exist, but they are working inputs only and do not imply
+> selection, approval or a finished trailer. The 13–20 August execution window
+> expired without delivery and must be rebaselined before production resumes.
 >
 > **Scope:** the Steam Demo (`codex/demo-map1`) only — Scrapyard / Map 1, run
-> ends at 10:00 with `Sector Cleared`. Map 2, Swarm Foundry, Hazard Marshal,
+> ends with `Sector Cleared` only after defeating the boss; timeout without boss
+> is `Sector Held`. Map 2, Swarm Foundry, Hazard Marshal,
 > leaderboards and co-op are full-game content and must not appear in a single
 > frame or a single word of this trailer.
 
@@ -33,14 +36,17 @@ Second ordering fact: **the trailer does not block the review submission.** Stea
 review covers the build and the store assets; the video can be uploaded or
 replaced afterwards. That buys the edit ten extra days of slack.
 
-| Date | Work |
+**HISTÓRICO / NO CUMPLIDO:** the dated plan below expired. Do not execute it as
+the current schedule; establish a new freeze/capture/edit/export baseline first.
+
+| Historical date | Planned work |
 |---|---|
 | 06–12 Aug | Demo content and balance. Last day gameplay may change. |
 | **13 Aug** | **Freeze the build.** `pnpm package` + `check:release-flags` must pass. |
 | 14–15 Aug | Targeted capture against the frozen build (§4). |
 | 16–19 Aug | Edit + music. |
 | **20 Aug** | **Submit to review.** Hard ceiling. |
-| 21–31 Aug | Rejection buffer. Final trailer can land in this window. |
+| 21–31 Aug | Former rejection buffer; not a promise of delivery or review outcome. |
 
 Music generation (§5) is the only task with no dependency on the frozen build,
 so it runs in parallel from 06 Aug and must not fall into the edit window.
@@ -155,7 +161,11 @@ Beat = 0.488 s → **123.0 BPM** → bar = 1.9512 s. Clean beat anchor at
 | `CUT-A-32bars-65s.mp3` | 150.17 s | 215.5 s | **65.33 s** | 32 bars exactly, matches the beat sheet; opens ~4 dB below full on a 6 s rise |
 | `CUT-B-28bars-57s.mp3` | 158.01 s | 215.5 s | 57.49 s | opens at full drive; costs 8 s of trailer |
 
-Both end identically. Only the opening differs — judge it against a peak-density
+Additional working materials `CUT C` and `CUT D` also exist. None of A/B/C/D is
+approved or a final export. A and B are documented below because they were the
+measured candidates in this snapshot.
+
+Both measured candidates end identically. Only the opening differs — judge it against a peak-density
 shot, which is the whole reason the decision waits for footage.
 
 **This changes §3:** the winner's biggest transient is **+11.9 dB at 180 s**

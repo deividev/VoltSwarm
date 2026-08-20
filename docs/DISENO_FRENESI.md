@@ -4,6 +4,15 @@
 
 > **Aviso sobre la fuente.** Quien comenta en X está viendo **GIFs**, no jugando. Son dos problemas distintos y hay que separarlos: uno es qué material estamos publicando, el otro es cómo se juega de verdad. Este estudio encontró que **los dos están rotos, por la misma causa raíz**.
 
+> **Estado posterior 2026-08-20:** este diagnóstico de v0.6.7 se conserva como
+> historia medida, no como snapshot del build actual. Foundry ya aplica curva
+> `{ floor: 0.7, peak: 1.15, rampS: 600 }`, roster local ×2.5 y contacto
+> swarm ×1.5 / boss ×1.25; falta validar el resultado con runs humanas
+> terminadas. La decisión de §4 sigue vigente: Field Engineer es el único
+> personaje implementado, faltan dos, no hay contratos activos de personaje y
+> el dash continúa diferido hasta que densidad/peligro importe. Cuando llegue
+> será universal e idéntico, nunca identidad de personaje.
+
 ---
 
 ## 1. Diagnóstico medido

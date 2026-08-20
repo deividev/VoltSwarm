@@ -2,7 +2,14 @@
 
 **Destino canónico verificado del juego completo:** Steam App ID `4979220` — `https://store.steampowered.com/app/4979220/Voltswarm/`.
 
-> **Alcance de producto:** el juego completo (`codex/map-2`) recorre Scrapyard / Mapa 1 → Swarm Foundry / Mapa 2 → Hazard Marshal; el arco es jugable, pero su combate final sigue provisional. La Steam Demo separada contiene solo Mapa 1 y termina a los 10 minutos como `SECTOR CLEARED`; Mapa 2 y Hazard Marshal no son claims de esa build. Volt Warden queda como diseño histórico/futuro. El RC de fin de agosto de 2026 es un objetivo interno de la Demo, nunca una promesa pública de lanzamiento, revisión o disponibilidad.
+> **Alcance de producto:** el juego completo (`codex/map-2`) recorre Scrapyard / Mapa 1 → Swarm Foundry / Mapa 2 → Hazard Marshal; la baseline del combate final está cerrada en el candidato 0.22.0. La Steam Demo separada (`codex/demo-map1`, `0.13.39-demo`) contiene solo Mapa 1: boss derrotado → `SECTOR CLEARED`, timeout sin boss → `SECTOR HELD`; Mapa 2 y Hazard Marshal no son claims de esa build. Volt Warden queda como diseño histórico/futuro. El RC de fin de agosto de 2026 es un objetivo interno de la Demo, nunca una promesa pública de lanzamiento, revisión o disponibilidad.
+>
+> **Estado de producción 2026-08-20:** el siguiente bloque real del juego completo
+> es remate visual de Foundry → 2 personajes restantes → runs humanas/balance y
+> retención → cohesión de audio nuevo → Steamworks/cierre. El tráiler de la Demo
+> sigue sin producir ni exportar; sus materiales CUT A/B/C/D no equivalen a un
+> corte aprobado. El futuro S5 es un tráiler del juego completo y no debe
+> confundirse con ese plan de Demo.
 
 > **Resultado buscado:** empezar a construir audiencia el lunes **20-07-2026** y llegar a **1.000 wishlists o mas en el ultimo dia cerrado de Steam Wishlist Reporting anterior al lanzamiento** (`W_final`). Guardar su `as_of_date_pt`; registrar aparte `release_activated_at_utc`. No afirmar un total inmediato en vivo salvo contador live verificado por el publisher. El **04-11-2026** es un *stretch target histórico superseded*, no una fecha pública ni un objetivo vigente.
 
@@ -61,8 +68,8 @@ admitiendo solo MP4 o PNG/JPG, nunca GIF.
 1. No asumir `page_status=public_coming_soon`: reconfirmar externamente el estado actual. La URL canónica y el App ID `4979220` son datos verificados, pero no autorizan un claim de disponibilidad.
 2. Registrar wishlists y conversiones únicamente desde Steamworks/publisher; no inferirlas desde tráfico público.
 3. Publicar gameplay real con CTA de wishlist cuando el canal y sus reglas lo permitan.
-4. Mantener el marketing actual con assets existentes mientras producción trabaja en **Mapa 2 Swarm Foundry y Hazard Marshal provisional**.
-5. Después de ese bloque, preparar contenido de los **3 personajes diferenciados**; no anunciarlos antes de que existan y pasen validación.
+4. Mantener el marketing actual con assets existentes mientras producción remata **Swarm Foundry**; Hazard Marshal ya tiene baseline cerrada.
+5. Después, preparar contenido de los **2 personajes restantes**; Field Engineer ya está aprobado. No anunciarlos antes de que existan y pasen validación.
 6. Revisar cohortes cerradas antes de iterar formatos; los playtests humanos de balance quedan para una fase posterior del producto.
 
 ### Roles operativos
@@ -202,7 +209,7 @@ La activación inicial queda como registro histórico. No ejecutar ni reutilizar
 | Identidad | voxel "industrial toy", siluetas y color | crops honestos de shots 06/08/09 | reconocer Voltswarm sin depender del logo |
 | Construccion abierta | leccion concreta de legibilidad, VFX o balance | before/after nuevo, solo si existe | conversacion util en Reddit; confianza |
 
-**No usar como pilar hasta que exista y pase gates:** multiplayer, co-op, Mapa 2 Swarm Foundry, combate final de Hazard Marshal, 3 personajes, ~30 contratos, fecha o descuento.
+**No usar como pilar público hasta que exista en la variante anunciada y pase sus gates:** multiplayer, co-op, los 2 personajes todavía no implementados, fecha o descuento. Swarm Foundry y Hazard Marshal existen en el juego completo, pero nunca son claims de la Demo; Field Engineer sí existe, aunque anunciarlo sigue requiriendo asset/build aprobados.
 
 ### Capacidad realista
 
@@ -292,7 +299,7 @@ Todos usan una categoria de anuncio/noticia confirmada en la UI, **nunca Patch N
 | S2 | No antes de T1 +2 semanas; objetivo T1 +2-3 semanas | Builds: **`From one upgrade to an industrial projectile storm`** | Level-up -> consecuencia -> late build. GIF 02 + 05; shot 07. | Anuncio; no Featured. Evaluar ocultar S1. | Upgrades implementados. Fallback: early vs late run actual. | Reads, comentarios, follower/wishlist delta. |
 | S3 | T1 +5-6 semanas y minimo 2 semanas tras el beat publicado anterior | Sistema: **`Meet the Scrapper`** | Decision, intercambio, regreso al combate. GIF 06 + shot 04. | Anuncio; no Featured; dejar solo S2/S3 visibles. | Scrapper cerrado. Fallback: **`Crusher King changes the run`**, GIF 09 -> 03. Si ninguno, SKIP. | Impressions, reads y deltas. |
 | S4 | T1 +8-9 semanas y minimo 2 semanas tras el beat publicado anterior | Confianza: **`Keeping a 3D swarm readable`** | Problema -> cambio -> prueba. GIF 05/08; before/after real. | Anuncio de desarrollo; no Featured. | Requiere asset before/after documentado y resultado reproducible. Sin ese asset: SKIP. No publicar cifras FPS sin evidencia. | Read rate, comentarios utiles y deltas. |
-| S5 | T1 +11-12 semanas y minimo 2 semanas tras el beat publicado anterior; objetivo **14-15 oct** | Pico: **`Voltswarm - Gameplay Trailer`** | Trailer gameplay-first, 3 bullets reales, cover/header y GIF payoff. | Featured solo si preview/owner confirma; ocultar teaser sustituido. | Trailer aprobado y store sincronizada. Sin trailer aprobado: SKIP o renombrar con precision como anuncio de gameplay actual; nunca usar `Trailer`. Puede salir sin fecha: `Coming to Steam`. Co-op solo tras gate. | Views disponibles, impressions/reads y deltas +24/+72 preliminar; +120/+168 cohortes cerradas. |
+| S5 | T1 +11-12 semanas y minimo 2 semanas tras el beat publicado anterior; ventana histórica objetivo **14-15 oct**, sujeta a rebaseline | Pico del **juego completo**: **`Voltswarm - Gameplay Trailer`** | Trailer gameplay-first, 3 bullets reales, cover/header y GIF payoff. No reutilizar el plan de Demo como si fuera este entregable. | Featured solo si preview/owner confirma; ocultar teaser sustituido. | Trailer full-game aprobado y store sincronizada. Sin trailer aprobado: SKIP o renombrar con precision como anuncio de gameplay actual; nunca usar `Trailer`. Puede salir sin fecha: `Coming to Steam`. Co-op solo tras gate. | Views disponibles, impressions/reads y deltas +24/+72 preliminar; +120/+168 cohortes cerradas. |
 | S6 | Exactamente 7 dias antes del timestamp publico verificado; **28 oct solo si release 4 nov** | Conversion: **`Voltswarm launches in one week`** | Fecha/hora, 3 razones, cutdown 10-15 s. | Anuncio visible; un solo Featured. | Gate completo de fecha/release de la seccion 9, incluido build Valve-approved, checklist, permisos, pricing/package y dry-run. Si falla: SKIP. | Reads, delta diario y gap a 1.000. |
 | S7 | Release confirmado | Jugadores: **`Voltswarm is out now`** | Contenido real, launch cut 20-30 s, precio/descuento verificados, soporte. | Categoria vigente de launch; unico Featured; ocultar/expirar S6. | Steam confirma release activo y se registra `release_activated_at_utc`. Si se retrasa, reprogramar; no renombrar S6. | Impressions/reads, trafico/ventas; separar `W_final` del post-release. |
 
