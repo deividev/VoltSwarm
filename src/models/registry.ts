@@ -806,24 +806,25 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
   },
   drone: {
     kind: 'enemy',
-    ref: 'assets/2d/ref-drone-front.png',
-    // Painted back only (2026-07-13). No sideProfileRef on purpose: the
-    // measured rotor-bar depth re-capped the roof in dark — the segment
-    // profile below keeps the rotor a THIN blade (top-down camera rule).
-    backPaintRef: 'assets/2d/ref-drone-back-v1.png',
-    // Flat wide saucer; the dark rotor bar tops the silhouette and keeps
-    // its color through the depth (it IS a rotor slab).
-    targetWidth: 19,
-    voxelSize: 0.05,
+    ref: 'assets/2d/ref-drone-front-v2.png',
+    // The v2 redesign replaces the old three-slab saucer with a measured
+    // central fuselage and attached ducted-fan pods. Use the side sheet for
+    // real row depth and flank paint; the back sheet supplies the rear vents.
+    sideProfileRef: 'assets/2d/ref-drone-side-v2.png',
+    backPaintRef: 'assets/2d/ref-drone-back-v2.png',
+    sidePaint: true,
+    // Stay inside the swarm budget while preserving the large visor, roof
+    // plate and fan apertures. The smaller voxel keeps the old ~0.95u width.
+    targetWidth: 21,
+    voxelSize: 0.045,
     bodyColor: PINK,
     palette: [PINK, DARK, AMBER],
     frontOnly: [AMBER],
-    // Rotor bar as a THIN blade (the game camera looks down at the flyer:
-    // a deep rotor band caps the whole roof in dark); saucer body rounder.
+    // Fallback only when the measured side sheet cannot load.
     segments: [
-      { from: 0, to: 0.32, depthFactor: 0.09 },
-      { from: 0.32, to: 0.78, depthFactor: 0.4 },
-      { from: 0.78, to: 1, depthFactor: 0.28 },
+      { from: 0, to: 0.34, depthFactor: 0.28 },
+      { from: 0.34, to: 0.82, depthFactor: 0.46 },
+      { from: 0.82, to: 1, depthFactor: 0.34 },
     ],
     raisedTopFraction: 0,
   },
