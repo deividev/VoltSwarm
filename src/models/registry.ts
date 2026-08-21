@@ -60,6 +60,10 @@ export interface VoxelModelDef {
   sideProfileRef?: string;
   /** FLAT back sheet: paints the back shell with real reference detail. */
   backPaintRef?: string;
+  /** FLAT top sheet: paints selected top-facing macro accents directly from
+   * the approved orthographic view (front of object at image bottom). */
+  topPaintRef?: string;
+  topPaintColors?: number[];
   /** Paints the outer left/right faces from the side sheet's own colours
    *  instead of smearing the front silhouette edge. See icon-voxelizer. */
   sidePaint?: boolean;
@@ -113,6 +117,93 @@ export interface VoxelModelDef {
     hubRadius: number;
   };
   /**
+   * Open-topped crucible stamped into the SAME voxel grid as the measured
+   * shell. The orthographic top sheet is the measurement source, while these
+   * normalized values keep the runtime deterministic and browser-independent.
+   * A separate Three.js mesh would break the one-InstancedMesh-per-type rule.
+   */
+  topCrucible?: {
+    /** Approved top sheet used to measure the normalized footprint. */
+    ref: string;
+    /** Centre across the occupied X span, 0 = left and 1 = right. */
+    centerX: number;
+    /** Centre along the occupied Z span, 0 = back and 1 = front. */
+    centerZ: number;
+    widthFraction: number;
+    depthFraction: number;
+    /** Number of solid rim cells around the real empty cavity. */
+    rimThickness: number;
+    /** Height of the raised crucible lip in voxel layers. */
+    rimHeight: number;
+    rimColor: number;
+    /** Heat surface at the bottom of the cavity. */
+    innerColor: number;
+    /** Empty layers between the heat surface and the upper rim. */
+    cavityDepth: number;
+  };
+  /** Four corner legs measured from an approved orthographic top sheet. They
+   * are stamped into the source grid because front extrusion collapses each
+   * front/back pair into one side mass from the gameplay camera. */
+  topFootprintLegs?: {
+    ref: string;
+    bodyWidthFraction: number;
+    bodyDepthFraction: number;
+    clearThroughY: number;
+    radius: number;
+    jointY: readonly [number, number];
+    shaftY: readonly [number, number];
+    footY: readonly [number, number];
+    shaftColor: number;
+    jointColor: number;
+    footColor: number;
+  };
+  /**
+   * Coarse orthographic surface registration for details that collapse when
+   * 1024 px technical sheets are reduced to swarm resolution. Coordinates are
+   * measured on the final target-width grid; rows count down from the top in
+   * front/side views. A shallow front plate may fill missing extrusion steps,
+   * but it never expands the grid bounds or creates a separate object.
+   */
+  macroSurfaceDetails?: {
+    /** Occupied shell cells recolored along side/top orthographic rays. */
+    paintDepth: number;
+    /** Shallow front plate depth. The source sheet has a solid visor, while
+     * raw extrusion leaves empty steps that read as black stripes obliquely. */
+    frontPlateDepth: number;
+    /** Layers inset from the grid's front bound. Cells in front of the shaped
+     * plate are cleared so it reads integrated rather than as a windshield. */
+    frontInset: number;
+    visorColor: number;
+    frameColor: number;
+    ventColor: number;
+    front: {
+      visorBands: readonly {
+        x: readonly [number, number];
+        rows: readonly [number, number];
+      }[];
+      frameBands: readonly {
+        x: readonly [number, number];
+        rows: readonly [number, number];
+      }[];
+      ventX: readonly number[];
+      ventRows: readonly [number, number];
+    };
+    side: {
+      visorZ: readonly [number, number];
+      visorRows: readonly [number, number];
+      frameZ: readonly [number, number];
+      frameRows: readonly [number, number];
+      ventZ: readonly [number, number];
+      ventRows: readonly [number, number];
+    };
+    top: {
+      visorX: readonly [number, number];
+      visorZ: readonly [number, number];
+      frameX: readonly [number, number];
+      frameZ: readonly [number, number];
+    };
+  };
+  /**
    * Post-classification color swap: `{sourceHex: targetHex}`, applied to the
    * finished grid AFTER classification/extrusion. This is how color variants
    * (2026-07-06) are built — swapping the PALETTE itself before classifying
@@ -152,6 +243,7 @@ export const GREEN = 0x7dd94a;
 export const MUZZLE_RED = 0xff5533;
 export const PINK = 0xff9de2;
 export const GOLD = 0xf2b632;
+export const FURNACE_HEAT = 0xff7a1a;
 // Container teal ramp — MEASURED from prop-container-*-v3.png (not guessed):
 // the reference doors span a wide luminance range and a single teal made the
 // shadowed recesses snap to the blue-gray frame (read as "too dark/blue").
@@ -481,6 +573,108 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
       { from: 0.72, to: 1, depthFactor: 0.34 },
     ],
     raisedTopFraction: 0.14,
+  },
+  'furnace-mite': {
+    kind: 'enemy',
+    ref: 'assets/2d/ref-furnace-mite-front-v1.png',
+    sideProfileRef: 'assets/2d/ref-furnace-mite-side-v1.png',
+    backPaintRef: 'assets/2d/ref-furnace-mite-back-v1.png',
+    topPaintRef: 'assets/2d/ref-furnace-mite-top-v1.png',
+    // Charcoal roof plates can project directly. Cyan is registered by the
+    // measured macro pass below; direct 1024→19 projection fragments it.
+    topPaintColors: [DARK],
+    sidePaint: true,
+    targetWidth: 19,
+    voxelSize: 0.055,
+    bodyColor: YELLOW,
+    palette: [DARK, 0x151a20, YELLOW, CYAN, FURNACE_HEAT],
+    // One-voxel relief instead of the two-voxel frontOnly inset: the enlarged
+    // visor stays framed by charcoal but remains visible at swarm scale.
+    frontOnly: [],
+    armorColors: [DARK, 0x151a20, YELLOW],
+    segments: [
+      { from: 0, to: 0.72, depthFactor: 0.42 },
+      { from: 0.72, to: 1, depthFactor: 0.34 },
+    ],
+    // The canonical final sheets already contain the paint-role swap. Their
+    // charcoal armor plates protrude two voxels, strengthening only approved
+    // roof/front/side macro forms at the 19-column swarm resolution.
+    raisedColors: [DARK],
+    raisedTopFraction: 0.32,
+    topFootprintLegs: {
+      ref: 'assets/2d/ref-furnace-mite-top-v1.png',
+      bodyWidthFraction: 0.58,
+      bodyDepthFraction: 0.58,
+      clearThroughY: 5,
+      radius: 1,
+      jointY: [3, 5],
+      shaftY: [1, 3],
+      footY: [0, 1],
+      shaftColor: YELLOW,
+      jointColor: DARK,
+      footColor: DARK,
+    },
+    topCrucible: {
+      ref: 'assets/2d/ref-furnace-mite-top-v1.png',
+      centerX: 0.5,
+      // The approved top sheet places the crucible behind the body centre.
+      centerZ: 0.31,
+      widthFraction: 0.32,
+      depthFraction: 0.28,
+      rimThickness: 1,
+      rimHeight: 2,
+      rimColor: DARK,
+      innerColor: FURNACE_HEAT,
+      // One source-shell layer down, plus the two raised rim layers: visibly
+      // hot from the gameplay camera while remaining a genuine open cavity.
+      cavityDepth: 1,
+    },
+    // Measured from the four approved sheets after their reduction to the
+    // 19-column swarm grid. This stabilizes only the visor/frame and vents;
+    // silhouette, volume and gameplay size remain reference-driven.
+    macroSurfaceDetails: {
+      paintDepth: 1,
+      frontPlateDepth: 2,
+      frontInset: 3,
+      visorColor: CYAN,
+      frameColor: DARK,
+      ventColor: FURNACE_HEAT,
+      front: {
+        // Wide two-row brow plus the narrower one-row centre drop visible in
+        // the approved front sheet at 19-column resolution.
+        visorBands: [
+          { x: [4, 14], rows: [6, 7] },
+          { x: [6, 12], rows: [8, 8] },
+        ],
+        // One-cell charcoal outline that follows the visor's lower step.
+        frameBands: [
+          { x: [3, 15], rows: [5, 5] },
+          { x: [3, 3], rows: [6, 7] },
+          { x: [15, 15], rows: [6, 7] },
+          { x: [3, 5], rows: [8, 8] },
+          { x: [13, 15], rows: [8, 8] },
+          { x: [5, 13], rows: [9, 9] },
+        ],
+        // The side sheet supplies the orange vent blocks. Painting them onto
+        // the front face would interrupt the approved charcoal outline.
+        ventX: [],
+        ventRows: [6, 7],
+      },
+      side: {
+        visorZ: [14, 14],
+        visorRows: [6, 8],
+        frameZ: [13, 16],
+        frameRows: [5, 9],
+        ventZ: [11, 12],
+        ventRows: [6, 7],
+      },
+      top: {
+        visorX: [5, 13],
+        visorZ: [16, 17],
+        frameX: [4, 14],
+        frameZ: [15, 18],
+      },
+    },
   },
   sparkrunner: {
     kind: 'enemy',
@@ -1625,13 +1819,270 @@ export async function buildModelGrid(key: string): Promise<VoxelGrid> {
         sidePaint: def.sidePaint,
         asymmetric: def.asymmetric,
         backPaintRef: def.backPaintRef,
+        topPaintRef: def.topPaintRef,
+        topPaintColors: def.topPaintColors,
         raisedColors: def.raisedColors,
         bodyColor: def.bodyColor,
       });
   if (def.recolorMap) recolorGrid(grid, def.recolorMap);
   for (const region of def.recolorRegions ?? []) recolorGridRegion(grid, region);
   if (def.wheels) stampWheels(grid, def.wheels);
+  if (def.topFootprintLegs) stampTopFootprintLegs(grid, def.topFootprintLegs);
+  if (def.topCrucible) stampTopCrucible(grid, def.topCrucible);
+  if (def.macroSurfaceDetails) stampMacroSurfaceDetails(grid, def.macroSurfaceDetails);
   return grid;
+}
+
+/** Restores sheet-approved macro paint after low-resolution projection. Side
+ * and top rays recolor their shell; the front fills a shallow plate inside the
+ * existing bounds. Everything remains one grid, geometry, mesh and draw call. */
+export function stampMacroSurfaceDetails(
+  grid: VoxelGrid,
+  spec: NonNullable<VoxelModelDef['macroSurfaceDetails']>,
+): void {
+  const height = grid.length;
+  const depth = grid[0]?.length ?? 0;
+  const width = grid[0]?.[0]?.length ?? 0;
+  if (height === 0 || width === 0 || depth === 0) return;
+
+  const paintFront = (x: number, viewRow: number, color: number) => {
+    const y = height - 1 - viewRow;
+    if (y < 0 || y >= height || x < 0 || x >= width) return;
+    const plateZ = Math.max(0, depth - 1 - spec.frontInset);
+    for (let z = plateZ + 1; z < depth; z++) {
+      const row = grid[y]?.[z];
+      if (row) row[x] = null;
+    }
+    for (let z = plateZ; z >= Math.max(0, plateZ - spec.frontPlateDepth + 1); z--) {
+      const row = grid[y]?.[z];
+      if (!row) continue;
+      row[x] = color;
+    }
+  };
+  const paintFrontShell = (x: number, viewRow: number, color: number) => {
+    const y = height - 1 - viewRow;
+    if (y < 0 || y >= height || x < 0 || x >= width) return;
+    let painted = 0;
+    for (let z = depth - 1; z >= 0; z--) {
+      const row = grid[y]?.[z];
+      if (row?.[x] == null) continue;
+      row[x] = color;
+      painted++;
+      if (painted >= spec.paintDepth) return;
+    }
+  };
+  const paintSides = (z: number, viewRow: number, color: number) => {
+    const y = height - 1 - viewRow;
+    if (y < 0 || y >= height || z < 0 || z >= depth) return;
+    const row = grid[y]?.[z];
+    if (!row) return;
+    for (const direction of [1, -1] as const) {
+      let painted = 0;
+      for (let x = direction > 0 ? 0 : width - 1; x >= 0 && x < width; x += direction) {
+        if (row[x] == null) continue;
+        row[x] = color;
+        painted++;
+        if (painted >= spec.paintDepth) break;
+      }
+    }
+  };
+  const paintTop = (x: number, z: number, color: number) => {
+    if (x < 0 || x >= width || z < 0 || z >= depth) return;
+    let painted = 0;
+    for (let y = height - 1; y >= 0; y--) {
+      const row = grid[y]?.[z];
+      if (row?.[x] == null) continue;
+      row[x] = color;
+      painted++;
+      if (painted >= spec.paintDepth) return;
+    }
+  };
+  const paintRect = (
+    a: readonly [number, number],
+    b: readonly [number, number],
+    paint: (a: number, b: number, color: number) => void,
+    color: number,
+  ) => {
+    for (let bv = b[0]; bv <= b[1]; bv++) {
+      for (let av = a[0]; av <= a[1]; av++) paint(av, bv, color);
+    }
+  };
+
+  // Build the inset front plate first. The side register sits one layer behind
+  // that plane, so it stays visible in profile without breaking the frontal
+  // charcoal outline. The top wrap is registered last.
+  for (const band of spec.front.frameBands) paintRect(band.x, band.rows, paintFront, spec.frameColor);
+  for (const band of spec.front.visorBands) paintRect(band.x, band.rows, paintFront, spec.visorColor);
+  paintRect(spec.side.frameZ, spec.side.frameRows, paintSides, spec.frameColor);
+  paintRect(spec.side.visorZ, spec.side.visorRows, paintSides, spec.visorColor);
+  paintRect(spec.top.frameX, spec.top.frameZ, paintTop, spec.frameColor);
+  paintRect(spec.top.visorX, spec.top.visorZ, paintTop, spec.visorColor);
+
+  for (let row = spec.front.ventRows[0]; row <= spec.front.ventRows[1]; row++) {
+    for (const x of spec.front.ventX) paintFrontShell(x, row, spec.ventColor);
+  }
+  paintRect(spec.side.ventZ, spec.side.ventRows, paintSides, spec.ventColor);
+}
+
+/** Replaces the lower extruded leg mass with four face-connected, diagonally
+ * splayed corner legs. Every cell remains in the source VoxelGrid, so the
+ * resulting enemy is still one BufferGeometry and one InstancedMesh. */
+export function stampTopFootprintLegs(
+  grid: VoxelGrid,
+  spec: NonNullable<VoxelModelDef['topFootprintLegs']>,
+): void {
+  const height = grid.length;
+  const depth = grid[0]?.length ?? 0;
+  const width = grid[0]?.[0]?.length ?? 0;
+  if (height === 0 || width === 0 || depth === 0) return;
+
+  let xMin = width;
+  let xMax = -1;
+  let zMin = depth;
+  let zMax = -1;
+  for (const slice of grid) {
+    for (let z = 0; z < slice.length; z++) {
+      const row = slice[z];
+      if (!row) continue;
+      for (let x = 0; x < row.length; x++) {
+        if (row[x] == null) continue;
+        xMin = Math.min(xMin, x);
+        xMax = Math.max(xMax, x);
+        zMin = Math.min(zMin, z);
+        zMax = Math.max(zMax, z);
+      }
+    }
+  }
+  if (xMax < 0 || zMax < 0) return;
+
+  const occupiedWidth = xMax - xMin + 1;
+  const occupiedDepth = zMax - zMin + 1;
+  const bodyWidth = Math.max(3, Math.round(occupiedWidth * spec.bodyWidthFraction));
+  const bodyDepth = Math.max(3, Math.round(occupiedDepth * spec.bodyDepthFraction));
+  const centerX = Math.round((xMin + xMax) / 2);
+  const centerZ = Math.round((zMin + zMax) / 2);
+  const bodyX0 = centerX - Math.floor(bodyWidth / 2);
+  const bodyX1 = bodyX0 + bodyWidth - 1;
+  const bodyZ0 = centerZ - Math.floor(bodyDepth / 2);
+  const bodyZ1 = bodyZ0 + bodyDepth - 1;
+
+  // Remove the sheet-extruded outer lower volume. The central lower hull stays
+  // intact; each new joint overlaps its corner to guarantee attachment.
+  for (let y = 0; y <= Math.min(height - 1, spec.clearThroughY); y++) {
+    for (let z = 0; z < depth; z++) {
+      const row = grid[y]?.[z];
+      if (!row) continue;
+      for (let x = 0; x < width; x++) {
+        if (x < bodyX0 || x > bodyX1 || z < bodyZ0 || z > bodyZ1) row[x] = null;
+      }
+    }
+  }
+
+  const paintBlock = (cx: number, cz: number, yRange: readonly [number, number], color: number) => {
+    for (let y = Math.max(0, yRange[0]); y <= Math.min(height - 1, yRange[1]); y++) {
+      for (let z = Math.max(0, cz - spec.radius); z <= Math.min(depth - 1, cz + spec.radius); z++) {
+        const row = grid[y]?.[z];
+        if (!row) continue;
+        for (let x = Math.max(0, cx - spec.radius); x <= Math.min(width - 1, cx + spec.radius); x++) {
+          row[x] = color;
+        }
+      }
+    }
+  };
+
+  for (const sx of [-1, 1] as const) {
+    for (const sz of [-1, 1] as const) {
+      const jointX = sx < 0 ? bodyX0 : bodyX1;
+      const jointZ = sz < 0 ? bodyZ0 : bodyZ1;
+      const footX = sx < 0 ? xMin + spec.radius : xMax - spec.radius;
+      const footZ = sz < 0 ? zMin + spec.radius : zMax - spec.radius;
+      const shaftX = Math.round((jointX + footX) / 2);
+      const shaftZ = Math.round((jointZ + footZ) / 2);
+      paintBlock(jointX, jointZ, spec.jointY, spec.jointColor);
+      paintBlock(shaftX, shaftZ, spec.shaftY, spec.shaftColor);
+      paintBlock(footX, footZ, spec.footY, spec.footColor);
+    }
+  }
+}
+
+/** Clears a genuine open cavity and raises its rim inside the measured shell.
+ * The grid uses [y][z][x]; last Z is the front, so a centreZ below 0.5 places
+ * the crucible toward the model's rear exactly as the approved top view does. */
+function stampTopCrucible(
+  grid: VoxelGrid,
+  spec: NonNullable<VoxelModelDef['topCrucible']>,
+): void {
+  const height = grid.length;
+  const depth = grid[0]?.length ?? 0;
+  const width = grid[0]?.[0]?.length ?? 0;
+  if (height === 0 || width === 0 || depth === 0) return;
+
+  let xMin = width;
+  let xMax = -1;
+  let zMin = depth;
+  let zMax = -1;
+  let yTop = -1;
+  for (let y = 0; y < height; y++) {
+    for (let z = 0; z < depth; z++) {
+      const row = grid[y]?.[z];
+      if (!row) continue;
+      for (let x = 0; x < width; x++) {
+        if (row[x] == null) continue;
+        xMin = Math.min(xMin, x);
+        xMax = Math.max(xMax, x);
+        zMin = Math.min(zMin, z);
+        zMax = Math.max(zMax, z);
+        yTop = Math.max(yTop, y);
+      }
+    }
+  }
+  if (yTop < 0) return;
+
+  const occupiedWidth = xMax - xMin + 1;
+  const occupiedDepth = zMax - zMin + 1;
+  const outerWidth = Math.max(spec.rimThickness * 2 + 1, Math.round(occupiedWidth * spec.widthFraction));
+  const outerDepth = Math.max(spec.rimThickness * 2 + 1, Math.round(occupiedDepth * spec.depthFraction));
+  const centerX = Math.round(xMin + (occupiedWidth - 1) * spec.centerX);
+  const centerZ = Math.round(zMin + (occupiedDepth - 1) * spec.centerZ);
+  const outerX0 = Math.max(0, centerX - Math.floor(outerWidth / 2));
+  const outerX1 = Math.min(width - 1, outerX0 + outerWidth - 1);
+  const outerZ0 = Math.max(0, centerZ - Math.floor(outerDepth / 2));
+  const outerZ1 = Math.min(depth - 1, outerZ0 + outerDepth - 1);
+  const innerX0 = outerX0 + spec.rimThickness;
+  const innerX1 = outerX1 - spec.rimThickness;
+  const innerZ0 = outerZ0 + spec.rimThickness;
+  const innerZ1 = outerZ1 - spec.rimThickness;
+  const heatY = Math.max(0, yTop - spec.cavityDepth);
+
+  // Remove the shell above the heat floor: this is a real cavity, not an
+  // orange tile painted on a closed roof.
+  for (let y = heatY + 1; y <= yTop; y++) {
+    for (let z = innerZ0; z <= innerZ1; z++) {
+      const row = grid[y]?.[z];
+      if (!row) continue;
+      for (let x = innerX0; x <= innerX1; x++) row[x] = null;
+    }
+  }
+  for (let z = innerZ0; z <= innerZ1; z++) {
+    const row = grid[heatY]?.[z];
+    if (!row) continue;
+    for (let x = innerX0; x <= innerX1; x++) row[x] = spec.innerColor;
+  }
+
+  // Grow missing layers when the rim rises above the source silhouette.
+  while (grid.length <= yTop + spec.rimHeight) {
+    grid.push(Array.from({ length: depth }, () => new Array<number | null>(width).fill(null)));
+  }
+  for (let y = yTop; y < yTop + spec.rimHeight; y++) {
+    for (let z = outerZ0; z <= outerZ1; z++) {
+      const row = grid[y]?.[z];
+      if (!row) continue;
+      for (let x = outerX0; x <= outerX1; x++) {
+        const rim = x < innerX0 || x > innerX1 || z < innerZ0 || z > innerZ1;
+        if (rim) row[x] = spec.rimColor;
+      }
+    }
+  }
 }
 
 /** Carves a cylinder into the grid for each wheel (see `wheels` on

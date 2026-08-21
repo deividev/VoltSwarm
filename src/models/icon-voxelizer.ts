@@ -88,6 +88,13 @@ export interface IconVoxelizeOptions {
    * the back view becomes real reference detail (2026-07-09).
    */
   backPaintRef?: string;
+  /** FLAT top sheet (front of the object at the image bottom). Selected paint
+   * colors are projected onto the highest occupied voxel at each X/Z cell,
+   * preserving the measured shell and the one-geometry instancing path. */
+  topPaintRef?: string;
+  /** Restricts top projection to macro accents that the gameplay camera must
+   * read; absent means every non-background top pixel may paint the shell. */
+  topPaintColors?: number[];
   /**
    * Uses the side sheet's COLOURS, not just its depth, to paint the model's
    * outermost left/right faces (2026-07-31).
@@ -278,6 +285,10 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
     backMap = downsampleMap(back, gridW, gridH);
   }
 
+  const topImage = options.topPaintRef
+    ? await classifyImage(options.topPaintRef, options.background, options.palette)
+    : null;
+
   const deepest = Math.max(
     ...segments.map((s) => s.maxHalfDepth),
     ...(rowHalfDepth ?? [0]),
@@ -285,6 +296,7 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
   // Extra front slots for raised details (crest vents, muzzle rings).
   const gridD = deepest * 2 + 3;
   const grid = emptyGrid(gridW, gridH, gridD);
+  const topMap = topImage ? downsampleMap(topImage, gridW, gridD) : null;
   const frontOnly = new Set(options.frontOnly);
   const raisedSet = new Set(options.raisedColors ?? []);
 
@@ -447,6 +459,23 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
         if (paint == null) continue;
         row[xLo] = paint;
         row[xHi] = paint;
+      }
+    }
+  }
+  if (topMap) {
+    const allowed = options.topPaintColors ? new Set(options.topPaintColors) : null;
+    for (let z = 0; z < gridD; z++) {
+      const topRow = topMap[z];
+      if (!topRow) continue;
+      for (let x = 0; x < gridW; x++) {
+        const paint = topRow[x];
+        if (paint == null || (allowed && !allowed.has(paint))) continue;
+        for (let y = gridH - 1; y >= 0; y--) {
+          const row = grid[y]?.[z];
+          if (!row || row[x] == null) continue;
+          row[x] = paint;
+          break;
+        }
       }
     }
   }

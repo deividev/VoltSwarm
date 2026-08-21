@@ -1,5 +1,7 @@
-// Worst-case render stress: spawns the dev server, forces a full swarm plus the
-// boss at 1920x1080, and measures 65 seconds of real frames.
+// Worst-case Map 2 render stress: enters Swarm Foundry through the real dev
+// transition, asserts Furnace Mite replaced Voltling in the existing type-0
+// InstancedMesh, then forces a full swarm at 1920x1080, attempts the boss
+// interaction when a portal exists, and measures 65 seconds of real frames.
 //
 // This is the instrument that answers "did that change cost us frames?", and it
 // is the only honest way to answer it -- a screenshot cannot show a frametime.
@@ -19,8 +21,10 @@
 // Also check `population.average` and `interaction` match across the runs you
 // are comparing: a level-up landing on the pause probe changes the workload.
 //
-// Measured 2026-08-16 (three 0.185, Electron 43): 431 enemies, 8.30 ms median,
-// 8.50 ms p99 against an 8.33 ms vsync period, 3.2 M triangles, ~76 draw calls.
+// Historical Map 1 baseline (2026-08-16, three 0.185, Electron 43): 431
+// enemies, 8.30 ms median, 8.50 ms p99, 3.2 M triangles, ~76 draw calls.
+// Current Map 2/Furnace baseline (2026-08-21, Chrome 151, RTX 2060): 430
+// enemies, 8.40 ms median, 16.70 ms p99, 4.59 M triangles, ~86.77 calls.
 //
 // Compare runs by keeping the previous report.json -- rename it rather than let
 // this overwrite it, since the output path is fixed.
@@ -125,11 +129,57 @@ try {
   await page.waitForSelector('#draft-cards > *', { visible: true, timeout: 20_000 });
   await page.click('#draft-cards > *');
   await page.waitForFunction(() => window.__voltswarm?.state === 'playing', { timeout: 20_000 });
+
+  // Freeze the Map 1 mesh identity before the real transition. Map-specific
+  // models must swap geometry on this object, never allocate another type mesh.
+  await page.evaluate(() => {
+    const enemies = window.__voltswarm?.enemies;
+    window.__perf400Type0Mesh = enemies?.meshes?.[0] ?? null;
+    window.__perf400EnemyMeshCount = enemies?.meshes?.length ?? -1;
+  });
+  await page.keyboard.press('KeyT');
+  await page.waitForFunction(
+    () => window.__voltswarm?.runFlow?.mapIndex === 1 && window.__voltswarm?.state === 'playing',
+    { timeout: 20_000 },
+  );
   await sleep(6_000); // allow all image-derived voxel geometry to replace primitives
 
   const setup = await page.evaluate(async () => {
     const g = window.__voltswarm;
     if (!g?.enemies?.spawnAt) throw new Error('Dev stress hook unavailable');
+
+    // Await the public variant operation as a hard synchronization point, then
+    // prove the Map 2 model occupies the original type-0 InstancedMesh.
+    await g.enemies.applyMapModelVariants('megafactory');
+    const enemyMeshes = g.enemies.meshes;
+    const type0Mesh = enemyMeshes?.[0];
+    const furnaceGeometry = await g.enemies.modelGeometryCache?.get('furnace-mite');
+    let type0SceneOccurrences = 0;
+    g.scene.traverse((object) => {
+      if (object === type0Mesh) type0SceneOccurrences++;
+    });
+    const type0Position = type0Mesh?.geometry?.getAttribute('position');
+    const modelVariant = {
+      mapIndex: g.runFlow.mapIndex,
+      mapId: g.currentMap.id,
+      modelKey: type0Mesh?.geometry === furnaceGeometry ? 'furnace-mite' : 'unexpected',
+      sameType0Mesh: type0Mesh === window.__perf400Type0Mesh,
+      enemyTypeMeshCountBefore: window.__perf400EnemyMeshCount,
+      enemyTypeMeshCountAfter: enemyMeshes?.length ?? -1,
+      enemyTypeInstancedMeshCount: enemyMeshes?.filter((mesh) => mesh?.isInstancedMesh).length ?? 0,
+      type0IsInstancedMesh: type0Mesh?.isInstancedMesh === true,
+      type0SceneOccurrences,
+      type0GeometryTriangles: type0Position ? type0Position.count / 3 : 0,
+      type0Capacity: type0Mesh?.instanceMatrix?.count ?? 0,
+    };
+    if (modelVariant.mapId !== 'megafactory' || modelVariant.modelKey !== 'furnace-mite') {
+      throw new Error(`Map 2 Furnace Mite variant unavailable: ${JSON.stringify(modelVariant)}`);
+    }
+    if (!modelVariant.sameType0Mesh || !modelVariant.type0IsInstancedMesh ||
+        modelVariant.type0SceneOccurrences !== 1 ||
+        modelVariant.enemyTypeMeshCountAfter !== modelVariant.enemyTypeMeshCountBefore) {
+      throw new Error(`Enemy type mesh identity changed during Map 2 transition: ${JSON.stringify(modelVariant)}`);
+    }
 
     // Deterministic PRNG so the same population layout can be reproduced.
     let seed = 0x5eed400;
@@ -180,6 +230,9 @@ try {
       }
       spawnedByType.push(spawned);
     }
+    if (g.enemies.activeCount < 400) {
+      throw new Error(`Stress population below required 400+: ${g.enemies.activeCount}`);
+    }
 
     // Summon through the real interaction path so the boss telegraph, portal
     // eruption, boss AI, enemy projectiles and auras all participate.
@@ -220,6 +273,7 @@ try {
       weaponLevels: { ...g.weaponLevels },
       modCount: Object.keys(g.modCounts).length,
       poolSize: g.enemies.pool.length,
+      modelVariant,
     };
   });
 

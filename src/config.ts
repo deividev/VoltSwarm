@@ -1304,6 +1304,9 @@ export interface EnemyTypeDef {
   /** Explicit registry alias for names that intentionally do not match their
    * model key (Hazard Marshal uses the historical `final-boss` asset slot). */
   modelKey?: string;
+  /** Visual-only model substitutions owned by a map. Gameplay identity,
+   * behavior, pool slot and InstancedMesh stay unchanged. */
+  mapModelKeys?: Partial<Record<MapId, string>>;
   /** Boss identity is semantic, not inferred from an array position. */
   isBoss?: boolean;
   behavior: EnemyBehavior;
@@ -1347,6 +1350,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   {
     name: 'Voltling',
     modelKey: 'voltling',
+    mapModelKeys: { megafactory: 'furnace-mite' },
     behavior: 'chase',
     hp: 15,
     speed: 5.5,
@@ -1574,6 +1578,11 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
     capacity: 1,
   },
 ];
+
+/** Resolves the render model without changing the enemy's gameplay identity. */
+export function resolveEnemyModelKey(type: EnemyTypeDef, mapId: MapId): string {
+  return type.mapModelKeys?.[mapId] ?? type.modelKey ?? type.name.toLowerCase().replace(/\s+/g, '-');
+}
 
 /** Boss identities. Dispatch must ask by identity, never by pool position:
  *  changing the summon roster or its order must not route one boss through

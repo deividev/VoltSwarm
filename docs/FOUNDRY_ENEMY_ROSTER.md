@@ -1,14 +1,14 @@
 # Roster visual aprobado para Swarm Foundry
 
-Se aprobaron cuatro reemplazos visuales para Mapa 2: **Furnace Mite, Forge Dart, Slagcaster y Arc Courier**. Furnace Mite dispone además de un juego de vistas aprobado y queda listo para entrar en implementación. Esta unidad documental **no integra modelos, referencias runtime ni comportamiento jugable**.
+Se aprobaron cuatro reemplazos visuales para Mapa 2: **Furnace Mite, Forge Dart, Slagcaster y Arc Courier**. **Furnace Mite quedó integrado y validado en 0.23.0** como variante visual de Voltling exclusiva de Swarm Foundry; conserva comportamiento, slot de tipo y un único `InstancedMesh`. Los otros tres permanecen en preproducción.
 
-> **Provenance local:** las rutas bajo `art/concept/` están ignoradas por Git según la política de assets del proyecto. Identifican las fuentes conservadas en la máquina de trabajo, pero no prometen archivos versionados, empaquetados ni disponibles en un clon limpio. La futura unidad de implementación deberá entregar y validar conjuntamente cualquier referencia que consuma el runtime.
+> **Provenance local:** las rutas bajo `art/concept/` están ignoradas por Git según la política de assets del proyecto. Identifican las fuentes conservadas en la máquina de trabajo, pero no prometen archivos versionados, empaquetados ni disponibles en un clon limpio. Las cuatro referencias runtime de Furnace Mite bajo `public/assets/2d/` forman parte de la unidad 0.23.0 y requieren `git add -f` al preparar el commit.
 
 ## Estado rápido
 
 | Diseño | Sustituye a | Rol heredado | Estado | Contrato visual y de animación |
 | --- | --- | --- | --- | --- |
-| **Furnace Mite** | Voltling | Unidad común, ligera y rápida | Concepto y vistas aprobados; listo para implementación | Cuerpo compacto, crisol bajo y silueta ligera. Cuerpo y patas rígidos; nunca debe leerse como una unidad pesada. |
+| **Furnace Mite** | Voltling | Unidad común, ligera y rápida | ✅ Runtime Map 2 integrado, validado visualmente y con enjambre 400+ | Cuerpo compacto, crisol bajo y silueta ligera. Cuerpo y patas rígidos; nunca debe leerse como una unidad pesada. |
 | **Forge Dart** | Roller | Unidad rápida con trayectoria comprometida | Concepto aprobado; hojas finales pendientes | Silueta angular de chevrón y paleta morada heredada del Roller. La dirección frontal debe leerse inmediatamente desde la cámara de juego. |
 | **Slagcaster** | Gunner | Tirador lento que se detiene para atacar | Concepto de transformación aprobado; hojas finales pendientes | Se desplaza como una bola industrial compacta; al disparar se despliega y queda anclado. Ambos estados deben conservar correspondencia clara entre todas sus piezas. |
 | **Arc Courier** | Sparkrunner | Perseguidor alto y rápido | Concepto aprobado; hojas finales pendientes | Droide utilitario cilíndrico, cian y estrecho. Piernas completamente fijas, sin animación articulada: solo traslación rígida y el `wobble` global existente. |
@@ -33,14 +33,17 @@ Estas fuentes documentan la aprobación visual; no son carga runtime:
 
 Todas las hojas finales deben ser **ortográficas, planas y contiguas**, con fondo transparente, cero perspectiva, sombreado, gradientes u `outlines`, regiones de color uniforme, paleta medida, detalles gruesos y cada parte físicamente unida.
 
-### Furnace Mite — preproducción aprobada
+### Furnace Mite — runtime cerrado en 0.23.0
 
 - [x] Frontal: silueta compacta y rejilla frontal aprobadas.
 - [x] Lateral: perfil, orientación y respiraderos aprobados; el frente mira a la derecha.
 - [x] Trasera: crisol, espalda simple y cuatro patas aprobados.
 - [x] Cenital adicional: crisol, techo, orientación y distribución de patas aprobados.
+- [x] Referencias runtime 1024×1024: `ref-furnace-mite-front-v1.png`, `side`, `back` y `top` bajo `public/assets/2d/`.
+- [x] Modelo voxel `furnace-mite` integrado como sustitución de Voltling solo en `megafactory`, sin cambiar gameplay ni crear otro mesh.
+- [x] Previews 0°/90°/180°/270°, captura real de Mapa 2 y benchmark canónico 400+ validados.
 
-La cenital es una guía adicional para reconstruir la geometría superior; no sustituye las tres hojas canónicas. Ruta prevista de modelado: frontal + `sideProfileRef` + `backPaintRef`, con el crisol como geometría superior dedicada guiada por la cenital. Es una decisión de pipeline pendiente de ejecutar y validar, **no un modelo runtime cerrado**.
+La cenital sigue siendo una guía adicional y no sustituye las tres hojas canónicas. El runtime usa frontal + `sideProfileRef` + `backPaintRef`, pintura cenital opt-in y stamps dentro del mismo `VoxelGrid` para el crisol, las cuatro patas y el visor macro escalonado. El resultado conserva una sola geometría y el mismo `InstancedMesh` del slot Voltling.
 
 ### Resto del roster — hojas pendientes
 
@@ -59,6 +62,8 @@ Cada reemplazo se cierra por separado:
 3. Capturar previews a **0° / 90° / 180° / 270°** y corregir silueta, perfil y espalda.
 4. Validar lectura, escala, color y VFX dentro del juego.
 5. Revalidar rendimiento y legibilidad con **400+ enemigos**.
+
+Furnace Mite ya completó los cinco pasos. Forge Dart, Slagcaster y Arc Courier permanecen pendientes desde el primero.
 
 ## Breaker Colossus — futuro boss de Mapa 1
 

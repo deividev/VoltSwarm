@@ -1,6 +1,6 @@
 # Voltswarm — Roadmap a Steam
 
-Actualizado: 2026-08-21. Candidato documental en el working tree de `codex/map-2`: **0.22.1**; `HEAD` sigue en **0.22.0** hasta commit y no existe paquete 0.22.1. Rama Demo separada: `codex/demo-map1` (`0.13.39-demo`).
+Actualizado: 2026-08-21. Unidad funcional del juego completo: **0.23.0**. No existe paquete 0.23.0. Rama Demo separada: `codex/demo-map1` (`0.13.39-demo`).
 
 ## Alcance de variantes — decisión vigente
 
@@ -28,7 +28,7 @@ Orden anterior (superseded): foundation de audio → viabilidad multijugador →
 
 **Objetivo interno de RC de la Demo: fin de agosto de 2026.** No es fecha pública, promesa de disponibilidad ni predicción de revisión externa. Se revalida contra su checklist congelado y no fija la fecha del juego completo. El objetivo anterior del 4 de noviembre queda como registro histórico, no como gobernanza vigente.
 
-**Estado operativo:** el paquete/handoff comercial y audio v1 no significan que el juego completo esté cerrado. **Actualizado 2026-08-20:** la escenografía base del Mapa 2 (suelo raster, chimeneas/celdas, cobertura, muro y cielo/niebla por mapa) está hecha, y Hazard Marshal queda CERRADO como baseline jugable en v0.22.0. Faltan VFX ambientales de colada/chispas y el reteñido/elenco propio; después, los 2 personajes de lanzamiento restantes. Los playtests humanos y la calibración final se harán sobre esa build comparable.
+**Estado operativo:** el paquete/handoff comercial y audio v1 no significan que el juego completo esté cerrado. La escenografía base del Mapa 2 (suelo raster, chimeneas/celdas, cobertura, muro y cielo/niebla por mapa) está hecha, Hazard Marshal queda CERRADO como baseline jugable en v0.22.0 y Furnace Mite cierra en 0.23.0 el primer reemplazo propio de Foundry. Faltan VFX ambientales de colada/chispas y los otros tres reemplazos aprobados; después, los 2 personajes de lanzamiento restantes. Los playtests humanos y la calibración final se harán sobre esa build comparable.
 
 ## Hecho (pase de endurecimiento, 2026-07-04)
 
@@ -143,7 +143,7 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 
 **Prioridad interna vigente:** rematar la presentación visual de Swarm Foundry; después completar los 2 personajes diferenciados restantes; finalmente ejecutar playtests humanos, balance y retención sobre una build comparable. Hazard Marshal ya no bloquea esta secuencia: su baseline jugable quedó aceptada en v0.22.0.
 
-- 🟡 **Elenco propio de Swarm Foundry (concepts aprobados 2026-08-21):** Furnace Mite sustituirá a Voltling, Forge Dart a Roller, Slagcaster a Gunner y Arc Courier a Sparkrunner. Furnace Mite tiene sus vistas de preproducción aprobadas y es el primer candidato listo para implementación; todavía no tiene modelo ni integración runtime cerrados. Rustbrute y Drone siguen sin sustituto aprobado. El bloque permanece abierto: **Furnace Mite → referencias runtime + modelo 3D → previews 0°/90°/180°/270° → validación in-game y con 400+ enemigos**; los otros tres completarán antes sus hojas. Estado y provenance local en `docs/FOUNDRY_ENEMY_ROSTER.md`.
+- 🟡 **Elenco propio de Swarm Foundry (concepts aprobados 2026-08-21):** Furnace Mite sustituye a Voltling, Forge Dart a Roller, Slagcaster a Gunner y Arc Courier a Sparkrunner. **Furnace Mite completó en 0.23.0 referencias runtime, modelo voxel, previews 0°/90°/180°/270°, validación in-game y benchmark 400+**, conservando el mismo slot/`InstancedMesh` de Voltling. Forge Dart, Slagcaster y Arc Courier siguen pendientes de hojas finales e implementación. Rustbrute y Drone siguen sin sustituto aprobado. Estado y provenance local en `docs/FOUNDRY_ENEMY_ROSTER.md`.
 
 - ✅ **Tanda de playtest 2 — tiers de armas, oclusión y feedback (2026-07-17):** mejoras de arma con potencia escalada por tier y persistida; targeting al enemigo visible más cercano; proyectiles/beam/AoE/procs bloqueados por obstáculos; números de daño mayores; feedback `+XP/+GOLD` junto al jugador; oleadas conservan el anillo de spawn incluso junto al borde. El tratamiento visual definitivo del perímetro exterior queda pendiente de elección artística con el usuario.
 - ✅ **Recalibración inicial de economía y rareza (2026-07-17):** el drop normal mantiene 25% de frecuencia pero entrega 2 unidades para no aumentar pickups; los pesos sin Luck pasan a 62/27/9/1.8/0.2, haciendo que morado/dorado sea un jackpot inicial y que Lucky Gear tenga una función real. Validar capacidad de compra y calidad de drafts en el siguiente playtest antes de tocar precios o `luckShift`.
@@ -191,7 +191,7 @@ La lista levantada 2026-07-26 queda como registro histórico de decisiones. El c
 
 **7. Boss final — BASELINE CERRADA EN v0.22.0:** Hazard Marshal está integrado mediante la clave histórica `final-boss` y se dibuja con el `InstancedMesh` de `EnemySystem`. Tiene llegada propia con fuego del jugador retenido, arena despejada, combate autorado de tres fases, barrido, líneas de ensamblaje, sobrecarga, telegrafías, refuerzos, cues espaciales y desenlace diferido para que el golpe mortal se lea. El cierre pasó 36/36 tests, typecheck y el check runtime automatizado del finale. **Fuera del cierre:** balance fino basado en runs humanas terminadas y una posible arena reactiva/modular.
 
-**8. Mapa y elenco — BASE VISUAL HECHA:** suelo raster, chimeneas, celdas, cobertura, muro de arena y cielo/niebla propios ya están integrados. Reutiliza el elenco actual; faltan VFX ambientales de colada/chispas y reteñido o enemigos propios. Todo contenido nuevo deberá validar el enjambre a 400+.
+**8. Mapa y elenco — BASE VISUAL HECHA:** suelo raster, chimeneas, celdas, cobertura, muro de arena y cielo/niebla propios ya están integrados. Furnace Mite es el primer reemplazo propio cerrado; faltan Forge Dart, Slagcaster y Arc Courier, además de VFX ambientales de colada/chispas. Todo contenido nuevo deberá validar el enjambre a 400+.
 
 **Instrumentación lista para la primera run:** mapa final, `sectorsCleared`, `mapsReached`, completitud estructural y distribución en `pnpm stats`. Los playtests humanos se harán sobre una build comparable; no convierten esta primera versión procedural en arte final.
 - Semilla de layout aleatoria por run, escalera extendida de bosses/elites, meta-progresión ligera y contenido adicional desbloqueable.

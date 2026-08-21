@@ -639,6 +639,7 @@ export class Game {
     this.pendingFinaleArrival = false;
     this.finaleVictory = null;
     this.mapObstacles = [...this.worldMaps.setMap(startMap.id)];
+    void this.enemies.applyMapModelVariants(startMap.id);
     this.obstacles.push(...this.mapObstacles);
     this.currentRunId = createRunId();
     this.runFinalized = false;
@@ -1621,6 +1622,7 @@ export class Game {
     this.propMeshes = [];
     this.obstacles.length = 0;
     this.mapObstacles = [...this.worldMaps.setMap(nextMap.id)];
+    void this.enemies.applyMapModelVariants(nextMap.id);
     this.obstacles.push(...this.mapObstacles);
     // The sector swap used to clear props and never rebuild them, so Map 2 was
     // played on an empty floor no matter what its prop set contained.

@@ -7,6 +7,7 @@ import {
   ELITES,
   ENEMIES,
   ENEMY_TYPES,
+  MAPS,
   FLYER,
   GUNNER,
   ROLLER,
@@ -14,13 +15,15 @@ import {
   STATUS,
   VISUAL,
   isBossTypeIndex,
+  resolveEnemyModelKey,
   type EnemyTypeDef,
+  type MapId,
   type WeaponId,
 } from './config';
 import type { EnemyProjectiles } from './enemy-projectiles';
 import { findClearSpot, findRandomClearSpot, type Obstacle } from './world';
 import { buildGridGeometry } from './models/voxel-builder';
-import { buildModelGrid, modelKeyForTypeName, VOXEL_MODELS } from './models/registry';
+import { buildModelGrid, VOXEL_MODELS } from './models/registry';
 import { litMaterial } from './toon';
 
 // Each enemy type has its own voxel-style bot silhouette and renders through
@@ -149,6 +152,16 @@ export const CHARGE = { approach: 0, telegraph: 1, lunging: 2, recover: 3 } as c
 
 const ELITE_AURA_CAPACITY = 64;
 
+/** Replaces only the geometry payload. The InstancedMesh identity, capacity,
+ * instance matrices and draw-call budget are deliberately untouched. */
+export function swapInstancedMeshGeometry(
+  mesh: THREE.InstancedMesh,
+  geometry: THREE.BufferGeometry,
+): THREE.InstancedMesh {
+  mesh.geometry = geometry;
+  return mesh;
+}
+
 /** An obstacle that IS a live enemy. `sourceEnemy` exists purely so a heavy
  *  body can skip its own entry when steering. Declared here rather than in
  *  world.ts to keep Obstacle free of an enemies.ts import cycle. */
@@ -186,13 +199,18 @@ export class EnemySystem {
   private readonly activeBosses: Enemy[] = [];
 
   private readonly meshes: THREE.InstancedMesh[] = [];
+  private readonly fallbackGeometries: THREE.BufferGeometry[] = [];
+  private readonly ownedGeometries = new Set<THREE.BufferGeometry>();
+  private readonly modelGeometryCache = new Map<string, Promise<THREE.BufferGeometry | null>>();
+  private modelVariantRevision = 0;
+  private disposed = false;
   private readonly eliteAura: THREE.InstancedMesh;
   private readonly bossAura: THREE.InstancedMesh;
   private readonly blobShadows: THREE.InstancedMesh | null = null;
   private spawnTimer = 0;
   private readonly grid = new Map<number, number[]>();
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, initialMapId: MapId = MAPS[0]!.id) {
     // Uniform elite marker: a rotating SEGMENTED magenta ring under every
     // elite. The body tint alone shifts with each type's base color, so the
     // ring is the one signal that always reads the same; the segmented spin
@@ -287,11 +305,11 @@ export class EnemySystem {
     }
 
     const material = litMaterial({ vertexColors: true });
-    // High-detail voxel models load async (image-derived) and swap in over
-    // the primitive bots; on failure the primitives simply stay.
-    void this.upgradeVoxelModels();
     ENEMY_TYPES.forEach((type, typeIndex) => {
-      const mesh = new THREE.InstancedMesh(buildBotGeometry(typeIndex, type), material, type.capacity);
+      const fallbackGeometry = buildBotGeometry(typeIndex, type);
+      this.fallbackGeometries.push(fallbackGeometry);
+      this.ownedGeometries.add(fallbackGeometry);
+      const mesh = new THREE.InstancedMesh(fallbackGeometry, material, type.capacity);
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.frustumCulled = false;
       // Above the ground markers, so the half of an elite or boss ring that
@@ -344,35 +362,65 @@ export class EnemySystem {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     });
+    // High-detail image-derived models load after every type mesh exists. A
+    // later map request invalidates this one before it can swap stale geometry.
+    void this.applyMapModelVariants(initialMapId);
   }
 
   /**
-   * Swaps primitive bots for their image-derived voxel models — every enemy
-   * type (bosses included) whose kebab-cased name has a registry entry.
+   * Loads and atomically applies the render roster for one map. Geometry is
+   * cached by model key and retained until teardown: moving Map 1 -> Map 2 (or
+   * starting a new run back on Map 1) never disposes a buffer still referenced
+   * by an in-flight async request.
    */
-  private async upgradeVoxelModels(): Promise<void> {
-    await Promise.all(
+  async applyMapModelVariants(mapId: MapId): Promise<void> {
+    const revision = ++this.modelVariantRevision;
+    const geometries = await Promise.all(
       ENEMY_TYPES.map(async (type, typeIndex) => {
-        const key = type.modelKey ?? modelKeyForTypeName(type.name);
-        const def = VOXEL_MODELS[key];
-        if (!def) return;
-        try {
-          const grid = await buildModelGrid(key);
-          const geometry = buildGridGeometry(grid, def.voxelSize);
-          // Types that spin around their center (Roller) need the origin
-          // there; everyone else rests on the ground at y=0.
-          if (def.originAtCenter) {
-            geometry.translate(0, (-grid.length * def.voxelSize) / 2, 0);
-          }
-          const mesh = this.meshes[typeIndex];
-          if (!mesh) return;
-          mesh.geometry.dispose();
-          mesh.geometry = geometry;
-        } catch (error) {
-          console.warn(`Voxel model '${key}' unavailable, keeping primitive bot:`, error);
-        }
+        const key = resolveEnemyModelKey(type, mapId);
+        return (await this.loadModelGeometry(key)) ?? this.fallbackGeometries[typeIndex] ?? null;
       }),
     );
+    if (this.disposed || revision !== this.modelVariantRevision) return;
+    geometries.forEach((geometry, typeIndex) => {
+      const mesh = this.meshes[typeIndex];
+      if (mesh && geometry) swapInstancedMeshGeometry(mesh, geometry);
+    });
+  }
+
+  private loadModelGeometry(key: string): Promise<THREE.BufferGeometry | null> {
+    const cached = this.modelGeometryCache.get(key);
+    if (cached) return cached;
+    const pending = (async () => {
+      const def = VOXEL_MODELS[key];
+      if (!def) return null;
+      try {
+        const grid = await buildModelGrid(key);
+        const geometry = buildGridGeometry(grid, def.voxelSize);
+        if (def.originAtCenter) geometry.translate(0, (-grid.length * def.voxelSize) / 2, 0);
+        if (this.disposed) {
+          geometry.dispose();
+          return null;
+        }
+        this.ownedGeometries.add(geometry);
+        return geometry;
+      } catch (error) {
+        console.warn(`Voxel model '${key}' unavailable, keeping primitive bot:`, error);
+        return null;
+      }
+    })();
+    this.modelGeometryCache.set(key, pending);
+    return pending;
+  }
+
+  /** Releases model buffers only when the complete EnemySystem is torn down. */
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.modelVariantRevision++;
+    for (const geometry of this.ownedGeometries) geometry.dispose();
+    this.ownedGeometries.clear();
+    this.modelGeometryCache.clear();
   }
 
   /**
