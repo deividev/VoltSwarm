@@ -1,6 +1,6 @@
 # Voltswarm — Roadmap a Steam
 
-Actualizado: 2026-08-20. Candidato en el working tree de `codex/map-2`: **0.22.0**; `HEAD` sigue en **0.21.0** hasta commit y no existe paquete 0.22.0. Rama Demo separada: `codex/demo-map1` (`0.13.39-demo`).
+Actualizado: 2026-08-21. Candidato documental en el working tree de `codex/map-2`: **0.22.1**; `HEAD` sigue en **0.22.0** hasta commit y no existe paquete 0.22.1. Rama Demo separada: `codex/demo-map1` (`0.13.39-demo`).
 
 ## Alcance de variantes — decisión vigente
 
@@ -142,6 +142,8 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 ## Fase 5 — Arco completo, personajes y balance
 
 **Prioridad interna vigente:** rematar la presentación visual de Swarm Foundry; después completar los 2 personajes diferenciados restantes; finalmente ejecutar playtests humanos, balance y retención sobre una build comparable. Hazard Marshal ya no bloquea esta secuencia: su baseline jugable quedó aceptada en v0.22.0.
+
+- 🟡 **Elenco propio de Swarm Foundry (concepts aprobados 2026-08-21):** Furnace Mite sustituirá a Voltling, Forge Dart a Roller, Slagcaster a Gunner y Arc Courier a Sparkrunner. Furnace Mite tiene sus vistas de preproducción aprobadas y es el primer candidato listo para implementación; todavía no tiene modelo ni integración runtime cerrados. Rustbrute y Drone siguen sin sustituto aprobado. El bloque permanece abierto: **Furnace Mite → referencias runtime + modelo 3D → previews 0°/90°/180°/270° → validación in-game y con 400+ enemigos**; los otros tres completarán antes sus hojas. Estado y provenance local en `docs/FOUNDRY_ENEMY_ROSTER.md`.
 
 - ✅ **Tanda de playtest 2 — tiers de armas, oclusión y feedback (2026-07-17):** mejoras de arma con potencia escalada por tier y persistida; targeting al enemigo visible más cercano; proyectiles/beam/AoE/procs bloqueados por obstáculos; números de daño mayores; feedback `+XP/+GOLD` junto al jugador; oleadas conservan el anillo de spawn incluso junto al borde. El tratamiento visual definitivo del perímetro exterior queda pendiente de elección artística con el usuario.
 - ✅ **Recalibración inicial de economía y rareza (2026-07-17):** el drop normal mantiene 25% de frecuencia pero entrega 2 unidades para no aumentar pickups; los pesos sin Luck pasan a 62/27/9/1.8/0.2, haciendo que morado/dorado sea un jackpot inicial y que Lucky Gear tenga una función real. Validar capacidad de compra y calidad de drafts en el siguiente playtest antes de tocar precios o `luckShift`.
