@@ -81,7 +81,7 @@
     ]
   },
   "build": {
-    "buildVersion": "0.13.39.0",
+    "buildVersion": "0.13.40.0",
     "appId": "com.davidseco.voltswarm.demo",
     "productName": "Voltswarm Demo",
     "directories": {
