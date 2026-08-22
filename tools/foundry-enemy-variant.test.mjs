@@ -91,6 +91,101 @@ test('Voltling resolves to Furnace Mite only in Swarm Foundry', () => {
   assert.equal(def.macroSurfaceDetails.frameColor, registry.DARK);
 });
 
+test('Sparkrunner resolves to Axle Runner only in Swarm Foundry', () => {
+  const sparkrunner = config.ENEMY_TYPES.find((type) => type.name === 'Sparkrunner');
+  assert.ok(sparkrunner);
+  assert.equal(config.resolveEnemyModelKey(sparkrunner, config.MAPS[0].id), 'sparkrunner');
+  assert.equal(config.resolveEnemyModelKey(sparkrunner, 'megafactory'), 'axle-runner');
+
+  const def = registry.VOXEL_MODELS['axle-runner'];
+  assert.ok(def, 'Axle Runner must be registered');
+  assert.equal(def.refSide, undefined, 'the round body must not enter voxelizeMultiView');
+  assert.equal(def.sideProfileRef, 'assets/2d/ref-axle-runner-side-v1.png');
+  assert.equal(def.backPaintRef, 'assets/2d/ref-axle-runner-back-v1.png');
+  assert.equal(def.sidePaint, true);
+  assert.equal(def.targetWidth, 25);
+  assert.equal(def.targetHeight, 45);
+  assert.equal(def.voxelSize, 0.04);
+  assert.equal(def.bodyColor, registry.BONE);
+  assert.deepEqual(def.palette, [
+    registry.BONE,
+    registry.AXLE_COBALT,
+    registry.DARK,
+    registry.ELECTRIC_CYAN,
+    registry.SIGNAL_RED,
+  ]);
+  assert.ok(def.wheels, 'the two lateral wheel modules must be stamped into the shared grid');
+  assert.deepEqual(def.wheels.columns, [[0, 5], [19, 24]]);
+  assert.equal(def.wheels.tireColor, registry.DARK);
+  assert.equal(def.wheels.hubColor, registry.AXLE_COBALT);
+});
+
+test('Axle Runner turnaround stays flat, palette-locked and front/back dimension-locked', async () => {
+  const paths = [
+    'public/assets/2d/ref-axle-runner-front-v1.png',
+    'public/assets/2d/ref-axle-runner-side-v1.png',
+    'public/assets/2d/ref-axle-runner-back-v1.png',
+  ];
+  const images = await Promise.all(paths.map(readRgbaPng));
+  const approved = new Set([
+    '232,227,213,255',
+    '16,64,144,255',
+    '35,40,48,255',
+    '46,230,222,255',
+    '255,68,51,255',
+  ]);
+  for (let view = 0; view < images.length; view++) {
+    const image = images[view];
+    assert.deepEqual([image.width, image.height], [1024, 1024], `${paths[view]} dimensions drifted`);
+    const colors = new Set();
+    let fringe = 0;
+    for (let y = 0; y < image.height; y++) for (let x = 0; x < image.width; x++) {
+      const pixel = image.rgba(x, y);
+      if (pixel[3] > 0 && pixel[3] < 255) fringe++;
+      if (pixel[3] === 255) colors.add(pixel.join(','));
+    }
+    assert.equal(fringe, 0, `${paths[view]} must keep hard alpha`);
+    assert.deepEqual(colors, approved, `${paths[view]} palette drifted`);
+  }
+  const [front, , back] = images;
+  for (let y = 0; y < front.height; y++) for (let x = 0; x < front.width; x++) {
+    assert.equal(
+      front.rgba(x, y)[3],
+      back.rgba(x, y)[3],
+      `rear silhouette drifted from the approved front at ${x},${y}`,
+    );
+  }
+});
+
+test('Axle Runner wheel stamp remains connected to its shared body grid', () => {
+  const grid = voxelBuilder.emptyGrid(25, 38, 23);
+  for (let y = 10; y < 38; y++) for (let z = 7; z <= 15; z++) {
+    for (let x = 6; x <= 18; x++) grid[y][z][x] = registry.BONE;
+  }
+  registry.stampWheels(grid, registry.VOXEL_MODELS['axle-runner'].wheels);
+  const occupied = new Set();
+  for (let y = 0; y < grid.length; y++) for (let z = 0; z < grid[y].length; z++) {
+    for (let x = 0; x < grid[y][z].length; x++) if (grid[y][z][x] != null) occupied.add(`${x},${y},${z}`);
+  }
+  const first = occupied.values().next().value;
+  const reached = new Set([first]);
+  const pending = [first];
+  while (pending.length > 0) {
+    const [x, y, z] = pending.shift().split(',').map(Number);
+    for (const [nx, ny, nz] of [
+      [x - 1, y, z], [x + 1, y, z],
+      [x, y - 1, z], [x, y + 1, z],
+      [x, y, z - 1], [x, y, z + 1],
+    ]) {
+      const key = `${nx},${ny},${nz}`;
+      if (!occupied.has(key) || reached.has(key)) continue;
+      reached.add(key);
+      pending.push(key);
+    }
+  }
+  assert.equal(reached.size, occupied.size, 'wheel stamps and body must remain one connected grid');
+});
+
 test('canonical visor refs provide 2-3-row macro cyan with a charcoal frame', async () => {
   const expected = {
     front: { count: 52804, bbox: [301, 430, 722, 571] },

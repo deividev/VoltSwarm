@@ -28,6 +28,9 @@ export interface VoxelModelDef {
   refBack?: string;
   /** Voxel columns across. Enemies stay low (swarm triangle budget). */
   targetWidth: number;
+  /** Optional explicit voxel rows for a reference-approved height adjustment.
+   * Width/depth remain measured from the sheets and every voxel stays cubic. */
+  targetHeight?: number;
   /** World size of one voxel — controls the final model footprint. */
   voxelSize: number;
   /** Primary armor color; also the backfill behind surface details. */
@@ -236,6 +239,7 @@ export const ELECTRIC_CYAN = 0x2ee6de;
 export const AMBER = 0xffd24a;
 export const ORANGE = 0xff8c33;
 export const BONE = 0xe8e3d5;
+export const AXLE_COBALT = 0x104090;
 export const VISOR_DARK = 0x1c2a38;
 export const SIGNAL_RED = 0xff4433;
 export const PURPLE = 0xb069ff;
@@ -734,6 +738,51 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
       // 1, not 2. At radius 2 the cap covered five of the wheel face's nine
       // cells and the 3/4 camera read it as a yellow toe rather than a hub.
       hubRadius: 1,
+    },
+  },
+  'axle-runner': {
+    kind: 'enemy',
+    // The approved flat turnaround is intentionally routed through the
+    // measured-profile extruder. voxelizeMultiView squares the barrel body by
+    // taking the front/side silhouette cross-product, while this path keeps
+    // the rounded column falloff and uses the lateral only for real row depth.
+    ref: 'assets/2d/ref-axle-runner-front-v1.png',
+    sideProfileRef: 'assets/2d/ref-axle-runner-side-v1.png',
+    backPaintRef: 'assets/2d/ref-axle-runner-back-v1.png',
+    sidePaint: true,
+    // 25 columns preserve the two-column coral status light and cyan visor.
+    // The approved 598x900 sheet naturally resolves to 38 rows, but that made
+    // the Foundry variant 20.8% shorter than Sparkrunner at their shared 1.1x
+    // runtime scale. Seven extra sampled rows land at 1.98u runtime height
+    // (6.25% below Sparkrunner) without widening/deepening it or stretching cubes.
+    targetWidth: 25,
+    targetHeight: 45,
+    voxelSize: 0.04,
+    bodyColor: BONE,
+    palette: [BONE, AXLE_COBALT, DARK, ELECTRIC_CYAN, SIGNAL_RED],
+    // Cyan and coral are surface paint, not two-voxel sockets: both would be
+    // swallowed at this resolution. Back/side sheets own their visible paint.
+    frontOnly: [],
+    armorColors: [BONE, AXLE_COBALT, DARK],
+    segments: [
+      { from: 0, to: 0.22, depthFactor: 0.4 },
+      { from: 0.22, to: 0.7, depthFactor: 0.38 },
+      { from: 0.7, to: 1, depthFactor: 0.32 },
+    ],
+    raisedTopFraction: 0.16,
+    // Axle along X: the lateral view gets a real Y/Z wheel circle while the
+    // frontal keeps the approved narrow side modules. The stamp writes into
+    // this same grid, preserving one InstancedMesh for the Sparkrunner slot.
+    wheels: {
+      radius: 5,
+      centerY: 5,
+      columns: [
+        [0, 5],
+        [19, 24],
+      ],
+      tireColor: DARK,
+      hubColor: AXLE_COBALT,
+      hubRadius: 2,
     },
   },
   rustbrute: {
@@ -1806,6 +1855,7 @@ export async function buildModelGrid(key: string): Promise<VoxelGrid> {
       )
     : await voxelizeIcon(def.ref, {
         targetWidth: def.targetWidth,
+        targetHeight: def.targetHeight,
         depthFactor: def.depthFactor,
         raisedTopFraction: def.raisedTopFraction,
         segments: def.segments,
@@ -2090,7 +2140,7 @@ function stampTopCrucible(
  *  VoxelModelDef for why the sheets cannot express one). Everything the sheet
  *  put inside the band is cleared first, so the authored block becomes the
  *  tyre's bounding volume rather than surviving around it. */
-function stampWheels(grid: VoxelGrid, spec: NonNullable<VoxelModelDef['wheels']>): void {
+export function stampWheels(grid: VoxelGrid, spec: NonNullable<VoxelModelDef['wheels']>): void {
   const height = grid.length;
   const depth = grid[0]?.length ?? 0;
   const yFrom = Math.max(0, spec.centerY - spec.radius);

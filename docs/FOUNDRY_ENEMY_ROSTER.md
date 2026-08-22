@@ -1,6 +1,6 @@
 # Roster visual aprobado para Swarm Foundry
 
-Se aprobaron cuatro reemplazos visuales para Mapa 2: **Furnace Mite, Forge Dart, Slagcaster y Arc Courier**. **Furnace Mite quedó integrado y validado en 0.23.0** como variante visual de Voltling exclusiva de Swarm Foundry; conserva comportamiento, slot de tipo y un único `InstancedMesh`. Los otros tres permanecen en preproducción.
+Se aprobaron cuatro reemplazos visuales para Mapa 2: **Furnace Mite, Forge Dart, Slagcaster y Axle Runner**. **Furnace Mite quedó integrado y validado en 0.23.0** como variante visual de Voltling exclusiva de Swarm Foundry. **Axle Runner quedó aprobado, integrado y validado en 0.24.0** como sustitución visual permanente de Sparkrunner en Mapa 2, conservando comportamiento, slot de tipo y un único `InstancedMesh`. Forge Dart y Slagcaster permanecen en preproducción.
 
 > **Provenance local:** las rutas bajo `art/concept/` están ignoradas por Git según la política de assets del proyecto. Identifican las fuentes conservadas en la máquina de trabajo, pero no prometen archivos versionados, empaquetados ni disponibles en un clon limpio. Las cuatro referencias runtime de Furnace Mite bajo `public/assets/2d/` forman parte de la unidad 0.23.0 y requieren `git add -f` al preparar el commit.
 
@@ -11,7 +11,7 @@ Se aprobaron cuatro reemplazos visuales para Mapa 2: **Furnace Mite, Forge Dart,
 | **Furnace Mite** | Voltling | Unidad común, ligera y rápida | ✅ Runtime Map 2 integrado, validado visualmente y con enjambre 400+ | Cuerpo compacto, crisol bajo y silueta ligera. Cuerpo y patas rígidos; nunca debe leerse como una unidad pesada. |
 | **Forge Dart** | Roller | Unidad rápida con trayectoria comprometida | Concepto aprobado; hojas finales pendientes | Silueta angular de chevrón y paleta morada heredada del Roller. La dirección frontal debe leerse inmediatamente desde la cámara de juego. |
 | **Slagcaster** | Gunner | Tirador lento que se detiene para atacar | Concepto de transformación aprobado; hojas finales pendientes | Se desplaza como una bola industrial compacta; al disparar se despliega y queda anclado. Ambos estados deben conservar correspondencia clara entre todas sus piezas. |
-| **Arc Courier** | Sparkrunner | Perseguidor alto y rápido | Concepto aprobado; hojas finales pendientes | Droide utilitario cilíndrico, cian y estrecho. Piernas completamente fijas, sin animación articulada: solo traslación rígida y el `wobble` global existente. |
+| **Axle Runner** | Sparkrunner | Perseguidor alto y rápido | ✅ Runtime Map 2 aprobado, integrado y validado con enjambre 400+ en Electron | Droide utilitario blanco/cobalto con dos módulos de rueda laterales. Las ruedas y suspensiones permanecen rígidas: solo traslación y el `wobble` global existente. La silueta debe comunicar velocidad, no masa de tanque. |
 
 Rustbrute y Drone siguen **sin sustituto aprobado** para Mapa 2.
 
@@ -27,7 +27,22 @@ Estas fuentes documentan la aprobación visual; no son carga runtime:
   - `art/concept/swarm-foundry-enemies/furnace-mite-top-candidate-v1.png`
 - **Forge Dart:** `art/concept/swarm-foundry-enemies/forge-dart-concept-v1.png`
 - **Slagcaster:** `art/concept/swarm-foundry-enemies/slagcaster-transform-concept-v1.png`
-- **Arc Courier:** `art/concept/swarm-foundry-enemies/arc-courier-concept-v1.png`
+- **Axle Runner:**
+  - Concept aprobado: `art/concept/swarm-foundry-enemies/axle-runner-concept-v1.png`
+  - Frontal técnica aprobada/runtime: `public/assets/2d/ref-axle-runner-front-v1.png`.
+  - Lateral técnica aprobada/runtime: `public/assets/2d/ref-axle-runner-side-v1.png`.
+  - Trasera técnica aprobada/runtime: `public/assets/2d/ref-axle-runner-back-v1.png` (fuente local: `art/concept/swarm-foundry-enemies/axle-runner-back-flat-candidate-v2.png`).
+  - Previews del modelo: `assets/preview/axle-runner-viewer-0.png`, `-90.png`, `-180.png` y `-270.png`.
+  - Captura real: `assets/preview/axle-runner-ingame.png`.
+  - Gate Electron 400+: `tmp/perf-400-output/axle-runner-electron-report.json`, `axle-runner-stress-start.png` y `axle-runner-stress-end.png`.
+
+Las tres vistas técnicas de Axle Runner miden 1024×1024 RGBA, tienen alpha duro, una sola componente contigua y comparten una caja opaca de 598×900 px en frontal/trasera y 437×900 px en lateral. Las tres usan los cinco colores aprobados (`#e8e3d5`, `#104090`, `#232830`, `#2ee6de`, `#ff4433`). La trasera v2 se reconstruyó desde cero y bloquea exactamente la máscara exterior de la frontal: coinciden sus 900 filas, no solo la caja global.
+
+El modelo `axle-runner` usa extrusión frontal con `sideProfileRef`, `backPaintRef` y `sidePaint`; no usa `voxelizeMultiView`, que convertiría el cuerpo redondo en una caja. Trabaja a 25×45/0.04 u por voxel y estampa los dos cilindros de rueda dentro de la misma rejilla, sin sumar mallas ni draw calls por instancia. Las siete filas verticales adicionales fijan su altura runtime medida en 1.98 u frente a las 2.112 u de Sparkrunner, ambos con la escala compartida 1.1, sin aumentar anchura/profundidad ni deformar los voxels. La captura técnica actual mide 10 315 voxels y 7368 triángulos por instancia.
+
+**Gate definitivo 2026-08-22:** Electron a 1920×1080, RTX 2060, 430 enemigos iniciales y 428–430 durante 65 s. Axle Runner resolvió realmente el slot Sparkrunner (`modelKey: axle-runner`), preservó la identidad del `InstancedMesh` tipo 1 y los nueve tipos conservaron exactamente nueve `InstancedMesh`. Resultado: 119.55 FPS medios, bucket mínimo 104.99 FPS, frametime 8.3 ms mediana / 8.5 ms p99, 4.91 M triángulos/frame medios, 430/430 enemigos desplazados más de una unidad y cero errores de página/consola. **PASS**.
+
+El concept inicial de Arc Courier se conserva únicamente como reserva visual futura en `art/concept/swarm-foundry-enemies/arc-courier-concept-v1.png`. Ya no gobierna este slot ni sus futuras hojas técnicas.
 
 ## Contrato de hojas y modelado
 
@@ -48,7 +63,7 @@ La cenital sigue siendo una guía adicional y no sustituye las tres hojas canón
 ### Resto del roster — hojas pendientes
 
 - [ ] **Forge Dart — 3 hojas:** frontal, lateral y trasera.
-- [ ] **Arc Courier — 3 hojas:** frontal, lateral y trasera, manteniendo pose y piernas rígidas.
+- [x] **Axle Runner — 3 hojas:** frontal ✅; lateral ✅; trasera ✅. Modelo voxel aprobado, integrado, validado in-game y con gate Electron 400+ superado.
 - [ ] **Slagcaster — 6 hojas:** cerrado frontal/lateral/trasera y desplegado frontal/lateral/trasera.
 
 Slagcaster requiere diseño técnico especial: ambos estados deben compartir topología visual y correspondencia inequívoca de piezas. Su transformación **no puede tratarse como un simple reskin** de Gunner ni resolverse inventando geometría entre vistas.
@@ -63,7 +78,7 @@ Cada reemplazo se cierra por separado:
 4. Validar lectura, escala, color y VFX dentro del juego.
 5. Revalidar rendimiento y legibilidad con **400+ enemigos**.
 
-Furnace Mite ya completó los cinco pasos. Forge Dart, Slagcaster y Arc Courier permanecen pendientes desde el primero.
+Furnace Mite y Axle Runner ya completaron los cinco pasos. Forge Dart y Slagcaster permanecen pendientes desde el primero.
 
 ## Breaker Colossus — futuro boss de Mapa 1
 

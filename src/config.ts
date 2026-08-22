@@ -1366,6 +1366,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   {
     name: 'Sparkrunner',
     modelKey: 'sparkrunner',
+    mapModelKeys: { megafactory: 'axle-runner' },
     behavior: 'chase',
     /** 2.3x a same-moment Voltling — fourth rung of the arrival ladder. */
     hp: 35,

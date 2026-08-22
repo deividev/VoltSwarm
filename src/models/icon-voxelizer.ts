@@ -14,6 +14,10 @@ type FrontMap = (number | null)[][];
 export interface IconVoxelizeOptions {
   /** Target voxel width of the model; height follows the image's aspect. */
   targetWidth: number;
+  /** Optional explicit voxel-row count. This resamples the approved sheets
+   * vertically while keeping X/Z dimensions reference-measured and voxels
+   * cubic; use it instead of non-uniform Object3D scaling. */
+  targetHeight?: number;
   /** Max half-depth as a fraction of width (dome roundness). Default 0.38. */
   depthFactor?: number;
   /**
@@ -220,7 +224,7 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
   const gridW = options.targetWidth;
   const bboxW = image.maxX - image.minX + 1;
   const bboxH = image.maxY - image.minY + 1;
-  const gridH = Math.max(1, Math.round((bboxH / bboxW) * gridW));
+  const gridH = options.targetHeight ?? Math.max(1, Math.round((bboxH / bboxW) * gridW));
   const front = downsampleMap(image, gridW, gridH);
 
   cleanupFront(front);
@@ -268,7 +272,15 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
     const side = await classifyImage(options.sideProfileRef, options.background, options.palette);
     const sideBboxW = side.maxX - side.minX + 1;
     const sideBboxH = side.maxY - side.minY + 1;
-    const sideGridW = Math.max(2, Math.round((sideBboxW / sideBboxH) * gridH));
+    // An explicit height stretches only the shared vertical sampling. Depth
+    // remains measured against the front sheet's width, so making a character
+    // taller does not also make it deeper/heavier.
+    const sideGridW = Math.max(
+      2,
+      options.targetHeight
+        ? Math.round((sideBboxW / bboxW) * gridW)
+        : Math.round((sideBboxW / sideBboxH) * gridH),
+    );
     sideMap = downsampleMap(side, sideGridW, gridH);
     rowHalfDepth = sideMap.map((row) => {
       let filled = 0;
