@@ -202,8 +202,32 @@ export function makeSlagcasterTransformGeometry(
   const bounds = deployed.boundingBox;
   if (!bounds) throw new Error('Slagcaster geometry has no bounds');
 
-  const center = bounds.getCenter(new THREE.Vector3());
-  const size = bounds.getSize(new THREE.Vector3());
+  const cannonHint = deployed.getAttribute(SLAGCASTER_CANNON_HINT_ATTRIBUTE);
+
+  // Normalize against the BODY, never the cannon.
+  //
+  // Every vertex is mapped to the closed ball by the DIRECTION of its
+  // normalized position, so whatever sets that normalization decides which
+  // part of the ball each vertex covers. Taking it from the whole geometry
+  // hands that decision to the longest appendage: measured on the current
+  // model, the cannon drags the centre to z 0.3481 against a body whose own
+  // centre is 0 and whose half-depth is only 0.4087. Every body vertex then
+  // normalizes to nz <= 0.08, the whole shell collapses onto the back
+  // hemisphere, and the front of the ball is left with nothing but the
+  // cannon's handful of vertices — a visible hole in the rolling pose.
+  //
+  // Using the body's own bounds also makes the ball independent of how far the
+  // cannon reaches, so tuning the gun can never tear the roll open again.
+  const bodyBounds = new THREE.Box3();
+  const bodyPoint = new THREE.Vector3();
+  for (let i = 0; i < position.count; i++) {
+    if (cannonHint && cannonHint.getX(i) > 0.5) continue;
+    bodyBounds.expandByPoint(bodyPoint.fromBufferAttribute(position, i));
+  }
+  const normalizeBounds = bodyBounds.isEmpty() ? bounds : bodyBounds;
+
+  const center = normalizeBounds.getCenter(new THREE.Vector3());
+  const size = normalizeBounds.getSize(new THREE.Vector3());
   const halfX = Math.max(Number.EPSILON, size.x / 2);
   const halfY = Math.max(Number.EPSILON, size.y / 2);
   const halfZ = Math.max(Number.EPSILON, size.z / 2);
@@ -211,7 +235,6 @@ export function makeSlagcasterTransformGeometry(
   const closed = new Float32Array(position.count * 3);
   const parts = new Float32Array(position.count);
   const direction = new THREE.Vector3();
-  const cannonHint = deployed.getAttribute(SLAGCASTER_CANNON_HINT_ATTRIBUTE);
 
   for (let i = 0; i < position.count; i++) {
     const x = position.getX(i);

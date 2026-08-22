@@ -394,6 +394,7 @@ test('runtime semantic cannon occupies viewer-right and packs into the closed ba
   const closed = geometry.getAttribute('slagClosedPosition');
   const parts = geometry.getAttribute('slagPartId');
   const radius = (closedDef.targetWidth * closedDef.voxelSize) / 2;
+
   let cannonVertices = 0;
   let cannonMinX = Infinity;
   let cannonMaxX = -Infinity;
@@ -641,4 +642,65 @@ test('all Slagcaster runtime sheets are 1024 RGBA with hard alpha and one flat p
     assert.ok(transparent > 0 && opaque > 0, `${path} must contain silhouette and transparency`);
     assert.deepEqual(colors, approved, `${path} palette drifted`);
   }
+});
+
+test('the closed pose covers the whole ball, whatever the cannon reaches', () => {
+  // Regression: the rolling Slagcaster tore open along its front.
+  //
+  // makeSlagcasterTransformGeometry maps each vertex onto the ball by the
+  // DIRECTION of its normalized position, so whatever sets that normalization
+  // decides which part of the ball gets surface. Taking the bounds from the
+  // whole geometry hands that to the longest appendage. MEASURED on the real
+  // model: the cannon pulls the centre to z 0.3481 against a body centred on 0
+  // with a half-depth of 0.4087, so every body vertex normalizes to nz <= 0.08
+  // and the entire shell collapses onto the back hemisphere.
+  //
+  // The check is for HOLES, not for extremes: the extremes stayed reachable
+  // through the cannon's own vertices, which is exactly why this shipped.
+  const runtime = registry.VOXEL_MODELS.slagcaster;
+  const closedDef = registry.VOXEL_MODELS['slagcaster-closed'];
+
+  // A stand-in body at the real model's measured proportions. A token box will
+  // not do — the bug only appears when the appendage is long against the body.
+  const body = new THREE.BoxGeometry(1.665, 1.12, 0.817, 24, 16, 12);
+  body.translate(0, 0.56, 0);
+  const colored = body.toNonIndexed();
+  body.dispose();
+  colored.setAttribute(
+    'color',
+    new THREE.BufferAttribute(new Float32Array(colored.getAttribute('position').count * 3), 3),
+  );
+  const geometry = transform.makeSlagcasterTransformGeometry(
+    transform.addSlagcasterCannonGeometry(colored, config.SLAGCASTER.cannonGeometry),
+    1,
+    closedDef.targetWidth * closedDef.voxelSize,
+    config.SLAGCASTER.transform,
+  );
+
+  const closed = geometry.getAttribute('slagClosedPosition');
+  const radius = (closedDef.targetWidth * closedDef.voxelSize) / 2;
+  // Coarse spherical bins: 8 around, 4 top-to-bottom. Every bin the body can
+  // physically reach must contain at least one vertex.
+  const AZ = 8;
+  const EL = 4;
+  const bins = new Array(AZ * EL).fill(0);
+  for (let i = 0; i < closed.count; i++) {
+    const x = closed.getX(i);
+    const y = closed.getY(i) - radius;
+    const z = closed.getZ(i);
+    const len = Math.hypot(x, y, z) || 1;
+    const az = Math.floor(((Math.atan2(z, x) + Math.PI) / (2 * Math.PI)) * AZ) % AZ;
+    const el = Math.min(EL - 1, Math.floor(((y / len + 1) / 2) * EL));
+    bins[el * AZ + az]++;
+  }
+  const empty = [];
+  for (let el = 0; el < EL; el++) {
+    for (let az = 0; az < AZ; az++) if (bins[el * AZ + az] === 0) empty.push(`el${el}/az${az}`);
+  }
+  assert.deepEqual(
+    empty,
+    [],
+    `closed pose has bare patches: ${empty.join(', ')} (bins ${bins.join(',')})`,
+  );
+  assert.ok(runtime.slagcasterTransform, 'guard is only meaningful for the transforming model');
 });
