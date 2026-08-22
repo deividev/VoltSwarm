@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -18,7 +18,7 @@
     "package": "pnpm run build && pnpm run electron:build && electron-builder",
     "package:dir": "pnpm run build && pnpm run electron:build && electron-builder --dir",
     "check:release-flags": "node tools/check-release-flags.mjs",
-    "test": "pnpm run electron:build && node --experimental-strip-types --test tools/version-format.test.cjs tools/safe-save.test.cjs tools/playtest-reset.test.cjs tools/telemetry-client.test.cjs tools/display-settings.test.mjs tools/map-flow.test.mjs tools/defeat-transition.test.mjs tools/characters.test.mjs tools/character-preview-state.test.mjs tools/chest-reel.test.mjs tools/audio-selection.test.mjs tools/stat-units.test.mjs tools/sustain-balance.test.mjs tools/regen-pressure.test.mjs tools/contracts.test.mjs tools/final-boss.test.mjs",
+    "test": "pnpm run electron:build && node --experimental-strip-types --test tools/version-format.test.cjs tools/safe-save.test.cjs tools/playtest-reset.test.cjs tools/telemetry-client.test.cjs tools/display-settings.test.mjs tools/map-flow.test.mjs tools/defeat-transition.test.mjs tools/characters.test.mjs tools/character-preview-state.test.mjs tools/chest-reel.test.mjs tools/audio-selection.test.mjs tools/stat-units.test.mjs tools/sustain-balance.test.mjs tools/regen-pressure.test.mjs tools/contracts.test.mjs tools/final-boss.test.mjs tools/slagcaster-model.test.mjs",
     "test:all": "pnpm test && pnpm run test:defeat-runtime && pnpm run test:character-portrait-browser && pnpm run test:contracts-browser && pnpm run test:chest-reel-browser && pnpm run test:smoke",
     "test:smoke": "node tools/smoke-run.mjs",
     "test:telemetry": "pnpm run electron:build && node --test tools/telemetry-client.test.cjs",

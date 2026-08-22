@@ -1451,6 +1451,7 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
   {
     name: 'Gunner',
     modelKey: 'gunner',
+    mapModelKeys: { megafactory: 'slagcaster' },
     behavior: 'gunner',
     /** 3.2x a same-moment Voltling — fifth rung. Durability is the right axis
      *  for a ranged type: it keeps its distance, so a fragile one just dies to
@@ -2140,6 +2141,52 @@ export const GUNNER = {
   projectileLifetimeS: 4,
   maxProjectiles: 64,
 };
+
+/** Foundry Gunner presentation and its deliberately isolated trial overrides.
+ * Shared cooldown, damage and travel speed remain owned by GUNNER above. */
+export const SLAGCASTER = {
+  /** Foundry-only standoff. At the unchanged 12 u/s projectile speed this
+   * leaves roughly 1.17 s of visible travel from the outer edge. */
+  preferredDist: 14,
+  deployDurationS: 0.72,
+  retractDurationS: 0.48,
+  fullyDeployedProgress: 0.999,
+  /** Brief planted-pose read before the first shot; repeat cadence stays on
+   * GUNNER.shootCooldownS. */
+  firstShotDelayS: 0.2,
+  /** Approximate radius of the approved compact endpoint, used for rolling. */
+  rollingRadius: 0.61,
+  projectile: {
+    /** The visual reaches about 1.05 units across; the smaller collider keeps
+     * the hot slag bolt readable without making near misses feel dishonest. */
+    visualDiameter: 1.05,
+    collisionRadius: 0.42,
+    height: 1,
+    spinRate: 5.5,
+    mantleColor: 0xff6a00,
+    emberColor: 0xffa51f,
+    hotCoreColor: 0xffd36a,
+  },
+  /** Semantic-part activation windows over global deployment progress. */
+  transform: {
+    stagger: {
+      shell: [0, 0.58],
+      anchors: [0.08, 0.76],
+      crucible: [0.2, 0.88],
+      cannon: [0.34, 1],
+    },
+    /** Normalized deployed-bounds cuts used to assign vertices to parts. */
+    semantic: {
+      anchorMaxY: -0.16,
+      anchorMinAbsX: 0.24,
+      cannonMaxX: -0.34,
+      cannonMinY: -0.12,
+      crucibleMinY: 0.58,
+    },
+  },
+} as const;
+
+export type SlagcasterTransformConfig = typeof SLAGCASTER.transform;
 
 export const FLYER = {
   /** 2.6 → 1.1 (2026-07-30 playtest: beams visibly missed drones that were

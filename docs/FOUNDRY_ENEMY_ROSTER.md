@@ -10,7 +10,7 @@ Se aprobaron cuatro reemplazos visuales para Mapa 2: **Furnace Mite, Forge Dart,
 | --- | --- | --- | --- | --- |
 | **Furnace Mite** | Voltling | Unidad común, ligera y rápida | ✅ Runtime Map 2 integrado, validado visualmente y con enjambre 400+ | Cuerpo compacto, crisol bajo y silueta ligera. Cuerpo y patas rígidos; nunca debe leerse como una unidad pesada. |
 | **Forge Dart** | Roller | Unidad rápida con trayectoria comprometida | Concepto aprobado; hojas finales pendientes | Silueta angular de chevrón y paleta morada heredada del Roller. La dirección frontal debe leerse inmediatamente desde la cámara de juego. |
-| **Slagcaster** | Gunner | Tirador lento que se detiene para atacar | Concepto de transformación aprobado; hojas finales pendientes | Se desplaza como una bola industrial compacta; al disparar se despliega y queda anclado. Ambos estados deben conservar correspondencia clara entre todas sus piezas. |
+| **Slagcaster** | Gunner | Tirador lento que se detiene para atacar | Runtime Map 2 listo para prueba humana; aprobación visual y gate 400+ pendientes | Se desplaza como una bola industrial compacta; al disparar se despliega y queda anclado. Ambos estados deben conservar correspondencia clara entre todas sus piezas. |
 | **Axle Runner** | Sparkrunner | Perseguidor alto y rápido | ✅ Runtime Map 2 aprobado, integrado y validado con enjambre 400+ en Electron | Droide utilitario blanco/cobalto con dos módulos de rueda laterales. Las ruedas y suspensiones permanecen rígidas: solo traslación y el `wobble` global existente. La silueta debe comunicar velocidad, no masa de tanque. |
 
 Rustbrute y Drone siguen **sin sustituto aprobado** para Mapa 2.
@@ -26,7 +26,16 @@ Estas fuentes documentan la aprobación visual; no son carga runtime:
   - `art/concept/swarm-foundry-enemies/furnace-mite-back-candidate-v1.png`
   - `art/concept/swarm-foundry-enemies/furnace-mite-top-candidate-v1.png`
 - **Forge Dart:** `art/concept/swarm-foundry-enemies/forge-dart-concept-v1.png`
-- **Slagcaster:** `art/concept/swarm-foundry-enemies/slagcaster-transform-concept-v1.png`
+- **Slagcaster:**
+  - Concepto de transformación aprobado: `art/concept/swarm-foundry-enemies/slagcaster-transform-concept-v1.png`.
+  - Candidatas cerradas: `slagcaster-closed-front-candidate-v1.png`, `slagcaster-closed-side-candidate-v1.png` y `slagcaster-closed-back-candidate-v1.png` en la misma carpeta.
+  - Candidatas desplegadas: `slagcaster-deployed-front-candidate-v1.png`, `slagcaster-deployed-side-candidate-v1.png` y `slagcaster-deployed-back-candidate-v1.png` en la misma carpeta.
+  - Las seis candidatas preservan el reparto de piezas entre bola y despliegue. ImageGen devolvió RGB 1254×1254 con fondo de damero horneado, sombreado y miles de colores; `tools/make-slagcaster-sheets.mjs` las normaliza de forma determinista a RGBA plano, alpha duro y la paleta `#788239` / `#232830` / `#ffa803`.
+  - Hojas técnicas: `public/assets/2d/ref-slagcaster-{closed,deployed}-{front,side,back}-v1.png`.
+  - Endpoints estáticos de comparación: `slagcaster-closed` y `slagcaster-deployed` en `src/models/registry.ts`. La clave runtime animada es `slagcaster`.
+  - Turnarounds cardinales: `assets/preview/slagcaster-closed-viewer-turnaround.png` y `assets/preview/slagcaster-deployed-viewer-turnaround.png` (más sus capturas `-0/-90/-180/-270`).
+  - Runtime de prueba: Gunner resuelve a `slagcaster` solo en `megafactory`. Una única topología desplegada lleva posición cerrada + `partId` por vértice y `instanceSlagDeploy` por instancia; el shader escalona carcasa, anclajes, crisol y cañón sin sumar meshes ni compartir el progreso entre enemigos.
+  - Capturas del shader real: `assets/preview/slagcaster-transform-deploy-0.png`, `-0_5.png` y `-1.png`. Compila sin errores y los extremos leen correctamente; el 50% todavía separa masas en bloques demasiado evidentes y requiere juicio humano in-game antes de aprobar la animación.
 - **Axle Runner:**
   - Concept aprobado: `art/concept/swarm-foundry-enemies/axle-runner-concept-v1.png`
   - Frontal técnica aprobada/runtime: `public/assets/2d/ref-axle-runner-front-v1.png`.
@@ -64,9 +73,11 @@ La cenital sigue siendo una guía adicional y no sustituye las tres hojas canón
 
 - [ ] **Forge Dart — 3 hojas:** frontal, lateral y trasera.
 - [x] **Axle Runner — 3 hojas:** frontal ✅; lateral ✅; trasera ✅. Modelo voxel aprobado, integrado, validado in-game y con gate Electron 400+ superado.
-- [ ] **Slagcaster — 6 hojas:** cerrado frontal/lateral/trasera y desplegado frontal/lateral/trasera.
+- [x] **Slagcaster — 6 hojas:** cerrado frontal/lateral/trasera y desplegado frontal/lateral/trasera. Ambos modelos existen solo como endpoints estáticos de preview; la transformación runtime sigue pendiente.
 
-Slagcaster requiere diseño técnico especial: ambos estados deben compartir topología visual y correspondencia inequívoca de piezas. Su transformación **no puede tratarse como un simple reskin** de Gunner ni resolverse inventando geometría entre vistas.
+Slagcaster requiere diseño técnico especial: ambos estados deben compartir topología visual y correspondencia inequívoca de piezas. Su transformación **no puede tratarse como un simple reskin** de Gunner ni resolverse inventando geometría entre vistas. El runtime de prueba usa una representación topology-stable: `slagcaster-transform.ts` envuelve la topología desplegada sobre el diámetro cerrado y asigna partes semánticas; el shader interpola cada grupo con ventanas escalonadas y un atributo de progreso independiente por slot. Sigue siendo exactamente el `InstancedMesh` de Gunner. El proceso imita la disciplina del rig del Hazard Marshal, no su arquitectura multi-`Mesh`.
+
+Comportamiento de prueba: fuera de la banda Foundry de 9–14 unidades se retrae y se mueve como bola; dentro se detiene y despliega. El límite exterior de 14 mantiene la velocidad heredada de 12 u/s y deja aproximadamente 1,17 s de lectura al disparo desde el borde. El disparo queda bloqueado hasta completar el despliegue y espera solo 0,2 s para que se lea la pose plantada; los disparos posteriores conservan el cooldown Gunner de 3 s. La bola ahora rota alrededor de su centro local, no del plano del suelo, para conservar el contacto; los estados intermedios permanecen verticales y apoyados. Su proyectil propio es un ensamblaje voxel ámbar/naranja cuyo cuerpo principal mide 1,05 unidades y usa collider 0,42, con la punta caliente adelantada respecto al volumen de impacto. Map 1 y la Demo conservan el Gunner, su rango 9–12, temporización inicial histórica y su esquirla. Magnitudes, radio de rodadura, stagger y cortes semánticos viven en `config.SLAGCASTER`. Esto aún **no es aprobación visual**: falta comprobar en Electron que el cierre realmente lee como la bola aprobada, que el cañón/anclajes no se deforman de forma extraña durante el morph, que el nuevo disparo contrasta sobre todos los fondos y que el enjambre 400+ mantiene el presupuesto.
 
 ## Gate de integración posterior
 

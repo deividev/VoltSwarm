@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import ts from 'typescript';
 import {
   CORE_TIER_MAGNITUDES,
   BOSS,
@@ -33,6 +34,24 @@ function postArmorDamage(rawDamage, armor = 0) {
 function recoverySeconds(rawDamage, hpPerMinute) {
   const postArmor = postArmorDamage(rawDamage);
   return (postArmor * SECONDS_PER_MINUTE) / hpPerMinute;
+}
+
+function findProjectileFireCalls(source) {
+  const file = ts.createSourceFile('enemies.ts', source, ts.ScriptTarget.Latest, true);
+  const calls = [];
+  const visit = (node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.expression.getText(file) === 'projectiles' &&
+      node.expression.name.text === 'fire'
+    ) {
+      calls.push({ call: node, file });
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(file);
+  return calls;
 }
 
 /** Mirrors EnemySystem.updateSpawner's no-boss, empty-field pressure formulas.
@@ -105,7 +124,16 @@ test('Regen HP/min reports recovery against representative real incoming-damage 
       `${map.id}: boss contact is approaching the DPS that was measured and rejected`,
     );
   }
-  assert.match(enemySource, /projectiles\.fire\(e\.x, e\.z, dx, dz, GUNNER\.projectileSpeed, GUNNER\.projectileDamage\);/);
+  const projectileCalls = findProjectileFireCalls(enemySource);
+  assert.equal(projectileCalls.length, 1, 'EnemySystem must keep one shared projectile fire path');
+  const [{ call: projectileCall, file: enemyFile }] = projectileCalls;
+  assert.equal(projectileCall.arguments[4]?.getText(enemyFile), 'GUNNER.projectileSpeed');
+  assert.equal(projectileCall.arguments[5]?.getText(enemyFile), 'GUNNER.projectileDamage');
+  const kind = projectileCall.arguments[6];
+  assert.ok(ts.isConditionalExpression(kind), 'projectile kind must isolate Foundry Slagcaster');
+  assert.equal(kind.condition.getText(enemyFile), 'isSlagcaster');
+  assert.equal(kind.whenTrue.getText(enemyFile), "'slagcaster'");
+  assert.equal(kind.whenFalse.getText(enemyFile), "'gunner'");
   // A Gunner's shard still goes through the ordinary funnel, i-frame cap and
   // all; only the Marshal's own volley pierces it (see final-boss.test.mjs).
   assert.match(

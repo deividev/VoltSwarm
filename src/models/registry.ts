@@ -78,6 +78,8 @@ export interface VoxelModelDef {
   raisedColors?: number[];
   /** Overrides the per-kind hero scale in the preview viewer. */
   previewScale?: number;
+  /** Uses the deployed endpoint as one topology-stable, per-instance shader rig. */
+  slagcasterTransform?: boolean;
   /** Optional code-built volumes that the measured-profile shell cannot
    * represent without symmetrically inflating the opposite side. */
   runtimeDetails?: {
@@ -248,6 +250,12 @@ export const MUZZLE_RED = 0xff5533;
 export const PINK = 0xff9de2;
 export const GOLD = 0xf2b632;
 export const FURNACE_HEAT = 0xff7a1a;
+// Slagcaster palette measured from the approved two-state turnaround before
+// flattening. Kept separate from Gunner GREEN: the muted olive is what makes
+// this Foundry replacement read as kiln machinery rather than another acid
+// unit, while the hot amber seam remains consistent across both endpoints.
+export const SLAGCASTER_OLIVE = 0x788239;
+export const SLAGCASTER_AMBER = 0xffa803;
 // Container teal ramp — MEASURED from prop-container-*-v3.png (not guessed):
 // the reference doors span a wide luminance range and a single teal made the
 // shadowed recesses snap to the blue-gray frame (read as "too dark/blue").
@@ -852,6 +860,75 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
       { from: 0.7, to: 1, depthFactor: 0.3 },
     ],
     raisedTopFraction: 0.1,
+  },
+  // Runtime Foundry Gunner replacement. Geometry is the deployed endpoint;
+  // enemies.ts adds a compact closed position and per-instance progress to this
+  // SAME topology, so independent bodies transform without adding a mesh.
+  slagcaster: {
+    kind: 'enemy',
+    ref: 'assets/2d/ref-slagcaster-deployed-front-v1.png',
+    sideProfileRef: 'assets/2d/ref-slagcaster-deployed-side-v1.png',
+    backPaintRef: 'assets/2d/ref-slagcaster-deployed-back-v1.png',
+    sidePaint: true,
+    asymmetric: true,
+    targetWidth: 37,
+    voxelSize: 0.045,
+    bodyColor: SLAGCASTER_OLIVE,
+    palette: [SLAGCASTER_OLIVE, DARK, SLAGCASTER_AMBER],
+    frontOnly: [],
+    armorColors: [SLAGCASTER_OLIVE],
+    raisedColors: [SLAGCASTER_AMBER],
+    segments: [
+      { from: 0, to: 0.67, depthFactor: 0.42 },
+      { from: 0.67, to: 1, depthFactor: 0.3 },
+    ],
+    raisedTopFraction: 0,
+    slagcasterTransform: true,
+    previewScale: 1.45,
+  },
+  // Static endpoints remain available for direct before/after inspection.
+  'slagcaster-closed': {
+    kind: 'enemy',
+    ref: 'assets/2d/ref-slagcaster-closed-front-v1.png',
+    sideProfileRef: 'assets/2d/ref-slagcaster-closed-side-v1.png',
+    backPaintRef: 'assets/2d/ref-slagcaster-closed-back-v1.png',
+    sidePaint: true,
+    asymmetric: true,
+    targetWidth: 27,
+    voxelSize: 0.045,
+    bodyColor: SLAGCASTER_OLIVE,
+    palette: [SLAGCASTER_OLIVE, DARK, SLAGCASTER_AMBER],
+    frontOnly: [],
+    armorColors: [SLAGCASTER_OLIVE],
+    depthFactor: 0.5,
+    sphericalDepth: true,
+    verticalRoundness: 1,
+    originAtCenter: true,
+    raisedTopFraction: 0,
+    previewScale: 1.7,
+  },
+  'slagcaster-deployed': {
+    kind: 'enemy',
+    ref: 'assets/2d/ref-slagcaster-deployed-front-v1.png',
+    sideProfileRef: 'assets/2d/ref-slagcaster-deployed-side-v1.png',
+    backPaintRef: 'assets/2d/ref-slagcaster-deployed-back-v1.png',
+    sidePaint: true,
+    asymmetric: true,
+    // Same voxel pitch as the closed endpoint. The wider grid preserves the
+    // approved footprint growth from compact ball to braced firing platform.
+    targetWidth: 37,
+    voxelSize: 0.045,
+    bodyColor: SLAGCASTER_OLIVE,
+    palette: [SLAGCASTER_OLIVE, DARK, SLAGCASTER_AMBER],
+    frontOnly: [],
+    armorColors: [SLAGCASTER_OLIVE],
+    raisedColors: [SLAGCASTER_AMBER],
+    segments: [
+      { from: 0, to: 0.67, depthFactor: 0.42 },
+      { from: 0.67, to: 1, depthFactor: 0.3 },
+    ],
+    raisedTopFraction: 0,
+    previewScale: 1.45,
   },
   drone: {
     kind: 'enemy',

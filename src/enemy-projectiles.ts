@@ -1,18 +1,18 @@
 import * as THREE from 'three';
-import { GUNNER } from './config';
+import { GUNNER, SLAGCASTER } from './config';
 import { segmentHitsObstacle, type Obstacle } from './world';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // Shared projectile pool for every enemy that shoots. Slow, visible,
 // dodgeable shots — the counterplay is movement. Two visual identities
 // (2026-07-11, both used to be the same orange sphere): the Gunner throws a
-// spinning ORANGE voxel shard, the Tesla Titan a bigger BOSS-RED spark star —
-// red stays the exclusive boss-danger language (portal, auras, boss bar).
+// spinning ORANGE voxel shard, Slagcaster a larger hot slag assembly, Tesla
+// Titan a bigger BOSS-RED spark star, and Marshal a white-hot red caltrop.
 
-export type EnemyShotKind = 'gunner' | 'tesla' | 'marshal';
+export type EnemyShotKind = 'gunner' | 'slagcaster' | 'tesla' | 'marshal';
 
 /** Every kind, so the per-frame slot bookkeeping below cannot forget one. */
-const SHOT_KINDS: readonly EnemyShotKind[] = ['gunner', 'tesla', 'marshal'];
+const SHOT_KINDS: readonly EnemyShotKind[] = ['gunner', 'slagcaster', 'tesla', 'marshal'];
 
 interface Shot {
   active: boolean;
@@ -44,7 +44,12 @@ const MARSHAL_CORE_COLOR = 0xfff2ee;
 
 function impactColor(kind: EnemyShotKind): number {
   if (kind === 'marshal') return MARSHAL_SHOT_COLOR;
+  if (kind === 'slagcaster') return SLAGCASTER.projectile.mantleColor;
   return kind === 'tesla' ? TESLA_SHOT_COLOR : GUNNER_SHOT_COLOR;
+}
+
+export function enemyShotCollisionRadius(kind: EnemyShotKind): number {
+  return kind === 'slagcaster' ? SLAGCASTER.projectile.collisionRadius : GUNNER.projectileRadius;
 }
 
 /** Gunner shard: a chunky voxel splinter flying point-first. */
@@ -62,6 +67,33 @@ function buildSparkStar(): THREE.BufferGeometry {
   b.rotateY(Math.PI / 4);
   b.rotateX(Math.PI / 4);
   return mergeGeometries([a, b]);
+}
+
+/** Foundry Slagcaster shot: an exposed hot cube with asymmetric voxel slag
+ * plates. The core stays on the surface so it survives the top-down camera. */
+export function buildSlagBoltGeometry(): THREE.BufferGeometry {
+  const diameter = SLAGCASTER.projectile.visualDiameter;
+  const core = paintGeometry(
+    new THREE.BoxGeometry(diameter * 0.53, diameter * 0.53, diameter * 0.53),
+    SLAGCASTER.projectile.hotCoreColor,
+  );
+  core.translate(0, 0, diameter * 0.3);
+  // The crossed mantle owns the configured 1.05-unit main-body span. Its
+  // leading face sits behind the exposed core, keeping the hot tip readable.
+  const mantleA = new THREE.BoxGeometry(diameter, diameter * 0.32, diameter * 0.67);
+  mantleA.translate(0, 0, diameter * 0.17);
+  const mantleB = new THREE.BoxGeometry(diameter * 0.32, diameter, diameter * 0.67);
+  mantleB.translate(0, 0, diameter * 0.17);
+  // The ember is a true tail: its complete volume remains behind local z=0,
+  // while +Z is the projectile's direction of travel.
+  const ember = new THREE.BoxGeometry(diameter * 0.27, diameter * 0.27, diameter * 0.61);
+  ember.translate(0, 0, -diameter * 0.39);
+  return mergeGeometries([
+    core,
+    paintGeometry(mantleA, SLAGCASTER.projectile.mantleColor),
+    paintGeometry(mantleB, SLAGCASTER.projectile.mantleColor),
+    paintGeometry(ember, SLAGCASTER.projectile.emberColor),
+  ]) ?? core;
 }
 
 /** Paints a whole geometry one colour, so several can be merged into a single
@@ -128,6 +160,7 @@ export class EnemyProjectiles {
     };
     this.meshes = {
       gunner: build(buildShard(), GUNNER_SHOT_COLOR),
+      slagcaster: build(buildSlagBoltGeometry(), SLAGCASTER.projectile.mantleColor, true),
       tesla: build(buildSparkStar(), TESLA_SHOT_COLOR),
       marshal: build(buildMarshalStar(), MARSHAL_SHOT_COLOR, true),
     };
@@ -185,13 +218,13 @@ export class EnemyProjectiles {
     onImpact?: (x: number, z: number, color: number) => void,
   ): void {
     this.spin += dt * 7;
-    const hitSq = (playerRadius + GUNNER.projectileRadius) ** 2;
     for (let i = 0; i < this.pool.length; i++) {
       const s = this.pool[i];
       if (!s || !s.active) continue;
       const mesh = this.meshes[s.kind];
       const previousX = s.x;
       const previousZ = s.z;
+      const collisionRadius = enemyShotCollisionRadius(s.kind);
       s.x += s.vx * dt;
       s.z += s.vz * dt;
       s.life -= dt;
@@ -203,7 +236,7 @@ export class EnemyProjectiles {
             s.x,
             s.z,
             obstacle,
-            GUNNER.projectileRadius,
+            collisionRadius,
           ),
         )
       ) {
@@ -213,7 +246,7 @@ export class EnemyProjectiles {
         continue;
       }
       const dSq = (s.x - px) * (s.x - px) + (s.z - pz) * (s.z - pz);
-      if (dSq <= hitSq) {
+      if (dSq <= (playerRadius + collisionRadius) ** 2) {
         onImpact?.(s.x, s.z, impactColor(s.kind));
         onHitPlayer(s.damage, s.kind);
         s.active = false;
@@ -227,9 +260,19 @@ export class EnemyProjectiles {
       }
       // Shards fly point-first with a slow roll; tesla stars tumble fast.
       tmpMatrix.makeRotationY(Math.atan2(s.vx, s.vz));
-      tmpRot.makeRotationZ(this.spin * (s.kind === 'gunner' ? 1 : 2) + i * 1.1);
+      const spinMultiplier =
+        s.kind === 'slagcaster'
+          ? SLAGCASTER.projectile.spinRate / 7
+          : s.kind === 'gunner'
+            ? 1
+            : 2;
+      tmpRot.makeRotationZ(this.spin * spinMultiplier + i * 1.1);
       tmpMatrix.multiply(tmpRot);
-      tmpMatrix.setPosition(s.x, 1, s.z);
+      tmpMatrix.setPosition(
+        s.x,
+        s.kind === 'slagcaster' ? SLAGCASTER.projectile.height : 1,
+        s.z,
+      );
       mesh.setMatrixAt(i, tmpMatrix);
       // Keep every OTHER kind's slot hidden — slots are shared across meshes.
       // A loop over SHOT_KINDS rather than a hand-picked pair: the pair stopped

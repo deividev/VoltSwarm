@@ -12,6 +12,7 @@ import {
   GUNNER,
   ROLLER,
   RUSTBRUTE,
+  SLAGCASTER,
   STATUS,
   VISUAL,
   isBossTypeIndex,
@@ -24,6 +25,13 @@ import type { EnemyProjectiles } from './enemy-projectiles';
 import { findClearSpot, findRandomClearSpot, type Obstacle } from './world';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
+import {
+  composeSlagcasterInstanceMatrix,
+  createSlagcasterTransformMaterial,
+  makeSlagcasterTransformGeometry,
+  markSlagcasterDeploymentDirty,
+  setSlagcasterDeploymentAt,
+} from './models/slagcaster-transform';
 import { litMaterial } from './toon';
 
 // Each enemy type has its own voxel-style bot silhouette and renders through
@@ -57,6 +65,12 @@ export interface Enemy {
   heading: number;
   /** Roller: accumulated rolling rotation. Gunner: shoot cooldown. */
   phase: number;
+  /** Foundry Gunner only: independent closed(0) -> deployed(1) visual pose. */
+  deploymentProgress: number;
+  /** Foundry Gunner only: compact-ball rolling angle before it plants. */
+  slagRollAngle: number;
+  /** Foundry Gunner only: readable planted-pose beat before its first shot. */
+  slagFirstShotTimer: number;
   /** Per-enemy immunity timer for orbital blade / tire contact damage. */
   bladeHitTimer: number;
   hitFlash: number;
@@ -162,6 +176,20 @@ export function swapInstancedMeshGeometry(
   return mesh;
 }
 
+export function advanceSlagcasterDeployment(
+  progress: number,
+  shouldDeploy: boolean,
+  dt: number,
+): number {
+  const duration = shouldDeploy ? SLAGCASTER.deployDurationS : SLAGCASTER.retractDurationS;
+  const direction = shouldDeploy ? 1 : -1;
+  return THREE.MathUtils.clamp(progress + direction * (dt / duration), 0, 1);
+}
+
+export function canSlagcasterFire(progress: number, stationaryInTargetBand: boolean): boolean {
+  return stationaryInTargetBand && progress >= SLAGCASTER.fullyDeployedProgress;
+}
+
 /** An obstacle that IS a live enemy. `sourceEnemy` exists purely so a heavy
  *  body can skip its own entry when steering. Declared here rather than in
  *  world.ts to keep Obstacle free of an enemies.ts import cycle. */
@@ -199,10 +227,13 @@ export class EnemySystem {
   private readonly activeBosses: Enemy[] = [];
 
   private readonly meshes: THREE.InstancedMesh[] = [];
+  private readonly defaultEnemyMaterial: THREE.MeshLambertMaterial | THREE.MeshToonMaterial;
+  private readonly slagcasterMaterial: THREE.MeshLambertMaterial | THREE.MeshToonMaterial;
   private readonly fallbackGeometries: THREE.BufferGeometry[] = [];
   private readonly ownedGeometries = new Set<THREE.BufferGeometry>();
   private readonly modelGeometryCache = new Map<string, Promise<THREE.BufferGeometry | null>>();
   private modelVariantRevision = 0;
+  private currentMapId: MapId;
   private disposed = false;
   private readonly eliteAura: THREE.InstancedMesh;
   private readonly bossAura: THREE.InstancedMesh;
@@ -211,6 +242,7 @@ export class EnemySystem {
   private readonly grid = new Map<number, number[]>();
 
   constructor(scene: THREE.Scene, initialMapId: MapId = MAPS[0]!.id) {
+    this.currentMapId = initialMapId;
     // Uniform elite marker: a rotating SEGMENTED magenta ring under every
     // elite. The body tint alone shifts with each type's base color, so the
     // ring is the one signal that always reads the same; the segmented spin
@@ -304,12 +336,20 @@ export class EnemySystem {
       scene.add(this.blobShadows);
     }
 
-    const material = litMaterial({ vertexColors: true });
+    this.defaultEnemyMaterial = litMaterial({ vertexColors: true });
+    this.slagcasterMaterial = createSlagcasterTransformMaterial(
+      this.defaultEnemyMaterial,
+      SLAGCASTER.transform,
+    );
     ENEMY_TYPES.forEach((type, typeIndex) => {
       const fallbackGeometry = buildBotGeometry(typeIndex, type);
       this.fallbackGeometries.push(fallbackGeometry);
       this.ownedGeometries.add(fallbackGeometry);
-      const mesh = new THREE.InstancedMesh(fallbackGeometry, material, type.capacity);
+      const mesh = new THREE.InstancedMesh(
+        fallbackGeometry,
+        this.defaultEnemyMaterial,
+        type.capacity,
+      );
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.frustumCulled = false;
       // Above the ground markers, so the half of an elite or boss ring that
@@ -340,6 +380,9 @@ export class EnemySystem {
           elite: false,
           heading: 0,
           phase: 0,
+          deploymentProgress: 0,
+          slagRollAngle: 0,
+          slagFirstShotTimer: SLAGCASTER.firstShotDelayS,
           bladeHitTimer: 0,
           hitFlash: 0,
           slowTimer: 0,
@@ -374,21 +417,28 @@ export class EnemySystem {
    * by an in-flight async request.
    */
   async applyMapModelVariants(mapId: MapId): Promise<void> {
+    this.currentMapId = mapId;
     const revision = ++this.modelVariantRevision;
-    const geometries = await Promise.all(
+    const variants = await Promise.all(
       ENEMY_TYPES.map(async (type, typeIndex) => {
         const key = resolveEnemyModelKey(type, mapId);
-        return (await this.loadModelGeometry(key)) ?? this.fallbackGeometries[typeIndex] ?? null;
+        const geometry =
+          (await this.loadModelGeometry(key, type.capacity)) ??
+          this.fallbackGeometries[typeIndex] ??
+          null;
+        return { key, geometry };
       }),
     );
     if (this.disposed || revision !== this.modelVariantRevision) return;
-    geometries.forEach((geometry, typeIndex) => {
+    variants.forEach(({ key, geometry }, typeIndex) => {
       const mesh = this.meshes[typeIndex];
-      if (mesh && geometry) swapInstancedMeshGeometry(mesh, geometry);
+      if (!mesh || !geometry) return;
+      swapInstancedMeshGeometry(mesh, geometry);
+      mesh.material = key === 'slagcaster' ? this.slagcasterMaterial : this.defaultEnemyMaterial;
     });
   }
 
-  private loadModelGeometry(key: string): Promise<THREE.BufferGeometry | null> {
+  private loadModelGeometry(key: string, instanceCapacity: number): Promise<THREE.BufferGeometry | null> {
     const cached = this.modelGeometryCache.get(key);
     if (cached) return cached;
     const pending = (async () => {
@@ -396,7 +446,17 @@ export class EnemySystem {
       if (!def) return null;
       try {
         const grid = await buildModelGrid(key);
-        const geometry = buildGridGeometry(grid, def.voxelSize);
+        let geometry = buildGridGeometry(grid, def.voxelSize);
+        if (def.slagcasterTransform) {
+          const closed = VOXEL_MODELS['slagcaster-closed'];
+          if (!closed) throw new Error('Slagcaster closed endpoint is not registered');
+          geometry = makeSlagcasterTransformGeometry(
+            geometry,
+            instanceCapacity,
+            closed.targetWidth * closed.voxelSize,
+            SLAGCASTER.transform,
+          );
+        }
         if (def.originAtCenter) geometry.translate(0, (-grid.length * def.voxelSize) / 2, 0);
         if (this.disposed) {
           geometry.dispose();
@@ -421,6 +481,8 @@ export class EnemySystem {
     for (const geometry of this.ownedGeometries) geometry.dispose();
     this.ownedGeometries.clear();
     this.modelGeometryCache.clear();
+    this.defaultEnemyMaterial.dispose();
+    this.slagcasterMaterial.dispose();
   }
 
   /**
@@ -710,23 +772,70 @@ export class EnemySystem {
     // 12 units, outside half the arsenal's reach, which is why it read as
     // "never comes close enough to fight" (playtest 2026-07-30).
     const isBoss = isBossTypeIndex(e.typeIndex);
-    const preferredDist = isBoss ? BOSS.tesla.preferredDist : GUNNER.preferredDist;
+    const isSlagcaster =
+      !isBoss && resolveEnemyModelKey(ENEMY_TYPES[e.typeIndex]!, this.currentMapId) === 'slagcaster';
+    const preferredDist = isBoss
+      ? BOSS.tesla.preferredDist
+      : isSlagcaster
+        ? SLAGCASTER.preferredDist
+        : GUNNER.preferredDist;
     const retreatDist = isBoss ? BOSS.tesla.retreatDist : GUNNER.retreatDist;
+    const beforeX = e.x;
+    const beforeZ = e.z;
+    let stationaryInTargetBand = true;
 
     if (dist > preferredDist) {
+      stationaryInTargetBand = false;
       const movement = this.steerAroundObstacles(e, dx, dz, obstacles);
       e.x += movement.x * e.speed * dt;
       e.z += movement.z * e.speed * dt;
     } else if (dist < retreatDist) {
+      stationaryInTargetBand = false;
       const movement = this.steerAroundObstacles(e, -dx, -dz, obstacles);
       e.x += movement.x * e.speed * 0.8 * dt;
       e.z += movement.z * e.speed * 0.8 * dt;
     }
 
+    if (isSlagcaster) {
+      const wasFullyDeployed = canSlagcasterFire(e.deploymentProgress, stationaryInTargetBand);
+      e.deploymentProgress = advanceSlagcasterDeployment(
+        e.deploymentProgress,
+        stationaryInTargetBand,
+        dt,
+      );
+      const isFullyDeployed = canSlagcasterFire(
+        e.deploymentProgress,
+        stationaryInTargetBand,
+      );
+      if (!isFullyDeployed || !wasFullyDeployed) {
+        e.slagFirstShotTimer = SLAGCASTER.firstShotDelayS;
+      } else {
+        e.slagFirstShotTimer = Math.max(0, e.slagFirstShotTimer - dt);
+      }
+      const travelled = Math.hypot(e.x - beforeX, e.z - beforeZ);
+      if (travelled > 0) {
+        e.slagRollAngle =
+          (e.slagRollAngle + travelled / (SLAGCASTER.rollingRadius * e.scale)) %
+          (Math.PI * 2);
+      }
+    }
+
     e.phase -= dt;
-    if (e.phase <= 0 && dist <= GUNNER.preferredDist + 4) {
+    const mayFire = isSlagcaster
+      ? canSlagcasterFire(e.deploymentProgress, stationaryInTargetBand) &&
+        e.slagFirstShotTimer <= 0
+      : dist <= GUNNER.preferredDist + 4;
+    if (e.phase <= 0 && mayFire) {
       e.phase = GUNNER.shootCooldownS;
-      projectiles.fire(e.x, e.z, dx, dz, GUNNER.projectileSpeed, GUNNER.projectileDamage);
+      projectiles.fire(
+        e.x,
+        e.z,
+        dx,
+        dz,
+        GUNNER.projectileSpeed,
+        GUNNER.projectileDamage,
+        isSlagcaster ? 'slagcaster' : 'gunner',
+      );
     }
   }
 
@@ -952,6 +1061,8 @@ export class EnemySystem {
       const mesh = this.meshes[e.typeIndex];
       const type = ENEMY_TYPES[e.typeIndex];
       if (!mesh || !type) continue;
+      const isSlagcaster = resolveEnemyModelKey(type, this.currentMapId) === 'slagcaster';
+      if (isSlagcaster) setSlagcasterDeploymentAt(mesh, e.slot, e.deploymentProgress);
 
       if (this.blobShadows) {
         const r = e.radius * VISUAL.blobShadow.radiusScale;
@@ -987,6 +1098,17 @@ export class EnemySystem {
       if (type.behavior === 'roller') {
         tmpRot.makeRotationX(e.phase);
         tmpMatrix.multiply(tmpRot);
+      } else if (isSlagcaster) {
+        composeSlagcasterInstanceMatrix(
+          tmpMatrix,
+          e.heading,
+          e.slagRollAngle,
+          e.deploymentProgress,
+          e.scale,
+          e.x,
+          e.z,
+          SLAGCASTER.rollingRadius,
+        );
       } else if (VISUAL.enemyWobble.enabled && !isBossTypeIndex(e.typeIndex)) {
         // Walk rock: per-slot phase so the swarm never marches in sync.
         // Bosses are exempt — a waddling king loses its menace.
@@ -996,14 +1118,14 @@ export class EnemySystem {
         );
         tmpMatrix.multiply(tmpRot);
       }
-      tmpMatrix.scale(tmpScale.set(e.scale, e.scale, e.scale));
+      if (!isSlagcaster) tmpMatrix.scale(tmpScale.set(e.scale, e.scale, e.scale));
       const y =
         type.behavior === 'flyer'
           ? FLYER.hoverHeight + Math.sin(elapsedS * 3 + e.slot) * FLYER.bobAmplitude
           : type.behavior === 'roller'
             ? 0.55 * e.scale
             : 0;
-      tmpMatrix.setPosition(e.x, y, e.z);
+      if (!isSlagcaster) tmpMatrix.setPosition(e.x, y, e.z);
       mesh.setMatrixAt(e.slot, tmpMatrix);
     }
     this.eliteAura.count = auraCount;
@@ -1018,6 +1140,7 @@ export class EnemySystem {
     for (const mesh of this.meshes) {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
+      markSlagcasterDeploymentDirty(mesh);
     }
   }
 
@@ -1164,7 +1287,13 @@ export class EnemySystem {
     e.contactRadius = (type.contactRadius ?? type.radius) * scaleMultiplier;
     e.xp = type.xp * (elite ? ELITES.xpMultiplier : 1) * rewardMultiplier;
     e.heading = Math.random() * Math.PI * 2;
-    e.phase = type.behavior === 'gunner' ? Math.random() * GUNNER.shootCooldownS : 0;
+    const isSlagcaster =
+      type.behavior === 'gunner' && resolveEnemyModelKey(type, this.currentMapId) === 'slagcaster';
+    e.phase =
+      type.behavior === 'gunner' && !isSlagcaster ? Math.random() * GUNNER.shootCooldownS : 0;
+    e.deploymentProgress = 0;
+    e.slagRollAngle = 0;
+    e.slagFirstShotTimer = SLAGCASTER.firstShotDelayS;
     e.bladeHitTimer = 0;
     e.hitFlash = 0;
     e.slowTimer = 0;

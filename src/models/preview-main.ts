@@ -4,6 +4,13 @@ import { buildModelGrid, VOXEL_MODELS } from './registry';
 import { attachToRigPart, buildRig, poseRig, RIG_PARTS } from './rig';
 import type { Rig, RigClip } from './rig';
 import { buildRuntimeModelDetails } from './runtime-details';
+import { SLAGCASTER } from '../config';
+import {
+  createSlagcasterTransformMaterial,
+  makeSlagcasterTransformGeometry,
+  markSlagcasterDeploymentDirty,
+  setSlagcasterDeploymentAt,
+} from './slagcaster-transform';
 
 /**
  * Standalone voxel model viewer (model-preview.html?model=<registry-key>).
@@ -26,6 +33,7 @@ const modelName = params.get('model') ?? 'voltling';
 // Orbit angle in degrees for multi-angle review captures (0 = default 3/4
 // front view used elsewhere). 90 = right side, 180 = back, 270 = left side.
 const orbitDeg = Number(params.get('angle') ?? '0');
+const deployProgress = THREE.MathUtils.clamp(Number(params.get('deploy') ?? '0'), 0, 1);
 const def = VOXEL_MODELS[modelName];
 if (!def) {
   throw new Error(`Unknown model '${modelName}'. Available: ${Object.keys(VOXEL_MODELS).join(', ')}`);
@@ -61,11 +69,27 @@ const clip: RigClip | null =
 
 const hero = new THREE.Group();
 let rig: Rig | null = null;
+let slagcasterMesh: THREE.InstancedMesh | null = null;
 if (clip) {
   // Each model brings its own part layout; proportions differ enough that
   // reusing the boss's bands on another character orphans limbs.
   rig = buildRig(grid, def.voxelSize, material, RIG_PARTS[modelName]);
   hero.add(rig.root);
+} else if (def.slagcasterTransform) {
+  const closed = VOXEL_MODELS['slagcaster-closed'];
+  if (!closed) throw new Error('Slagcaster closed endpoint is not registered');
+  const geometry = makeSlagcasterTransformGeometry(
+    buildGridGeometry(grid, def.voxelSize),
+    1,
+    closed.targetWidth * closed.voxelSize,
+    SLAGCASTER.transform,
+  );
+  const transformMaterial = createSlagcasterTransformMaterial(material, SLAGCASTER.transform);
+  slagcasterMesh = new THREE.InstancedMesh(geometry, transformMaterial, 1);
+  slagcasterMesh.setMatrixAt(0, new THREE.Matrix4());
+  setSlagcasterDeploymentAt(slagcasterMesh, 0, deployProgress);
+  markSlagcasterDeploymentDirty(slagcasterMesh);
+  hero.add(slagcasterMesh);
 } else {
   hero.add(new THREE.Mesh(buildGridGeometry(grid, def.voxelSize), material));
 }
@@ -81,7 +105,7 @@ hero.scale.setScalar(def.previewScale ?? framing.heroScale);
 hero.rotation.y = -0.3 + (orbitDeg * Math.PI) / 180;
 scene.add(hero);
 
-if (framing.showRing) {
+if (framing.showRing && !def.slagcasterTransform) {
   // Swarm readability ring — always the single merged mesh, never the rig:
   // the rig exists for the one-on-screen boss, not for crowd review.
   const ringGeometry = buildGridGeometry(grid, def.voxelSize);
@@ -128,11 +152,19 @@ declare global {
     /** Poses the rig at `t` seconds and re-renders. Returns false when the
      *  page was loaded without ?anim, so a capture fails loudly. */
     __setAnimTime?: (t: number) => boolean;
+    __setSlagcasterDeploy?: (progress: number) => boolean;
   }
 }
 window.__setAnimTime = (t: number): boolean => {
   if (!rig || !clip) return false;
   poseRig(rig, t, clip);
+  renderer.render(scene, camera);
+  return true;
+};
+window.__setSlagcasterDeploy = (progress: number): boolean => {
+  if (!slagcasterMesh) return false;
+  setSlagcasterDeploymentAt(slagcasterMesh, 0, progress);
+  markSlagcasterDeploymentDirty(slagcasterMesh);
   renderer.render(scene, camera);
   return true;
 };
