@@ -947,6 +947,14 @@ daño corriente sigue siendo solo tinte.
   (`EnemySystem.waveHpMultiplier`), no con el 1 por defecto de `spawnAt`, o
   serían enemigos de papel en el minuto más duro. Techo duro de 320 cuerpos: el
   spawner ya está rellenando hacia su propio cap y el finale no puede duplicarlo.
+  Las líneas están activas desde la Fase 1 y escalan **2 → 4 → 6 áreas** con un
+  reparto legible por fase: **Voltling original + Roller**; después se conserva
+  esa pareja y entra **Axle Runner** en una de las áreas nuevas; finalmente se
+  conserva el reparto anterior y entra **Slagcaster** en otra área nueva. Esta
+  es una excepción visual exclusiva del finale: las oleadas normales de Swarm
+  Foundry siguen sustituyendo Voltling por Furnace Mite. El Voltling original
+  usa un tipo de refuerzo separado y su propio `InstancedMesh`; nunca crea una
+  malla por cuerpo.
 - **Fase 3 — sobrecarga del núcleo.** Cadena de 4 **zonas de peligro** que nacen
   en el boss y erupcionan hacia fuera por la línea del jugador, una cada 0,45 s;
   **25% de la vida máxima** por zona. Son **3 líneas paralelas** separadas 18
@@ -1447,7 +1455,9 @@ arrancadas y comprueba la salud del bus globalmente.
    un golpe sólido (hacia arriba leería como desmaterializarse). Y el reparto
    pasa a **Voltling + Roller**: el primero va recto a por vos, el segundo se
    compromete con un rumbo y atropiesa, así que el drop es algo que hay que
-   RODEAR en vez de solo dejar atrás.
+   RODEAR en vez de solo dejar atrás. El reparto progresivo posterior mantiene
+   esa base y añade Axle Runner y Slagcaster al crecer el número de áreas; ver
+   «Las tres fases» para el contrato vigente.
 
 3. **Vida del boss a 100.000** (con el escalado por nivel: 85.000 llegando a
    nivel 20, 100.000 a nivel 30, y el techo de 150.000 a partir de nivel 48).
@@ -1576,7 +1586,9 @@ el daño del jugador (×0,95).
 **Cuarto tropiezo del arnés en la misma sesión:** el chequeo de "no entran
 oleadas" tenía la lista de tipos llamados ESCRITA A MANO (solo Voltling) y se
 quedó vieja al añadir Rollers, denunciando los refuerzos del propio boss como
-fuga del spawner. Ahora la lee de `FINAL_BOSS.assembly.typeIndexes`.
+fuga del spawner. Ahora aplana y deduplica
+`FINAL_BOSS.assembly.typeIndexesByPhase`, así que el arnés sigue el reparto
+configurado al entrar Axle Runner o Slagcaster sin volver a quedarse obsoleto.
 
 ### Novena tanda: la ráfaga se distingue, la arena se despeja, el boss aprieta (2026-08-19)
 

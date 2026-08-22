@@ -1146,7 +1146,7 @@ try {
           // reinforcements as a spawner leak.
           ambient: live.filter((e) => !called.includes(e.typeIndex)).length,
         };
-      }, [...FINAL_BOSS.assembly.typeIndexes, FINAL_BOSS_TYPE_INDEX]),
+      }, [...new Set(FINAL_BOSS.assembly.typeIndexesByPhase.flat()), FINAL_BOSS_TYPE_INDEX]),
     );
     await wait(500);
   }

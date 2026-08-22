@@ -1346,23 +1346,25 @@ export interface EnemyTypeDef {
 }
 
 // Base HP carries the +20% tuning pass from the 2026-07-02 playtest ("too easy").
+const VOLTLING_TYPE = {
+  name: 'Voltling',
+  modelKey: 'voltling',
+  mapModelKeys: { megafactory: 'furnace-mite' },
+  behavior: 'chase',
+  hp: 15,
+  speed: 5.5,
+  scale: 0.9,
+  radius: 0.55,
+  xp: 1,
+  color: 0xffb400,
+  unlockAtS: 0,
+  weight: 10,
+  gold: 2,
+  capacity: 288,
+} satisfies EnemyTypeDef;
+
 export const ENEMY_TYPES: EnemyTypeDef[] = [
-  {
-    name: 'Voltling',
-    modelKey: 'voltling',
-    mapModelKeys: { megafactory: 'furnace-mite' },
-    behavior: 'chase',
-    hp: 15,
-    speed: 5.5,
-    scale: 0.9,
-    radius: 0.55,
-    xp: 1,
-    color: 0xffb400,
-    unlockAtS: 0,
-    weight: 10,
-    gold: 2,
-    capacity: 288,
-  },
+  VOLTLING_TYPE,
   {
     name: 'Sparkrunner',
     modelKey: 'sparkrunner',
@@ -1579,6 +1581,17 @@ export const ENEMY_TYPES: EnemyTypeDef[] = [
     weight: 0,
     capacity: 1,
   },
+  /** Finale-only pool for the original Voltling silhouette. Normal Foundry
+   *  waves keep type 0 and therefore still resolve to Furnace Mite. A distinct
+   *  type is required because each visual roster owns one InstancedMesh; it
+   *  avoids per-instance meshes or a per-body model override. Gameplay values
+   *  deliberately inherit the canonical Voltling definition. */
+  {
+    ...VOLTLING_TYPE,
+    mapModelKeys: {},
+    unlockAtS: Infinity,
+    weight: 0,
+  },
 ];
 
 /** Resolves the render model without changing the enemy's gameplay identity. */
@@ -1602,6 +1615,17 @@ export const BOSS_TYPE_INDEXES = [CRUSHER_KING_TYPE_INDEX, TESLA_TITAN_TYPE_INDE
 /** Final boss is deliberately outside BOSS_TYPE_INDEXES: Map 1's positional
  * random draw must never select it. It is activated only by the Map 2 finale. */
 export const FINAL_BOSS_TYPE_INDEX = 8;
+
+/** Stable gameplay indexes whose Foundry model variants are used by assembly. */
+export const VOLTLING_TYPE_INDEX = 0;
+export const ROLLER_TYPE_INDEX = 3;
+export const FOUNDRY_AXLE_RUNNER_TYPE_INDEX = 1;
+export const FOUNDRY_SLAGCASTER_TYPE_INDEX = 4;
+
+/** Original-visual Voltling reserved for the Hazard Marshal's assembly lines.
+ *  Appending it after every boss keeps all existing boss identity indexes
+ *  stable while giving the finale a separate InstancedMesh on Map 2. */
+export const FINALE_VOLTLING_TYPE_INDEX = 9;
 
 export function isBossTypeIndex(typeIndex: number): boolean {
   return ENEMY_TYPES[typeIndex]?.isBoss === true;
@@ -1852,8 +1876,9 @@ export const FINAL_BOSS = {
     ringCubes: 22,
     ringRadius: 4.2,
   },
-  /** ASSEMBLY LINES — the Marshal calls in Voltlings. Live in EVERY phase; the
-   *  phase decides how many lines open, not whether any do.
+  /** ASSEMBLY LINES — the Marshal calls in a growing Foundry roster. Live in
+   *  EVERY phase; the phase decides how many lines open and which new threat
+   *  joins them, not whether any do.
    *
    *  This is the fight's pressure engine, and the reason it exists is measured:
    *  with the ambient waves paused, NOTHING on the field can reach a player who
@@ -1921,11 +1946,27 @@ export const FINAL_BOSS = {
     /** Cap on that lead, so a sprint across the arena cannot fling the drop
      *  into a wall on the far side. */
     leadMax: 13,
-    /** Voltling + Roller (user 2026-08-19). The Voltling walks straight at you;
-     *  the Roller commits to a heading and barrels through, so the pair makes
-     *  the drop something you have to move AROUND rather than just outrun. That
-     *  is the point of this beat — it takes space, it is not a damage source. */
-    typeIndexes: [0, 3],
+    /** One type per drop area, per phase. Earlier threats stay in the roster as
+     *  the ring grows: original Voltling + Roller, then Axle Runner, then
+     *  Slagcaster. The additional Roller areas preserve the previous pressure
+     *  mix while each phase introduces exactly one new Foundry threat. */
+    typeIndexesByPhase: [
+      [FINALE_VOLTLING_TYPE_INDEX, ROLLER_TYPE_INDEX],
+      [
+        FINALE_VOLTLING_TYPE_INDEX,
+        ROLLER_TYPE_INDEX,
+        FOUNDRY_AXLE_RUNNER_TYPE_INDEX,
+        ROLLER_TYPE_INDEX,
+      ],
+      [
+        FINALE_VOLTLING_TYPE_INDEX,
+        ROLLER_TYPE_INDEX,
+        FOUNDRY_AXLE_RUNNER_TYPE_INDEX,
+        ROLLER_TYPE_INDEX,
+        FOUNDRY_SLAGCASTER_TYPE_INDEX,
+        ROLLER_TYPE_INDEX,
+      ],
+    ],
     /** The drop itself hurts: bodies materialize where the marker was, and
      *  standing in a spawn that was telegraphed for 1.4s should cost something.
      *  Small on purpose — it is a nudge to move, not one of the three attacks:

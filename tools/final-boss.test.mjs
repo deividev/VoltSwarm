@@ -15,7 +15,22 @@ const finalBoss = await server.ssrLoadModule('/src/final-boss.ts');
 const enemyProjectiles = await server.ssrLoadModule('/src/enemy-projectiles.ts');
 after(async () => server.close());
 
-const { FINAL_BOSS, FINAL_BOSS_TYPE_INDEX, ENEMY_TYPES, PLAYER, BOSS, ENEMIES, CAMERA, VISUAL } = config;
+const {
+  FINAL_BOSS,
+  FINAL_BOSS_TYPE_INDEX,
+  FINALE_VOLTLING_TYPE_INDEX,
+  VOLTLING_TYPE_INDEX,
+  ROLLER_TYPE_INDEX,
+  FOUNDRY_AXLE_RUNNER_TYPE_INDEX,
+  FOUNDRY_SLAGCASTER_TYPE_INDEX,
+  ENEMY_TYPES,
+  PLAYER,
+  BOSS,
+  ENEMIES,
+  CAMERA,
+  VISUAL,
+  resolveEnemyModelKey,
+} = config;
 const { FinalBossFight, wedgeRotationY, isInsideWedge } = finalBoss;
 const { EnemyProjectiles } = enemyProjectiles;
 
@@ -237,6 +252,63 @@ test('phases escalate by LIFE, announce themselves, and add one verb each', () =
   );
 });
 
+test('each assembly phase keeps its roster and introduces one Foundry threat', () => {
+  const expectedRosters = [
+    [FINALE_VOLTLING_TYPE_INDEX, ROLLER_TYPE_INDEX],
+    [
+      FINALE_VOLTLING_TYPE_INDEX,
+      ROLLER_TYPE_INDEX,
+      FOUNDRY_AXLE_RUNNER_TYPE_INDEX,
+      ROLLER_TYPE_INDEX,
+    ],
+    [
+      FINALE_VOLTLING_TYPE_INDEX,
+      ROLLER_TYPE_INDEX,
+      FOUNDRY_AXLE_RUNNER_TYPE_INDEX,
+      ROLLER_TYPE_INDEX,
+      FOUNDRY_SLAGCASTER_TYPE_INDEX,
+      ROLLER_TYPE_INDEX,
+    ],
+  ];
+
+  assert.deepEqual(FINAL_BOSS.assembly.typeIndexesByPhase, expectedRosters);
+  assert.equal(
+    resolveEnemyModelKey(ENEMY_TYPES[VOLTLING_TYPE_INDEX], 'megafactory'),
+    'furnace-mite',
+    'normal Foundry Voltlings must keep the Furnace Mite visual',
+  );
+  assert.equal(
+    resolveEnemyModelKey(ENEMY_TYPES[FINALE_VOLTLING_TYPE_INDEX], 'megafactory'),
+    'voltling',
+    'the finale-only pool must keep the original Voltling visual',
+  );
+
+  for (let phase = 0; phase < expectedRosters.length; phase++) {
+    const h = makeHarness();
+    if (phase > 0) {
+      h.boss.hp = h.boss.maxHp * (FINAL_BOSS.phaseThresholds[phase - 1] - 0.01);
+      h.run(0.2);
+      assert.equal(h.fight.phaseNumber, phase + 1);
+    }
+    h.run(20, { until: () => h.enemies.spawned.length > 0 });
+
+    const perArea = FINAL_BOSS.assembly.perPoint[phase];
+    const actualCounts = new Map();
+    for (const enemy of h.enemies.spawned) {
+      actualCounts.set(enemy.typeIndex, (actualCounts.get(enemy.typeIndex) ?? 0) + 1);
+    }
+    const expectedCounts = new Map();
+    for (const typeIndex of expectedRosters[phase]) {
+      expectedCounts.set(typeIndex, (expectedCounts.get(typeIndex) ?? 0) + perArea);
+    }
+    assert.deepEqual(
+      [...actualCounts].sort(([a], [b]) => a - b),
+      [...expectedCounts].sort(([a], [b]) => a - b),
+      `phase ${phase + 1} must spawn the exact configured area composition`,
+    );
+  }
+});
+
 test('phase 3 hazard zones erupt in sequence, from the boss outward', () => {
   const h = makeHarness();
   h.boss.hp = h.boss.maxHp * (FINAL_BOSS.phaseThresholds[1] - 0.01);
@@ -271,8 +343,9 @@ test('reinforcements land around the PLAYER, close enough to reach them', () => 
   // (This used to assert "Voltlings only" and went stale the day Rollers were
   // added to the mix — with one drop point per call the second type never came
   // up, so the assertion passed for a reason that had stopped being true.)
+  const configuredTypes = new Set(cfg.typeIndexesByPhase.flat());
   for (const typeIndex of new Set(h.enemies.spawned.map((e) => e.typeIndex))) {
-    assert.ok(cfg.typeIndexes.includes(typeIndex), `type ${typeIndex} is not in the drop list`);
+    assert.ok(configuredTypes.has(typeIndex), `type ${typeIndex} is not in the drop list`);
     assert.equal(ENEMY_TYPES[typeIndex].isBoss ?? false, false);
   }
 });

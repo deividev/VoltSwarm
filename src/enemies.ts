@@ -7,6 +7,7 @@ import {
   ELITES,
   ENEMIES,
   ENEMY_TYPES,
+  FINALE_VOLTLING_TYPE_INDEX,
   MAPS,
   FLYER,
   GUNNER,
@@ -15,6 +16,7 @@ import {
   SLAGCASTER,
   STATUS,
   VISUAL,
+  VOLTLING_TYPE_INDEX,
   isBossTypeIndex,
   resolveEnemyModelKey,
   type EnemyTypeDef,
@@ -1665,7 +1667,8 @@ function buildBotGeometry(typeIndex: number, type: EnemyTypeDef): THREE.BufferGe
   const primary = type.color;
   let parts: BotPart[];
   switch (typeIndex) {
-    case 0: // Voltling: squat worker bot on treads, cyan eye strip.
+    case VOLTLING_TYPE_INDEX:
+    case FINALE_VOLTLING_TYPE_INDEX: // Voltling: squat worker bot on treads, cyan eye strip.
       parts = [
         box(0.85, 0.25, 0.7, 0, 0.13, 0, DARK),
         box(0.75, 0.55, 0.65, 0, 0.55, 0, primary),

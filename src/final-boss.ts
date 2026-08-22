@@ -760,6 +760,8 @@ export class FinalBossFight {
     // offset so the same box never appears twice, and clamped inside the walls.
     const points = cfg.dropPoints[this.phase] ?? 1;
     const perPoint = cfg.perPoint[this.phase] ?? 4;
+    const roster = cfg.typeIndexesByPhase[this.phase];
+    if (!roster?.length) return;
     const limit = PLAY_HALF_SIZE - 4;
     const offset = Math.random() * Math.PI * 2;
     // The lead is what makes this attack exist at all against a moving player:
@@ -793,7 +795,7 @@ export class FinalBossFight {
         z,
         timer: cfg.telegraphS,
         marker,
-        typeIndex: cfg.typeIndexes[i % cfg.typeIndexes.length] ?? 0,
+        typeIndex: roster[i % roster.length]!,
         count: perPoint,
       });
       opened++;
