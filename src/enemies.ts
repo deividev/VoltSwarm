@@ -28,6 +28,7 @@ import { findClearSpot, findRandomClearSpot, type Obstacle } from './world';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
 import {
+  addSlagcasterCannonGeometry,
   composeSlagcasterInstanceMatrix,
   createSlagcasterTransformMaterial,
   makeSlagcasterTransformGeometry,
@@ -115,6 +116,7 @@ const tmpMatrix = new THREE.Matrix4();
 const tmpRot = new THREE.Matrix4();
 const tmpColor = new THREE.Color();
 const tmpScale = new THREE.Vector3();
+const tmpSlagMuzzle = { x: 0, z: 0 };
 const HIDDEN = new THREE.Matrix4().makeScale(0, 0, 0);
 const BASE_TINT = new THREE.Color(1, 1, 1);
 // Values above 1 brighten the vertex colors — used as the damage flash.
@@ -190,6 +192,24 @@ export function advanceSlagcasterDeployment(
 
 export function canSlagcasterFire(progress: number, stationaryInTargetBand: boolean): boolean {
   return stationaryInTargetBand && progress >= SLAGCASTER.fullyDeployedProgress;
+}
+
+/** Converts the config-owned local muzzle socket through the same yaw
+ * convention as the model: heading 0 faces +Z and heading PI/2 faces +X. */
+export function writeSlagcasterMuzzleWorld(
+  target: { x: number; z: number },
+  x: number,
+  z: number,
+  heading: number,
+  scale: number,
+): { x: number; z: number } {
+  const lateral = SLAGCASTER.muzzle.lateral * scale;
+  const forward = SLAGCASTER.muzzle.forward * scale;
+  const sin = Math.sin(heading);
+  const cos = Math.cos(heading);
+  target.x = x + lateral * cos + forward * sin;
+  target.z = z - lateral * sin + forward * cos;
+  return target;
 }
 
 /** An obstacle that IS a live enemy. `sourceEnemy` exists purely so a heavy
@@ -452,6 +472,7 @@ export class EnemySystem {
         if (def.slagcasterTransform) {
           const closed = VOXEL_MODELS['slagcaster-closed'];
           if (!closed) throw new Error('Slagcaster closed endpoint is not registered');
+          geometry = addSlagcasterCannonGeometry(geometry, SLAGCASTER.cannonGeometry);
           geometry = makeSlagcasterTransformGeometry(
             geometry,
             instanceCapacity,
@@ -829,11 +850,31 @@ export class EnemySystem {
       : dist <= GUNNER.preferredDist + 4;
     if (e.phase <= 0 && mayFire) {
       e.phase = GUNNER.shootCooldownS;
+      let shotX = e.x;
+      let shotZ = e.z;
+      let shotDirX = dx;
+      let shotDirZ = dz;
+      if (isSlagcaster) {
+        const muzzle = writeSlagcasterMuzzleWorld(
+          tmpSlagMuzzle,
+          e.x,
+          e.z,
+          e.heading,
+          e.scale,
+        );
+        shotX = muzzle.x;
+        shotZ = muzzle.z;
+        shotDirX = px - shotX;
+        shotDirZ = pz - shotZ;
+        const aimLength = Math.hypot(shotDirX, shotDirZ) || 1;
+        shotDirX /= aimLength;
+        shotDirZ /= aimLength;
+      }
       projectiles.fire(
-        e.x,
-        e.z,
-        dx,
-        dz,
+        shotX,
+        shotZ,
+        shotDirX,
+        shotDirZ,
         GUNNER.projectileSpeed,
         GUNNER.projectileDamage,
         isSlagcaster ? 'slagcaster' : 'gunner',

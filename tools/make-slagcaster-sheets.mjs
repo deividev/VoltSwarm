@@ -31,13 +31,16 @@ const PALETTE = {
 };
 
 const SOURCES = [
-  ['closed', 'front'],
-  ['closed', 'side'],
-  ['closed', 'back'],
-  ['deployed', 'front'],
-  ['deployed', 'side'],
-  ['deployed', 'back'],
+  ...['front', 'side', 'back'].map((view) => ({ state: 'closed', view, version: 'v1' })),
+  ...['front', 'side', 'back'].map((view) => ({ state: 'deployed', view, version: 'v1' })),
+  ...['front', 'side', 'back'].map((view) => ({ state: 'deployed', view, version: 'v3' })),
 ];
+
+const SOURCE_OVERRIDES = {
+  // The first v3 side candidate read as a rear-mounted cannon. Preserve it as
+  // history, but normalize the approved pure-profile correction for runtime.
+  'deployed-side-v3': 'slagcaster-deployed-side-corrected-candidate-v3.png',
+};
 
 const CHROME_PATHS = [
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -52,8 +55,10 @@ mkdirSync(OUTPUT_DIR, { recursive: true });
 const browser = await puppeteer.launch({ executablePath: chromePath, headless: 'new' });
 const page = await browser.newPage();
 
-for (const [state, view] of SOURCES) {
-  const source = `${SOURCE_DIR}/slagcaster-${state}-${view}-candidate-v1.png`;
+for (const { state, view, version } of SOURCES) {
+  const sourceName = SOURCE_OVERRIDES[`${state}-${view}-${version}`]
+    ?? `slagcaster-${state}-${view}-candidate-${version}.png`;
+  const source = `${SOURCE_DIR}/${sourceName}`;
   if (!existsSync(source)) throw new Error(`Missing approved candidate: ${source}`);
   const dataUrl = `data:image/png;base64,${readFileSync(source).toString('base64')}`;
   await page.setContent(`<img id="source" src="${dataUrl}">`);
@@ -63,7 +68,7 @@ for (const [state, view] of SOURCES) {
     else image.onload = resolve;
   }));
 
-  const result = await page.evaluate(({ size, pad, palette, gridRows }) => {
+  const result = await page.evaluate(({ size, pad, palette, gridRows, version }) => {
     const image = document.getElementById('source');
     const width = image.naturalWidth;
     const height = image.naturalHeight;
@@ -135,7 +140,10 @@ for (const [state, view] of SOURCES) {
       const min = Math.min(r, g, b);
       const saturation = max === 0 ? 0 : (max - min) / max;
       if (r > g * 1.18 && g > b * 1.45 && saturation > 0.42) return 'amber';
-      if (g > r * 1.06 && g > b * 1.35 && saturation > 0.22) return 'olive';
+      const olive = version === 'v3'
+        ? g > b * 1.3 && r > b * 1.2 && max > 50 && saturation > 0.18
+        : g > r * 1.06 && g > b * 1.35 && saturation > 0.22;
+      if (olive) return 'olive';
       return 'dark';
     };
     const grid = [];
@@ -186,19 +194,35 @@ for (const [state, view] of SOURCES) {
       counts[key]++;
     }
     outputContext.putImageData(pixels, 0, 0);
+    const mirrored = document.createElement('canvas');
+    mirrored.width = size;
+    mirrored.height = size;
+    const mirroredContext = mirrored.getContext('2d');
+    mirroredContext.translate(size, 0);
+    mirroredContext.scale(-1, 1);
+    mirroredContext.drawImage(output, 0, 0);
     return {
       png: output.toDataURL('image/png'),
+      mirroredPng: mirrored.toDataURL('image/png'),
       sourceSize: [width, height],
       sourceBbox: [x0, y0, x1, y1],
       grid: [gridCols, gridRows],
       outputBbox: [offsetX, offsetY, offsetX + drawWidth - 1, offsetY + drawHeight - 1],
       counts,
     };
-  }, { size: SIZE, pad: PAD, palette: PALETTE, gridRows: GRID_ROWS[state] });
+  }, { size: SIZE, pad: PAD, palette: PALETTE, gridRows: GRID_ROWS[state], version });
 
-  const output = `${OUTPUT_DIR}/ref-slagcaster-${state}-${view}-v1.png`;
+  const output = `${OUTPUT_DIR}/ref-slagcaster-${state}-${view}-${version}.png`;
   writeFileSync(output, Buffer.from(result.png.split(',')[1], 'base64'));
-  const { png: _, ...report } = result;
+  if (state === 'deployed' && version === 'v1') {
+    // The original approved transform concept establishes the cannon on the
+    // viewer-right in front view. Candidate front/back handedness was reversed;
+    // v2 corrects the pair together while the lateral profile stays unchanged.
+    const v2Png = view === 'side' ? result.png : result.mirroredPng;
+    const v2Output = `${OUTPUT_DIR}/ref-slagcaster-${state}-${view}-v2.png`;
+    writeFileSync(v2Output, Buffer.from(v2Png.split(',')[1], 'base64'));
+  }
+  const { png: _, mirroredPng: __, ...report } = result;
   console.log(`${output} — ${SIZE}x${SIZE}`, report);
 }
 

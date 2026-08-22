@@ -73,7 +73,7 @@ test('Slagcaster registers two preview-only measured-profile endpoints', () => {
     assert.equal(def.refSide, undefined, 'swarm endpoint must not enter voxelizeMultiView');
     assert.equal(def.sidePaint, true);
     assert.equal(def.asymmetric, true, 'the lateral cannon silhouette must not be mirrored shut');
-    assert.equal(def.voxelSize, 0.045, 'both endpoints need one shared voxel pitch');
+    assert.equal(def.voxelSize, 0.030273, 'both endpoints need one shared voxel pitch');
     assert.equal(def.bodyColor, registry.SLAGCASTER_OLIVE);
     assert.deepEqual(def.palette, [registry.SLAGCASTER_OLIVE, registry.DARK, registry.SLAGCASTER_AMBER]);
   }
@@ -82,7 +82,111 @@ test('Slagcaster registers two preview-only measured-profile endpoints', () => {
   assert.ok(deployed.targetWidth > closed.targetWidth, 'deployment must preserve its wider braced footprint');
   assert.equal(runtime.slagcasterTransform, true);
   assert.equal(runtime.ref, deployed.ref);
+  assert.match(runtime.ref, /deployed-front-v3\.png$/);
+  assert.match(runtime.sideProfileRef, /deployed-side-v3\.png$/);
+  assert.match(runtime.backPaintRef, /deployed-back-v3\.png$/);
+  assert.equal(runtime.sideProfileBodyFraction, 27 / 47);
   assert.equal(runtime.voxelSize, closed.voxelSize);
+});
+
+test('deployed v2 sheets correct front/back handedness without changing the side profile', async () => {
+  for (const view of ['front', 'back']) {
+    const v1 = await readRgbaPng(`public/assets/2d/ref-slagcaster-deployed-${view}-v1.png`);
+    const v2 = await readRgbaPng(`public/assets/2d/ref-slagcaster-deployed-${view}-v2.png`);
+    assert.deepEqual([v2.width, v2.height], [v1.width, v1.height]);
+    const mirrored = Buffer.alloc(v1.pixels.length);
+    for (let y = 0; y < v1.height; y++) for (let x = 0; x < v1.width; x++) {
+      const source = (y * v1.width + (v1.width - 1 - x)) * 4;
+      v1.pixels.copy(mirrored, (y * v2.width + x) * 4, source, source + 4);
+    }
+    assert.deepEqual(v2.pixels, mirrored, `${view} v2 must be the exact handedness correction`);
+  }
+  const sideV1 = await readRgbaPng('public/assets/2d/ref-slagcaster-deployed-side-v1.png');
+  const sideV2 = await readRgbaPng('public/assets/2d/ref-slagcaster-deployed-side-v2.png');
+  assert.deepEqual(sideV2.pixels, sideV1.pixels, 'side firing direction must not change');
+});
+
+function colorComponents(image, rgba) {
+  const visited = new Uint8Array(image.width * image.height);
+  const components = [];
+  const matches = (pixel) => {
+    const offset = pixel * 4;
+    return rgba.every((value, channel) => image.pixels[offset + channel] === value);
+  };
+  for (let pixel = 0; pixel < visited.length; pixel++) {
+    if (visited[pixel] || !matches(pixel)) continue;
+    const stack = [pixel];
+    visited[pixel] = 1;
+    let x0 = image.width;
+    let y0 = image.height;
+    let x1 = -1;
+    let y1 = -1;
+    let count = 0;
+    while (stack.length) {
+      const current = stack.pop();
+      const x = current % image.width;
+      const y = Math.floor(current / image.width);
+      x0 = Math.min(x0, x);
+      y0 = Math.min(y0, y);
+      x1 = Math.max(x1, x);
+      y1 = Math.max(y1, y);
+      count++;
+      for (const next of [current - 1, current + 1, current - image.width, current + image.width]) {
+        if (next < 0 || next >= visited.length || visited[next] || !matches(next)) continue;
+        const nextX = next % image.width;
+        if (Math.abs(nextX - x) > 1) continue;
+        visited[next] = 1;
+        stack.push(next);
+      }
+    }
+    components.push({ x0, y0, x1, y1, width: x1 - x0 + 1, height: y1 - y0 + 1, count });
+  }
+  return components;
+}
+
+test('deployed v3 sheet has a narrow central visor and separate viewer-right muzzle', async () => {
+  const front = await readRgbaPng('public/assets/2d/ref-slagcaster-deployed-front-v3.png');
+  const amber = colorComponents(front, [255, 168, 3, 255]);
+  const visor = amber.find((part) => part.x0 > 300 && part.x1 < 650 && part.y0 > 320 && part.y1 < 560);
+  const muzzle = amber.find((part) => part.x0 > 700 && part.y0 > 300 && part.y1 < 600);
+  assert.ok(visor, 'v3 needs a distinct central visor');
+  assert.ok(muzzle, 'v3 needs a distinct viewer-right muzzle');
+  assert.ok(visor.width <= 160, `central amber opening is still too wide: ${visor.width}`);
+  assert.ok(muzzle.height >= 64, `side muzzle must remain a large physical signal: ${muzzle.height}`);
+});
+
+test('deployed side-v3 is a pure profile with a torso-mounted right-firing cannon', async () => {
+  const side = await readRgbaPng('public/assets/2d/ref-slagcaster-deployed-side-v3.png');
+  assert.deepEqual([side.width, side.height], [1024, 1024]);
+  const occupied = (x, y) => side.pixels[(y * side.width + x) * 4 + 3] === 255;
+
+  // The normalized sheet is a 47x37 lattice of 19px cells at (65, 160).
+  // Rows 11..16 cross the torso pivot and barrel without a gap: this is the
+  // regression guard against the rejected rear/spine-mounted reading.
+  for (let row = 11; row <= 16; row++) {
+    const y = 160 + row * 19 + 9;
+    for (let column = 23; column <= 46; column++) {
+      assert.equal(occupied(65 + column * 19 + 9, y), true, `side cannon disconnect at row ${row}, column ${column}`);
+    }
+  }
+
+  const bodyRight = 65 + 26 * 19 + 18;
+  const muzzleLeft = 65 + 46 * 19;
+  assert.ok(muzzleLeft - bodyRight >= 19 * 19, 'barrel must extend horizontally well beyond the body');
+  assert.equal(
+    side.pixels[((160 + 13 * 19 + 9) * side.width + (65 + 46 * 19 + 9)) * 4],
+    255,
+    'far-right side muzzle must stay amber',
+  );
+
+  // Below the cannon band, the silhouette returns to the compact body/feet;
+  // a three-quarter pose would leak the barrel/leg mass into these rows.
+  for (let row = 20; row < 37; row++) {
+    const y = 160 + row * 19 + 9;
+    for (let column = 27; column < 47; column++) {
+      assert.equal(occupied(65 + column * 19 + 9, y), false, `non-profile mass at row ${row}, column ${column}`);
+    }
+  }
 });
 
 test('Slagcaster replaces Gunner only in Swarm Foundry', () => {
@@ -114,6 +218,217 @@ test('one InstancedMesh holds independent deployment progress per Slagcaster', (
   assert.equal(scene.children.filter((child) => child instanceof THREE.InstancedMesh).length, 1);
 });
 
+test('runtime semantic cannon occupies viewer-right and packs into the closed ball', () => {
+  const closedDef = registry.VOXEL_MODELS['slagcaster-closed'];
+  const body = new THREE.BoxGeometry(1, 2, 1);
+  body.translate(0, 1, 0);
+  const coloredBody = body.toNonIndexed();
+  body.dispose();
+  coloredBody.setAttribute(
+    'color',
+    new THREE.BufferAttribute(new Float32Array(coloredBody.getAttribute('position').count * 3), 3),
+  );
+  const geometry = transform.addSlagcasterCannonGeometry(
+    coloredBody,
+    config.SLAGCASTER.cannonGeometry,
+  );
+  const cannonHint = geometry.getAttribute(transform.SLAGCASTER_CANNON_HINT_ATTRIBUTE);
+  geometry.computeBoundingBox();
+  const stampedBounds = new THREE.Box3();
+  const stampedPoint = new THREE.Vector3();
+  const stampedPosition = geometry.getAttribute('position');
+  for (let i = 0; i < stampedPosition.count; i++) {
+    if (cannonHint.getX(i) <= 0.5) continue;
+    stampedBounds.expandByPoint(stampedPoint.fromBufferAttribute(stampedPosition, i));
+  }
+  assert.ok(stampedBounds.min.x > 0, 'physical cannon must stay on local +X');
+  // Measured against the REAL model, not a magic number. The front sheet's 55
+  // columns already INCLUDE the cannon, so the stamp has to reach past the
+  // torso (which frontAppendageFraction cuts at column 36 of 55) and stop at
+  // the model's own right edge. Overshooting that is what left the cannon
+  // floating five voxels clear of the silhouette with a dark slab bridging it.
+  const runtime = registry.VOXEL_MODELS.slagcaster;
+  const halfWidth = (runtime.targetWidth * runtime.voxelSize) / 2;
+  const torsoRightEdge =
+    Math.round(runtime.frontAppendageRect.fromX * runtime.targetWidth) * runtime.voxelSize - halfWidth;
+  assert.ok(
+    stampedBounds.min.x < torsoRightEdge,
+    'the cannon must start inside the torso so the volumes connect',
+  );
+  assert.ok(
+    stampedBounds.max.x > torsoRightEdge,
+    'physical cannon must protrude beyond the torso',
+  );
+  // The cannon must not be one flat dark mass. It was, while the geometry was
+  // calibrated to the pre-retouch side sheet, and at gameplay size it read as a
+  // featureless slab bolted to the flank. The retouched side v3 paints its
+  // spine olive and its root amber, so all three palette colours must survive
+  // into the stamped vertices.
+  const cannonColors = new Set();
+  const colorAttr = geometry.getAttribute('color');
+  for (let i = 0; i < colorAttr.count; i++) {
+    if (cannonHint.getX(i) <= 0.5) continue;
+    cannonColors.add(
+      [colorAttr.getX(i), colorAttr.getY(i), colorAttr.getZ(i)]
+        .map((v) => Math.round(v * 255))
+        .join(','),
+    );
+  }
+  assert.ok(
+    cannonColors.size >= 3,
+    `cannon must carry the sheet's three colours, got ${cannonColors.size}: ${[...cannonColors]}`,
+  );
+
+  // One voxel of tolerance, not zero: the sheet's muzzle ring is CLIPPED by its
+  // own canvas edge (a 15-cell disc centred on column 48 of 55 wants column 55,
+  // which does not exist), and the model should not inherit a canvas artefact.
+  // The bug this guards is the cannon floating FIVE voxels clear of the body,
+  // which this still catches.
+  assert.ok(
+    stampedBounds.max.x <= halfWidth + runtime.voxelSize + 1e-6,
+    `cannon must stop at the sheet's own silhouette (${halfWidth}), got ${stampedBounds.max.x}`,
+  );
+  assert.ok(
+    stampedBounds.max.z >= config.SLAGCASTER.muzzle.forward - 1e-6,
+    'barrel/bore must project forward in +Z',
+  );
+  assert.ok(Math.abs(config.SLAGCASTER.muzzle.lateral - config.SLAGCASTER.cannonGeometry.barrel.center[0]) < 1e-9);
+  assert.ok(Math.abs(config.SLAGCASTER.muzzle.forward - stampedBounds.max.z) < 1e-6);
+
+  const neck = config.SLAGCASTER.cannonGeometry.neck;
+  const barrel = config.SLAGCASTER.cannonGeometry.barrel;
+  const ring = config.SLAGCASTER.cannonGeometry.muzzleRing;
+  const span = (piece, axis) => [
+    piece.center[axis] - piece.size[axis] / 2,
+    piece.center[axis] + piece.size[axis] / 2,
+  ];
+  const overlaps = (a, b, axis) => {
+    const [aLo, aHi] = span(a, axis);
+    const [bLo, bHi] = span(b, axis);
+    return aHi > bLo && bHi > aLo;
+  };
+  assert.ok(
+    overlaps(neck, barrel, 0) && overlaps(neck, barrel, 1) && overlaps(neck, barrel, 2),
+    'neck and barrel volumes must overlap on all three axes',
+  );
+  // The joint has to stay a STALK. It read as a wide cube welded to the flank
+  // while its depth was a guess (user 2026-08-22), and depth is the axis no
+  // sheet constrains — so it is the one that needs a guard.
+  assert.ok(
+    neck.size[2] < barrel.size[2] && neck.size[1] <= barrel.size[1],
+    `neck must stay slimmer than the barrel it feeds, got ${neck.size} vs ${barrel.size}`,
+  );
+  // Every cannon dimension must be a whole number of voxels. Authoring in world
+  // units is what put its edges mid-voxel and made it read as a smooth
+  // primitive glued to a voxel body.
+  for (const [name, piece] of Object.entries(config.SLAGCASTER.cannonGeometry)) {
+    if (name === 'muzzleRing') continue;
+    for (const value of piece.size) {
+      const cells = value / runtime.voxelSize;
+      assert.ok(
+        Math.abs(cells - Math.round(cells)) < 1e-6,
+        `${name} must be a whole number of voxels, got ${cells}`,
+      );
+    }
+  }
+  assert.ok(
+    barrel.center[2] + barrel.size[2] / 2 > ring.zFrom,
+    'barrel and muzzle ring must overlap',
+  );
+  assert.ok(
+    Math.abs(ring.zTo - config.SLAGCASTER.muzzle.forward) < 1e-9,
+    'the visible muzzle face IS the projectile socket',
+  );
+  // The barrel is split into a lower body and three top segments so the olive
+  // spine is its own solid, so no single piece sits on the axis any more —
+  // what must hold is that the ring's axis runs through the barrel.
+  const cannonSpanY = [
+    Math.min(...['barrel', 'barrelTopNear', 'barrelTopSpine', 'barrelTopFar']
+      .map((k) => span(config.SLAGCASTER.cannonGeometry[k], 1)[0])),
+    Math.max(...['barrel', 'barrelTopNear', 'barrelTopSpine', 'barrelTopFar']
+      .map((k) => span(config.SLAGCASTER.cannonGeometry[k], 1)[1])),
+  ];
+  const [barrelLoX, barrelHiX] = span(barrel, 0);
+  assert.ok(
+    ring.center[0] > barrelLoX && ring.center[0] < barrelHiX,
+    'the ring axis must run through the barrel in X',
+  );
+  assert.ok(
+    ring.center[1] > cannonSpanY[0] && ring.center[1] < cannonSpanY[1],
+    'the ring axis must run through the barrel in Y',
+  );
+  // Ordered radii are what make it a ring: collapse any two and the muzzle
+  // silently becomes a disc again, which is the look this replaced.
+  assert.ok(
+    ring.boreRadius < ring.ringInnerRadius &&
+      ring.ringInnerRadius < ring.ringOuterRadius &&
+      ring.ringOuterRadius < ring.outerRadius,
+    'muzzle bands must be strictly ordered bore < inner rim < olive < outer rim',
+  );
+  // Every band must be at least one stamp cell wide or it does not exist.
+  for (const [name, width] of [
+    ['bore', ring.boreRadius],
+    ['inner rim', ring.ringInnerRadius - ring.boreRadius],
+    ['olive band', ring.ringOuterRadius - ring.ringInnerRadius],
+    ['outer rim', ring.outerRadius - ring.ringOuterRadius],
+  ]) {
+    assert.ok(
+      width >= ring.voxel - 1e-9,
+      `${name} must be at least one voxel wide, got ${width}`,
+    );
+  }
+  assert.ok(
+    ring.outerRadius > barrel.size[0] / 2,
+    'the muzzle ring must be wider than the barrel it sits on',
+  );
+
+  transform.makeSlagcasterTransformGeometry(
+    geometry,
+    1,
+    closedDef.targetWidth * closedDef.voxelSize,
+    config.SLAGCASTER.transform,
+  );
+  geometry.computeBoundingBox();
+  const center = geometry.boundingBox.getCenter(new THREE.Vector3());
+  const position = geometry.getAttribute('position');
+  const closed = geometry.getAttribute('slagClosedPosition');
+  const parts = geometry.getAttribute('slagPartId');
+  const radius = (closedDef.targetWidth * closedDef.voxelSize) / 2;
+  let cannonVertices = 0;
+  let cannonMinX = Infinity;
+  let cannonMaxX = -Infinity;
+  for (let i = 0; i < position.count; i++) {
+    if (parts.getX(i) !== transform.SLAGCASTER_PART.cannon) continue;
+    cannonVertices++;
+    cannonMinX = Math.min(cannonMinX, position.getX(i));
+    cannonMaxX = Math.max(cannonMaxX, position.getX(i));
+    const packedRadius = Math.hypot(
+      closed.getX(i),
+      closed.getY(i) - radius,
+      closed.getZ(i),
+    );
+    assert.ok(Math.abs(packedRadius - radius) < 1e-5, 'cannon vertex must pack onto the ball');
+  }
+  assert.ok(cannonVertices > 0);
+  assert.ok(cannonMinX > 0, 'semantic cannon must stay entirely on model-local/viewer right');
+  assert.ok(cannonMaxX - center.x > 0.5, 'deployed cannon must protrude laterally from the body');
+  geometry.dispose();
+});
+
+test('Slagcaster muzzle socket follows the model yaw convention', () => {
+  const at = (heading) => enemies.writeSlagcasterMuzzleWorld({ x: 0, z: 0 }, 10, 20, heading, 1);
+  const close = (actual, expected) => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} != ${expected}`);
+  let muzzle = at(0);
+  close(muzzle.x, 10 + config.SLAGCASTER.muzzle.lateral);
+  close(muzzle.z, 20 + config.SLAGCASTER.muzzle.forward);
+  muzzle = at(Math.PI / 2);
+  close(muzzle.x, 10 + config.SLAGCASTER.muzzle.forward);
+  close(muzzle.z, 20 - config.SLAGCASTER.muzzle.lateral);
+  muzzle = at(Math.PI);
+  close(muzzle.x, 10 - config.SLAGCASTER.muzzle.lateral);
+  close(muzzle.z, 20 - config.SLAGCASTER.muzzle.forward);
+});
+
 test('Slagcaster deployment is deterministic and firing waits for the planted endpoint', () => {
   assert.equal(enemies.advanceSlagcasterDeployment(0, true, config.SLAGCASTER.deployDurationS), 1);
   assert.equal(enemies.advanceSlagcasterDeployment(1, false, config.SLAGCASTER.retractDurationS), 0);
@@ -134,32 +449,47 @@ test('Slagcaster deployment is deterministic and firing waits for the planted en
     slagFirstShotTimer: config.SLAGCASTER.firstShotDelayS,
     scale: config.ENEMY_TYPES[gunnerIndex].scale,
   };
-  const firedKinds = [];
+  const firedCalls = [];
+  const projectiles = { fire: (...args) => firedCalls.push(args) };
   const system = Object.create(enemies.EnemySystem.prototype);
   system.currentMapId = 'megafactory';
-  system.moveGunner(enemy, 0.05, 0, 10, { fire: (...args) => firedKinds.push(args[6]) }, []);
-  assert.equal(firedKinds.length, 0, 'a partially deployed Slagcaster must not fire');
+  system.moveGunner(enemy, 0.05, 0, 10, projectiles, []);
+  assert.equal(firedCalls.length, 0, 'a partially deployed Slagcaster must not fire');
   enemy.deploymentProgress = 0.998;
   enemy.phase = -1;
   enemy.slagFirstShotTimer = 0;
-  system.moveGunner(enemy, 0.01, 0, 10, { fire: (...args) => firedKinds.push(args[6]) }, []);
-  assert.equal(firedKinds.length, 0, 'crossing fully deployed must start the first-shot delay');
+  system.moveGunner(enemy, 0.01, 0, 10, projectiles, []);
+  assert.equal(firedCalls.length, 0, 'crossing fully deployed must start the first-shot delay');
   assert.equal(enemy.slagFirstShotTimer, config.SLAGCASTER.firstShotDelayS);
-  system.moveGunner(enemy, 0.19, 0, 10, { fire: (...args) => firedKinds.push(args[6]) }, []);
-  assert.equal(firedKinds.length, 0, 'the planted pose must read before the first shot');
-  system.moveGunner(enemy, 0.02, 0, 10, { fire: (...args) => firedKinds.push(args[6]) }, []);
-  assert.deepEqual(firedKinds, ['slagcaster']);
+  system.moveGunner(enemy, 0.19, 0, 10, projectiles, []);
+  assert.equal(firedCalls.length, 0, 'the planted pose must read before the first shot');
+  system.moveGunner(enemy, 0.02, 0, 10, projectiles, []);
+  assert.equal(firedCalls.length, 1);
+  const firstShot = firedCalls[0];
+  const expectedMuzzle = enemies.writeSlagcasterMuzzleWorld(
+    { x: 0, z: 0 },
+    enemy.x,
+    enemy.z,
+    enemy.heading,
+    enemy.scale,
+  );
+  assert.ok(Math.abs(firstShot[0] - expectedMuzzle.x) < 1e-9);
+  assert.ok(Math.abs(firstShot[1] - expectedMuzzle.z) < 1e-9);
+  const targetLength = Math.hypot(0 - firstShot[0], 10 - firstShot[1]);
+  assert.ok(Math.abs(firstShot[2] - (0 - firstShot[0]) / targetLength) < 1e-9);
+  assert.ok(Math.abs(firstShot[3] - (10 - firstShot[1]) / targetLength) < 1e-9);
+  assert.equal(firstShot[6], 'slagcaster');
 
-  system.moveGunner(enemy, 2.9, 0, 10, { fire: (...args) => firedKinds.push(args[6]) }, []);
-  assert.equal(firedKinds.length, 1, 'repeat fire must retain the three-second cooldown');
-  system.moveGunner(enemy, 0.11, 0, 10, { fire: (...args) => firedKinds.push(args[6]) }, []);
-  assert.deepEqual(firedKinds, ['slagcaster', 'slagcaster']);
+  system.moveGunner(enemy, 2.9, 0, 10, projectiles, []);
+  assert.equal(firedCalls.length, 1, 'repeat fire must retain the three-second cooldown');
+  system.moveGunner(enemy, 0.11, 0, 10, projectiles, []);
+  assert.equal(firedCalls.length, 2);
 
   enemy.deploymentProgress = 1;
   enemy.slagFirstShotTimer = 0;
   enemy.phase = -1;
-  system.moveGunner(enemy, 0.05, 0, 15, { fire: (...args) => firedKinds.push(args[6]) }, []);
-  assert.equal(firedKinds.length, 2, 'a moving/retracting Slagcaster must not fire');
+  system.moveGunner(enemy, 0.05, 0, 15, projectiles, []);
+  assert.equal(firedCalls.length, 2, 'a moving/retracting Slagcaster must not fire');
   assert.ok(enemy.deploymentProgress < 1);
 });
 
@@ -231,7 +561,7 @@ test('Foundry-only range and slag projectile stay isolated from legacy Gunner', 
     slagFirstShotTimer: 0,
     scale: config.ENEMY_TYPES[gunnerIndex].scale,
   };
-  const kinds = [];
+  const legacyCalls = [];
   const system = Object.create(enemies.EnemySystem.prototype);
   system.currentMapId = 'megafactory';
   const foundryStartX = enemy.x;
@@ -245,8 +575,13 @@ test('Foundry-only range and slag projectile stay isolated from legacy Gunner', 
   enemy.z = 0;
   enemy.phase = -1;
   system.currentMapId = config.MAPS[0].id;
-  system.moveGunner(enemy, 0, 0, 10, { fire: (...args) => kinds.push(args[6]) }, []);
-  assert.deepEqual(kinds, ['gunner'], 'Map 1 must keep the legacy projectile kind');
+  system.moveGunner(enemy, 0, 0, 10, { fire: (...args) => legacyCalls.push(args) }, []);
+  assert.equal(legacyCalls.length, 1);
+  assert.deepEqual(
+    [legacyCalls[0][0], legacyCalls[0][1], legacyCalls[0][6]],
+    [enemy.x, enemy.z, 'gunner'],
+    'Map 1 must keep the legacy center spawn and projectile kind',
+  );
 });
 
 test('runtime Slagcaster bolt geometry stays visibly ahead of its collider', () => {
@@ -272,14 +607,22 @@ test('runtime Slagcaster bolt geometry stays visibly ahead of its collider', () 
   geometry.dispose();
 });
 
-test('all six Slagcaster sheets are 1024 RGBA with hard alpha and one flat palette', async () => {
+test('all Slagcaster runtime sheets are 1024 RGBA with hard alpha and one flat palette', async () => {
   const approved = new Set([
     '120,130,57,255',
     '35,40,48,255',
     '255,168,3,255',
   ]);
-  for (const state of ['closed', 'deployed']) for (const view of ['front', 'side', 'back']) {
-    const path = `public/assets/2d/ref-slagcaster-${state}-${view}-v1.png`;
+  const sheets = [
+    ...['front', 'side', 'back'].map((view) => `ref-slagcaster-closed-${view}-v1.png`),
+    ...['front', 'side', 'back'].flatMap((view) => [
+      `ref-slagcaster-deployed-${view}-v1.png`,
+      `ref-slagcaster-deployed-${view}-v2.png`,
+      `ref-slagcaster-deployed-${view}-v3.png`,
+    ]),
+  ];
+  for (const sheet of sheets) {
+    const path = `public/assets/2d/${sheet}`;
     const image = await readRgbaPng(path);
     assert.deepEqual([image.width, image.height], [1024, 1024], `${path} dimensions drifted`);
     const colors = new Set();

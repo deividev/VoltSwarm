@@ -87,6 +87,45 @@ export interface IconVoxelizeOptions {
    */
   sideProfileRef?: string;
   /**
+   * Fraction of the side sheet's occupied width that is the BODY, measured
+   * from its back edge. Columns past it are dropped before the sheet is read.
+   *
+   * `rowHalfDepth` is ONE symmetric number per row — `round(filled / 2)`
+   * applied to every column of that row. That cannot describe a body plus an
+   * appendage pointing along the depth axis: the appendage's length is simply
+   * added to the body's, front AND back, across the model's whole width.
+   * Measured on the Slagcaster, whose cannon occupies side columns 36..51 in
+   * rows 9..19 only: those rows reported 48 filled and extruded 48 deep where
+   * the body itself is ~32, so the barrel became a slab of torso fat and the
+   * model read as an egg from the game's top-down camera.
+   *
+   * Cropping here rather than in the sheet keeps ONE approved side sheet as
+   * the source of truth for depth, flank paint and review. The appendage is
+   * then added back as real geometry (see the registry's cannon/wheel stamps),
+   * which is the only way it gets a silhouette of its own.
+   */
+  sideProfileBodyFraction?: number;
+  /**
+   * RECTANGLE of the front sheet, in fractions of its bounding box, holding an
+   * appendage that geometry supplies instead of the extruder. Cells inside it
+   * are cleared after downsampling, before extrusion. `y` runs downward, like
+   * the sheet.
+   *
+   * It stops the appendage's front pixels from being extruded to body depth:
+   * the Slagcaster's cannon columns otherwise became a slab as deep as the
+   * torso, where the sheet draws a thin arm carrying a ring.
+   *
+   * It is a RECT and not a column cut for a reason that cost a whole round:
+   * on this sheet, columns 36+ are the cannon in rows 6..20 AND THE RIGHT LEG
+   * in rows 22..36. Cutting by column alone amputated the leg, and the missing
+   * quarter of the body read as "the model is getting worse" rather than as
+   * the self-inflicted hole it was.
+   *
+   * The sheet is still measured whole, so `targetWidth` and the model's world
+   * size are unchanged.
+   */
+  frontAppendageRect?: { fromX: number; toX?: number; fromY: number; toY: number };
+  /**
    * FLAT back sheet (same vertical extent as the front). When given, the
    * back shell is painted from it (mirrored) instead of armor backfill —
    * the back view becomes real reference detail (2026-07-09).
@@ -227,6 +266,22 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
   const gridH = options.targetHeight ?? Math.max(1, Math.round((bboxH / bboxW) * gridW));
   const front = downsampleMap(image, gridW, gridH);
 
+  // Hand the appendage's rectangle to the geometry stamp (see
+  // `frontAppendageRect`). Done before cleanup/extrusion so nothing downstream
+  // ever sees it as body.
+  const appendage = options.frontAppendageRect;
+  if (appendage) {
+    const x0 = Math.max(0, Math.round(appendage.fromX * gridW));
+    const x1 = Math.min(gridW, Math.round((appendage.toX ?? 1) * gridW));
+    const y0 = Math.max(0, Math.round(appendage.fromY * gridH));
+    const y1 = Math.min(gridH, Math.round(appendage.toY * gridH));
+    for (let gy = y0; gy < y1; gy++) {
+      const row = front[gy];
+      if (!row) continue;
+      for (let gx = x0; gx < x1; gx++) row[gx] = null;
+    }
+  }
+
   cleanupFront(front);
   if (!options.asymmetric) symmetrizeFront(front);
 
@@ -269,7 +324,20 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
   let rowHalfDepth: number[] | null = null;
   let sideMap: FrontMap | null = null;
   if (options.sideProfileRef) {
-    const side = await classifyImage(options.sideProfileRef, options.background, options.palette);
+    const sheet = await classifyImage(options.sideProfileRef, options.background, options.palette);
+    // Drop the appendage columns (see `sideProfileBodyFraction`) BEFORE any
+    // reading, so depth and flank paint agree on where the body ends.
+    const bodyFraction = options.sideProfileBodyFraction ?? 1;
+    const side =
+      bodyFraction >= 1
+        ? sheet
+        : {
+            ...sheet,
+            maxX:
+              sheet.minX +
+              Math.max(1, Math.round(bodyFraction * (sheet.maxX - sheet.minX + 1))) -
+              1,
+          };
     const sideBboxW = side.maxX - side.minX + 1;
     const sideBboxH = side.maxY - side.minY + 1;
     // An explicit height stretches only the shared vertical sampling. Depth
@@ -454,6 +522,21 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
       }
       if (zLo === -1) continue;
 
+      // Frontmost filled z per column. The extrusion domes the front cap
+      // (halfDepth follows 1 - t^2 across x), so on a wide body the outermost
+      // x of a FRONT slice is not a flank at all — it is the edge of the face
+      // itself. Repainting it hands the front sheet's colour to the side
+      // sheet: measured on the Slagcaster, that overwrote 14% of the visible
+      // face and 8 of its 20 amber cells, turning visor, grille and muzzle
+      // ring into noise. A voxel that is the front of its column belongs to
+      // the front view, never to the flank.
+      const frontZ = new Int32Array(gridW).fill(-1);
+      for (let z = zLo; z <= zHi; z++) {
+        const row = slice[z];
+        if (!row) continue;
+        for (let x = 0; x < gridW; x++) if (row[x] != null) frontZ[x] = z;
+      }
+
       for (let z = zLo; z <= zHi; z++) {
         const row = slice[z];
         if (!row) continue;
@@ -469,8 +552,8 @@ export async function voxelizeIcon(url: string, options: IconVoxelizeOptions): P
         const s = Math.min(sHi, Math.max(sLo, Math.round(sLo + t * (sHi - sLo))));
         const paint = sideRow[s];
         if (paint == null) continue;
-        row[xLo] = paint;
-        row[xHi] = paint;
+        if (frontZ[xLo] !== z) row[xLo] = paint;
+        if (frontZ[xHi] !== z) row[xHi] = paint;
       }
     }
   }

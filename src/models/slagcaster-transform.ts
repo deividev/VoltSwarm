@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import type { SlagcasterTransformConfig } from '../config';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import type { SlagcasterCannonGeometryConfig, SlagcasterTransformConfig } from '../config';
 
 export const SLAGCASTER_DEPLOY_ATTRIBUTE = 'instanceSlagDeploy';
 
@@ -15,6 +16,118 @@ export const SLAGCASTER_PART = {
   anchors: 2,
   crucible: 3,
 } as const;
+
+export const SLAGCASTER_CANNON_HINT_ATTRIBUTE = 'slagCannonHint';
+
+function cannonBox(
+  spec: { readonly size: readonly [number, number, number]; readonly center: readonly [number, number, number] },
+  color: number,
+  indexed: boolean,
+): THREE.BufferGeometry {
+  let geometry: THREE.BufferGeometry = new THREE.BoxGeometry(...spec.size);
+  geometry.translate(...spec.center);
+  const tint = new THREE.Color(color);
+  const count = geometry.getAttribute('position').count;
+  const colors = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    colors[i * 3] = tint.r;
+    colors[i * 3 + 1] = tint.g;
+    colors[i * 3 + 2] = tint.b;
+  }
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.setAttribute(SLAGCASTER_CANNON_HINT_ATTRIBUTE, new THREE.BufferAttribute(new Float32Array(count).fill(1), 1));
+  if (!indexed) geometry = geometry.toNonIndexed();
+  return geometry;
+}
+
+/** Builds the muzzle as a stamped voxel RING (see SLAGCASTER.cannonGeometry).
+ *
+ * Cells are laid out on the body's own voxel lattice and merged into X runs
+ * per row and colour, so a ~9-voxel disc costs about 30 boxes instead of 70.
+ * Each run spans the ring's full thickness: from the front it shows the sheet's
+ * banding, and from the game's top-down camera it shows a dark cylinder edge. */
+function muzzleRingBoxes(
+  ring: SlagcasterCannonGeometryConfig['muzzleRing'],
+  indexed: boolean,
+): THREE.BufferGeometry[] {
+  const [cx, cy] = ring.center;
+  const depth = ring.zTo - ring.zFrom;
+  const zCenter = (ring.zFrom + ring.zTo) / 2;
+  const half = Math.ceil(ring.outerRadius / ring.voxel);
+  const boxes: THREE.BufferGeometry[] = [];
+
+  // Radius bands, outermost first. A cell takes the first band it falls in.
+  const bandFor = (r: number): number | null => {
+    if (r <= ring.boreRadius) return ring.boreColor;
+    if (r <= ring.ringInnerRadius) return ring.rimColor;
+    if (r <= ring.ringOuterRadius) return ring.ringColor;
+    if (r <= ring.outerRadius) return ring.rimColor;
+    return null;
+  };
+
+  for (let iy = -half; iy <= half; iy++) {
+    const dy = iy * ring.voxel;
+    let ix = -half;
+    while (ix <= half) {
+      const color = bandFor(Math.hypot(ix * ring.voxel, dy));
+      if (color == null) {
+        ix++;
+        continue;
+      }
+      let end = ix + 1;
+      while (end <= half && bandFor(Math.hypot(end * ring.voxel, dy)) === color) end++;
+      const runLength = end - ix;
+      const box = cannonBox(
+        {
+          size: [runLength * ring.voxel, ring.voxel, depth],
+          center: [cx + (ix + runLength / 2 - 0.5) * ring.voxel, cy + dy, zCenter],
+        },
+        color,
+        indexed,
+      );
+      boxes.push(box);
+      ix = end;
+    }
+  }
+  return boxes;
+}
+
+/** Stamps a guaranteed connected cannon into the same deployed geometry. The
+ * v3 sheets drive the body silhouette/paint, while these overlapping solids
+ * give the lateral cannon real +Z volume instead of a global side-profile
+ * extrusion. The merged result remains one topology and one InstancedMesh. */
+export function addSlagcasterCannonGeometry(
+  deployed: THREE.BufferGeometry,
+  config: SlagcasterCannonGeometryConfig,
+): THREE.BufferGeometry {
+  const basePosition = deployed.getAttribute('position');
+  if (!(basePosition instanceof THREE.BufferAttribute)) {
+    throw new Error('Slagcaster cannon stamp requires position geometry');
+  }
+  deployed.setAttribute(
+    SLAGCASTER_CANNON_HINT_ATTRIBUTE,
+    new THREE.BufferAttribute(new Float32Array(basePosition.count), 1),
+  );
+  const indexed = deployed.index !== null;
+  // Every piece carries its own colour now: the cannon is split by the sheets'
+  // own paint, so it can never collapse back into one flat dark mass.
+  const solids = [
+    config.neck,
+    config.barrel,
+    config.barrelTopNear,
+    config.barrelTopSpine,
+    config.barrelTopFar,
+    config.barrelStrut,
+    config.rootVent,
+  ].map((piece) => cannonBox(piece, piece.color, indexed));
+  const ring = muzzleRingBoxes(config.muzzleRing, indexed);
+  const merged = mergeGeometries([deployed, ...solids, ...ring]);
+  for (const box of solids) box.dispose();
+  for (const box of ring) box.dispose();
+  if (!merged) throw new Error('Slagcaster cannon geometry could not be merged');
+  deployed.dispose();
+  return merged;
+}
 
 /** Rolls the compact pose around its authored sphere centre without moving the
  * enemy's gameplay origin. Deforming poses remain upright: both endpoints are
@@ -98,6 +211,7 @@ export function makeSlagcasterTransformGeometry(
   const closed = new Float32Array(position.count * 3);
   const parts = new Float32Array(position.count);
   const direction = new THREE.Vector3();
+  const cannonHint = deployed.getAttribute(SLAGCASTER_CANNON_HINT_ATTRIBUTE);
 
   for (let i = 0; i < position.count; i++) {
     const x = position.getX(i);
@@ -108,9 +222,11 @@ export function makeSlagcasterTransformGeometry(
     const nz = (z - center.z) / halfZ;
 
     let part: number = SLAGCASTER_PART.shell;
-    if (ny <= config.semantic.anchorMaxY && Math.abs(nx) >= config.semantic.anchorMinAbsX) {
+    if (cannonHint?.getX(i) > 0.5) {
+      part = SLAGCASTER_PART.cannon;
+    } else if (ny <= config.semantic.anchorMaxY && Math.abs(nx) >= config.semantic.anchorMinAbsX) {
       part = SLAGCASTER_PART.anchors;
-    } else if (nx <= config.semantic.cannonMaxX && ny >= config.semantic.cannonMinY) {
+    } else if (nx >= config.semantic.cannonMinX && ny >= config.semantic.cannonMinY) {
       part = SLAGCASTER_PART.cannon;
     } else if (ny >= config.semantic.crucibleMinY) {
       part = SLAGCASTER_PART.crucible;

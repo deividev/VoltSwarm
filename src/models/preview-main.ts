@@ -6,6 +6,7 @@ import type { Rig, RigClip } from './rig';
 import { buildRuntimeModelDetails } from './runtime-details';
 import { SLAGCASTER } from '../config';
 import {
+  addSlagcasterCannonGeometry,
   createSlagcasterTransformMaterial,
   makeSlagcasterTransformGeometry,
   markSlagcasterDeploymentDirty,
@@ -79,7 +80,10 @@ if (clip) {
   const closed = VOXEL_MODELS['slagcaster-closed'];
   if (!closed) throw new Error('Slagcaster closed endpoint is not registered');
   const geometry = makeSlagcasterTransformGeometry(
-    buildGridGeometry(grid, def.voxelSize),
+    addSlagcasterCannonGeometry(
+      buildGridGeometry(grid, def.voxelSize),
+      SLAGCASTER.cannonGeometry,
+    ),
     1,
     closed.targetWidth * closed.voxelSize,
     SLAGCASTER.transform,

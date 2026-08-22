@@ -2185,6 +2185,53 @@ export const GUNNER = {
 
 /** Foundry Gunner presentation and its deliberately isolated trial overrides.
  * Shared cooldown, damage and travel speed remain owned by GUNNER above. */
+/** The deployed Slagcaster's voxel lattice, so the cannon can be authored in
+ * SHEET CELLS instead of world numbers.
+ *
+ * The grid is 55 x 37 x 33 at a 0.030273 pitch, and `targetWidth` is 55, so one
+ * front-sheet column IS one voxel and one sheet row IS one voxel row. That makes
+ * every cannon dimension a cell count copied straight off the measured sheets.
+ *
+ * Doing it this way is the fix for the last complaint, not decoration: the arm
+ * used to be authored in world units (0.564, 0.273, 0.30 — none of them a whole
+ * multiple of the pitch), so its edges fell mid-voxel and it read as a smooth
+ * primitive glued onto a voxel body. The muzzle ring never had that problem
+ * because it was already stamped on the lattice. */
+const SLAG_VOXEL = 0.030273;
+/** Half the grid on each axis: x is centred on 55 columns, z on 33 slices, and
+ * y counts up from the floor. Mirrors buildGridGeometry's own offsets. */
+const SLAG_HALF_X = 27.5 * SLAG_VOXEL;
+const SLAG_HALF_Z = 16.5 * SLAG_VOXEL;
+/** Inclusive voxel-index box -> the world box the geometry builder wants. */
+function slagCell(
+  x: readonly [number, number],
+  y: readonly [number, number],
+  z: readonly [number, number],
+  color: number,
+) {
+  return {
+    size: [
+      (x[1] - x[0] + 1) * SLAG_VOXEL,
+      (y[1] - y[0] + 1) * SLAG_VOXEL,
+      (z[1] - z[0] + 1) * SLAG_VOXEL,
+    ] as readonly [number, number, number],
+    center: [
+      ((x[0] + x[1] + 1) / 2) * SLAG_VOXEL - SLAG_HALF_X,
+      ((y[0] + y[1] + 1) / 2) * SLAG_VOXEL,
+      ((z[0] + z[1] + 1) / 2) * SLAG_VOXEL - SLAG_HALF_Z,
+    ] as readonly [number, number, number],
+    color,
+  };
+}
+/** Front-sheet row (0 at the top) -> grid Y index (0 at the floor). */
+const slagRow = (r: number): number => 36 - r;
+// Side-sheet columns map to grid Z the same way: its column 27 is the body's
+// front face, which is the grid's front boundary at index 33, so z = c + 6.
+
+const SLAG_DARK = 0x232830;
+const SLAG_OLIVE = 0x788239;
+const SLAG_AMBER = 0xffa803;
+
 export const SLAGCASTER = {
   /** Foundry-only standoff. At the unchanged 12 u/s projectile speed this
    * leaves roughly 1.17 s of visible travel from the outer edge. */
@@ -2208,6 +2255,75 @@ export const SLAGCASTER = {
     emberColor: 0xffa51f,
     hotCoreColor: 0xffd36a,
   },
+  /** Local XZ socket. +Z is model forward; +X is viewer-right in the canonical
+   * front view. Both values are DERIVED from the muzzle ring's own cells, so
+   * the projectile can never leave from somewhere the muzzle is not. */
+  muzzle: {
+    /** Front-sheet bore columns 46..50 -> grid x 48.5 on the lattice. */
+    lateral: 48.5 * SLAG_VOXEL - SLAG_HALF_X,
+    /** Side-sheet column 46 is the last cell of the cannon: grid z 53. */
+    forward: 53 * SLAG_VOXEL - SLAG_HALF_Z,
+  },
+  /** The lateral cannon, authored in SHEET CELLS (see slagCell above).
+   *
+   * It cannot come out of the sheets through the extruder — per-row depth is a
+   * single symmetric number, so the barrel's length would become torso fat —
+   * so the sheets are cropped there (registry: sideProfileBodyFraction and
+   * frontAppendageRect) and these solids take over. Every range below is read
+   * off those same sheets, and the pieces are split by COLOUR so the assembly
+   * is never one flat mass. */
+  cannonGeometry: {
+    /** The neck: body -> barrel. NARROW on purpose (user 2026-08-22).
+     *
+     * Its height comes from the front sheet, whose arm bar is rows 9..17. Its
+     * DEPTH is the one dimension no sheet constrains — the front view cannot
+     * show it and the side view has the barrel in front of it — and a fat guess
+     * there is what made the joint read as a wide cube welded to the flank.
+     * THREE voxels of section against the barrel's nine (5x5 -> 3x3, user
+     * 2026-08-22 asked to take it further): from the top-down camera the arm is
+     * a stalk feeding a much thicker gun rather than a block bridging to it. It
+     * starts at column 34, inside the torso, so the two volumes provably
+     * overlap, and it stays inside the torso's own depth there (z 28..30 against
+     * a body reaching z 30 at those rows) so the joint cannot float. */
+    neck: slagCell([34, 45], [slagRow(16), slagRow(14)], [28, 30], SLAG_DARK),
+    /** Barrel body. Nine cells square — side sheet rows 10..18 and the front
+     * sheet's arm agree on nine — running from inside the body out to the ring.
+     * `barrel` keeps its name because the muzzle socket is asserted against
+     * this piece's centre line. */
+    barrel: slagCell([44, 52], [slagRow(17), slagRow(12)], [27, 47], SLAG_DARK),
+    /** The barrel's top, split in three along Z so the olive spine is its own
+     * solid rather than a plate sunk into a dark box — coplanar faces z-fight,
+     * and an oversized plate overhangs and reads as a floating slab. Side v3
+     * paints columns 27..37 olive and leaves 38..46 dark. */
+    barrelTopNear: slagCell([44, 52], [slagRow(11), slagRow(9)], [27, 32], SLAG_DARK),
+    barrelTopSpine: slagCell([44, 52], [slagRow(11), slagRow(9)], [33, 43], SLAG_OLIVE),
+    barrelTopFar: slagCell([44, 52], [slagRow(11), slagRow(9)], [44, 46], SLAG_DARK),
+    /** Olive band around the barrel's lower middle — side v3 columns 35..37,
+     * rows 14..17. One voxel proud on each flank so it reads as a raised collar
+     * and its faces cannot land coplanar with the barrel's. */
+    barrelStrut: slagCell([43, 53], [slagRow(17), slagRow(14)], [41, 43], SLAG_OLIVE),
+    /** Amber vent at the barrel's root — side v3 column 28, rows 12..15. */
+    rootVent: slagCell([43, 53], [slagRow(15), slagRow(13)], [34, 34], SLAG_AMBER),
+    /** Muzzle ring, stamped cell by cell. The front sheet draws a disc centred
+     * on column 48 / row 13 with an outer radius of 7 cells, an olive band from
+     * 4 to 6 and an amber bore of 2.5. At one voxel per cell every one of those
+     * bands is at least a whole voxel wide, so the sheet's design survives
+     * without being snapped to anything. */
+    muzzleRing: {
+      center: [48.5 * SLAG_VOXEL - SLAG_HALF_X, 23.5 * SLAG_VOXEL] as readonly [number, number],
+      /** Side-sheet columns 41..46. `zTo` IS `muzzle.forward`. */
+      zFrom: 47 * SLAG_VOXEL - SLAG_HALF_Z,
+      zTo: 53 * SLAG_VOXEL - SLAG_HALF_Z,
+      voxel: SLAG_VOXEL,
+      outerRadius: 7 * SLAG_VOXEL,
+      ringOuterRadius: 6 * SLAG_VOXEL,
+      ringInnerRadius: 4 * SLAG_VOXEL,
+      boreRadius: 2.5 * SLAG_VOXEL,
+      rimColor: SLAG_DARK,
+      ringColor: SLAG_OLIVE,
+      boreColor: SLAG_AMBER,
+    },
+  },
   /** Semantic-part activation windows over global deployment progress. */
   transform: {
     stagger: {
@@ -2220,7 +2336,7 @@ export const SLAGCASTER = {
     semantic: {
       anchorMaxY: -0.16,
       anchorMinAbsX: 0.24,
-      cannonMaxX: -0.34,
+      cannonMinX: 0.34,
       cannonMinY: -0.12,
       crucibleMinY: 0.58,
     },
@@ -2228,6 +2344,7 @@ export const SLAGCASTER = {
 } as const;
 
 export type SlagcasterTransformConfig = typeof SLAGCASTER.transform;
+export type SlagcasterCannonGeometryConfig = typeof SLAGCASTER.cannonGeometry;
 
 export const FLYER = {
   /** 2.6 → 1.1 (2026-07-30 playtest: beams visibly missed drones that were
