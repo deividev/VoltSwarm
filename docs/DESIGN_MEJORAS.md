@@ -275,10 +275,10 @@ The first playable character is **Field Engineer**, a recognizable evolution of 
 
 ### ✅ Personaje inicial — Field Engineer
 
-- **Rol:** perfil inicial legible y perdonador: 110 HP, Armor rating 5%, Damage ×0.95, Move Speed 11, Attack Speed ×1, crítico 5%/+50%, Luck/Regen 0.
+- **Rol:** perfil inicial legible y perdonador: 110 HP, Armor rating 0%, Damage ×0.95, Move Speed 11, Attack Speed ×1, crítico 5%/+50%, Luck/Regen 0.
 - **Signature — Field Repair:** instalar o subir de tier cualquier Core excepto Hull Plates durante gameplay cura 1% de HP máximo después de aplicar el Core, con clamp y sin overheal. No dispara en load/replay/Boss Lab/rebuild.
 - **Elección temprana:** Bolt Cannon conserva sus odds normales. Si aparece naturalmente, su tarjeta muestra `Suggested Start`; no se garantiza ni equipa por obligación.
-- **Identidad:** supervivencia por HP/Armor y relación con Cores, NUNCA por movilidad. Field Repair dobla un sistema existente; Hull Plates queda excluido para que aumentar Max HP nunca cure por una vía indirecta.
+- **Identidad:** supervivencia por HP máximo y relación con Cores, NUNCA por movilidad. Field Repair dobla un sistema existente; Hull Plates queda excluido para que aumentar Max HP nunca cure por una vía indirecta.
 - **Visual:** casco de seguridad naranja grande, visor oscuro, cuerpo hueso/charcoal, mochila-taller unida, herramienta asimétrica en hombro derecho, refuerzos en antebrazos/botas, columna de energía cian y exactamente tres alojamientos grandes de Core conectados con cables gruesos. La lectura cenital debe ser casco + hombro herramienta + mochila.
 - **Status:** gameplay, selection, persistence, and UI are implemented. Runtime model v1 is definitively approved in-game after the 0°/90°/180°/270° preview, rear-view locomotion check, and 400+ swarm gate (431–440 enemies, 118.87 average FPS, 92.41 minimum bucket, 8.5 ms p99, 0 page errors, and 431/431 enemies moving). Files under `art/concept/field-engineer/` remain conversion and provenance sources, not pending shipped-art candidates.
 

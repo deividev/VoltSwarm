@@ -3025,7 +3025,7 @@ export const CHARACTER_BALANCE = {
     attackSpeed: 1,
     critChance: 0.05,
     critDamage: 0.5,
-    armor: 0.05,
+    armor: 0,
     regen: 0,
     luck: 0,
     fieldRepairFraction: 0.01,

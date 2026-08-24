@@ -8,7 +8,7 @@ const PORT = 5204;
 const PORTRAIT_PATH = 'assets/2d/ref-field-engineer-front-v1.png';
 const EXPECTED_STATS = [
   ['max-hp', 'Max HP', 'assets/2d/icon-card-max-hp.png', '110 (+10)'],
-  ['armor', 'Armor', 'assets/2d/icon-stat-armor-v2.png', '5%'],
+  ['armor', 'Armor', 'assets/2d/icon-stat-armor-v2.png', '0%'],
   ['damage', 'Damage', 'assets/2d/icon-stat-damage.png', '-5%'],
   ['move-speed', 'Move Speed', 'assets/2d/icon-stat-move-speed.png', '11'],
   ['attack-speed', 'Attack Speed', 'assets/2d/icon-stat-attack-speed.png', 'x1'],
