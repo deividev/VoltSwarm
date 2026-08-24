@@ -1,6 +1,7 @@
 import { PROFILE, PLAYER, SECONDS_PER_MINUTE, DRAFT_FALLBACK, CORE_BALANCE, CORE_TIER_MAGNITUDES, MAX_WEAPON_LEVEL, RECORDING, TIERS, WEAPON_INFO, WEAPON_UPGRADE_TIER_SCALE, describeWeaponBranch, isBranchWeapon, isWeaponAvailable, weaponBranchEntries, xpForLevel, type BranchWeaponId, type WeaponBranchId, type WeaponBranchLevels, type WeaponId } from './config';
 import type { PlayerStats } from './stats';
 import type { Player } from './player';
+import { DEFAULT_CHARACTER_ID, effectiveSocketCapacities, type CharacterCapacityId } from './characters';
 
 // Level-up card pool: core cards (permanent player stats) with 5-tier
 // rarities plus weapon cards (unlock / level up). Tier weights shift with
@@ -481,9 +482,11 @@ export function rollUpgradeChoices(
   cores: CoreLevels,
   mods: BuildModCounts = {},
   count = 3,
+  characterId: CharacterCapacityId = DEFAULT_CHARACTER_ID,
 ): UpgradeCard[] {
-  const atWeaponCap = ownedWeaponCount(weapons) >= PROFILE.weaponSockets;
-  const atCoreCap = installedCoreCount(cores) >= PROFILE.coreSockets;
+  const capacity = effectiveSocketCapacities(characterId, PROFILE);
+  const atWeaponCap = ownedWeaponCount(weapons) >= capacity.weapon.open;
+  const atCoreCap = installedCoreCount(cores) >= capacity.core.open;
   const coreOffered = (id: string): boolean =>
     PROFILE.unlockedCores.includes(id) &&
     coreBenefitsBuild(id, weapons, mods) &&

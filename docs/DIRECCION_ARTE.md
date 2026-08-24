@@ -90,7 +90,7 @@ Reglas de presupuesto y validación:
 
 - **La métrica es TRIÁNGULOS por instancia, no voxels** (el builder fusiona tramos y extrae solo la cáscara). Orientación: enemigos de enjambre ~3-6k tris (`targetWidth` 17-21); bosses/jugador sin límite práctico (`targetWidth` ~41, solo 1-2 instancias).
 - Revisión SIEMPRE con `node tools/capture-model-preview.mjs <clave>` (luz/fondo del juego real) y después in-game (`node tools/capture-ingame.mjs`).
-- **Selección de personaje:** aplicar el contrato vigente al inicio de este documento. Field Engineer reutiliza la frontal aprobada; la infraestructura 3D continúa dormida.
+- **Selección de personaje:** aplicar el contrato vigente al inicio de este documento. Field Engineer reutiliza su frontal aprobada; Rack Hauler usa `ref-rack-hauler-front-v3-seafoam.png` y su modelo medido frontal/lateral/trasera/top. La paleta final seafoam/tool-green/graphite/visor blanco se validó en Mapa 1 y Mapa 2. Su gate específico de lectura/modelo pasó con 430 enemigos durante 12 s en Mapa 2, 430/430 movidos, modelo `rack-hauler` estable, 13.120 triángulos y 0 errores de página; la cobertura canónica VFX-heavy de 65 s sigue sin parametrizar personajes.
 - El guardarraíl no cambia: todo modelo nuevo se valida con el enjambre al máximo (400+) antes de darse por definitivo.
 - La cámara es top-down: el TECHO del modelo es la superficie más visible. Si un personaje necesita más lectura cenital, el detalle va en el techo de su referencia (vents, paneles), no en más resolución.
 

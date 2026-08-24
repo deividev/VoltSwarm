@@ -3,8 +3,8 @@
 > **Estado vigente 2026-08-20:** 11 armas registradas / 10 jugables (Oil Sprayer
 > deshabilitada), 20 Cores y 17 Mods. Capacidad: armas 2→3, Cores 2→4 y
 > descartes 3→4. Skip/descartes está implementado; Reroll y Banish siguen
-> pendientes. Field Engineer es el único personaje implementado y no hay
-> contratos activos de personaje.
+> pendientes. Field Engineer y Rack Hauler están implementados; Proving Ground
+> es el contrato activo del segundo personaje.
 
 No copiamos el contenido de Megabonk: extraemos las bases de su planteamiento y generamos ideas propias con identidad de scrapyard, ancladas a los sistemas que ya existen en el prototipo (cofres con beam, enjambre denso, kiting, rampa lineal). Este método aplica a TODOS los sistemas futuros — ver `METODO_DISENO.md`. Dirección de arte en `DIRECCION_ARTE.md`.
 
@@ -271,7 +271,7 @@ Una silueta no define un personaje jugable. Cada personaje futuro debe tener las
 | Pasiva o regla signature | Interactúa con sistemas reales (armas, cores, mods, economía o movimiento), no un bonus plano aislado. |
 | Tradeoff significativo | Aporta una razón para elegirlo y otra para no hacerlo; debe sobrevivir playtest de balance. |
 
-The first playable character is **Field Engineer**, a recognizable evolution of the previous player model. Its gameplay, balance values, runtime model v1, and in-game visual result are approved. The source sheets remain conversion and provenance inputs for the shipped model, not pending art approval. The remaining characters still have no committed names, values, or passives.
+The first playable character is **Field Engineer**, a recognizable evolution of the previous player model. **Rack Hauler** is the implemented second character: its config-backed balance, derived socket-capacity seam, draft enforcement, RIG projection, seafoam v3 portrait/model and Proving Ground unlock are live. Cardinal previews, Map 1/2 captures and its character-specific 400+ swarm gate are verified. **Overclocker is the approved third launch character, but remains unimplemented and has no approved art.**
 
 ### ✅ Personaje inicial — Field Engineer
 
@@ -282,9 +282,28 @@ The first playable character is **Field Engineer**, a recognizable evolution of 
 - **Visual:** casco de seguridad naranja grande, visor oscuro, cuerpo hueso/charcoal, mochila-taller unida, herramienta asimétrica en hombro derecho, refuerzos en antebrazos/botas, columna de energía cian y exactamente tres alojamientos grandes de Core conectados con cables gruesos. La lectura cenital debe ser casco + hombro herramienta + mochila.
 - **Status:** gameplay, selection, persistence, and UI are implemented. Runtime model v1 is definitively approved in-game after the 0°/90°/180°/270° preview, rear-view locomotion check, and 400+ swarm gate (431–440 enemies, 118.87 average FPS, 92.41 minimum bucket, 8.5 ms p99, 0 page errors, and 431/431 enemies moving). Files under `art/concept/field-engineer/` remain conversion and provenance sources, not pending shipped-art candidates.
 
+### ✅ Segundo personaje — Rack Hauler
+
+- **Perfil preparado:** 100 HP, Armor 10%, Damage ×0.90, Move Speed 11, Attack Speed ×1, crítico 3%/+50%, Luck/Regen 0.
+- **Signature única — Open Rack:** +1 socket de arma y −1 de Core, aplicados a capacidad abierta y máxima. No garantiza armas ni altera el draft fuera de su capacidad legal.
+- **Proyección:** 3 armas/1 Core iniciales; 4 armas tras Boss Hunter; 2 y 3 Cores tras Second Wind y Full Loadout. Los Contracts siguen liquidando globalmente `PROFILE` 2→3 armas y 2→3→4 Cores.
+- **Suggested Start:** Orbital Blades conserva pool y odds normales.
+- **Runtime:** registrado y jugable con seafoam `#BAE8C6`, tool green `#3B9B73`, graphite `#202830` y visor `#E9F6FF`. Proving Ground está activo; 29 Contracts declarados/28 activos/1 latente. Previews cardinales y Map 1/2 verificados; gate específico 400+ de lectura/modelo superado con 430 enemigos, 430/430 movidos, 119.94 FPS medios, p99 8.5 ms y 0 errores de página. La cobertura canónica VFX-heavy de 65 s sigue sin parametrizar personajes y no reabre este gate.
+
+### 🟡 Tercer personaje aprobado — Overclocker
+
+- **Perfil:** 85 HP, Armor 0, Damage ×1, Move Speed 11, Attack Speed ×1, Evasion 18 (15,25% efectivo), crítico 8%/+50%, Luck/Regen 0.
+- **Signature — Runaway Draw:** cada cofre y slot del Chatarrero se promueve un tier antes de materializar pool, beam/reel y precio: Gray→Green→Blue→Purple→Gold; Gold permanece Gold. Cambia el pool del Mod, no mejora un Mod existente. No afecta level-up, Cores, Chaos Module ni Contracts.
+- **Fallback:** si el tier promovido no contiene Mods elegibles, desciende hasta el primer tier válido. Nunca entrega Mods locked/capped ni Repair Kit con HP completo; la ausencia total de candidatos debe resolverse explícitamente.
+- **Tradeoff:** ×1,35 de daño solo por contacto físico de swarm, élites, cuerpo de bosses y embestidas; proyectiles y ataques telegrafiados no cambian.
+- **Suggested Start:** Volt Pulse conserva pool y odds normales.
+- **Unlock:** Two of a Kind exige completar el arco con dos IDs de personaje distintos; usa ledger monotónico y concede `overclocker` por ID estable.
+- **Visual:** reactor dorsal expuesto y aletas; dirección de paleta blanco/negro/rojizo-granate. Concept, hex exactos, tres vistas, portrait y modelo todavía están pendientes de aprobación y censo contra ambos mapas/señales rojas.
+- **Status:** contrato de diseño aprobado; gameplay, Contract, UI, assets y gate 400+ aún no implementados.
+
 ### Decisiones cerradas 2026-07-30 (detalle y medición en `DISENO_FRENESI.md` §4)
 
-- **La identidad vive en REGLAS que doblan sistemas ya existentes**, no en la movilidad ni en un dash con parámetros distintos por personaje. Un dash con otros números es una hoja de stats, no un personaje. Enganchar a lo que ya está probado: sockets de arma/core, los 5 tiers, oro, chatarrero, cofres, pool de mods, contratos. Bocetos de dirección: apilador de armas (+1 socket de arma, −2 de core) · sobrecargado (mods un tier por encima, +50% daño de contacto) · bola de nieve (imán de XP global, ~30% más rápido de nivel, 60 HP).
+- **La identidad vive en REGLAS que doblan sistemas ya existentes**, no en la movilidad ni en un dash con parámetros distintos por personaje. Un dash con otros números es una hoja de stats, no un personaje. Field Engineer dobla Cores, Rack Hauler dobla sockets y el Overclocker aprobado dobla tiers de cofres/Chatarrero mediante Runaway Draw. Los bocetos no elegidos siguen siendo exploración, no parte del roster de lanzamiento.
 - **R1 — Ningún personaje sobrevive por moverse bien.** La supervivencia sale de HP, armor, evasion, lifesteal o control; nunca de velocidad o esquiva. Cuando entre el dash universal, un personaje cuyo plan ya era esquivar saca mucho más provecho que el resto y obliga a recalibrar los tres.
 - **El dash será universal e idéntico**, y llega DESPUÉS de la densidad y de que la profundidad cueste (medido: 4.2x más enemigos encima = el mismo daño, por el i-frame global). Que todos se muevan igual es lo que hace legibles las diferencias reales.
 - **Se arranca con UN personaje**; el resto por contratos. Siempre **contrato firma, nunca peldaño de escalera** — un personaje no es contenido fungible. Segundo personaje gateado por **volumen** (`LIFETIME.runsFinished`/`totalKills`/`totalPlayS`, ya existen), tercero por **maestría**: con 0 bosses invocados en 6 runs y 33% de finalización, un gate de maestría en el segundo lo haría invisible para la mayoría.

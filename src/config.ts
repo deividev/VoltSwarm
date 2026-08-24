@@ -3030,6 +3030,20 @@ export const CHARACTER_BALANCE = {
     luck: 0,
     fieldRepairFraction: 0.01,
   },
+  /** Rack Hauler's Open Rack offsets are projected per run; PROFILE stays global. */
+  rackHauler: {
+    maxHp: 100,
+    moveSpeed: 11,
+    damage: 0.90,
+    attackSpeed: 1,
+    critChance: 0.03,
+    critDamage: 0.5,
+    armor: 0.10,
+    regen: 0,
+    luck: 0,
+    weaponSocketOffset: 1,
+    coreSocketOffset: -1,
+  },
 } as const;
 
 export const PROFILE = {

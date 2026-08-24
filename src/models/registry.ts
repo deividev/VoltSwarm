@@ -1105,6 +1105,36 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
     raisedTopFraction: 0,
     previewScale: 2.0,
   },
+  'rack-hauler': {
+    kind: 'player',
+    ref: 'assets/2d/ref-rack-hauler-front-v3-seafoam.png',
+    // Front extrusion preserves the four real docking recesses and the gaps
+    // around the shoulder rack. Multi-view hull carving would phantom-fill
+    // those hollows by taking the cross-product of the orthographic masks.
+    sideProfileRef: 'assets/2d/ref-rack-hauler-side-v3-seafoam.png',
+    backPaintRef: 'assets/2d/ref-rack-hauler-back-v3-seafoam.png',
+    topPaintRef: 'assets/2d/ref-rack-hauler-top-v3-seafoam.png',
+    // The generated top sheet isolates graphite to exactly four shallow
+    // docking recesses. Including graphite here paints those socket floors on
+    // the existing top surface; it does not extrude four vertical towers.
+    topPaintColors: [0x3b9b73, 0xbae8c6, 0x202830, 0xe9f6ff],
+    sidePaint: true,
+    // The conversion sheet is authored at the final 41x68 voxel grid. At
+    // 0.0294 world units per cell the character is almost exactly 2u tall.
+    targetWidth: 41,
+    voxelSize: 0.0294,
+    bodyColor: 0xbae8c6,
+    palette: [0x3b9b73, 0xbae8c6, 0x202830, 0xe9f6ff],
+    frontOnly: [],
+    armorColors: [0x3b9b73, 0xbae8c6],
+    segments: [
+      { from: 0, to: 0.25 },
+      { from: 0.25, to: 0.67 },
+      { from: 0.67, to: 1 },
+    ],
+    raisedTopFraction: 0,
+    previewScale: 2.0,
+  },
   'tesla-titan': {
     kind: 'boss',
     // REBUILT 2026-07-31. The v1 sheets were a bare column with three flat ring

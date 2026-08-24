@@ -2,7 +2,7 @@ import { BOSS_TYPE_INDEXES, CONTRACTS, ENEMY_TYPES, MAPS, PROFILE, WEAPON_INFO, 
 import { CORE_TITLES } from './upgrades';
 import { MOD_REGISTRY, refreshUnlockedMods, type ModId } from './mods';
 import { LIFETIME, saveProfile, type LifetimeStats } from './profile';
-import { CHARACTER_REGISTRY, grantCharacterId, type CharacterId } from './characters';
+import { CHARACTER_REGISTRY, RACK_HAULER_ID, grantCharacterId, type CharacterId } from './characters';
 import { canonicalSocketReward, socketReward } from './socket-rewards';
 
 // Contracts: the only progression engine (there is no meta-currency in v1).
@@ -187,8 +187,7 @@ const SIGNATURE: Contract[] = [
   defineContract({
     id: 'proving-ground', title: 'Proving Ground',
     objective: { type: 'distinct-starting-weapons', n: CONTRACTS.provingGroundWeapons },
-    reward: { kind: 'next-core' },
-    latent: 'Reward becomes the second character once characters exist.',
+    reward: { kind: 'character', id: RACK_HAULER_ID },
   }),
   defineContract({
     id: 'foreman', title: 'Foreman',
@@ -202,7 +201,7 @@ const SIGNATURE: Contract[] = [
     id: 'two-of-a-kind', title: 'Run Completion',
     objective: { type: 'complete-runs', n: 1 },
     reward: { kind: 'next-core' },
-    latent: 'Characters are not implemented.',
+    latent: 'The third character reward is not implemented.',
   }),
 ];
 

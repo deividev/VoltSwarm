@@ -61,7 +61,14 @@ after(async () => server.close());
 
 test('contract catalog exposes Map 2 branch rules and configured mastery copy', () => {
   assert.equal(contracts.ALL_CONTRACTS.length, 29);
-  assert.equal(contracts.ACTIVE_CONTRACTS.length, 27);
+  assert.equal(contracts.ACTIVE_CONTRACTS.length, 28);
+  const provingGround = contracts.ALL_CONTRACTS.find(({ id }) => id === 'proving-ground');
+  assert.deepEqual(provingGround.objective, {
+    type: 'distinct-starting-weapons',
+    n: config.CONTRACTS.provingGroundWeapons,
+  });
+  assert.deepEqual(provingGround.reward, { kind: 'character', id: 'rack-hauler' });
+  assert.equal(provingGround.latent, undefined);
   const bossHunter = contracts.ALL_CONTRACTS.find(({ id }) => id === 'boss-hunter');
   const expectedBossIds = ['Crusher King', 'Tesla Titan'];
   assert.deepEqual(bossHunter.objective, { type: 'defeat-boss-types', requiredTypes: expectedBossIds });
@@ -183,12 +190,20 @@ test('Map 2 requirements pin both current maps and exact boss identities', () =>
     'Clear all 2 current sectors in a single run—Map 1: Scrapyard and Map 2: Swarm Foundry—while carrying exactly 1 positive-level weapon and 0 Mods; a partial clear or defeat does not count.');
 });
 
-test('latent copy is truthful to current non-character objectives', () => {
-  for (const id of ['proving-ground', 'two-of-a-kind']) {
-    const contract = contracts.ALL_CONTRACTS.find((candidate) => candidate.id === id);
-    assert.equal(contract.description, contracts.describeObjective(contract.objective));
-    assert.doesNotMatch(contract.description, /character/i);
-  }
+test('Proving Ground grants Rack Hauler once and preserves the live character-id array', () => {
+  const unlockedReference = config.PROFILE.unlockedCharacters;
+  profile.LIFETIME.runsByStartingWeapon = { bolt: 1, pulse: 1, blades: 1, press: 1 };
+  const earned = contracts.settleContracts().find(({ contract }) => contract.id === 'proving-ground');
+  assert.deepEqual(earned?.granted, { kind: 'character', id: 'rack-hauler' });
+  assert.strictEqual(config.PROFILE.unlockedCharacters, unlockedReference);
+  assert.deepEqual(config.PROFILE.unlockedCharacters, ['field-engineer', 'rack-hauler']);
+  assert.equal(contracts.settleContracts().some(({ contract }) => contract.id === 'proving-ground'), false);
+});
+
+test('remaining latent copy is truthful to its current non-character objective', () => {
+  const contract = contracts.ALL_CONTRACTS.find((candidate) => candidate.id === 'two-of-a-kind');
+  assert.equal(contract.description, contracts.describeObjective(contract.objective));
+  assert.doesNotMatch(contract.description, /character/i);
 });
 
 test('Contract progress cells use exact small targets and fractional normalized large targets', () => {
@@ -283,12 +298,13 @@ test('Contracts HUD exposes an accessible master-detail browser without changing
 test('Contracts All groups visible rows by tab category without changing canonical order or progress fallback', () => {
   const previews = contracts.previewContractRewards();
   const visible = contracts.ACTIVE_CONTRACTS.filter((contract) => previews[contract.id] !== null);
-  const categories = ['weapon', 'core', 'mod', 'socket', 'other'];
+  const categories = ['character', 'weapon', 'core', 'mod', 'socket', 'other'];
   const grouped = categories.flatMap((category) => visible
     .filter((contract) => contracts.rewardCategory(contract.reward) === category)
     .map(({ id }) => id));
 
   assert.deepEqual(grouped, [
+    'proving-ground',
     'first-blood', 'arsenal-1', 'arsenal-2', 'arsenal-3', 'arsenal-4',
     'scrap-quota-1', 'scrap-quota-2', 'scrap-quota-3', 'scrap-quota-4',
     'veteran-1', 'veteran-2', 'veteran-3', 'veteran-4', 'ascension-1', 'ascension-2',

@@ -189,24 +189,33 @@ try {
     return geometry;
   };
   const exerciseZeroRangeNavigation = async (rootSelector, expectedExitId) => {
-    const cardSelector = `${rootSelector} [data-character-id="field-engineer"]`;
+    const fieldCardSelector = `${rootSelector} [data-character-id="field-engineer"]`;
+    const rackCardSelector = `${rootSelector} [data-character-id="rack-hauler"]`;
     const sectionSelector = `${rootSelector}[data-character-section-scroll]`;
     assert.equal(await page.$eval(sectionSelector, (section) => section.scrollHeight - section.clientHeight), 0);
     assert.equal(await page.$eval(sectionSelector, (section) => section.tabIndex), -1);
 
-    await page.$eval(cardSelector, (card) => card.focus());
+    await page.$eval(fieldCardSelector, (card) => card.focus());
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="rack-hauler"]')), true);
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.evaluate(() => document.activeElement?.id), expectedExitId);
+    await page.keyboard.press('ArrowUp');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="rack-hauler"]')), true);
     await page.keyboard.press('ArrowUp');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="field-engineer"]')), true);
 
     await page.evaluate(() => document.activeElement?.blur());
     await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    await assertPadFocus(cardSelector);
+    await assertPadFocus(fieldCardSelector);
+    await padEdge({ button: 13 });
+    await assertPadFocus(rackCardSelector);
     await padEdge({ button: 13 });
     await assertPadFocus(`#${expectedExitId}`);
     await padEdge({ button: 12 });
-    await assertPadFocus(cardSelector);
+    await assertPadFocus(rackCardSelector);
+    await padEdge({ button: 12 });
+    await assertPadFocus(fieldCardSelector);
   };
   const exerciseSectionNavigation = async (rootSelector, expectedExitId) => {
     const detailSelector = `${rootSelector}[data-character-section-scroll]`;
@@ -257,13 +266,17 @@ try {
     assert.deepEqual(seen, { recommended: true, tradeoff: true });
 
     // At the lower boundary ArrowDown exits to actions; ArrowUp returns to
-    // the detail pane. At the upper boundary ArrowUp exits to the roster card,
-    // and ArrowDown re-enters it. This is the same focus path used by the pad.
+    // the detail pane. At the upper boundary ArrowUp exits through the roster
+    // cards in reverse order, and ArrowDown re-enters it through the same path.
     await page.keyboard.press('ArrowUp');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-section-scroll]')), true);
     await page.$eval(detailSelector, (detail) => { detail.scrollTop = 0; });
     await page.keyboard.press('ArrowUp');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="rack-hauler"]')), true);
+    await page.keyboard.press('ArrowUp');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="field-engineer"]')), true);
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="rack-hauler"]')), true);
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-section-scroll]')), true);
   };
@@ -298,10 +311,16 @@ try {
   };
   const exerciseRealGamepadNavigation = async (rootSelector, expectedExitId) => {
     const cardSelector = `${rootSelector} [data-character-id="field-engineer"]`;
+    const rackCardSelector = `${rootSelector} [data-character-id="rack-hauler"]`;
     const detailSelector = `${rootSelector}[data-character-section-scroll]`;
+    await page.$eval(cardSelector, (card) => card.focus());
+    await page.evaluate(() => document.activeElement?.blur());
+    await page.evaluate(() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))));
     await page.waitForFunction((selector) => document.querySelector(selector)?.classList.contains('pad-focus'), {}, cardSelector);
     await assertPadFocus(cardSelector);
 
+    await padEdge({ button: 13 });
+    await assertPadFocus(rackCardSelector);
     await padEdge({ button: 13 });
     await assertPadFocus(detailSelector);
     const beforeStick = await page.$eval(detailSelector, (detail) => detail.scrollTop);
@@ -342,29 +361,14 @@ try {
     }
     await assertPadFocus(cardSelector);
     await padEdge({ button: 13 });
+    await assertPadFocus(rackCardSelector);
+    await padEdge({ button: 13 });
     await assertPadFocus(detailSelector);
   };
   const exerciseLockedCharacter = async (rootSelector, confirmSelector = null) => {
-    const contractId = await page.evaluate(async (rootSelector) => {
-      const [{ PROFILE }, { CHARACTER_REGISTRY }, { ACTIVE_CONTRACTS }] = await Promise.all([
-        import('/src/config.ts'),
-        import('/src/characters.ts'),
-        import('/src/contracts.ts'),
-      ]);
-      const character = CHARACTER_REGISTRY['field-engineer'];
-      const contract = ACTIVE_CONTRACTS[0];
-      if (!character || !contract) throw new Error('Locked-character fixture requires a registered character and Contract');
-      window.__characterRestoreState = {
-        unlockedCharacters: [...PROFILE.unlockedCharacters],
-        unlock: character.unlock,
-      };
-      PROFILE.unlockedCharacters.splice(0);
-      character.unlock = { kind: 'contract', contractId: contract.id };
-      document.querySelector(`${rootSelector} [data-character-id="field-engineer"]`)?.click();
-      return contract.id;
-    }, rootSelector);
+    await page.click(`${rootSelector} [data-character-id="rack-hauler"]`);
     const locked = await page.$eval(rootSelector, (root) => {
-      const card = root.querySelector('[data-character-id="field-engineer"]');
+      const card = root.querySelector('[data-character-id="rack-hauler"]');
       const status = card?.querySelector('.character-card-status.locked');
       const statusIcon = status?.querySelector('img');
       const footer = root.querySelector('.character-unlock-footer.locked');
@@ -388,6 +392,11 @@ try {
         progressLabel: progress?.getAttribute('aria-label'),
         progressMax: progress?.getAttribute('aria-valuemax'),
         progressNow: progress?.getAttribute('aria-valuenow'),
+        header: detail?.querySelector('h2')?.textContent?.trim(),
+        portrait: detail?.querySelector('.character-portrait.large')?.getAttribute('src'),
+        signature: detail?.querySelector('[data-character-module="signature"] h3')?.textContent?.trim(),
+        signatureIcon: detail?.querySelector('[data-character-module="signature"] .rig-icon')?.getAttribute('src'),
+        critChance: detail?.querySelector('[data-character-stat="crit-chance"] .build-value')?.textContent?.trim(),
       };
     });
     assert.equal(locked.cardLocked, 'false');
@@ -419,23 +428,17 @@ try {
     assert.ok(locked.progressLabel?.endsWith(' progress'));
     assert.ok(Number(locked.progressMax) > 0);
     assert.ok(Number(locked.progressNow) >= 0);
+    assert.equal(locked.progressMax, '4');
+    assert.equal(locked.header, 'Rack Hauler');
+    assert.equal(locked.portrait, 'assets/2d/ref-rack-hauler-front-v3-seafoam.png');
+    assert.equal(locked.signature, 'Open Rack');
+    assert.equal(locked.signatureIcon, 'assets/2d/icon-stat-projectiles-v2.png');
+    assert.equal(locked.critChance, '3%');
     assert.equal(locked.profileStatusAbsent, true);
     assert.equal(locked.footerSpansProfile, true);
     if (confirmSelector) assert.equal(await page.$eval(confirmSelector, (button) => button.disabled), true);
 
-    await page.evaluate(async ({ rootSelector, contractId }) => {
-      const [{ PROFILE }, { CHARACTER_REGISTRY }] = await Promise.all([
-        import('/src/config.ts'),
-        import('/src/characters.ts'),
-      ]);
-      const restore = window.__characterRestoreState;
-      const character = CHARACTER_REGISTRY['field-engineer'];
-      if (!restore || !character || character.unlock.contractId !== contractId) throw new Error('Locked-character fixture drifted');
-      PROFILE.unlockedCharacters.splice(0, Infinity, ...restore.unlockedCharacters);
-      character.unlock = restore.unlock;
-      delete window.__characterRestoreState;
-      document.querySelector(`${rootSelector} [data-character-id="field-engineer"]`)?.click();
-    }, { rootSelector, contractId });
+    await page.click(`${rootSelector} [data-character-id="field-engineer"]`);
   };
   const selectorState = await page.evaluate(readRoster, '#character-select-roster');
   const runtimeMeasurements = [];
@@ -472,6 +475,36 @@ try {
   await exerciseRealGamepadNavigation('#characters-roster', 'characters-back-button');
   await exerciseSectionNavigation('#characters-roster', 'characters-back-button');
   await exerciseLockedCharacter('#characters-roster');
+  const unlockedRack = await page.evaluate(async () => {
+    const [{ PROFILE }, { grantReward, ALL_CONTRACTS }] = await Promise.all([
+      import('/src/config.ts'),
+      import('/src/contracts.ts'),
+    ]);
+    const reference = PROFILE.unlockedCharacters;
+    const reward = ALL_CONTRACTS.find(({ id }) => id === 'proving-ground')?.reward;
+    if (!reward) throw new Error('Proving Ground reward missing');
+    grantReward(reward);
+    grantReward(reward);
+    document.querySelector('#characters-roster [data-character-id="rack-hauler"]')?.click();
+    const card = document.querySelector('#characters-roster [data-character-id="rack-hauler"]');
+    return {
+      sameArray: PROFILE.unlockedCharacters === reference,
+      ids: [...PROFILE.unlockedCharacters],
+      unlocked: card?.getAttribute('data-character-unlocked'),
+      status: card?.querySelector('.character-card-status')?.textContent?.trim(),
+      statusIcon: card?.querySelector('.character-card-status img')?.getAttribute('src') ?? null,
+      footer: document.querySelector('#characters-roster .character-unlock-footer')?.className ?? null,
+    };
+  });
+  assert.deepEqual(unlockedRack, {
+    sameArray: true,
+    ids: ['field-engineer', 'rack-hauler'],
+    unlocked: 'true',
+    status: 'Unlocked',
+    statusIcon: null,
+    footer: null,
+  });
+  await page.click('#characters-roster [data-character-id="field-engineer"]');
 
   assert.equal(selectorState.portrait, PORTRAIT_PATH);
   assert.equal(selectorState.portraitAlt, 'Field Engineer portrait');

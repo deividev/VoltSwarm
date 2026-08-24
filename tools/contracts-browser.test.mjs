@@ -135,6 +135,7 @@ try {
     assert.equal(await page.evaluate((selector) => document.activeElement?.matches(selector), all), true);
 
     const expectedAllOrder = [
+      'proving-ground',
       'first-blood', 'arsenal-1', 'arsenal-2', 'arsenal-3', 'arsenal-4',
       'scrap-quota-1', 'scrap-quota-2', 'scrap-quota-3', 'scrap-quota-4',
       'veteran-1', 'veteran-2', 'veteran-3', 'veteran-4', 'ascension-1', 'ascension-2',
@@ -147,11 +148,12 @@ try {
     assert.deepEqual(await contractIds(), expectedAllOrder, `All order should be stable at ${width}x${height}`);
 
     const categoryOrders = {
-      weapon: expectedAllOrder.slice(0, 5),
-      core: expectedAllOrder.slice(5, 15),
-      mod: expectedAllOrder.slice(15, 20),
-      socket: expectedAllOrder.slice(20, 23),
-      other: expectedAllOrder.slice(23),
+      character: expectedAllOrder.slice(0, 1),
+      weapon: expectedAllOrder.slice(1, 6),
+      core: expectedAllOrder.slice(6, 16),
+      mod: expectedAllOrder.slice(16, 21),
+      socket: expectedAllOrder.slice(21, 24),
+      other: expectedAllOrder.slice(24),
     };
     for (const [category, expectedIds] of Object.entries(categoryOrders)) {
       await page.click(`[data-contract-category="${category}"]`);

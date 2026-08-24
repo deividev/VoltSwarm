@@ -8,8 +8,9 @@
 > historia medida, no como snapshot del build actual. Foundry ya aplica curva
 > `{ floor: 0.7, peak: 1.15, rampS: 600 }`, roster local ×2.5 y contacto
 > swarm ×1.5 / boss ×1.25; falta validar el resultado con runs humanas
-> terminadas. La decisión de §4 sigue vigente: Field Engineer es el único
-> personaje implementado, faltan dos, no hay contratos activos de personaje y
+> terminadas. La decisión de §4 sigue vigente: Field Engineer y Rack Hauler
+> están implementados, falta uno, Proving Ground
+> es el contrato activo de personaje y
 > el dash continúa diferido hasta que densidad/peligro importe. Cuando llegue
 > será universal e idéntico, nunca identidad de personaje.
 
@@ -163,11 +164,15 @@ Decisión del usuario: un dash con parámetros distintos por personaje es una ho
 
 | Boceto | Regla | Qué cambia en la run |
 | --- | --- | --- |
-| Apilador | +1 socket de arma, −2 de core | Muchas armas, stats de papel: cambia qué draftás, qué comprás, qué contratos persigues |
-| Sobrecargado | Mods salen un tier por encima, +50% daño de contacto | Loot de lujo, cuerpo de cristal: cambia la relación con cofres y chatarrero |
+| Rack Hauler (implementado) | Open Rack: +1 socket de arma, −1 de Core sobre capacidad abierta y máxima | 3/1 iniciales → 4/3 con los mismos Contracts globales; amplitud de armas a cambio de profundidad de Cores |
+| Overclocker (elegido; no implementado) | Runaway Draw promueve +1 tier cada cofre y slot del Chatarrero antes de pool, señal y precio; recibe ×1,35 de daño por contacto físico | Loot de lujo, cuerpo de cristal: cambia la relación con cofres y Chatarrero sin afectar level-up, Cores ni Chaos |
 | Bola de nieve | Orbes de XP se atraen desde todo el mapa, ~30% más rápido de nivel, 60 HP de inicio | Sube rápido pero frágil: la decisión de meterse en la masa es otra |
 
 Cada una es un enganche de una línea a un sistema ya probado, y no necesita VFX ni SFX propio.
+
+**Rack Hauler implementado:** la capacidad efectiva se deriva por personaje sin mutar `PROFILE`. Boss Hunter, Second Wind y Full Loadout conservan sus targets globales canónicos; el draft y el RIG proyectan los offsets solo durante la run. Su perfil es 100 HP, Armor 10%, Damage ×0.90, crítico 3%/+50% y velocidad 11. Open Rack es la única Signature: se descartó explícitamente garantizar una carta de arma nueva. Entra por `Proving Ground` tras terminar runs con cuatro armas iniciales distintas; roster, replay y persistencia usan el ID `rack-hauler`.
+
+**Overclocker elegido, pendiente de implementación:** perfil aprobado de 85 HP, Armor 0, Evasion 18 (15,25%), Damage ×1, crítico 8%/+50% y velocidad 11. Runaway Draw cambia de pool siguiendo Gray→Green→Blue→Purple→Gold→Gold; beam, reel, recompensa y precio usan el tier promovido. Si ese pool no tiene candidatos elegibles, baja al primer tier que sí los tenga, sin Mods locked/capped ni Repair Kit a HP completo. Su penalización ×1,35 se limita al contacto físico de swarm, élite, cuerpo de boss y embestida; nunca proyectiles ni ataques telegrafiados. Volt Pulse es solo `Suggested Start`. `Two of a Kind` lo desbloqueará al completar el arco con dos IDs de personaje distintos mediante un ledger monotónico. La dirección visual aprobada es reactor dorsal con aletas y blanco/negro/rojizo-granate; concept, hex exactos y assets siguen pendientes.
 
 ### 4.4 Las dos restricciones que se fijan AHORA aunque el dash llegue después
 

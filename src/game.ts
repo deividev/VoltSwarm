@@ -694,7 +694,7 @@ export class Game {
     this.prevPx = this.player.position.x;
     this.prevPz = this.player.position.z;
     this.hud.updateGold(this.gold);
-    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches, this.currentCharacterId);
     // "As if we had played Map 1 and crossed": overlay a full Map 1 run's build
     // so Map 2 is playtested with a realistic loadout, not a fresh one — and
     // advance the arc clock with it, since the swarm's HP, type mix and elite
@@ -852,7 +852,7 @@ export class Game {
       return;
     }
     this.applyRecordedBuild(record);
-    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches, this.currentCharacterId);
     this.hud.toast(
       full
         ? `${label}: full Map 1 build (${Math.round(record.durationS)}s) — ${Game.describeRecord(record)}`
@@ -905,6 +905,7 @@ export class Game {
       this.modCounts,
       this.coreLevels,
       this.weaponBranches,
+      this.currentCharacterId,
     );
     // Fill the arena to its minute-8 population BEFORE the boss lands. A boss
     // dropped onto an empty field tests nothing — the whole difficulty is
@@ -1111,7 +1112,7 @@ export class Game {
       const enemy = this.enemies.pool[spawned];
       if (enemy) enemy.speed = 0;
     }
-    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches, this.currentCharacterId);
     this.state = 'playing';
     this.audio.resetDiagnostics();
     this.benchmarkActive = true;
@@ -1231,7 +1232,7 @@ export class Game {
         'gameplay',
       );
     }
-    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches, this.currentCharacterId);
     // First copy = a socket just filled → stronger pop than a plain level-up.
     const weaponId = weaponIdFromUpgradeCard(card.id);
     const installed = weaponId
@@ -1634,7 +1635,7 @@ export class Game {
       sectorsCleared: this.runFlow.sectorsCleared,
     });
     this.hud.banner(`MAP ${nextMap.number}: ${nextMap.title.toUpperCase()}`);
-    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches, this.currentCharacterId);
   }
 
   /** True when the world point (x, y, z) is inside the frame, with a margin.
@@ -2162,7 +2163,14 @@ export class Game {
   private openLevelUpDraft(): void {
     this.state = 'levelup';
     this.audio.emit({ id: 'levelup-open', priority: 2 });
-    const choices = rollUpgradeChoices(this.stats, this.weaponLevels, this.coreLevels, this.modCounts);
+    const choices = rollUpgradeChoices(
+      this.stats,
+      this.weaponLevels,
+      this.coreLevels,
+      this.modCounts,
+      3,
+      this.currentCharacterId,
+    );
     this.currentUpgradeOffer = choices.map((choice) => choice.id);
     this.hud.showLevelUp(
       choices,
@@ -2799,7 +2807,7 @@ export class Game {
       default:
         this.hud.toast(`${MOD_REGISTRY[id].label} installed!`);
     }
-    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches, this.currentCharacterId);
   }
 
   /** Throws the player clear of a charging boss, ACROSS its lane rather than
@@ -3198,7 +3206,7 @@ export class Game {
         this.merchant.stock.splice(index, 1);
         this.applyMod(entry.id);
         // Refresh the RIG so the bought mod shows, then flash its tile.
-        this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches);
+        this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches, this.currentCharacterId);
         this.hud.flashBuildRow(entry.id);
         this.renderShop();
       },

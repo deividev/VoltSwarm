@@ -9,6 +9,7 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 const characters = await server.ssrLoadModule('/src/characters.ts');
 const config = await server.ssrLoadModule('/src/config.ts');
 const stats = await server.ssrLoadModule('/src/stats.ts');
+const upgrades = await server.ssrLoadModule('/src/upgrades.ts');
 const contracts = await server.ssrLoadModule('/src/contracts.ts');
 const profile = await server.ssrLoadModule('/src/profile.ts');
 const registry = await server.ssrLoadModule('/src/models/registry.ts');
@@ -19,16 +20,19 @@ after(async () => server.close());
 
 test('registry fallback and unlock filtering use stable ids', () => {
   const locked = { unlockedCharacters: [] };
-  const unlocked = { unlockedCharacters: ['field-engineer', 'unknown-character'] };
+  const unlocked = { unlockedCharacters: ['field-engineer', 'rack-hauler', 'unknown-character'] };
   assert.equal(characters.resolveCharacterId('unknown-character', unlocked), 'field-engineer');
   assert.equal(characters.resolveCharacterId('field-engineer', locked), 'field-engineer');
+  assert.equal(characters.registeredCharacterId('rack-hauler'), 'rack-hauler');
+  assert.equal(characters.resolveCharacterId('rack-hauler', locked), 'field-engineer');
+  assert.equal(characters.resolveCharacterId('rack-hauler', unlocked), 'rack-hauler');
   for (const inheritedId of ['__proto__', 'constructor', 'toString']) {
     assert.equal(characters.isCharacterId(inheritedId), false);
     assert.equal(characters.registeredCharacterId(inheritedId), characters.DEFAULT_CHARACTER_ID);
     assert.equal(characters.resolveCharacterId(inheritedId, unlocked), characters.DEFAULT_CHARACTER_ID);
   }
   assert.deepEqual(characters.unlockedCharacters(locked), []);
-  assert.deepEqual(characters.unlockedCharacters(unlocked).map((entry) => entry.id), ['field-engineer']);
+  assert.deepEqual(characters.unlockedCharacters(unlocked).map((entry) => entry.id), ['field-engineer', 'rack-hauler']);
 });
 
 test('Field Engineer has the exact approved run profile', () => {
@@ -48,6 +52,107 @@ test('Field Engineer has the exact approved run profile', () => {
   assert.equal(config.PROFILE.coreSockets, 2);
   assert.equal(config.PROFILE.maxWeaponSockets, 3);
   assert.equal(config.PROFILE.maxCoreSockets, 4);
+});
+
+test('character socket projection preserves global Contract capacity without mutating PROFILE', () => {
+  const profileSnapshot = structuredClone(config.PROFILE);
+  const unlockedCharactersRef = config.PROFILE.unlockedCharacters;
+
+  assert.deepEqual(
+    characters.effectiveSocketCapacities('field-engineer', config.PROFILE),
+    { weapon: { open: 2, max: 3 }, core: { open: 2, max: 4 } },
+  );
+  assert.deepEqual(
+    characters.effectiveSocketCapacities(characters.RACK_HAULER_ID, config.PROFILE),
+    { weapon: { open: 3, max: 4 }, core: { open: 1, max: 3 } },
+  );
+  assert.deepEqual(
+    characters.effectiveSocketCapacities(characters.RACK_HAULER_ID, {
+      ...config.PROFILE,
+      weaponSockets: 3,
+      coreSockets: 3,
+    }),
+    { weapon: { open: 4, max: 4 }, core: { open: 2, max: 3 } },
+  );
+  assert.deepEqual(
+    characters.effectiveSocketCapacities(characters.RACK_HAULER_ID, {
+      ...config.PROFILE,
+      weaponSockets: 3,
+      coreSockets: 4,
+    }),
+    { weapon: { open: 4, max: 4 }, core: { open: 3, max: 3 } },
+  );
+  assert.deepEqual(
+    contracts.ALL_CONTRACTS
+      .filter(({ id }) => ['boss-hunter', 'second-wind', 'full-loadout'].includes(id))
+      .map(({ id, reward }) => [id, reward]),
+    [
+      ['second-wind', { kind: 'socket', slot: 'core', index: 3 }],
+      ['boss-hunter', { kind: 'socket', slot: 'weapon', index: 3 }],
+      ['full-loadout', { kind: 'socket', slot: 'core', index: 4 }],
+    ],
+  );
+  assert.deepEqual(config.PROFILE, profileSnapshot);
+  assert.strictEqual(config.PROFILE.unlockedCharacters, unlockedCharactersRef);
+});
+
+test('Rack Hauler is a registered Contract character with the exact approved profile', () => {
+  const rack = characters.CHARACTER_REGISTRY['rack-hauler'];
+  const balance = config.CHARACTER_BALANCE.rackHauler;
+  assert.deepEqual(Object.keys(characters.CHARACTER_REGISTRY), ['field-engineer', 'rack-hauler']);
+  assert.equal(characters.isCharacterId('rack-hauler'), true);
+  assert.equal(rack.signature.name, 'Open Rack');
+  assert.equal(rack.signature.icon, 'assets/2d/icon-stat-projectiles-v2.png');
+  assert.equal(rack.recommendedWeapon, 'blades');
+  assert.equal(rack.maxHp, balance.maxHp);
+  assert.equal(rack.moveSpeed, balance.moveSpeed);
+  assert.equal(rack.stats.damage, balance.damage);
+  assert.equal(rack.stats.attackSpeed, balance.attackSpeed);
+  assert.equal(rack.stats.critChance, 0.03);
+  assert.equal(rack.stats.critDamage, balance.critDamage);
+  assert.equal(rack.stats.armor, balance.armor);
+  assert.equal(rack.stats.regen, balance.regen);
+  assert.equal(rack.stats.luck, balance.luck);
+  assert.equal('passive' in rack, false);
+  assert.deepEqual(rack.unlock, { kind: 'contract', contractId: 'proving-ground' });
+  const provingGround = contracts.ALL_CONTRACTS.find(({ id }) => id === rack.unlock.contractId);
+  assert.equal(provingGround?.latent, undefined);
+  assert.deepEqual(provingGround?.reward, { kind: 'character', id: 'rack-hauler' });
+  assert.equal(contracts.ACTIVE_CONTRACTS.includes(provingGround), true);
+  assert.equal(contracts.ALL_CONTRACTS.length, 29);
+  assert.equal(contracts.ACTIVE_CONTRACTS.length, 28);
+});
+
+test('Rack Hauler draft projection opens a third weapon without changing global odds or PROFILE', () => {
+  const profileSnapshot = structuredClone(config.PROFILE);
+  const weapons = upgrades.emptyWeaponLevels();
+  weapons.bolt = 1;
+  weapons.pulse = 1;
+
+  const fieldChoices = upgrades.rollUpgradeChoices(
+    stats.defaultStats(), weapons, {}, {}, 3, 'field-engineer',
+  );
+  const rackChoices = upgrades.rollUpgradeChoices(
+    stats.defaultStats(), weapons, {}, {}, 3, characters.RACK_HAULER_ID,
+  );
+
+  assert.equal(fieldChoices.some((card) => card.draftKind === 'weapon'), false);
+  assert.equal(rackChoices.some((card) => card.draftKind === 'weapon'), true);
+  assert.deepEqual(config.PROFILE, profileSnapshot);
+});
+
+test('socket presentation represents Rack counts while the locked roster keeps it unavailable', () => {
+  const initial = characters.effectiveSocketCapacities('rack-hauler', config.PROFILE);
+  assert.deepEqual(
+    characters.socketPresentationStates(1, initial.weapon),
+    ['installed', 'empty', 'empty', 'locked'],
+  );
+  assert.deepEqual(
+    characters.socketPresentationStates(0, initial.core),
+    ['empty', 'locked', 'locked'],
+  );
+  assert.equal(characters.unlockedCharacters(config.PROFILE).some(({ id }) => id === 'rack-hauler'), false);
+  assert.equal(Object.hasOwn(characters.CHARACTER_REGISTRY, 'rack-hauler'), true);
 });
 
 test('weapon socket migration raises old saves and preserves Boss Hunter payout', () => {
@@ -93,10 +198,12 @@ test('Foreman tracks every boss kind in the full-game roster', () => {
   assert.equal(foreman.objective.requiredTypes.length, 3);
 });
 
-test('socket HUD derives three weapon pips from PROFILE rather than a fixed count', async () => {
+test('run RIG derives character-aware sockets while Contract pips stay global', async () => {
   const hudSource = await readFile(new URL('../src/hud.ts', import.meta.url), 'utf8');
   assert.match(hudSource, /Array\.from\(\{ length: PROFILE\.maxWeaponSockets \}/);
-  assert.match(hudSource, /for \(let i = PROFILE\.weaponSockets; i < PROFILE\.maxWeaponSockets; i\+\+\)/);
+  assert.match(hudSource, /effectiveSocketCapacities\(characterId, PROFILE\)/);
+  assert.match(hudSource, /socketPresentationStates\(ownedWeapons, capacity\.weapon\)/);
+  assert.match(hudSource, /socketPresentationStates\(installedCores\.length, capacity\.core\)/);
 });
 
 test('character stat rows derive baselines and format percentage ratings', () => {
@@ -137,6 +244,7 @@ test('character stat rows derive baselines and format percentage ratings', () =>
 
 test('registered run characters survive profile lock changes', () => {
   assert.equal(characters.registeredCharacterId('field-engineer'), 'field-engineer');
+  assert.equal(characters.registeredCharacterId('rack-hauler'), 'rack-hauler');
   assert.equal(characters.registeredCharacterId('unknown-character'), characters.DEFAULT_CHARACTER_ID);
 });
 
@@ -146,6 +254,7 @@ test('Field Repair heals 1% after an eligible gameplay Core change, clamps, and 
   for (const context of ['load', 'replay', 'boss-lab', 'rebuild']) {
     assert.equal(characters.fieldRepairHp('field-engineer', 40, 110, context), 40);
   }
+  assert.equal(characters.fieldRepairHp('rack-hauler', 40, 100, 'gameplay'), 40);
 });
 
 test('future character reward seam grants stable ids idempotently', () => {
@@ -158,11 +267,13 @@ test('future character reward seam grants stable ids idempotently', () => {
 
 test('character Contract reward is idempotent', () => {
   const original = [...config.PROFILE.unlockedCharacters];
+  const reference = config.PROFILE.unlockedCharacters;
   config.PROFILE.unlockedCharacters.splice(0);
   try {
-    contracts.grantReward({ kind: 'character', id: 'field-engineer' });
-    contracts.grantReward({ kind: 'character', id: 'field-engineer' });
-    assert.deepEqual(config.PROFILE.unlockedCharacters, ['field-engineer']);
+    contracts.grantReward({ kind: 'character', id: 'rack-hauler' });
+    contracts.grantReward({ kind: 'character', id: 'rack-hauler' });
+    assert.strictEqual(config.PROFILE.unlockedCharacters, reference);
+    assert.deepEqual(config.PROFILE.unlockedCharacters, ['rack-hauler']);
   } finally {
     config.PROFILE.unlockedCharacters.splice(0, Infinity, ...original);
   }
@@ -170,9 +281,9 @@ test('character Contract reward is idempotent', () => {
 
 test('character unlock migration and reset preserve the live PROFILE array', () => {
   const reference = config.PROFILE.unlockedCharacters;
-  profile.normalizeCharacterUnlocks(['field-engineer', 'unknown-character']);
+  profile.normalizeCharacterUnlocks(['field-engineer', 'rack-hauler', 'unknown-character']);
   assert.strictEqual(config.PROFILE.unlockedCharacters, reference);
-  assert.deepEqual(reference, ['field-engineer']);
+  assert.deepEqual(reference, ['field-engineer', 'rack-hauler']);
 
   reference.push('stale-character');
   profile.normalizeCharacterUnlocks(undefined);
@@ -187,6 +298,16 @@ test('Bolt recommendation labels presentation without mutating draft membership 
     { id: 'pulse', recommended: false },
     { id: 'bolt', recommended: true },
     { id: 'tire', recommended: false },
+  ]);
+  assert.deepEqual(characters.labelWeaponOptions('rack-hauler', pool), [
+    { id: 'pulse', recommended: false },
+    { id: 'bolt', recommended: false },
+    { id: 'tire', recommended: false },
+  ]);
+  assert.deepEqual(characters.labelWeaponOptions('rack-hauler', ['bolt', 'blades', 'press']), [
+    { id: 'bolt', recommended: false },
+    { id: 'blades', recommended: true },
+    { id: 'press', recommended: false },
   ]);
   assert.deepEqual(pool, before);
 });
@@ -246,8 +367,9 @@ test('Recorded-build replay restores the character baseline before replaying Cor
   );
   const resolveAt = apply.indexOf('registeredCharacterId(record.characterId)');
   const statsAt = apply.indexOf('characterStats(this.currentCharacterId)');
+  const modelAt = apply.indexOf('this.player.setCharacterModelKey(character.modelKey)');
   const replayAt = apply.indexOf('replayCoresOntoStats(this.stats, this.player, this.coreLevels)');
-  assert.ok(resolveAt >= 0 && statsAt > resolveAt && replayAt > statsAt);
+  assert.ok(resolveAt >= 0 && statsAt > resolveAt && modelAt > statsAt && replayAt > modelAt);
   assert.doesNotMatch(apply, /fieldRepairHp\(/);
 
   const bossLab = gameSource.slice(gameSource.indexOf('private enterBossLab'), gameSource.indexOf('private installAuditionKeys'));
@@ -304,11 +426,15 @@ test('preview and live runtime own their material and attachment policies', asyn
   assert.match(playerSource, /buildRuntimeModelDetails\(def, \(color\) => litMaterial\(\{ color \}\)\)/);
 });
 
-test('both character rosters reuse the approved front model reference without mounting WebGL', async () => {
-  const [hudSource, cssSource, portraitBytes] = await Promise.all([
+test('both character rosters reuse approved front model references without mounting WebGL', async () => {
+  const [hudSource, cssSource, portraitBytes, rackPortraitBytes, rackSideBytes, rackBackBytes, rackTopBytes] = await Promise.all([
     readFile(new URL('../src/hud.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/ui.css', import.meta.url), 'utf8'),
     readFile(new URL('../public/assets/2d/ref-field-engineer-front-v1.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-rack-hauler-front-v3-seafoam.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-rack-hauler-side-v3-seafoam.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-rack-hauler-back-v3-seafoam.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-rack-hauler-top-v3-seafoam.png', import.meta.url)),
   ]);
   assert.match(hudSource, /renderCharacterRoster\('characters-roster', false\)/);
   assert.match(hudSource, /renderCharacterRoster\('character-select-roster', true\)/);
@@ -318,7 +444,7 @@ test('both character rosters reuse the approved front model reference without mo
   assert.match(cssSource, /\.character-card \.character-portrait\s*\{[\s\S]*object-fit:\s*contain/);
   assert.doesNotMatch(cssSource, /\.character-model-preview|\.character-model-canvas/);
   assert.match(hudSource, /data-character-stat="\$\{row\.id\}"/);
-  assert.match(hudSource, /data-character-module="signature"[\s\S]*icon-item-repair\.png/);
+  assert.match(hudSource, /data-character-module="signature"[\s\S]*selected\.signature\.icon/);
   assert.match(hudSource, /data-character-module="recommended-weapon"[\s\S]*Suggested Start/);
   assert.match(hudSource, /data-character-module="tradeoff"[\s\S]*icon-stat-damage\.png/);
   assert.match(hudSource, /if \(unlocked \|\| character\.unlock\.kind === 'default'\) \{[\s\S]*return '';/);
@@ -341,7 +467,39 @@ test('both character rosters reuse the approved front model reference without mo
     'assets/2d/ref-field-engineer-front-v1.png',
   );
   assert.ok(registry.VOXEL_MODELS[characters.CHARACTER_REGISTRY['field-engineer'].modelKey]);
+  const rack = characters.CHARACTER_REGISTRY['rack-hauler'];
+  assert.equal(rack.modelKey, 'rack-hauler');
+  assert.equal(rack.portrait, 'assets/2d/ref-rack-hauler-front-v3-seafoam.png');
+  assert.deepEqual(registry.VOXEL_MODELS[rack.modelKey], {
+    kind: 'player',
+    ref: 'assets/2d/ref-rack-hauler-front-v3-seafoam.png',
+    sideProfileRef: 'assets/2d/ref-rack-hauler-side-v3-seafoam.png',
+    backPaintRef: 'assets/2d/ref-rack-hauler-back-v3-seafoam.png',
+    topPaintRef: 'assets/2d/ref-rack-hauler-top-v3-seafoam.png',
+    topPaintColors: [0x3b9b73, 0xbae8c6, 0x202830, 0xe9f6ff],
+    sidePaint: true,
+    targetWidth: 41,
+    voxelSize: 0.0294,
+    bodyColor: 0xbae8c6,
+    palette: [0x3b9b73, 0xbae8c6, 0x202830, 0xe9f6ff],
+    frontOnly: [],
+    armorColors: [0x3b9b73, 0xbae8c6],
+    segments: [
+      { from: 0, to: 0.25 },
+      { from: 0.25, to: 0.67 },
+      { from: 0.67, to: 1 },
+    ],
+    raisedTopFraction: 0,
+    previewScale: 2,
+  });
   assert.equal(portraitBytes.toString('ascii', 1, 4), 'PNG');
   assert.equal(portraitBytes.readUInt32BE(16), 597);
   assert.equal(portraitBytes.readUInt32BE(20), 826);
+  for (const bytes of [rackPortraitBytes, rackSideBytes, rackBackBytes, rackTopBytes]) {
+    assert.equal(bytes.toString('ascii', 1, 4), 'PNG');
+  }
+  assert.deepEqual(
+    [rackPortraitBytes, rackSideBytes, rackBackBytes, rackTopBytes].map((bytes) => [bytes.readUInt32BE(16), bytes.readUInt32BE(20)]),
+    [[492, 816], [192, 816], [492, 816], [492, 684]],
+  );
 });

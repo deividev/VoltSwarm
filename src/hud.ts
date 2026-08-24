@@ -22,8 +22,10 @@ import {
   CHARACTER_REGISTRY,
   DEFAULT_CHARACTER_ID,
   characterStatRows,
+  effectiveSocketCapacities,
   labelWeaponOptions,
   resolveCharacterId,
+  socketPresentationStates,
   type CharacterDef,
   type CharacterId,
 } from './characters';
@@ -1991,9 +1993,10 @@ export class Hud {
     const next = nextIndex >= 0 && nextIndex < items.length ? items[nextIndex] : null;
     if (index < 0 || !next) return;
     const crossesSection = target.matches('[data-character-section-scroll]') || next.matches('[data-character-section-scroll]');
+    const movesWithinRoster = target.matches('[data-character-id]') && next.matches('[data-character-id]');
     const leavesRoster = direction > 0 && target.matches('[data-character-id]');
     const returnsFromActions = direction < 0 && target.closest('.character-actions') !== null;
-    if (!crossesSection && !leavesRoster && !returnsFromActions) return;
+    if (!crossesSection && !movesWithinRoster && !leavesRoster && !returnsFromActions) return;
     event.preventDefault();
     this.padNavContainer = container;
     this.padNavIndex = nextIndex;
@@ -2067,7 +2070,7 @@ export class Hud {
         <div class="character-column-heading">Gameplay Identity</div>
         <div class="character-module-grid">
         <section class="character-module signature" data-character-module="signature">
-          ${rigTileHtml({ src: 'assets/2d/icon-item-repair.png', label: selected.signature.name, cls: 'character-module-tile' })}
+          ${rigTileHtml({ src: selected.signature.icon, label: selected.signature.name, cls: 'character-module-tile' })}
           <div class="character-module-copy">
             <span class="character-module-kicker">Signature</span>
             <h3>${selected.signature.name}</h3>
@@ -2413,6 +2416,7 @@ export class Hud {
     items: ModCounts = {},
     cores: CoreLevels = {},
     weaponBranches?: WeaponBranchLevels,
+    characterId: CharacterId = DEFAULT_CHARACTER_ID,
   ): void {
     const panel = mustGet('build-panel');
     panel.innerHTML = '';
@@ -2444,8 +2448,10 @@ export class Hud {
         label: `${WEAPON_INFO[weaponId].title}, level ${level}${describeWeaponBranches(weaponId, weaponBranches) ? `; ${describeWeaponBranches(weaponId, weaponBranches)}` : ''}`,
       });
     }
-    for (let i = ownedWeapons; i < PROFILE.weaponSockets; i++) weaponTiles += emptyTile;
-    for (let i = PROFILE.weaponSockets; i < PROFILE.maxWeaponSockets; i++) weaponTiles += lockedTile;
+    const capacity = effectiveSocketCapacities(characterId, PROFILE);
+    for (const state of socketPresentationStates(ownedWeapons, capacity.weapon).slice(ownedWeapons)) {
+      weaponTiles += state === 'empty' ? emptyTile : lockedTile;
+    }
     panel.insertAdjacentHTML('beforeend', `<div class="rig-section">${weaponTiles}</div>`);
 
     panel.insertAdjacentHTML('beforeend', '<div class="panel-title">Cores</div>');
@@ -2460,8 +2466,9 @@ export class Hud {
         label: `${CORE_TITLES[id] ?? id}, level ${cores[id]}`,
       });
     }
-    for (let i = installedCores.length; i < PROFILE.coreSockets; i++) coreTiles += emptyTile;
-    for (let i = PROFILE.coreSockets; i < PROFILE.maxCoreSockets; i++) coreTiles += lockedTile;
+    for (const state of socketPresentationStates(installedCores.length, capacity.core).slice(installedCores.length)) {
+      coreTiles += state === 'empty' ? emptyTile : lockedTile;
+    }
     panel.insertAdjacentHTML('beforeend', `<div class="rig-section">${coreTiles}</div>`);
 
     // The Mods section (class `mods`) is hidden in-run and revealed only in the

@@ -102,8 +102,8 @@ Antes de lanzamiento, pase grande de contenido, o si el usuario lo pide ("juicio
 - **Arco completo:** para cruzar Mapa 1 hacen falta 10:00 **y** al menos un boss derrotado; fallar el gate termina en `OBJECTIVE FAILED`. El cruce conserva build, nivel, XP y descartes, cura al 100% y reinicia el oro a 0. El crédito final depende de sectores acreditados: matar solo al boss final sin crédito previo no produce `run-complete`.
 - **Swarm Foundry:** suelo raster, chimeneas, celdas, cobertura, muro de arena y cielo/niebla por mapa ya están implementados. Curva `{ floor: 0.7, peak: 1.15, rampS: 600 }`; HP usa el reloj del arco; roster local ×2.5; contacto del swarm ×1.5 y del boss ×1.25. Pendientes visuales: colada/chispas y reteñido o elenco propio.
 - **Hazard Marshal:** baseline cerrada en `0.22.0`: llegada propia con `holdFire` en las 11 armas incluida Oil, arena despejada, tres fases, sweep/volley/assembly/overload, refuerzos, cues propios y desenlace. El balance fino espera runs humanas terminadas; arena reactiva/modular queda opcional.
-- **Contenido y perfil:** 11 armas registradas / 10 jugables (Oil deshabilitada), 20 Cores, 17 Mods y 29 contratos declarados / 27 activos / 2 latentes. Capacidad: armas 2→3, Cores 2→4 y descartes 3→4. Field Engineer es el único personaje implementado y no hay contratos activos de personaje.
-- **Siguiente secuencia:** remate visual de Foundry → 2 personajes restantes → runs humanas y `pnpm stats` para balance/retención → cohesión de audio del contenido nuevo → Steamworks/cierre.
+- **Contenido y perfil:** 11 armas registradas / 10 jugables (Oil deshabilitada), 20 Cores, 17 Mods y 29 contratos declarados / 28 activos / 1 latente. Capacidad global: armas 2→3, Cores 2→4 y descartes 3→4. Field Engineer y Rack Hauler están implementados; Proving Ground desbloquea Rack Hauler. Rack superó su gate específico de lectura/modelo con 430 enemigos en Mapa 2: 430/430 movidos, 119.94 FPS medios, bucket mínimo 119.76, mediana 8.3 ms, p99 8.5 ms, 13.120 triángulos y 0 errores de página.
+- **Siguiente secuencia:** remate visual de Foundry → implementar Overclocker (tercer personaje aprobado; arte pendiente) → runs humanas y `pnpm stats` para balance/retención → cohesión de audio del contenido nuevo → Steamworks/cierre.
 - **Estado de entrega:** el working tree declara `0.22.0`, pero `HEAD` sigue en `0.21.0` hasta el próximo commit. `DEV_TOOLS.shortMaps = false`; `mapTransitionKey = true` y `finaleKey = true`, así que `pnpm package` está bloqueado y **no existe paquete 0.22.0**. Rigs de recording, FPS y oro están limpios.
 
 ## Foto histórica del proyecto (2026-07-13; SUPERSEDED donde contradiga el bloque vigente)
@@ -206,7 +206,7 @@ peleaba. La regla del sector + el portal encontrable atacan justo eso.
 Abierto, NO tocado:
 - `boss-hunter` (5 bosses → socket de arma) es el ÚNICO que da socket de arma.
   **OJO: `bossesDefeated` es acumulado de CARRERA, no por run** (`profile.ts:150`).
-- `proving-ground` está `latent` aunque su objetivo y su premio funcionan hoy.
+- `proving-ground` está activo y desbloquea Rack Hauler; el catálogo queda en 29 contratos declarados / 28 activos / 1 latente.
 - Umbrales literales `n: 1` en `contracts.ts`; `CONTRACTS.fullRunSectors` y
   `twoOfAKindCharacters` declarados y jamás leídos.
 - Ningún contrato tira del chatarrero (0-1 compras en 4 de 6 runs).
@@ -243,7 +243,7 @@ fin de sector descartado, accesibilidad fuera de la v1. **El payoff sigue siendo
   - **Tire Fire está en otra liga**: 2.187 kills / nivel 41 frente a 550 / nivel 22 de Bolt en runs completas equivalentes, y eso que Bolt tenía el DOBLE de sockets de core. Acumula el 74% del daño de toda la carrera.
   - **Las runs son binarias**: se muere antes de los 3 minutos (76s, 94s, 154s, 291s) o se llega a los 600s. No hay término medio, así que la mediana no describe ninguna partida real. Solo 33% de finalización.
   - El chatarrero (primera visita 2:00) **apenas existe** en la mitad de las runs: 0-1 compras en cuatro de las seis.
-- **Siguiente secuencia del juego completo:** remate visual de Swarm Foundry (colada/chispas + reteñido/elenco propio) → 2 personajes diferenciados restantes (Field Engineer ya aprobado) → runs humanas, balance y retención → cohesión de audio del contenido nuevo → Steamworks/cierre. Hazard Marshal ya tiene baseline cerrada en 0.22.0; su balance fino y una arena reactiva opcional quedan diferidos. La Demo no amplía este arco. **El gate de viabilidad multijugador se DIFIRIÓ a post-lanzamiento por decisión del usuario**; multiplayer/co-op no está implementado ni anunciado. **RC interno de la Demo:** fin de agosto de 2026; no es fecha pública, promesa de disponibilidad ni confirmación de revisión. Las afirmaciones externas siguen requiriendo confirmación actual. Leaderboards: previstos para el juego completo, todavía no implementados.
+- **Siguiente secuencia del juego completo:** remate visual de Swarm Foundry (colada/chispas + reteñido/elenco propio) → implementar Overclocker (tercer personaje aprobado; arte pendiente) → runs humanas, balance y retención → cohesión de audio del contenido nuevo → Steamworks/cierre. Hazard Marshal ya tiene baseline cerrada en 0.22.0; su balance fino y una arena reactiva opcional quedan diferidos. La Demo no amplía este arco. **El gate de viabilidad multijugador se DIFIRIÓ a post-lanzamiento por decisión del usuario**; multiplayer/co-op no está implementado ni anunciado. **RC interno de la Demo:** fin de agosto de 2026; no es fecha pública, promesa de disponibilidad ni confirmación de revisión. Las afirmaciones externas siguen requiriendo confirmación actual. Leaderboards: previstos para el juego completo, todavía no implementados.
 
 ---
 

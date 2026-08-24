@@ -2,7 +2,9 @@ import { CHARACTER_BALANCE, PLAYER, SECONDS_PER_MINUTE, type WeaponId } from './
 import { defaultStats, type PlayerStats } from './stats';
 
 export const DEFAULT_CHARACTER_ID = 'field-engineer' as const;
-export type CharacterId = typeof DEFAULT_CHARACTER_ID;
+export const RACK_HAULER_ID = 'rack-hauler' as const;
+export type CharacterId = typeof DEFAULT_CHARACTER_ID | typeof RACK_HAULER_ID;
+export type CharacterCapacityId = CharacterId;
 
 export type CharacterUnlock =
   | { kind: 'default' }
@@ -18,7 +20,7 @@ export interface CharacterDef {
   maxHp: number;
   moveSpeed: number;
   stats: PlayerStats;
-  signature: { name: string; description: string; badge: string };
+  signature: { name: string; description: string; badge: string; icon: string };
   tradeoff: string;
   recommendedWeapon: WeaponId;
   unlock: CharacterUnlock;
@@ -48,6 +50,17 @@ const fieldEngineerStats = (): PlayerStats => ({
   luck: CHARACTER_BALANCE.fieldEngineer.luck,
 });
 
+const rackHaulerStats = (): PlayerStats => ({
+  ...BASE_STATS,
+  damage: CHARACTER_BALANCE.rackHauler.damage,
+  attackSpeed: CHARACTER_BALANCE.rackHauler.attackSpeed,
+  critChance: CHARACTER_BALANCE.rackHauler.critChance,
+  critDamage: CHARACTER_BALANCE.rackHauler.critDamage,
+  armor: CHARACTER_BALANCE.rackHauler.armor,
+  regen: CHARACTER_BALANCE.rackHauler.regen,
+  luck: CHARACTER_BALANCE.rackHauler.luck,
+});
+
 export const CHARACTER_REGISTRY: Readonly<Record<CharacterId, CharacterDef>> = {
   [DEFAULT_CHARACTER_ID]: {
     id: DEFAULT_CHARACTER_ID,
@@ -62,12 +75,91 @@ export const CHARACTER_REGISTRY: Readonly<Record<CharacterId, CharacterDef>> = {
       name: 'Field Repair',
       description: `Installing or upgrading a Core restores ${asPercent(CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction)} of maximum HP, except Hull Plates.`,
       badge: `${asPercent(CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction)} MAX HP / CORE UPGRADE`,
+      icon: 'assets/2d/icon-item-repair.png',
     },
     tradeoff: `More durability and minor repair access, but ${asPercent(BASE_STATS.damage - CHARACTER_BALANCE.fieldEngineer.damage)} less damage.`,
     recommendedWeapon: 'bolt',
     unlock: { kind: 'default' },
   },
+  [RACK_HAULER_ID]: {
+    id: RACK_HAULER_ID,
+    name: 'Rack Hauler',
+    shortDescription: 'A broad weapon carrier that trades Core depth for a larger arsenal.',
+    portrait: 'assets/2d/ref-rack-hauler-front-v3-seafoam.png',
+    modelKey: 'rack-hauler',
+    maxHp: CHARACTER_BALANCE.rackHauler.maxHp,
+    moveSpeed: CHARACTER_BALANCE.rackHauler.moveSpeed,
+    stats: rackHaulerStats(),
+    signature: {
+      name: 'Open Rack',
+      description: `Carries ${asSignedNumber(CHARACTER_BALANCE.rackHauler.weaponSocketOffset)} weapon socket and ${asSignedNumber(CHARACTER_BALANCE.rackHauler.coreSocketOffset)} Core socket.`,
+      badge: `${asSignedNumber(CHARACTER_BALANCE.rackHauler.weaponSocketOffset)} WEAPON / ${asSignedNumber(CHARACTER_BALANCE.rackHauler.coreSocketOffset)} CORE`,
+      icon: 'assets/2d/icon-stat-projectiles-v2.png',
+    },
+    tradeoff: 'Broad weapon coverage with less room for shared Core multipliers.',
+    recommendedWeapon: 'blades',
+    unlock: { kind: 'contract', contractId: 'proving-ground' },
+  },
 };
+
+export interface SocketProfileView {
+  weaponSockets: number;
+  coreSockets: number;
+  maxWeaponSockets: number;
+  maxCoreSockets: number;
+}
+
+export interface SocketCapacity {
+  open: number;
+  max: number;
+}
+
+export interface EffectiveSocketCapacities {
+  weapon: SocketCapacity;
+  core: SocketCapacity;
+}
+
+const SOCKET_OFFSETS: Readonly<Record<CharacterCapacityId, { weapon: number; core: number }>> = {
+  [DEFAULT_CHARACTER_ID]: { weapon: 0, core: 0 },
+  [RACK_HAULER_ID]: {
+    weapon: CHARACTER_BALANCE.rackHauler.weaponSocketOffset,
+    core: CHARACTER_BALANCE.rackHauler.coreSocketOffset,
+  },
+};
+
+/** Projects global Contract-owned PROFILE capacity into a run. Character
+ * offsets never mutate or replace PROFILE, so canonical socket settlement and
+ * persistence remain shared by the whole roster. */
+export function effectiveSocketCapacities(
+  characterId: CharacterCapacityId,
+  profile: SocketProfileView,
+): EffectiveSocketCapacities {
+  const offsets = SOCKET_OFFSETS[characterId];
+  return {
+    weapon: {
+      open: Math.max(0, profile.weaponSockets + offsets.weapon),
+      max: Math.max(0, profile.maxWeaponSockets + offsets.weapon),
+    },
+    core: {
+      open: Math.max(0, profile.coreSockets + offsets.core),
+      max: Math.max(0, profile.maxCoreSockets + offsets.core),
+    },
+  };
+}
+
+export type SocketPresentationState = 'installed' | 'empty' | 'locked';
+
+/** Shared RIG presentation grammar for character-specific capacity. */
+export function socketPresentationStates(
+  installed: number,
+  capacity: SocketCapacity,
+): SocketPresentationState[] {
+  return Array.from({ length: capacity.max }, (_, index) => {
+    if (index < installed) return 'installed';
+    if (index < capacity.open) return 'empty';
+    return 'locked';
+  });
+}
 
 export interface CharacterProfileView {
   unlockedCharacters: readonly string[];
