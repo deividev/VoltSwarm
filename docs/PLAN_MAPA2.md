@@ -1,6 +1,6 @@
 # PLAN — Bloque Mapa 2 (Swarm Foundry): transición · visual · Hazard Marshal
 
-> Estado vigente 2026-08-20: **Paso 0 y Workstreams 1, 3 y 4 CERRADOS**. Hazard Marshal tiene baseline jugable aceptada en el candidato 0.22.0. Workstream 2 conserva solo el remate visual: colada/chispas y reteñido/elenco propio; cielo/niebla por mapa y arena base con muro ya están hechos.
+> **Current decision 2026-08-25:** Step 0 and Workstreams 1, 3, and 4 are CLOSED. Hazard Marshal has an accepted gameplay baseline in candidate 0.22.0. Workstream 2 retains only molten-flow glow and voxel sparks. The current enemy replacement slice—Furnace Mite, Axle Runner, and Slagcaster—is CLOSED; all further enemy expansion is deferred. Per-map sky/fog and the base walled arena are done.
 > Alcance: cerrar la run completa **Mapa 1 (10 min de oleadas + gate de boss) → transición → Mapa 2 (10 min de oleadas) → Hazard Marshal (jefe final, 3 fases)**.
 > Rama de trabajo: `codex/map-2`. Config titula el mapa como **"Swarm Foundry"**. La Demo vive separada en `codex/demo-map1` (`0.13.39-demo`); no se portan Mapa 2 ni Hazard Marshal.
 > Fuente de verdad de orden: `docs/ROADMAP_STEAM.md` §"Bloque Mapa 2 + Hazard Marshal". Este doc conserva el desglose y la historia de implementación.
@@ -23,7 +23,7 @@ No son burocracia: cada una cambia qué se implementa. Marcar cuando el usuario 
   - **Descartes de level-up restantes**: se **conservan**.
   - **Coupling económico (a resolver en 0.2):** con oro a 0, el chatarrero y los precios del Mapa 2 escalan con el "minuto de run" — hay que definir si el reloj del arco continúa (min 10→20) o el Mapa 2 tiene su propio reloj (0→10). Misma decisión que alimenta la dificultad y el reescalado de XP.
 - [x] **0.4 Reparto y duración del arco — CERRADA 2026-08-15.** **Reinicio total desde el Mapa 1**, sin checkpoint: morir o fallar el gate manda a empezar el arco entero de nuevo (puro al género; los **contratos** son la red de seguridad meta que avanza aunque se pierda la run). **Reparto 10+10** (el Mapa 1 ya está tuneado a 10 min); revisable solo si los datos humanos muestran que el arco de ~20 min + boss es demasiado largo. Riesgo de retención asumido conscientemente, a vigilar con el campo `map` de muerte (0.6).
-- [x] **0.5 Elenco del Mapa 2 — CERRADA 2026-08-15 (dirección; roster concreto a iterar).** **Mezcla**: conservar parte de los 6 actuales **reteñidos** a la paleta de fundición + **1-3 enemigos nuevos de firma** que den identidad al mapa. El roster exacto y el diseño de los nuevos se **iteran al acometer este workstream** (modelado + retoque), no ahora. Restricciones fijas: cada enemigo nuevo = 3 hojas medidas del pipeline voxel + validación del enjambre a 400+; vigilar que la paleta ámbar+carbón del elenco no se funda con la del Hazard Marshal (ver 3.A.3).
+- [x] **0.5 Map 2 enemy slice — CLOSED 2026-08-25.** The production slice is Furnace Mite, Axle Runner, and Slagcaster. Furnace Mite and Axle Runner retain their measured gates; Slagcaster is final by explicit user acceptance and has no claimed 400+ result. Forge Dart, further Rustbrute/Drone replacements, Arc Courier, and any other expansion are deferred until a future scope decision.
 - [x] **0.7 Interacción del gate AND — CERRADA 2026-08-15.**
   - El gate se presenta como **misión visible en pantalla** durante todo el Mapa 1: "invoca y derrota al boss + aguanta los 10:00 para avanzar", con el estado de las dos condiciones (boss ✓/✗ · tiempo).
   - **Sin muerte súbita ni boss forzado.** El Mapa 1 termina en su corte natural de 10:00 (o al morir antes). En el corte se evalúa: **vivo + ≥1 boss derrotado → cruza** al Mapa 2; **cualquier otro caso → run cortada sin cruce**.
@@ -80,9 +80,10 @@ Depende de: 0.1 (cerrada), 0.2, 0.3, 0.6 (hecha), 0.7.
 
 ## Workstream 2 — Pase visual del Mapa 2 (Swarm Foundry)
 
-> **ESTADO 2026-08-20.** Suelo, props, perímetro, cobertura, cielo/niebla por mapa
-> y arena base con muro están cerrados. Queda **2.5** (VFX de ambiente) y el
-> reteñido/elenco propio. La arena reactiva/modular es opcional y no reabre el boss.
+> **STATUS 2026-08-25.** Floor, props, perimeter, cover, per-map sky/fog, the
+> base walled arena, and the current enemy slice are closed. Only **2.5**
+> (ambient molten-flow glow and voxel sparks) remains. A reactive/modular arena
+> is optional and does not reopen the boss.
 
 Objetivo del usuario: que **no parezca otro juego**. Alinear props y ambiente con el lenguaje del Mapa 1 (misma familia voxel, mismos materiales `litMaterial()`, misma dirección de silueta) pero en el tema **fundición** del arco de arte (chatarrería → **fundición** → ciudad neón, `DIRECCION_ARTE.md`).
 
@@ -123,11 +124,12 @@ Objetivo del usuario: que **no parezca otro juego**. Alinear props y ambiente co
 > agotado). Sin eso `pnpm stats` no tiene contra qué calibrar. Validación externa
 > (conocidos del usuario) prevista para más adelante.
 >
-> Lo que quedó deliberadamente sin hacer, con su motivo: **4.5** (XP del Mapa 2 —
-> la evidencia apunta al revés), **4.7** (elenco propio del Mapa 2 — es el cuello
-> de botella real ahora), tercer color para las puertas (bajaría la repetición de
-> 19% a 3.1%) y la separación de color en los bidones del Mapa 1 (mismo defecto,
-> un número). Las cuatro las revisó el usuario y decidió dejarlas.
+> Historical note: work deliberately left undone at that snapshot included
+> **4.5** (Map 2 XP—the evidence pointed the other way), **4.7** (the then-open
+> Map 2 roster), a third door color (which would reduce repetition from 19% to
+> 3.1%), and color separation for Map 1 barrels. The roster note is superseded:
+> the current three-enemy slice
+> is now closed and further expansion is deferred.
 
 **Las tres palancas reales** (no hay más): densidad/ritmo vía `difficultyScalar`
 (enemigos vivos 38→380, intervalo y tamaño de oleada, % de élite) · vida de
@@ -480,11 +482,12 @@ Un cambio a la vez; validar cada fase in-game antes de la siguiente. Números en
 
 ## Backlog vigente después del cierre
 
-1. Remate visual de Foundry: colada/chispas y reteñido/elenco propio.
-2. Dos personajes restantes; Field Engineer ya está aprobado y no hay contratos activos de personaje.
-3. Runs humanas terminadas + `pnpm stats` para balance y retención.
-4. Pasada de cohesión de audio del contenido nuevo.
-5. Steamworks y cierre técnico. Una arena reactiva/modular sigue opcional.
+1. Foundry molten-flow glow and voxel sparks.
+2. Completed human runs plus `pnpm stats` for balance and retention.
+3. Cohesion pass for new audio.
+4. Steamworks and technical close. A reactive/modular arena remains optional.
+
+The three launch characters and current enemy replacement slice are closed. Deferred enemy expansion is not part of this active backlog.
 
 ## Guardarraíles que aplican a todo el bloque
 - InstancedMesh por tipo · 60 FPS con 400+ · números en `config.ts` · sin apuntado manual · nada de clonar Megabonk 1:1 · subir `version` antes de cada commit · `PROFILE` se muta en su sitio · código/UI en inglés.

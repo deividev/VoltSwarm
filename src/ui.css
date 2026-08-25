@@ -3847,8 +3847,10 @@ body:has(.menu-view:not(.hidden)) #build-panel {
 .character-layout:focus-visible,
 .character-layout.pad-focus { outline: 2px solid #01e6fe; outline-offset: -2px; }
 .character-grid {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  width: 100%;
+  box-sizing: border-box;
   align-items: stretch;
   gap: 8px;
   min-width: 0;
@@ -3857,12 +3859,11 @@ body:has(.menu-view:not(.hidden)) #build-panel {
   border-bottom: 1px solid #334854;
 }
 .character-card {
-  flex: 0 1 320px;
-  min-width: 300px;
+  min-width: 0;
   min-height: 80px;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: 58px minmax(190px, 1fr);
+  grid-template-columns: 58px minmax(0, 1fr);
   grid-template-rows: auto auto;
   align-items: center;
   column-gap: 10px;
@@ -4102,7 +4103,7 @@ body:has(.menu-view:not(.hidden)) #build-panel {
     overflow-x: hidden;
     overflow-y: auto;
   }
-  .character-grid { overflow: visible; }
+  .character-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow: visible; }
   .character-detail {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     overflow: visible;
@@ -4113,7 +4114,7 @@ body:has(.menu-view:not(.hidden)) #build-panel {
 }
 
 @media (max-width: 599px) {
-  .character-card { flex-basis: 100%; }
+  .character-grid { grid-template-columns: minmax(0, 1fr); }
   .character-detail { grid-template-columns: minmax(0, 1fr); }
   .character-identity { display: grid; grid-template-columns: 112px minmax(0, 1fr); align-items: center; gap: 14px; }
   .character-portrait-stage { min-height: 116px; padding: 4px; }

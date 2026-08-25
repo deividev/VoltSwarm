@@ -2,7 +2,12 @@ import * as THREE from 'three';
 import { CHEST, PICKUPS, RECORDING } from './config';
 import { litMaterial } from './toon';
 import { rollRarity, type Rarity } from './upgrades';
-import { MOD_REGISTRY, resolveChestTier, TIER_COLORS } from './mods';
+import {
+  MOD_REGISTRY,
+  promoteRewardTier,
+  resolveChestTier,
+  TIER_COLORS,
+} from './mods';
 import { buildGridGeometry } from './models/voxel-builder';
 import { buildModelGrid, VOXEL_MODELS } from './models/registry';
 import { findClearSpot, findRandomClearSpot, type Obstacle } from './world';
@@ -41,6 +46,7 @@ export class PickupSystem {
   // First crate shows up early so the mechanic is discovered in minute one.
   private spawnTimer = PICKUPS.spawnIntervalS * 0.4;
   private bobPhase = 0;
+  private rewardTierShift = 0;
   /** Voxel chest geometry per tier — built async, swapped over the primitive. */
   private readonly voxelGeoms = new Map<Rarity, THREE.BufferGeometry>();
   private voxelMat: THREE.Material | null = null;
@@ -94,6 +100,10 @@ export class PickupSystem {
     void this.buildVoxelChests();
   }
 
+  setRewardTierShift(shift: number): void {
+    this.rewardTierShift = Math.max(0, Math.floor(shift));
+  }
+
   private async buildVoxelChests(): Promise<void> {
     const def = VOXEL_MODELS['chest-gray'];
     if (!def) return;
@@ -119,6 +129,14 @@ export class PickupSystem {
     slot.crate.geometry = geometry;
     slot.crate.material = this.voxelMat;
     slot.baseY = 0.1;
+  }
+
+  private applyTier(slot: PickupSlot, tier: Rarity): void {
+    slot.tier = tier;
+    const color = TIER_COLORS[tier];
+    slot.crateMat.color.setHex(color);
+    slot.beamMat.color.setHex(color);
+    this.applyVoxel(slot);
   }
 
   /** Advances timers/animation and spawns the periodic crate. Collection is
@@ -174,11 +192,12 @@ export class PickupSystem {
   }
 
   /** Consumes a crate after a successful purchase. */
-  open(index: number): void {
+  open(index: number): boolean {
     const slot = this.slots[index];
-    if (!slot) return;
+    if (!slot?.active) return false;
     slot.active = false;
     slot.group.visible = false;
+    return true;
   }
 
   private spawn(px: number, pz: number, luck: number, obstacles: Obstacle[]): void {
@@ -211,13 +230,10 @@ export class PickupSystem {
     // Cap the rolled tier to one that has unlocked mods, so the beam/price a
     // player reads always matches the reward they'll get (no gold chest paying
     // out a purple mod). Self-heals as contracts unlock higher tiers.
-    slot.tier = RECORDING.chestTesting.forceGreenChests || RECORDING.chestTesting.forceOrbSiphonReward
+    const tier = RECORDING.chestTesting.forceGreenChests || RECORDING.chestTesting.forceOrbSiphonReward
       ? MOD_REGISTRY['orb-siphon'].tier
-      : resolveChestTier(rollRarity(luck));
-    const color = TIER_COLORS[slot.tier];
-    slot.crateMat.color.setHex(color); // primitive fallback tint
-    slot.beamMat.color.setHex(color); // the tier light — readable at distance
-    this.applyVoxel(slot);
+      : resolveChestTier(promoteRewardTier(rollRarity(luck), this.rewardTierShift));
+    this.applyTier(slot, tier);
     slot.group.position.set(spot.x, 0, spot.z);
     slot.obstacle.x = spot.x;
     slot.obstacle.z = spot.z;

@@ -12,7 +12,7 @@ import {
 // Type-only: erased at compile time, so this cannot create a runtime cycle with
 // contracts.ts, which imports LIFETIME from here.
 import type { Reward } from './contracts';
-import { CHARACTER_REGISTRY } from './characters';
+import { CHARACTER_REGISTRY, isCharacterId } from './characters';
 import { canonicalSocketReward, completedSocketFloor, type SocketSlot } from './socket-rewards';
 
 // Cross-run player profile. Mirrors the settings persistence seam
@@ -26,7 +26,7 @@ import { canonicalSocketReward, completedSocketFloor, type SocketSlot } from './
 // design note in config.ts.
 
 const STORAGE_KEY = 'voltswarm:profile';
-const VERSION = 4;
+const VERSION = 5;
 
 /** Monotonic career totals, the fact base every contract objective reads.
  *
@@ -65,6 +65,9 @@ export interface LifetimeStats {
   bestMinimalSectors: number;
   /** Longest finished run that took no damage at all. */
   bestFlawlessRunS: number;
+  /** Character ids that have each completed the full current arc. Monotonic and
+   * independent of capped run history. */
+  completedCharacterIds: string[];
   /** Contract ids already paid out. Rewards are never revoked, so raising a
    *  threshold later cannot take back what a player already earned. */
   completedContracts: string[];
@@ -89,6 +92,7 @@ function emptyLifetime(): LifetimeStats {
     damageByWeapon: {}, runsByStartingWeapon: {}, weaponMaxLevel: {},
     chestsByTier: {}, bestModsHeld: 0, bestGoldEarnedInRun: 0,
     bestMinimalRunS: 0, bestMinimalSectors: 0, bestFlawlessRunS: 0,
+    completedCharacterIds: [],
     completedContracts: [], grantedRewards: {},
     countedRunIds: [],
   };
@@ -161,7 +165,12 @@ export function recordRunInLifetime(record: RunRecordV1): void {
 
   LIFETIME.runsFinished += 1;
   if (record.outcome !== 'defeat') LIFETIME.runsSurvived += 1;
-  if (isRunComplete(record)) LIFETIME.runsCompleted += 1;
+  if (isRunComplete(record)) {
+    LIFETIME.runsCompleted += 1;
+    if (isCharacterId(record.characterId) && !LIFETIME.completedCharacterIds.includes(record.characterId)) {
+      LIFETIME.completedCharacterIds.push(record.characterId);
+    }
+  }
   const sectorsCleared = sectorsClearedOf(record);
   LIFETIME.totalSectorsCleared += sectorsCleared;
   LIFETIME.bestSectorsCleared = Math.max(LIFETIME.bestSectorsCleared, sectorsCleared);
@@ -327,6 +336,9 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
     bestMinimalRunS: num(saved.bestMinimalRunS),
     bestMinimalSectors: num(saved.bestMinimalSectors),
     bestFlawlessRunS: num(saved.bestFlawlessRunS),
+    completedCharacterIds: Array.isArray(saved.completedCharacterIds)
+      ? [...new Set(saved.completedCharacterIds.filter((id): id is string => isCharacterId(id)))]
+      : [],
     completedContracts: contractIds(saved.completedContracts),
     grantedRewards: rewardMap(saved.grantedRewards),
     damageByWeapon: map(saved.damageByWeapon),
@@ -357,6 +369,20 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
       const mods = Object.values(record.modCounts).reduce((sum, count) => sum + Math.max(0, count), 0);
       return weapons === 1 && mods === 0 ? Math.max(best, sectorsClearedOf(record)) : best;
     }, 0);
+  }
+  // Legacy ledgers predate the monotonic character-completion union. A
+  // one-time best-effort migration can recover surviving records; after this
+  // save, capped history is never used as the ongoing source of truth.
+  if (saved.completedCharacterIds === undefined) {
+    for (const record of loadRunHistory()) {
+      if (
+        isRunComplete(record) &&
+        isCharacterId(record.characterId) &&
+        !LIFETIME.completedCharacterIds.includes(record.characterId)
+      ) {
+        LIFETIME.completedCharacterIds.push(record.characterId);
+      }
+    }
   }
 }
 

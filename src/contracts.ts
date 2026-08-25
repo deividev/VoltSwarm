@@ -2,7 +2,14 @@ import { BOSS_TYPE_INDEXES, CONTRACTS, ENEMY_TYPES, MAPS, PROFILE, WEAPON_INFO, 
 import { CORE_TITLES } from './upgrades';
 import { MOD_REGISTRY, refreshUnlockedMods, type ModId } from './mods';
 import { LIFETIME, saveProfile, type LifetimeStats } from './profile';
-import { CHARACTER_REGISTRY, RACK_HAULER_ID, grantCharacterId, type CharacterId } from './characters';
+import {
+  CHARACTER_REGISTRY,
+  OVERCLOCKER_ID,
+  RACK_HAULER_ID,
+  grantCharacterId,
+  isCharacterId,
+  type CharacterRewardId,
+} from './characters';
 import { canonicalSocketReward, socketReward } from './socket-rewards';
 
 // Contracts: the only progression engine (there is no meta-currency in v1).
@@ -35,12 +42,13 @@ export type Objective =
   | { type: 'defeat-all-boss-types'; requiredTypes: readonly string[] }
   | { type: 'weapons-mastered'; n: number }
   | { type: 'distinct-starting-weapons'; n: number }
+  | { type: 'distinct-completed-characters'; n: number }
   | { type: 'minimal-run'; seconds: number }
   | { type: 'minimal-sectors'; n: number }
   | { type: 'flawless-run'; seconds: number };
 
 export type Reward =
-  | { kind: 'character'; id: CharacterId }
+  | { kind: 'character'; id: CharacterRewardId }
   | { kind: 'weapon'; id: WeaponId }
   | { kind: 'core'; id: string }
   | { kind: 'mod'; id: ModId }
@@ -106,6 +114,7 @@ export function describeObjective(objective: Objective): string {
       ? `Deal at least ${CONTRACTS.ladders.masteryDamage.toLocaleString('en-US')} lifetime damage with 1 weapon.`
       : `Deal at least ${CONTRACTS.ladders.masteryDamage.toLocaleString('en-US')} lifetime damage with each of ${objective.n.toLocaleString('en-US')} different weapons.`;
     case 'distinct-starting-weapons': return `Finish runs with ${objective.n.toLocaleString('en-US')} different starting weapons across your career.`;
+    case 'distinct-completed-characters': return `Complete the full arc with ${objective.n.toLocaleString('en-US')} different ${plural(objective.n, 'character')} across your career.`;
     case 'minimal-run': return `Survive ${formatDuration(objective.seconds)} in a single run while carrying exactly 1 positive-level weapon and 0 Mods.`;
     case 'minimal-sectors': return `Clear all ${objective.n.toLocaleString('en-US')} current sectors in a single run—${mapRoster()}—while carrying exactly 1 positive-level weapon and 0 Mods; a partial clear or defeat does not count.`;
     case 'flawless-run': return `Survive ${formatDuration(objective.seconds)} in a single run while taking exactly 0 damage.`;
@@ -198,10 +207,9 @@ const SIGNATURE: Contract[] = [
     reward: { kind: 'mod', id: 'magnetron-heart' as ModId },
   }),
   defineContract({
-    id: 'two-of-a-kind', title: 'Run Completion',
-    objective: { type: 'complete-runs', n: 1 },
-    reward: { kind: 'next-core' },
-    latent: 'The third character reward is not implemented.',
+    id: 'two-of-a-kind', title: 'Two of a Kind',
+    objective: { type: 'distinct-completed-characters', n: CONTRACTS.twoOfAKindCharacters },
+    reward: { kind: 'character', id: OVERCLOCKER_ID },
   }),
 ];
 
@@ -285,6 +293,8 @@ export function progressOf(objective: Objective, stats: LifetimeStats = LIFETIME
       };
     case 'distinct-starting-weapons':
       return { current: Object.keys(stats.runsByStartingWeapon).length, target: objective.n };
+    case 'distinct-completed-characters':
+      return { current: stats.completedCharacterIds.length, target: objective.n };
   }
 }
 
@@ -444,8 +454,7 @@ export function grantReward(reward: Reward): Reward | null {
       return id ? grantReward({ kind: 'mod', id }) : null;
     }
     case 'character':
-      grantCharacterId(PROFILE.unlockedCharacters, reward.id);
-      return reward;
+      return grantCharacterId(PROFILE.unlockedCharacters, reward.id) ? reward : null;
     case 'weapon':
       if (!PROFILE.unlockedWeapons.includes(reward.id)) PROFILE.unlockedWeapons.push(reward.id);
       return reward;
@@ -481,7 +490,7 @@ export function grantReward(reward: Reward): Reward | null {
 export function rewardName(reward: Reward | null): string {
   if (!reward) return 'nothing';
   switch (reward.kind) {
-    case 'character': return CHARACTER_REGISTRY[reward.id]?.name ?? reward.id;
+    case 'character': return isCharacterId(reward.id) ? CHARACTER_REGISTRY[reward.id].name : reward.id;
     case 'weapon': return WEAPON_INFO[reward.id]?.title ?? reward.id;
     case 'core': return CORE_TITLES[reward.id] ?? reward.id;
     case 'mod': return MOD_REGISTRY[reward.id]?.label ?? reward.id;
@@ -497,7 +506,7 @@ export function rewardName(reward: Reward | null): string {
 export function describeReward(reward: Reward | null): string {
   if (!reward) return 'Nothing left to unlock';
   switch (reward.kind) {
-    case 'character': return `Character: ${CHARACTER_REGISTRY[reward.id]?.name ?? reward.id}`;
+    case 'character': return `Character: ${isCharacterId(reward.id) ? CHARACTER_REGISTRY[reward.id].name : reward.id}`;
     case 'weapon': return `Weapon: ${WEAPON_INFO[reward.id]?.title ?? reward.id}`;
     case 'core': return `Core: ${CORE_TITLES[reward.id] ?? reward.id}`;
     case 'mod': return `Mod: ${MOD_REGISTRY[reward.id]?.label ?? reward.id}`;

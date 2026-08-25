@@ -194,6 +194,13 @@ export function refreshUnlockedMods(): void {
 /** Tier order high→low, shared by tier capping and the roll fall-down safety. */
 const TIER_ORDER: Rarity[] = ['gold', 'purple', 'blue', 'green', 'gray'];
 
+/** Applies a character reward shift before a chest or shop materializes. */
+export function promoteRewardTier(tier: Rarity, shift: number): Rarity {
+  const index = TIER_ORDER.indexOf(tier);
+  const promotedIndex = Math.max(0, Math.min(TIER_ORDER.length - 1, index - Math.max(0, Math.floor(shift))));
+  return TIER_ORDER[promotedIndex] ?? tier;
+}
+
 /** Unlocked mods of an EXACT tier (empty if the profile has none there yet). */
 export function unlockedModsOfTier(tier: Rarity): ModId[] {
   return UNLOCKED_MOD_IDS.filter((id) => MOD_REGISTRY[id].tier === tier);
@@ -212,17 +219,26 @@ export function modsOfTier(tier: Rarity): ModId[] {
  *  to purple. Applied at spawn, it keeps beam, price, reel and reward all on
  *  the SAME tier (no cross-tier fall-down at reveal). Self-heals as contracts
  *  unlock higher tiers. */
-export function resolveChestTier(tier: Rarity): Rarity {
+export function resolveEligibleModTier(
+  tier: Rarity,
+  eligible: (id: ModId) => boolean = () => true,
+): Rarity | null {
   for (let i = Math.max(0, TIER_ORDER.indexOf(tier)); i < TIER_ORDER.length; i++) {
     const t = TIER_ORDER[i];
-    if (t && unlockedModsOfTier(t).length > 0) return t;
+    if (t && unlockedModsOfTier(t).some(eligible)) return t;
   }
-  return 'gray';
+  return null;
+}
+
+export function resolveChestTier(tier: Rarity): Rarity {
+  return resolveEligibleModTier(tier) ?? 'gray';
 }
 
 /** Rolls one mod from the pool: luck-weighted tier, then uniform inside it. */
 export function rollMod(luck: number): ModId {
-  return rollModOfTier(rollRarity(luck));
+  const id = rollModOfTier(rollRarity(luck));
+  if (!id) throw new Error('The unlocked Mod pool is empty.');
+  return id;
 }
 
 /** Rolls one UNLOCKED mod of a fixed tier. Chests cap their tier at spawn
@@ -231,16 +247,14 @@ export function rollMod(luck: number): ModId {
 export function rollModOfTier(
   tier: Rarity,
   eligible: (id: ModId) => boolean = () => true,
-): ModId {
+): ModId | null {
   for (let i = Math.max(0, TIER_ORDER.indexOf(tier)); i < TIER_ORDER.length; i++) {
     const t = TIER_ORDER[i];
     if (!t) continue;
     const pool = unlockedModsOfTier(t).filter(eligible);
-    if (pool.length > 0) return pool[Math.floor(Math.random() * pool.length)] ?? 'repair';
+    if (pool.length > 0) return pool[Math.floor(Math.random() * pool.length)] ?? null;
   }
-  // A restrictive predicate must not reintroduce an ineligible Mod through
-  // fallback. The default profile always has eligible consumables available.
-  return 'repair';
+  return null;
 }
 
 /** Tier base price × run-time ramp × discount, shared by shop and chests. */
@@ -254,11 +268,13 @@ export function rollShopStock(
   luck: number,
   count: number,
   eligible: (id: ModId) => boolean = () => true,
+  tierShift = 0,
 ): ModId[] {
   const stock: ModId[] = [];
   for (let guard = 0; stock.length < count && guard < 50; guard++) {
-    const id = rollModOfTier(rollRarity(luck), eligible);
-    if (eligible(id) && !stock.includes(id)) stock.push(id);
+    const tier = promoteRewardTier(rollRarity(luck), tierShift);
+    const id = rollModOfTier(tier, (candidate) => eligible(candidate) && !stock.includes(candidate));
+    if (id) stock.push(id);
   }
   return stock;
 }

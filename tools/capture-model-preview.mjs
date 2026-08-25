@@ -6,7 +6,7 @@ import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 
-const PORT = 5199;
+const PORT = Number(process.env.CAPTURE_PORT ?? 5199);
 const MODEL = process.argv[2] ?? 'voltling';
 const OUTPUT = process.argv[3] ?? `assets/preview/${MODEL}.png`;
 const ANGLES = (process.argv[4] ?? '0').split(',').map((s) => Number(s.trim()));

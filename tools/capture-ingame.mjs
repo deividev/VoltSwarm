@@ -13,10 +13,14 @@ import { existsSync } from 'node:fs';
 import puppeteer from 'puppeteer-core';
 import { confirmOnlyVisibleCharacterIfPresent, enterMainMenu } from './character-flow.mjs';
 
-const PORT = 5198;
+const PORT = Number(process.env.CAPTURE_PORT ?? 5198);
 const RUN_SECONDS = Number(process.argv[2] ?? 25);
 const OUTPUT = process.argv[3] ?? 'assets/preview/ingame.png';
 const WANT_WEAPON = process.argv[4] ?? null;
+// Visual-model audition only: swaps the live player's registry mesh without
+// registering a CharacterDef, changing unlocks, or persisting profile state.
+const MODEL_KEY = process.env.CAPTURE_MODEL_KEY ?? null;
+const WANT_MAP2 = process.env.CAPTURE_MAP2 === '1';
 const AT = (() => {
   const i = process.argv.indexOf('--at');
   if (i === -1) return null;
@@ -116,6 +120,28 @@ try {
     await page.click('#draft-cards > *');
   }
 
+  await page.waitForFunction(
+    () => window.__voltswarm?.state === 'playing',
+    { timeout: 15000 },
+  );
+  if (WANT_MAP2) {
+    // Use the enabled development transition key so Map 2 still arrives
+    // through the real run-flow/world swap instead of mutating map state.
+    await page.keyboard.press('KeyT');
+    await page.waitForFunction(
+      () => window.__voltswarm?.runFlow?.mapIndex === 1 && window.__voltswarm?.state === 'playing',
+      { timeout: 15000 },
+    );
+  }
+  if (MODEL_KEY) {
+    await page.evaluate((modelKey) => {
+      window.__voltswarm?.player?.setCharacterModelKey(modelKey);
+    }, MODEL_KEY);
+    // Image decode + voxelization is asynchronous. The public setter guards
+    // stale requests, so a short wait is enough for this read-only capture rig.
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+
   // Let the swarm build up, dismissing any level-up overlay that pauses the run.
   const startedAt = Date.now();
   while (Date.now() - startedAt < RUN_SECONDS * 1000) {
@@ -172,8 +198,24 @@ try {
         requestAnimationFrame(tick);
       }),
   );
+  const modelDiagnostics = await page.evaluate(() => {
+    const player = window.__voltswarm?.player;
+    const meshes = [];
+    player?.mesh?.traverse?.((child) => {
+      if (!child?.isMesh) return;
+      meshes.push({
+        triangles: (child.geometry?.getAttribute?.('position')?.count ?? 0) / 3,
+        material: child.material?.type ?? null,
+        vertexColors: child.material?.vertexColors ?? null,
+      });
+    });
+    return { requestedModelKey: player?.requestedModelKey ?? null, meshes };
+  });
   await browser.close();
-  console.log(`Saved ${OUTPUT} (fps: ${stats.fps}, active enemies: ${stats.enemies})`);
+  console.log(
+    `Saved ${OUTPUT} (fps: ${stats.fps}, active enemies: ${stats.enemies}, ` +
+    `model: ${modelDiagnostics.requestedModelKey ?? 'default'}, meshes: ${JSON.stringify(modelDiagnostics.meshes)})`,
+  );
   if (errors.length) {
     console.error('Page errors:', errors);
     process.exitCode = 1;

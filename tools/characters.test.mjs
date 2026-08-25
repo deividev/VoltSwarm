@@ -5,6 +5,7 @@ import { createServer } from 'vite';
 import * as THREE from 'three';
 import { chooseCharacterId } from './character-flow.mjs';
 
+globalThis.window = {};
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
 const characters = await server.ssrLoadModule('/src/characters.ts');
 const config = await server.ssrLoadModule('/src/config.ts');
@@ -15,24 +16,27 @@ const profile = await server.ssrLoadModule('/src/profile.ts');
 const registry = await server.ssrLoadModule('/src/models/registry.ts');
 const runtimeDetails = await server.ssrLoadModule('/src/models/runtime-details.ts');
 const rigModule = await server.ssrLoadModule('/src/models/rig.ts');
+const game = await server.ssrLoadModule('/src/game.ts');
 
 after(async () => server.close());
 
 test('registry fallback and unlock filtering use stable ids', () => {
   const locked = { unlockedCharacters: [] };
-  const unlocked = { unlockedCharacters: ['field-engineer', 'rack-hauler', 'unknown-character'] };
+  const unlocked = { unlockedCharacters: ['field-engineer', 'rack-hauler', 'overclocker', 'unknown-character'] };
   assert.equal(characters.resolveCharacterId('unknown-character', unlocked), 'field-engineer');
   assert.equal(characters.resolveCharacterId('field-engineer', locked), 'field-engineer');
   assert.equal(characters.registeredCharacterId('rack-hauler'), 'rack-hauler');
   assert.equal(characters.resolveCharacterId('rack-hauler', locked), 'field-engineer');
   assert.equal(characters.resolveCharacterId('rack-hauler', unlocked), 'rack-hauler');
+  assert.equal(characters.resolveCharacterId('overclocker', locked), 'field-engineer');
+  assert.equal(characters.resolveCharacterId('overclocker', unlocked), 'overclocker');
   for (const inheritedId of ['__proto__', 'constructor', 'toString']) {
     assert.equal(characters.isCharacterId(inheritedId), false);
     assert.equal(characters.registeredCharacterId(inheritedId), characters.DEFAULT_CHARACTER_ID);
     assert.equal(characters.resolveCharacterId(inheritedId, unlocked), characters.DEFAULT_CHARACTER_ID);
   }
   assert.deepEqual(characters.unlockedCharacters(locked), []);
-  assert.deepEqual(characters.unlockedCharacters(unlocked).map((entry) => entry.id), ['field-engineer', 'rack-hauler']);
+  assert.deepEqual(characters.unlockedCharacters(unlocked).map((entry) => entry.id), ['field-engineer', 'rack-hauler', 'overclocker']);
 });
 
 test('Field Engineer has the exact approved run profile', () => {
@@ -52,6 +56,51 @@ test('Field Engineer has the exact approved run profile', () => {
   assert.equal(config.PROFILE.coreSockets, 2);
   assert.equal(config.PROFILE.maxWeaponSockets, 3);
   assert.equal(config.PROFILE.maxCoreSockets, 4);
+});
+
+test('Overclocker is registered with its exact config-derived runtime contract', () => {
+  const balance = config.CHARACTER_BALANCE.overclocker;
+  assert.deepEqual(balance, {
+    maxHp: 85,
+    moveSpeed: 11,
+    damage: 1,
+    attackSpeed: 1,
+    critChance: 0.08,
+    critDamage: 0.5,
+    armor: 0,
+    regen: 0,
+    luck: 0,
+    evasion: 18,
+    rewardTierShift: 1,
+    physicalContactDamageMultiplier: 1.35,
+  });
+  assert.equal(stats.dodgeChance(balance.evasion), 18 / 118);
+  assert.equal(characters.rewardTierShiftForCharacter('overclocker'), 1);
+  assert.equal(characters.rewardTierShiftForCharacter('field-engineer'), 0);
+  for (const source of ['swarm-contact', 'elite-contact', 'boss-contact', 'boss-ram']) {
+    assert.equal(characters.physicalContactDamageMultiplier('overclocker', source), 1.35);
+  }
+  for (const source of ['projectile', 'telegraphed', 'other']) {
+    assert.equal(characters.physicalContactDamageMultiplier('overclocker', source), 1);
+  }
+  assert.equal(characters.physicalContactDamageMultiplier('rack-hauler', 'swarm-contact'), 1);
+  const overclocker = characters.CHARACTER_REGISTRY.overclocker;
+  assert.equal(characters.isCharacterId('overclocker'), true);
+  assert.equal(characters.registeredCharacterId('overclocker'), 'overclocker');
+  assert.equal(overclocker.modelKey, 'overclocker');
+  assert.equal(overclocker.portrait, 'assets/2d/ref-overclocker-front-v1.png');
+  assert.equal(overclocker.maxHp, balance.maxHp);
+  assert.equal(overclocker.moveSpeed, balance.moveSpeed);
+  assert.equal(overclocker.stats.damage, balance.damage);
+  assert.equal(overclocker.stats.attackSpeed, balance.attackSpeed);
+  assert.equal(overclocker.stats.critChance, balance.critChance);
+  assert.equal(overclocker.stats.critDamage, balance.critDamage);
+  assert.equal(overclocker.stats.armor, balance.armor);
+  assert.equal(overclocker.stats.evasion, balance.evasion);
+  assert.equal(overclocker.recommendedWeapon, 'pulse');
+  assert.equal(overclocker.signature.badge, `+${balance.rewardTierShift} CHEST / SCRAPPER TIER`);
+  assert.equal(overclocker.tradeoffTitle, `+${Math.round((balance.physicalContactDamageMultiplier - 1) * 100)}% Physical Contact Damage Taken`);
+  assert.deepEqual(overclocker.unlock, { kind: 'contract', contractId: 'two-of-a-kind' });
 });
 
 test('character socket projection preserves global Contract capacity without mutating PROFILE', () => {
@@ -99,7 +148,7 @@ test('character socket projection preserves global Contract capacity without mut
 test('Rack Hauler is a registered Contract character with the exact approved profile', () => {
   const rack = characters.CHARACTER_REGISTRY['rack-hauler'];
   const balance = config.CHARACTER_BALANCE.rackHauler;
-  assert.deepEqual(Object.keys(characters.CHARACTER_REGISTRY), ['field-engineer', 'rack-hauler']);
+  assert.deepEqual(Object.keys(characters.CHARACTER_REGISTRY), ['field-engineer', 'rack-hauler', 'overclocker']);
   assert.equal(characters.isCharacterId('rack-hauler'), true);
   assert.equal(rack.signature.name, 'Open Rack');
   assert.equal(rack.signature.icon, 'assets/2d/icon-stat-projectiles-v2.png');
@@ -120,7 +169,7 @@ test('Rack Hauler is a registered Contract character with the exact approved pro
   assert.deepEqual(provingGround?.reward, { kind: 'character', id: 'rack-hauler' });
   assert.equal(contracts.ACTIVE_CONTRACTS.includes(provingGround), true);
   assert.equal(contracts.ALL_CONTRACTS.length, 29);
-  assert.equal(contracts.ACTIVE_CONTRACTS.length, 28);
+  assert.equal(contracts.ACTIVE_CONTRACTS.length, 29);
 });
 
 test('Rack Hauler draft projection opens a third weapon without changing global odds or PROFILE', () => {
@@ -240,11 +289,21 @@ test('character stat rows derive baselines and format percentage ratings', () =>
     },
   );
   assert.equal(engineer.signature.badge, `${config.CHARACTER_BALANCE.fieldEngineer.fieldRepairFraction * 100}% MAX HP / CORE UPGRADE`);
+  const overclockerEvasion = characters.characterStatRows(characters.CHARACTER_REGISTRY.overclocker)
+    .find((row) => row.id === 'evasion');
+  assert.deepEqual(overclockerEvasion, {
+    id: 'evasion',
+    label: 'Evasion',
+    value: `${config.CHARACTER_BALANCE.overclocker.evasion}`,
+    icon: 'assets/2d/icon-stat-evasion.png',
+    changed: true,
+  });
 });
 
 test('registered run characters survive profile lock changes', () => {
   assert.equal(characters.registeredCharacterId('field-engineer'), 'field-engineer');
   assert.equal(characters.registeredCharacterId('rack-hauler'), 'rack-hauler');
+  assert.equal(characters.registeredCharacterId('overclocker'), 'overclocker');
   assert.equal(characters.registeredCharacterId('unknown-character'), characters.DEFAULT_CHARACTER_ID);
 });
 
@@ -281,9 +340,9 @@ test('character Contract reward is idempotent', () => {
 
 test('character unlock migration and reset preserve the live PROFILE array', () => {
   const reference = config.PROFILE.unlockedCharacters;
-  profile.normalizeCharacterUnlocks(['field-engineer', 'rack-hauler', 'unknown-character']);
+  profile.normalizeCharacterUnlocks(['field-engineer', 'rack-hauler', 'overclocker', 'unknown-character']);
   assert.strictEqual(config.PROFILE.unlockedCharacters, reference);
-  assert.deepEqual(reference, ['field-engineer', 'rack-hauler']);
+  assert.deepEqual(reference, ['field-engineer', 'rack-hauler', 'overclocker']);
 
   reference.push('stale-character');
   profile.normalizeCharacterUnlocks(undefined);
@@ -309,6 +368,11 @@ test('Bolt recommendation labels presentation without mutating draft membership 
     { id: 'blades', recommended: true },
     { id: 'press', recommended: false },
   ]);
+  assert.deepEqual(characters.labelWeaponOptions('overclocker', pool), [
+    { id: 'pulse', recommended: true },
+    { id: 'bolt', recommended: false },
+    { id: 'tire', recommended: false },
+  ]);
   assert.deepEqual(pool, before);
 });
 
@@ -332,8 +396,10 @@ test('character actions stay fixed outside the single section scroll owner', asy
   assert.match(hudSource, /dataset\.characterUnlocked/);
   assert.match(cssSource, /\.character-screen\s*\{[\s\S]*position:\s*static;[\s\S]*height:\s*min\(640px, calc\(100dvh - 32px\)\);[\s\S]*overflow:\s*hidden;/);
   assert.match(cssSource, /\.character-layout\s*\{[\s\S]*flex:\s*1 1 auto;[\s\S]*overflow-x:\s*hidden;[\s\S]*overflow-y:\s*auto;/);
-  assert.match(cssSource, /\.character-grid\s*\{[\s\S]*flex-wrap:\s*wrap;[\s\S]*overflow:\s*visible;/);
-  assert.match(cssSource, /\.character-card\s*\{[\s\S]*min-width:\s*300px;[\s\S]*min-height:\s*80px;[\s\S]*overflow:\s*visible;/);
+  assert.match(cssSource, /\.character-grid\s*\{[\s\S]*grid-template-columns:\s*repeat\(3, minmax\(0, 1fr\)\);[\s\S]*overflow:\s*visible;/);
+  assert.match(cssSource, /\.character-card\s*\{[\s\S]*min-width:\s*0;[\s\S]*min-height:\s*80px;[\s\S]*overflow:\s*visible;/);
+  assert.match(cssSource, /@media \(max-width:\s*899px\)[\s\S]*\.character-grid[^}]*repeat\(2/);
+  assert.match(cssSource, /@media \(max-width:\s*599px\)[\s\S]*\.character-grid[^}]*minmax\(0, 1fr\)/);
   assert.match(cssSource, /\.character-card > strong\s*\{[\s\S]*overflow:\s*visible;[\s\S]*white-space:\s*normal;[\s\S]*overflow-wrap:\s*anywhere;/);
   assert.match(cssSource, /\.character-detail\s*\{[\s\S]*grid-template-columns:[^;]*0\.9fr[^;]*1\.2fr[^;]*1\.05fr[\s\S]*overflow:\s*visible;[\s\S]*background:\s*transparent;[\s\S]*border:\s*0;/);
   assert.match(cssSource, /\.character-actions\s*\{[\s\S]*flex:\s*0 0 auto;/);
@@ -366,15 +432,56 @@ test('Recorded-build replay restores the character baseline before replaying Cor
     gameSource.indexOf('private enterBossLab'),
   );
   const resolveAt = apply.indexOf('registeredCharacterId(record.characterId)');
+  const rewardShiftAt = apply.indexOf('setRewardTierShift(rewardTierShiftForCharacter(this.currentCharacterId))');
   const statsAt = apply.indexOf('characterStats(this.currentCharacterId)');
   const modelAt = apply.indexOf('this.player.setCharacterModelKey(character.modelKey)');
   const replayAt = apply.indexOf('replayCoresOntoStats(this.stats, this.player, this.coreLevels)');
-  assert.ok(resolveAt >= 0 && statsAt > resolveAt && modelAt > statsAt && replayAt > modelAt);
+  assert.ok(resolveAt >= 0 && rewardShiftAt > resolveAt && statsAt > rewardShiftAt && modelAt > statsAt && replayAt > modelAt);
   assert.doesNotMatch(apply, /fieldRepairHp\(/);
 
   const bossLab = gameSource.slice(gameSource.indexOf('private enterBossLab'), gameSource.indexOf('private installAuditionKeys'));
   assert.match(bossLab, /this\.applyRecordedBuild\(record\)/);
   assert.doesNotMatch(bossLab, /fieldRepairHp\(/);
+});
+
+test('Recorded-build replay synchronizes reward tier shift in both identity directions', () => {
+  const shifts = [];
+  const models = [];
+  const fakeGame = {
+    currentCharacterId: 'field-engineer',
+    pickups: { setRewardTierShift: (shift) => { shifts.push(shift); } },
+    player: {
+      maxHp: 0,
+      hp: 0,
+      moveSpeed: 0,
+      setCharacterModelKey: (modelKey) => { models.push(modelKey); },
+    },
+    stats: stats.defaultStats(),
+    weaponLevels: {},
+    weaponBranches: {},
+    modCounts: {},
+    coreLevels: {},
+    progression: { level: 1 },
+  };
+  const record = (characterId) => ({
+    characterId,
+    weaponLevels: {},
+    modCounts: {},
+    coreLevels: {},
+    level: 1,
+  });
+
+  game.Game.prototype.applyRecordedBuild.call(fakeGame, record('overclocker'));
+  assert.equal(fakeGame.currentCharacterId, 'overclocker');
+  assert.equal(fakeGame.stats.evasion, config.CHARACTER_BALANCE.overclocker.evasion);
+  assert.deepEqual(shifts, [config.CHARACTER_BALANCE.overclocker.rewardTierShift]);
+  assert.deepEqual(models, ['overclocker']);
+
+  game.Game.prototype.applyRecordedBuild.call(fakeGame, record('field-engineer'));
+  assert.equal(fakeGame.currentCharacterId, 'field-engineer');
+  assert.equal(fakeGame.stats.evasion, stats.defaultStats().evasion);
+  assert.deepEqual(shifts, [config.CHARACTER_BALANCE.overclocker.rewardTierShift, 0]);
+  assert.deepEqual(models, ['overclocker', 'field-engineer']);
 });
 
 test('Field Engineer runtime details add a real rear backpack with three sockets', () => {
@@ -427,7 +534,7 @@ test('preview and live runtime own their material and attachment policies', asyn
 });
 
 test('both character rosters reuse approved front model references without mounting WebGL', async () => {
-  const [hudSource, cssSource, portraitBytes, rackPortraitBytes, rackSideBytes, rackBackBytes, rackTopBytes] = await Promise.all([
+  const [hudSource, cssSource, portraitBytes, rackPortraitBytes, rackSideBytes, rackBackBytes, rackTopBytes, overFrontBytes, overSideBytes, overBackBytes, overTopBytes] = await Promise.all([
     readFile(new URL('../src/hud.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/ui.css', import.meta.url), 'utf8'),
     readFile(new URL('../public/assets/2d/ref-field-engineer-front-v1.png', import.meta.url)),
@@ -435,6 +542,10 @@ test('both character rosters reuse approved front model references without mount
     readFile(new URL('../public/assets/2d/ref-rack-hauler-side-v3-seafoam.png', import.meta.url)),
     readFile(new URL('../public/assets/2d/ref-rack-hauler-back-v3-seafoam.png', import.meta.url)),
     readFile(new URL('../public/assets/2d/ref-rack-hauler-top-v3-seafoam.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-overclocker-front-v1.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-overclocker-side-v1.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-overclocker-back-v1.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-overclocker-top-v1.png', import.meta.url)),
   ]);
   assert.match(hudSource, /renderCharacterRoster\('characters-roster', false\)/);
   assert.match(hudSource, /renderCharacterRoster\('character-select-roster', true\)/);
@@ -446,7 +557,8 @@ test('both character rosters reuse approved front model references without mount
   assert.match(hudSource, /data-character-stat="\$\{row\.id\}"/);
   assert.match(hudSource, /data-character-module="signature"[\s\S]*selected\.signature\.icon/);
   assert.match(hudSource, /data-character-module="recommended-weapon"[\s\S]*Suggested Start/);
-  assert.match(hudSource, /data-character-module="tradeoff"[\s\S]*icon-stat-damage\.png/);
+  assert.match(hudSource, /data-character-module="tradeoff"[\s\S]*selected\.tradeoffIcon/);
+  assert.match(hudSource, /<span>\$\{selected\.archetype\}<\/span>/);
   assert.match(hudSource, /if \(unlocked \|\| character\.unlock\.kind === 'default'\) \{[\s\S]*return '';/);
   assert.doesNotMatch(hudSource, /character-unlock-chip|character-unlock-footer unlocked/);
   assert.doesNotMatch(cssSource, /character-unlock-chip|character-unlock-footer\.unlocked/);
@@ -502,4 +614,15 @@ test('both character rosters reuse approved front model references without mount
     [rackPortraitBytes, rackSideBytes, rackBackBytes, rackTopBytes].map((bytes) => [bytes.readUInt32BE(16), bytes.readUInt32BE(20)]),
     [[492, 816], [192, 816], [492, 816], [492, 684]],
   );
+  const overclocker = characters.CHARACTER_REGISTRY.overclocker;
+  assert.equal(overclocker.modelKey, 'overclocker');
+  assert.equal(overclocker.portrait, 'assets/2d/ref-overclocker-front-v1.png');
+  assert.equal(registry.VOXEL_MODELS[overclocker.modelKey].ref, overclocker.portrait);
+  assert.equal(registry.VOXEL_MODELS[overclocker.modelKey].sideProfileRef, 'assets/2d/ref-overclocker-side-v1.png');
+  assert.equal(registry.VOXEL_MODELS[overclocker.modelKey].backPaintRef, 'assets/2d/ref-overclocker-back-v1.png');
+  assert.equal(registry.VOXEL_MODELS[overclocker.modelKey].topPaintRef, 'assets/2d/ref-overclocker-top-v1.png');
+  for (const bytes of [overFrontBytes, overSideBytes, overBackBytes, overTopBytes]) {
+    assert.equal(bytes.toString('ascii', 1, 4), 'PNG');
+    assert.deepEqual([bytes.readUInt32BE(16), bytes.readUInt32BE(20)], [1024, 1024]);
+  }
 });

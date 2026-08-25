@@ -23,6 +23,7 @@ import {
   DEFAULT_CHARACTER_ID,
   characterStatRows,
   effectiveSocketCapacities,
+  isCharacterId,
   labelWeaponOptions,
   resolveCharacterId,
   socketPresentationStates,
@@ -2054,14 +2055,13 @@ export class Hud {
     }
 
     const statRows = characterStatRows(selected);
-    const damageTradeoff = statRows.find((row) => row.id === 'damage');
     const recommendedWeapon = WEAPON_INFO[selected.recommendedWeapon];
     const recommendedWeaponIcon = WEAPON_ICON_IMAGES[selected.recommendedWeapon];
     detail.innerHTML = `
       <section class="character-identity" aria-label="Character identity">
         <div class="character-portrait-stage">${this.characterPortraitHtml(selected, true)}</div>
         <header class="character-detail-header">
-          <span>Character Profile</span>
+          <span>${selected.archetype}</span>
           <h2>${selected.name}</h2>
           <p>${selected.shortDescription}</p>
         </header>
@@ -2079,10 +2079,10 @@ export class Hud {
           </div>
         </section>
         <section class="character-module tradeoff" data-character-module="tradeoff">
-          ${rigTileHtml({ src: 'assets/2d/icon-stat-damage.png', label: 'Damage tradeoff', cls: 'character-module-tile' })}
+          ${rigTileHtml({ src: selected.tradeoffIcon, label: selected.tradeoffTitle, cls: 'character-module-tile' })}
           <div class="character-module-copy">
             <span class="character-module-kicker">Tradeoff</span>
-            <h3>${damageTradeoff?.value ?? ''} Damage</h3>
+            <h3>${selected.tradeoffTitle}</h3>
             <p>${selected.tradeoff}</p>
           </div>
         </section>
@@ -3139,7 +3139,7 @@ function rewardIconHtml(reward: Reward | null, done: boolean): string {
   if (!reward) return '';
   switch (reward.kind) {
     case 'character': {
-      const character = CHARACTER_REGISTRY[reward.id];
+      const character = isCharacterId(reward.id) ? CHARACTER_REGISTRY[reward.id] : null;
       return character?.portrait
         ? `<img class="card-icon" src="${character.portrait}" alt="" />`
         : `<span class="reward-icon-text">${character?.name.split(/\s+/).map((part) => part[0]).join('').slice(0, 2).toUpperCase() ?? '??'}</span>`;

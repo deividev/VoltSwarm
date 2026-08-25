@@ -58,3 +58,14 @@ Thumbs.db
 *.mp3
 *.ogg
 *.woff2
+
+# Shipped Overclocker runtime sheets are the minimal exception to the local-only
+# asset policy. Parent directories must be reopened before exact file negations.
+!/public/assets/
+/public/assets/*
+!/public/assets/2d/
+/public/assets/2d/*
+!/public/assets/2d/ref-overclocker-front-v1.png
+!/public/assets/2d/ref-overclocker-side-v1.png
+!/public/assets/2d/ref-overclocker-back-v1.png
+!/public/assets/2d/ref-overclocker-top-v1.png

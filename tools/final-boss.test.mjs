@@ -664,7 +664,7 @@ test('a telegraphed attack is not eaten by the contact i-frame', async () => {
   const gameSource = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
   assert.match(
     gameSource,
-    /private damagePlayer\(rawDamage: number, attackerIndex = -1, pierceIframe = false\)/,
+    /private damagePlayer\([\s\S]{0,180}source: PlayerDamageSource;[\s\S]{0,100}pierceIframe\?: boolean;/,
   );
   assert.match(gameSource, /if \(!pierceIframe\) return;/);
   assert.match(gameSource, /this\.player\.clearInvulnerability\(\);/);
@@ -672,15 +672,15 @@ test('a telegraphed attack is not eaten by the contact i-frame', async () => {
   // kind of attack fired from further away. MEASURED 2026-08-19 — the volley
   // connected 6 times in 40s and landed none of them, because the swarm keeps
   // the i-frame open almost permanently.
-  assert.match(gameSource, /damagePlayer: \(amount\) => this\.damagePlayer\(amount, -1, true\)/);
+  assert.match(gameSource, /damagePlayer: \(amount\) => this\.damagePlayer\(amount, \{[\s\S]{0,100}source: 'telegraphed',[\s\S]{0,60}pierceIframe: true/);
   assert.match(
     gameSource,
-    /\(damage, kind\) => this\.damagePlayer\(damage, -1, kind === 'marshal'\)/,
+    /\(damage, kind\) => this\.damagePlayer\(damage, \{[\s\S]{0,160}source: kind === 'marshal' \? 'telegraphed' : 'projectile',[\s\S]{0,100}pierceIframe: kind === 'marshal'/,
   );
   // Everything else keeps the cap — the i-frame exists to stop the swarm from
   // deleting a player it has surrounded, and that job is unchanged.
-  assert.match(gameSource, /this\.damagePlayer\(this\.bossContactDamage\(\), i\);/);
-  assert.match(gameSource, /this\.damagePlayer\(base, i\);/);
+  assert.match(gameSource, /this\.damagePlayer\(this\.bossContactDamage\(\), \{[\s\S]{0,100}source: 'boss-ram'/);
+  assert.match(gameSource, /this\.damagePlayer\(base, \{[\s\S]{0,180}'boss-contact'[\s\S]{0,100}'elite-contact'[\s\S]{0,100}'swarm-contact'/);
 });
 
 test('taking a hit reads the same whatever threw it', async () => {
@@ -689,7 +689,7 @@ test('taking a hit reads the same whatever threw it', async () => {
   // Flash, shake and the player-hit cue are the whole contract for "I am hurt".
   const gameSource = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
   const funnel = gameSource.slice(
-    gameSource.indexOf('const amount = applyArmor'),
+    gameSource.indexOf('const sourceAdjustedDamage = rawDamage'),
     gameSource.indexOf("const boltCopies = this.modCounts['loose-bolts']"),
   );
   assert.ok(funnel.length > 0, 'the damage funnel must still be findable');
@@ -919,6 +919,17 @@ test('SHIFT loads the recorded test build, plain Y carries the live run', async 
   // The DEFAULT still refuses to overwrite a live run — that guard is the whole
   // reason the T key is trustworthy for judging a real crossing.
   assert.match(gameSource, /if \(!force && this\.hasLiveProgress\(\)\)/);
+  // A fresh live run has no progressed build, so plain Y borrows a recorded
+  // loadout. That must not borrow the recorded character too: otherwise a Rack
+  // Hauler clear is persisted as Field Engineer and Two of a Kind cannot move.
+  assert.match(
+    gameSource,
+    /const characterId = force[\s\S]{0,120}: this\.currentCharacterId;[\s\S]{0,80}this\.applyRecordedBuild\(record, characterId\);/,
+  );
+  assert.match(
+    gameSource,
+    /private applyRecordedBuild\([\s\S]{0,140}characterId: CharacterId = registeredCharacterId\(record\.characterId\)/,
+  );
 });
 
 test('the jump-to-finale key cannot ship', async () => {

@@ -191,6 +191,7 @@ try {
   const exerciseZeroRangeNavigation = async (rootSelector, expectedExitId) => {
     const fieldCardSelector = `${rootSelector} [data-character-id="field-engineer"]`;
     const rackCardSelector = `${rootSelector} [data-character-id="rack-hauler"]`;
+    const overclockerCardSelector = `${rootSelector} [data-character-id="overclocker"]`;
     const sectionSelector = `${rootSelector}[data-character-section-scroll]`;
     assert.equal(await page.$eval(sectionSelector, (section) => section.scrollHeight - section.clientHeight), 0);
     assert.equal(await page.$eval(sectionSelector, (section) => section.tabIndex), -1);
@@ -199,7 +200,11 @@ try {
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="rack-hauler"]')), true);
     await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="overclocker"]')), true);
+    await page.keyboard.press('ArrowDown');
     assert.equal(await page.evaluate(() => document.activeElement?.id), expectedExitId);
+    await page.keyboard.press('ArrowUp');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="overclocker"]')), true);
     await page.keyboard.press('ArrowUp');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="rack-hauler"]')), true);
     await page.keyboard.press('ArrowUp');
@@ -211,7 +216,11 @@ try {
     await padEdge({ button: 13 });
     await assertPadFocus(rackCardSelector);
     await padEdge({ button: 13 });
+    await assertPadFocus(overclockerCardSelector);
+    await padEdge({ button: 13 });
     await assertPadFocus(`#${expectedExitId}`);
+    await padEdge({ button: 12 });
+    await assertPadFocus(overclockerCardSelector);
     await padEdge({ button: 12 });
     await assertPadFocus(rackCardSelector);
     await padEdge({ button: 12 });
@@ -272,11 +281,15 @@ try {
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-section-scroll]')), true);
     await page.$eval(detailSelector, (detail) => { detail.scrollTop = 0; });
     await page.keyboard.press('ArrowUp');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="overclocker"]')), true);
+    await page.keyboard.press('ArrowUp');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="rack-hauler"]')), true);
     await page.keyboard.press('ArrowUp');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="field-engineer"]')), true);
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="rack-hauler"]')), true);
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-id="overclocker"]')), true);
     await page.keyboard.press('ArrowDown');
     assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-character-section-scroll]')), true);
   };
@@ -312,6 +325,7 @@ try {
   const exerciseRealGamepadNavigation = async (rootSelector, expectedExitId) => {
     const cardSelector = `${rootSelector} [data-character-id="field-engineer"]`;
     const rackCardSelector = `${rootSelector} [data-character-id="rack-hauler"]`;
+    const overclockerCardSelector = `${rootSelector} [data-character-id="overclocker"]`;
     const detailSelector = `${rootSelector}[data-character-section-scroll]`;
     await page.$eval(cardSelector, (card) => card.focus());
     await page.evaluate(() => document.activeElement?.blur());
@@ -321,6 +335,8 @@ try {
 
     await padEdge({ button: 13 });
     await assertPadFocus(rackCardSelector);
+    await padEdge({ button: 13 });
+    await assertPadFocus(overclockerCardSelector);
     await padEdge({ button: 13 });
     await assertPadFocus(detailSelector);
     const beforeStick = await page.$eval(detailSelector, (detail) => detail.scrollTop);
@@ -362,6 +378,8 @@ try {
     await assertPadFocus(cardSelector);
     await padEdge({ button: 13 });
     await assertPadFocus(rackCardSelector);
+    await padEdge({ button: 13 });
+    await assertPadFocus(overclockerCardSelector);
     await padEdge({ button: 13 });
     await assertPadFocus(detailSelector);
   };
@@ -440,6 +458,48 @@ try {
 
     await page.click(`${rootSelector} [data-character-id="field-engineer"]`);
   };
+  const exerciseLockedOverclocker = async (rootSelector, confirmSelector = null) => {
+    await page.click(`${rootSelector} [data-character-id="overclocker"]`);
+    const locked = await page.$eval(rootSelector, (root) => {
+      const card = root.querySelector('[data-character-id="overclocker"]');
+      const detail = root.querySelector('.character-detail');
+      const footer = detail?.querySelector('.character-unlock-footer.locked');
+      return {
+        unlocked: card?.getAttribute('data-character-unlocked'),
+        status: card?.querySelector('.character-card-status')?.textContent?.trim(),
+        lockIcon: card?.querySelector('.character-card-status img')?.getAttribute('src'),
+        header: detail?.querySelector('h2')?.textContent?.trim(),
+        archetype: detail?.querySelector('.character-detail-header > span')?.textContent?.trim(),
+        portrait: detail?.querySelector('.character-portrait.large')?.getAttribute('src'),
+        signature: detail?.querySelector('[data-character-module="signature"] h3')?.textContent?.trim(),
+        signatureIcon: detail?.querySelector('[data-character-module="signature"] .rig-icon')?.getAttribute('src'),
+        suggestedStart: detail?.querySelector('[data-character-module="recommended-weapon"] h3')?.textContent?.trim(),
+        tradeoff: detail?.querySelector('[data-character-module="tradeoff"] h3')?.textContent?.trim(),
+        evasion: detail?.querySelector('[data-character-stat="evasion"] .build-value')?.textContent?.trim(),
+        contract: footer?.querySelector('.character-unlock-requirement strong')?.textContent?.trim(),
+        progress: footer?.querySelector('.character-unlock-requirement span')?.textContent?.trim(),
+        progressMax: footer?.querySelector('[role="progressbar"]')?.getAttribute('aria-valuemax'),
+      };
+    });
+    assert.deepEqual(locked, {
+      unlocked: 'false',
+      status: 'Locked',
+      lockIcon: 'assets/2d/icon-ui-lock-v2.png',
+      header: 'Overclocker',
+      archetype: 'High-Risk Loot',
+      portrait: 'assets/2d/ref-overclocker-front-v1.png',
+      signature: 'Runaway Draw',
+      signatureIcon: 'assets/2d/prop-chest-front-v2.png',
+      suggestedStart: 'Volt Pulse',
+      tradeoff: '+35% Physical Contact Damage Taken',
+      evasion: '18',
+      contract: 'Two of a Kind',
+      progress: '0 / 2',
+      progressMax: '2',
+    });
+    if (confirmSelector) assert.equal(await page.$eval(confirmSelector, (button) => button.disabled), true);
+    await page.click(`${rootSelector} [data-character-id="field-engineer"]`);
+  };
   const selectorState = await page.evaluate(readRoster, '#character-select-roster');
   const runtimeMeasurements = [];
   assert.equal(await page.$eval('#character-confirm-button', (button) => button.disabled), false);
@@ -455,6 +515,7 @@ try {
   await exerciseRealGamepadNavigation('#character-select-roster', 'character-select-back-button');
   await exerciseSectionNavigation('#character-select-roster', 'character-select-back-button');
   await exerciseLockedCharacter('#character-select-roster', '#character-confirm-button');
+  await exerciseLockedOverclocker('#character-select-roster', '#character-confirm-button');
 
   await page.click('#character-select-back-button');
   await page.click('#characters-button');
@@ -475,6 +536,7 @@ try {
   await exerciseRealGamepadNavigation('#characters-roster', 'characters-back-button');
   await exerciseSectionNavigation('#characters-roster', 'characters-back-button');
   await exerciseLockedCharacter('#characters-roster');
+  await exerciseLockedOverclocker('#characters-roster');
   const unlockedRack = await page.evaluate(async () => {
     const [{ PROFILE }, { grantReward, ALL_CONTRACTS }] = await Promise.all([
       import('/src/config.ts'),
@@ -499,6 +561,34 @@ try {
   assert.deepEqual(unlockedRack, {
     sameArray: true,
     ids: ['field-engineer', 'rack-hauler'],
+    unlocked: 'true',
+    status: 'Unlocked',
+    statusIcon: null,
+    footer: null,
+  });
+  const unlockedOverclocker = await page.evaluate(async () => {
+    const [{ PROFILE }, { LIFETIME }, { settleContracts }] = await Promise.all([
+      import('/src/config.ts'),
+      import('/src/profile.ts'),
+      import('/src/contracts.ts'),
+    ]);
+    const reference = PROFILE.unlockedCharacters;
+    LIFETIME.completedCharacterIds.splice(0, LIFETIME.completedCharacterIds.length, 'field-engineer', 'rack-hauler');
+    settleContracts();
+    document.querySelector('#characters-roster [data-character-id="overclocker"]')?.click();
+    const card = document.querySelector('#characters-roster [data-character-id="overclocker"]');
+    return {
+      sameArray: PROFILE.unlockedCharacters === reference,
+      ids: [...PROFILE.unlockedCharacters],
+      unlocked: card?.getAttribute('data-character-unlocked'),
+      status: card?.querySelector('.character-card-status')?.textContent?.trim(),
+      statusIcon: card?.querySelector('.character-card-status img')?.getAttribute('src') ?? null,
+      footer: document.querySelector('#characters-roster .character-unlock-footer')?.className ?? null,
+    };
+  });
+  assert.deepEqual(unlockedOverclocker, {
+    sameArray: true,
+    ids: ['field-engineer', 'rack-hauler', 'overclocker'],
     unlocked: 'true',
     status: 'Unlocked',
     statusIcon: null,

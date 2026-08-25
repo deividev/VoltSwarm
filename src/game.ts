@@ -60,9 +60,12 @@ import {
   CHARACTER_REGISTRY,
   characterStats,
   fieldRepairHp,
+  physicalContactDamageMultiplier,
   registeredCharacterId,
+  rewardTierShiftForCharacter,
   resolveCharacterId,
   type CharacterId,
+  type PlayerDamageSource,
 } from './characters';
 
 /** Per-weapon fire sound. Weapons without a dedicated asset yet fall back to
@@ -494,7 +497,10 @@ export class Game {
     this.boss.setEffects({
       // Telegraphed by definition: everything routed through here is a boss
       // attack the player was shown before it fired, so it pierces the i-frame.
-      damagePlayer: (amount) => this.damagePlayer(amount, -1, true),
+      damagePlayer: (amount) => this.damagePlayer(amount, {
+        source: 'telegraphed',
+        pierceIframe: true,
+      }),
       // Live, not captured: Max HP cores can land between two attacks.
       playerMaxHp: () => this.player.maxHp,
       burst: (x, z, color, count, y) => this.burst.spawn(x, z, color, count, y),
@@ -620,6 +626,7 @@ export class Game {
     selectedMapId: MapId = MAPS[0].id,
   ): void {
     this.currentCharacterId = resolveCharacterId(requestedCharacterId, PROFILE);
+    this.pickups.setRewardTierShift(rewardTierShiftForCharacter(this.currentCharacterId));
     this.resetRunWorld();
     clearProps(this.scene, this.propMeshes);
     this.propMeshes = [];
@@ -738,11 +745,16 @@ export class Game {
    *  REPLAYED from core picks rather than restored: the record stores how many
    *  times each core was taken, never which rarity rolled — see
    *  replayCoresOntoStats. Callers refresh the build HUD after any further setup. */
-  private applyRecordedBuild(record: RunRecordV1): void {
-    // Preserve the registered character recorded with the build. Older or
-    // unknown ids fall back to the default, but current unlocks cannot rewrite
-    // the identity of an existing run record.
-    this.currentCharacterId = registeredCharacterId(record.characterId);
+  private applyRecordedBuild(
+    record: RunRecordV1,
+    characterId: CharacterId = registeredCharacterId(record.characterId),
+  ): void {
+    // Replay and Boss Lab preserve the character stored in the record. Dev
+    // shortcuts may instead carry the live character while borrowing only the
+    // recorded loadout, so a fresh Rack Hauler finale is credited to Rack
+    // Hauler rather than silently becoming the record's Field Engineer.
+    this.currentCharacterId = characterId;
+    this.pickups.setRewardTierShift(rewardTierShiftForCharacter(this.currentCharacterId));
     const character = CHARACTER_REGISTRY[this.currentCharacterId];
     this.stats = characterStats(this.currentCharacterId);
     this.player.maxHp = character.maxHp;
@@ -851,7 +863,13 @@ export class Game {
       this.hud.toast(`${label}: no recorded run yet — keeping the fresh build`);
       return;
     }
-    this.applyRecordedBuild(record);
+    // Plain shortcuts borrow the recorded loadout but keep the selected live
+    // character. SHIFT is the explicit "load that recorded run" variant, so it
+    // intentionally restores the record's character as well as its build.
+    const characterId = force
+      ? registeredCharacterId(record.characterId)
+      : this.currentCharacterId;
+    this.applyRecordedBuild(record, characterId);
     this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches, this.currentCharacterId);
     this.hud.toast(
       full
@@ -1071,7 +1089,7 @@ export class Game {
       if (e.code !== 'KeyK' || e.repeat || this.state !== 'playing') return;
       e.preventDefault();
       this.player.clearInvulnerability();
-      this.damagePlayer(this.player.maxHp * 100);
+      this.damagePlayer(this.player.maxHp * 100, { source: 'other' });
     });
   }
 
@@ -2019,7 +2037,10 @@ export class Game {
       // 0.4s i-frame was open almost permanently, so a shot the player was
       // asked to weave cost nothing. A boss attack pierces it; a Gunner's
       // shard does not.
-      (damage, kind) => this.damagePlayer(damage, -1, kind === 'marshal'),
+      (damage, kind) => this.damagePlayer(damage, {
+        source: kind === 'marshal' ? 'telegraphed' : 'projectile',
+        pierceIframe: kind === 'marshal',
+      }),
       // Impact pop in the shot's own color — the hit on YOU is seen too.
       (x, z, color) => this.burst.spawn(x, z, color, 4),
     );
@@ -2223,6 +2244,11 @@ export class Game {
     };
   }
 
+  private isChestModEligible(id: ModId): boolean {
+    return (id !== 'repair' || this.player.hp < this.player.maxHp) &&
+      isModEligibleForChest(id, this.modCounts[id] ?? 0);
+  }
+
   /** Price/state labels stay pinned to every on-screen chest at any distance.
    *  This is presentation only: nearestOpenable remains the purchase gate. */
   private updateChestMarkers(): void {
@@ -2301,11 +2327,16 @@ export class Game {
     chestX = this.player.position.x,
     chestZ = this.player.position.z,
   ): void {
+    // Claim the fixed-at-spawn chest before any side effect. A stale/repeated
+    // interaction with the same slot is a no-op and cannot charge twice.
+    if (!this.pickups.open(index)) return;
+
+    // A chest's tier, beam and price are permanently fixed at spawn. Eligibility
+    // may have changed since spawn, but it must never rewrite that advertised tier.
     this.gold -= price;
     this.runChestsByTier[tier] = (this.runChestsByTier[tier] ?? 0) + 1;
     this.audio.emit({ id: 'chest-open', priority: 2 });
     this.hud.updateGold(this.gold);
-    this.pickups.open(index);
     this.burst.spawn(chestX, chestZ, VISUAL.chestVfx.openColor, VISUAL.chestVfx.openCount);
     this.burst.spawn(chestX, chestZ, VISUAL.chestVfx.hotColor, VISUAL.chestVfx.hotCount);
     this.shakeAmp = Math.max(this.shakeAmp, VISUAL.chestVfx.shakeAmp);
@@ -2314,14 +2345,16 @@ export class Game {
     const forceOrbSiphon =
       RECORDING.chestTesting.forceOrbSiphonReward &&
       isModEligibleForChest('orb-siphon', ownedSiphonCopies);
-    const mod: ModId = forceOrbSiphon
+    const mod = forceOrbSiphon
       ? 'orb-siphon'
       : rollModOfTier(
           tier,
-          (id) =>
-            (id !== 'repair' || this.player.hp < this.player.maxHp) &&
-            isModEligibleForChest(id, this.modCounts[id] ?? 0),
+          (id) => this.isChestModEligible(id),
         );
+    if (!mod) {
+      this.hud.toast('Chest spent: no eligible Mod remained.');
+      return;
+    }
     telemetry.choice('chest_purchase', {
       tier,
       price,
@@ -2519,7 +2552,7 @@ export class Game {
   }
 
   /** Single intake funnel for player damage: evasion, armor, shield, thorns. */
-  /** @param pierceIframe A TELEGRAPHED attack that must land regardless of the
+  /** @param options.pierceIframe A TELEGRAPHED attack that must land regardless of the
    *  contact i-frame. Measured 2026-08-19: the Marshal's sweep asked for damage
    *  five times in forty seconds and landed ZERO — every single one arrived
    *  inside the 0.4s window opened by a Voltling touching the player, and
@@ -2527,7 +2560,16 @@ export class Game {
    *  to cap SWARM dps (it is the difficulty dial for diving into a crowd); a
    *  boss attack you were shown 1.3 seconds in advance is not swarm chip
    *  damage, and swallowing it made the boss's signature move do nothing. */
-  private damagePlayer(rawDamage: number, attackerIndex = -1, pierceIframe = false): void {
+  private damagePlayer(
+    rawDamage: number,
+    options: {
+      attackerIndex?: number;
+      source: PlayerDamageSource;
+      pierceIframe?: boolean;
+    },
+  ): void {
+    const attackerIndex = options.attackerIndex ?? -1;
+    const pierceIframe = options.pierceIframe ?? false;
     if (this.player.isDead) return;
     // The run is already won: a leftover Voltling landing a hit during the
     // Marshal's death beat must not turn a completed arc into a defeat.
@@ -2573,7 +2615,11 @@ export class Game {
       return;
     }
 
-    const amount = applyArmor(rawDamage, this.stats.armor);
+    const sourceAdjustedDamage = rawDamage * physicalContactDamageMultiplier(
+      this.currentCharacterId,
+      options.source,
+    );
+    const amount = applyArmor(sourceAdjustedDamage, this.stats.armor);
     this.runDamageTaken += amount;
     this.player.takeHit(amount);
     // Lethality is read from the ACTUAL post-armor result, never inferred from
@@ -2871,7 +2917,10 @@ export class Game {
         if (ram && this.boss.isBossType(e.typeIndex)) {
           if (this.billedRamSerial === ram.ramSerial) continue;
           this.billedRamSerial = ram.ramSerial;
-          this.damagePlayer(this.bossContactDamage(), i);
+          this.damagePlayer(this.bossContactDamage(), {
+            attackerIndex: i,
+            source: 'boss-ram',
+          });
           this.flingFromRam(ram, px, pz);
           continue;
         }
@@ -2884,7 +2933,14 @@ export class Game {
           : PLAYER.contactDamage *
             (e.elite ? ELITES.scaleMultiplier : 1) *
             (MAPS[this.runFlow.mapIndex]?.contactDamageMult ?? 1);
-        this.damagePlayer(base, i);
+        this.damagePlayer(base, {
+          attackerIndex: i,
+          source: this.boss.isBossType(e.typeIndex)
+            ? 'boss-contact'
+            : e.elite
+              ? 'elite-contact'
+              : 'swarm-contact',
+        });
         // Kick Plate: shove whoever just hit you.
         const kickCopies = this.modCounts['kick-plate'] ?? 0;
         if (kickCopies > 0) {
@@ -3138,6 +3194,7 @@ export class Game {
           this.stats.luck,
           MERCHANT.stock + (whistle ? 1 : 0),
           (id) => !isModAtCopyCap(id, this.modCounts[id] ?? 0),
+          rewardTierShiftForCharacter(this.currentCharacterId),
         );
         this.merchant.arrive(spot.x, spot.z, stock, this.elapsedS);
         this.audio.emit({ id: 'merchant-arrival', priority: 2 });

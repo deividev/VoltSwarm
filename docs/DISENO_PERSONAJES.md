@@ -1,6 +1,6 @@
 # Personajes de lanzamiento — estado y briefs
 
-Este documento separa lo implementado de lo todavía pendiente. Field Engineer y Rack Hauler son jugables. **Overclocker está elegido y su contrato de diseño está aprobado, pero todavía no está implementado ni tiene arte aprobado.**
+**Field Engineer, Rack Hauler, and Overclocker are final and CLOSED for the current release scope.** Two of a Kind unlocks the third after two distinct registered character IDs complete the arc. No further launch-character production work remains active.
 
 ## Estado rápido
 
@@ -8,7 +8,7 @@ Este documento separa lo implementado de lo todavía pendiente. Field Engineer y
 |---|---|---|---|---|
 | Field Engineer | Forgiving starting character | Implemented | Runtime v1 definitively approved in-game | Playable |
 | Rack Hauler | Broad weapon rack / shallow Core depth | Implemented | Seafoam v3 approved; Map 1/2 checked | Playable; specific 400+ gate passed |
-| Overclocker | Premium loot / glass body | Design contract approved | Direction only; concept and exact palette pending | Not implemented |
+| Overclocker | Premium loot / glass body | Final | Runtime v1 approved by explicit user acceptance | Closed; no separate 400+ result claimed |
 
 ## Field Engineer
 
@@ -29,7 +29,7 @@ Debe ser una evolución reconocible del jugador actual y cargar con las primeras
 - `src/characters.ts` es el registry data-driven y usa IDs estables; `field-engineer` está desbloqueado por defecto.
 - Flujo: Play → selección de personaje → draft de arma → loading → run. El menú Characters reutiliza el mismo registry.
 - `PROFILE.unlockedCharacters` persiste IDs y Proving Ground concede Rack Hauler mediante un reward de personaje activo.
-- `Proving Ground` está activo y desbloquea Rack Hauler. `Run Completion` es la única definición latente, queda fuera de UI/evaluación y conserva internamente `next-core`.
+- `Proving Ground` y `Two of a Kind` están activos; el catálogo no contiene definiciones latentes.
 - Selection, character details, and model v1 are integrated at runtime. The body uses measured-profile extrusion with a pack-free `side-depth` sheet; `backPaintRef` paints the existing shell, while dedicated procedural geometry restores the pack's rear volume. Multi-angle inspection, rear-view locomotion, and the 400+ enemy swarm gate passed, and the runtime model is definitively approved in-game.
 
 ## Rack Hauler — implementado y jugable
@@ -53,7 +53,7 @@ Rack Hauler dobla la capacidad de build horizontal: carga un arma más y un Core
 - El resolver puro de capacidad deriva sockets efectivos desde el `PROFILE` global y offsets config-backed. El draft y el RIG in-run ya consumen esa proyección; Field Engineer sigue produciendo exactamente 2/2→3/4.
 - `src/socket-rewards.ts`, persistencia, liquidación de Contracts y pips de la UI de Contracts siguen globales. Seleccionar un personaje nunca mutará `PROFILE`.
 - Runs guardadas, replay y Boss Lab restauran `rack-hauler` por ID aunque el perfil actual esté bloqueado; IDs desconocidos sí conservan el fallback histórico a Field Engineer.
-- `Proving Ground` está activo con umbral de cuatro armas iniciales distintas y recompensa `{ kind: 'character', id: 'rack-hauler' }`. El catálogo queda en 29 Contracts declarados / 28 activos / 1 latente.
+- `Proving Ground` y `Two of a Kind` están activos. El catálogo queda en 29 Contracts declarados / 29 activos / 0 latentes.
 - Arte runtime final: `ref-rack-hauler-{front,side,back,top}-v3-seafoam.png`, paleta seafoam `#BAE8C6`, tool green `#3B9B73`, graphite `#202830` y visor `#E9F6FF`. El modelo medido usa 14.914 vóxeles / 13.120 triángulos por instancia.
 - Se verificaron previews cardinales 0°/90°/180°/270° y lectura real en Mapa 1 y Mapa 2. El harness read-only por hooks DEV seleccionó Rack Hauler real con desbloqueo solo en memoria y sostuvo 430 enemigos durante 12 s en Mapa 2: 430/430 movidos, modelo `rack-hauler` antes/después, 119.94 FPS medios, bucket mínimo 119.76, mediana 8.3 ms, p99 8.5 ms, 13.120 triángulos y 0 errores de página. Esto supera el gate específico 400+ de lectura/modelo sin degradación obvia. No equivale al benchmark canónico VFX-heavy de 65 s porque `tools/perf-stress.mjs` siempre confirma Field Engineer y no acepta personaje; parametrizarlo sigue siendo cobertura extendida, no un gate abierto de Rack.
 
@@ -66,7 +66,7 @@ Rack Hauler dobla la capacidad de build horizontal: carga un arma más y un Core
 - [x] Integrar la definición runtime y activar `Proving Ground` con su reward de personaje.
 - [x] Verificar selector bloqueado/desbloqueado, RIG 3/1→4/3 y persistencia por ID.
 
-## Overclocker — contrato aprobado, no implementado
+## Overclocker — implementado y jugable
 
 ### Decisión de producto
 
@@ -95,17 +95,19 @@ Overclocker dobla el sistema de tiers de recompensa: obtiene antes Mods de mayor
 - Silueta: casco redondeado moderadamente grande, torso estrecho, extremidades largas y espalda completamente limpia. La identidad NO usa reactor dorsal, aletas, mochila ni rack.
 - Tecnología: visor ancho y reactor pequeño encastrado en el pecho, protegido por marco graphite; el núcleo no altera la silueta exterior.
 - Paleta plana aprobada para las hojas: machine white `#E7E5DE`, graphite `#1D232A`, granate `#9B3656` y ruby `#D84A77` reservado al núcleo frontal.
-- Hojas de conversión candidatas: `overclocker-{front,side,back,top}-flat-v1.png` bajo `art/concept/overclocker/`. Siguen pendientes de aprobación conjunta y validación in-game en ambos mapas antes de empaquetarlas o registrar el modelo.
+- Assets runtime empaquetados: `public/assets/2d/ref-overclocker-{front,side,back,top}-v1.png`. `CHARACTER_REGISTRY.overclocker` usa `modelKey: 'overclocker'` y el portrait frontal exacto, sin fallback.
 
-### Gates antes de activar
+### Estado de integración
 
 - [x] Aprobar concept V3 y paleta plana candidata.
-- [ ] Validar la paleta y la lectura cenital en Mapa 1 y Mapa 2.
-- [ ] Aprobar frontal/lateral/trasera planas y portrait empaquetado.
-- [ ] Registrar `modelKey`, definición runtime y Contract por ID estable.
-- [ ] Verificar UI bloqueada/desbloqueada, progreso de Two of a Kind, teclado/gamepad y Confirm bloqueado.
-- [ ] Verificar promoción, precio, telegraph y fallback de pools en cofres y Chatarrero.
-- [ ] Validar lectura y rendimiento con 400+ enemigos antes de considerarlo jugable.
+- [x] Preparar y probar balance, Runaway Draw, daño por fuente y fallback elegible.
+- [x] Persistir el ledger monotónico de IDs que completaron el arco y definir `Two of a Kind` con recompensa estable `overclocker`.
+- [x] Empaquetar frontal/lateral/trasera/top y portrait runtime.
+- [x] Registrar `modelKey`, definición runtime y Contract por ID estable.
+- [x] Verificar por tests UI bloqueada/desbloqueada, progreso de Two of a Kind, navegación y Confirm bloqueado.
+- [x] Verificar promoción, precio, telegraph y fallback de pools en cofres y Chatarrero.
+- [x] Close the runtime visual and top-down read by explicit user acceptance.
+- [x] Record benchmark scope honestly: no separate Overclocker 400+ result exists or is claimed.
 
 ## Brief visual v1
 
@@ -149,7 +151,6 @@ These images remain source material for reconstruction and provenance. Approval 
 4. El gate de enjambre pasó con 431–440 enemigos: 118.87 FPS medios, bucket mínimo 92.41 FPS, p99 8.5 ms, 0 errores de página y 431/431 enemigos en movimiento.
 5. Result: runtime model v1 is technically validated and definitively approved in-game.
 
-## Fuera de alcance actual
+## Deferred coverage, not release blockers
 
-- Implementar y producir el arte de Overclocker; su contrato de diseño ya está fijado.
-- Parametrizar `tools/perf-stress.mjs` por personaje para extender a Rack la cobertura canónica VFX-heavy de 65 s; no bloquea su gate específico ya superado.
+- Parameterize `tools/perf-stress.mjs` by character if future coverage work needs a canonical 65 s comparison. This does not reopen any of the three closed characters.

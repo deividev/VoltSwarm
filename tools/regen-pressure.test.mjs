@@ -138,7 +138,7 @@ test('Regen HP/min reports recovery against representative real incoming-damage 
   // all; only the Marshal's own volley pierces it (see final-boss.test.mjs).
   assert.match(
     gameSource,
-    /\(damage, kind\) => this\.damagePlayer\(damage, -1, kind === 'marshal'\)/,
+    /\(damage, kind\) => this\.damagePlayer\(damage, \{[\s\S]{0,160}source: kind === 'marshal' \? 'telegraphed' : 'projectile',[\s\S]{0,100}pierceIframe: kind === 'marshal'/,
   );
   assert.match(statsSource, /return Math\.max\(1, Math\.round\(damage \* \(1 - reduction\)\)\);/);
 

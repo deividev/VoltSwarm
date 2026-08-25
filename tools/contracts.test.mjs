@@ -38,11 +38,18 @@ function resetState() {
   storage.clear();
 }
 
-function record(id, outcome, { weapons = 1, mods = 0, sectorsCleared = 0, durationS = 600 } = {}) {
+function record(id, outcome, {
+  weapons = 1,
+  mods = 0,
+  sectorsCleared = 0,
+  durationS = 600,
+  characterId = 'field-engineer',
+} = {}) {
   return {
     id,
     outcome,
     map: { id: 'scrapyard', number: 1, title: 'Scrapyard' },
+    characterId,
     sectorsCleared,
     mapsReached: sectorsCleared + 1,
     durationS,
@@ -61,7 +68,7 @@ after(async () => server.close());
 
 test('contract catalog exposes Map 2 branch rules and configured mastery copy', () => {
   assert.equal(contracts.ALL_CONTRACTS.length, 29);
-  assert.equal(contracts.ACTIVE_CONTRACTS.length, 28);
+  assert.equal(contracts.ACTIVE_CONTRACTS.length, 29);
   const provingGround = contracts.ALL_CONTRACTS.find(({ id }) => id === 'proving-ground');
   assert.deepEqual(provingGround.objective, {
     type: 'distinct-starting-weapons',
@@ -200,10 +207,24 @@ test('Proving Ground grants Rack Hauler once and preserves the live character-id
   assert.equal(contracts.settleContracts().some(({ contract }) => contract.id === 'proving-ground'), false);
 });
 
-test('remaining latent copy is truthful to its current non-character objective', () => {
+test('Two of a Kind actively grants Overclocker once and preserves the live character-id array', () => {
   const contract = contracts.ALL_CONTRACTS.find((candidate) => candidate.id === 'two-of-a-kind');
   assert.equal(contract.description, contracts.describeObjective(contract.objective));
-  assert.doesNotMatch(contract.description, /character/i);
+  assert.deepEqual(contract.objective, {
+    type: 'distinct-completed-characters',
+    n: config.CONTRACTS.twoOfAKindCharacters,
+  });
+  assert.deepEqual(contract.reward, { kind: 'character', id: 'overclocker' });
+  assert.equal(contract.latent, undefined);
+  assert.equal(contracts.ACTIVE_CONTRACTS.includes(contract), true);
+  const unlockedReference = config.PROFILE.unlockedCharacters;
+  profile.LIFETIME.completedCharacterIds.push('field-engineer', 'rack-hauler');
+  assert.deepEqual(contracts.progressOf(contract.objective), { current: 2, target: 2 });
+  const earned = contracts.settleContracts().find(({ contract: item }) => item.id === contract.id);
+  assert.deepEqual(earned?.granted, { kind: 'character', id: 'overclocker' });
+  assert.strictEqual(config.PROFILE.unlockedCharacters, unlockedReference);
+  assert.deepEqual(config.PROFILE.unlockedCharacters, ['field-engineer', 'overclocker']);
+  assert.equal(contracts.settleContracts().some(({ contract: item }) => item.id === contract.id), false);
 });
 
 test('Contract progress cells use exact small targets and fractional normalized large targets', () => {
@@ -305,6 +326,7 @@ test('Contracts All groups visible rows by tab category without changing canonic
 
   assert.deepEqual(grouped, [
     'proving-ground',
+    'two-of-a-kind',
     'first-blood', 'arsenal-1', 'arsenal-2', 'arsenal-3', 'arsenal-4',
     'scrap-quota-1', 'scrap-quota-2', 'scrap-quota-3', 'scrap-quota-4',
     'veteran-1', 'veteran-2', 'veteran-3', 'veteran-4', 'ascension-1', 'ascension-2',
@@ -344,9 +366,9 @@ test('every rendered title pairs its objective-aligned challenge with the exact 
   const latentCompletion = contracts.ALL_CONTRACTS.find(({ id }) => id === 'two-of-a-kind');
   assert.equal(levelMilestone.title, 'Level Milestone');
   assert.equal(levelMilestone.objective.type, 'reach-level');
-  assert.equal(latentCompletion.title, 'Run Completion');
-  assert.equal(latentCompletion.objective.type, 'complete-runs');
-  assert.equal(contracts.ALL_CONTRACTS.some(({ title }) => ['Full Loadout', 'Two of a Kind'].includes(title)), false);
+  assert.equal(latentCompletion.title, 'Two of a Kind');
+  assert.equal(latentCompletion.objective.type, 'distinct-completed-characters');
+  assert.equal(contracts.ALL_CONTRACTS.some(({ title }) => title === 'Full Loadout'), false);
 });
 
 test('canonical preview matches simultaneous settlement despite progress sorting', () => {
@@ -438,6 +460,43 @@ test('old lifetime saves normalize missing structural counters to zero', () => {
   profile.loadProfile();
   assert.equal(profile.LIFETIME.runsCompleted, 0);
   assert.equal(profile.LIFETIME.bestMinimalSectors, 0);
+  assert.deepEqual(profile.LIFETIME.completedCharacterIds, []);
+});
+
+test('completed-character ledger is monotonic, idempotent, and ignores incomplete or unknown runs', () => {
+  profile.recordRunInLifetime(record('field-complete', 'run-complete', {
+    sectorsCleared: config.MAPS.length,
+    characterId: 'field-engineer',
+  }));
+  profile.recordRunInLifetime(record('field-complete', 'run-complete', {
+    sectorsCleared: config.MAPS.length,
+    characterId: 'field-engineer',
+  }));
+  profile.recordRunInLifetime(record('rack-defeat', 'defeat', {
+    sectorsCleared: config.MAPS.length - 1,
+    characterId: 'rack-hauler',
+  }));
+  profile.recordRunInLifetime(record('unknown-complete', 'run-complete', {
+    sectorsCleared: config.MAPS.length,
+    characterId: 'unknown-character',
+  }));
+  profile.recordRunInLifetime(record('rack-complete', 'run-complete', {
+    sectorsCleared: config.MAPS.length,
+    characterId: 'rack-hauler',
+  }));
+  profile.recordRunInLifetime(record('overclocker-complete', 'run-complete', {
+    sectorsCleared: config.MAPS.length,
+    characterId: 'overclocker',
+  }));
+
+  assert.deepEqual(profile.LIFETIME.completedCharacterIds, ['field-engineer', 'rack-hauler', 'overclocker']);
+  const twoOfAKind = contracts.ALL_CONTRACTS.find(({ id }) => id === 'two-of-a-kind');
+  assert.deepEqual(contracts.progressOf(twoOfAKind.objective), { current: 3, target: 2 });
+
+  profile.saveProfile();
+  profile.LIFETIME.completedCharacterIds.splice(0);
+  profile.loadProfile();
+  assert.deepEqual(profile.LIFETIME.completedCharacterIds, ['field-engineer', 'rack-hauler', 'overclocker']);
 });
 
 test('Characters, Contracts, and Settings retain their shared UI roles', () => {

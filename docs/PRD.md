@@ -9,13 +9,13 @@
 | Área | Estado real |
 | --- | --- |
 | Arco | Mapa 1 exige 10:00 + ≥1 boss; sin boss termina `OBJECTIVE FAILED` (`boss-required`). El cruce conserva build, nivel, XP y descartes, cura al 100% y deja oro en 0. El crédito final depende de sectores acreditados; matar solo al boss final sin crédito previo no produce `run-complete`. |
-| Foundry | Suelo raster, chimeneas/celdas, cobertura, muro de arena y cielo+niebla propios ya están implementados. Curva `{ floor: 0.7, peak: 1.15, rampS: 600 }`; HP usa el reloj del arco; roster local ×2.5; contacto swarm ×1.5 y boss ×1.25. Pendientes: colada/chispas y reteñido o elenco propio. |
-| Perfil y contenido | Armas globales 2→3; Cores globales 2→4; descartes 3→4. 11 armas registradas / 10 jugables (Oil deshabilitada), 20 Cores, 17 Mods y 29 contratos declarados / 28 activos / 1 latente. Field Engineer y Rack Hauler son jugables; Proving Ground desbloquea Rack Hauler. |
+| Foundry | Raster floor, stacks/cells, cover, arena wall, and per-map sky/fog are implemented. The current replacement slice is CLOSED with Furnace Mite, Axle Runner, and Slagcaster. Forge Dart, further Rustbrute/Drone replacements, Arc Courier, and other enemy expansion are deferred. Molten-flow glow and voxel sparks remain pending. |
+| Profile and content | Global weapons 2→3; global Cores 2→4; discards 3→4. 11 registered weapons / 10 playable (Oil disabled), 20 Cores, 17 Mods, and 29 declared / 29 active Contracts. Field Engineer, Rack Hauler, and Overclocker are final and CLOSED for the current release scope; Proving Ground and Two of a Kind unlock the two additional characters. |
 | Recompensas | Cofres pagados a 0.5× entregan Mods. Skip/descartes está implementado; Reroll y Banish siguen pendientes. Barrier Cell: 30 s base, −3 s por copias 7–10, mínimo 18 s, cap 10. La recomendación de arma del personaje se presenta como `Suggested Start`, nunca como obligación. |
 | Audio | Audio v1 aceptado. Las recetas y manifiestos están versionados, pero la reconstrucción completa del pack runtime activo aún no está unificada en un solo comando; `pnpm audio:generate` sí cubre foundation, navegación UI y `boss-assembly-open`. El finale tiene cues propias `boss-sweep-charge/warn/fire`, `boss-volley`, `boss-assembly-open/spawn` y `boss-overload-open/erupt`. Oil emite `oil-drop`, pero el evento no está enabled ni en el manifiesto y permanece silencioso. |
 | Entrega | Working tree `0.22.0`; `HEAD` todavía `0.21.0`. `shortMaps=false`; `mapTransitionKey=true` y `finaleKey=true`, por lo que `pnpm package` sigue bloqueado. No existe paquete 0.22.0. |
 
-**Siguiente secuencia:** remate visual de Foundry → tercer personaje → runs humanas y `pnpm stats` para balance/retención → cohesión de audio del contenido nuevo → Steamworks/cierre.
+**Next sequence:** Foundry molten-flow glow and voxel sparks → completed human runs plus `pnpm stats` for balance/retention → cohesion pass for new audio → Steamworks/technical close. Closed characters and deferred enemy expansion are not active work items.
 
 ## Swarm Foundry — escenografía del Mapa 2 (2026-08-17, v0.13.49 → 0.13.55)
 
@@ -33,7 +33,7 @@
 
 **Rendimiento validado:** 430 enemigos, mediana de frametime 8.30 ms y p99 8.50 ms contra un período de vsync de 8.33 — sigue limitado por el refresco, no por la carga.
 
-**Pendiente del bloque visual:** pasada ambiental (resplandor de colada, chispas) y reteñido/elenco propio de enemigos. El cielo y la niebla por mapa, el despeje del arena y su muro base ya están implementados; una arena reactiva/modular queda como mejora opcional.
+**Remaining visual work:** the independent ambient pass for molten-flow glow and voxel sparks. The current enemy replacement slice is closed; additional replacements are deferred rather than active backlog. Per-map sky/fog, arena clearing, and the base wall are implemented; a reactive/modular arena remains optional.
 
 **Steam Demo (`codex/demo-map1`, snapshot separado `0.13.39-demo`):** solo Scrapyard / Mapa 1. Boss derrotado → `SECTOR CLEARED`; timeout sin boss → `SECTOR HELD`. No transiciona a Mapa 2 ni contiene Hazard Marshal, y no describe el flujo ni los metadatos de producto de esta rama de juego completo.
 
@@ -80,7 +80,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
 3. ⏸️ **Preparación/viabilidad multijugador — DIFERIDA A POST-LANZAMIENTO (decisión del usuario 2026-07-25).** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno, para una feature que `MULTIPLAYER_FEASIBILITY.md` documenta como no diferenciadora, no prometida y que puede terminar NO-GO — mientras el contenido que decide si el juego vale su precio quedaba comprimido. Del gate se rescató solo la mitad barata: cobertura de smoke tests. **El determinismo de tick fijo, el RNG sembrado y los snapshots siguen sin implementar**, y por eso tampoco se guarda semilla en los registros de run. Si el gate se retoma y da GO, el primer objetivo sigue siendo exactamente 2 jugadores local split-screen; online peer-host exige aprobación posterior; hybrid y dedicated servers quedan fuera de alcance.
-4. 🟡 **AHORA:** arco completo jugable con Hazard Marshal baseline cerrada en 0.22.0. El siguiente trabajo es el remate visual de Foundry (colada/chispas + reteñido/elenco propio); después, tercer personaje → balance y retención con runs humanas → cohesión de audio del contenido nuevo → Steamworks/cierre.
+4. 🟡 **NOW:** the full arc is playable and the Hazard Marshal baseline is closed in 0.22.0. Next: Foundry molten-flow glow and voxel sparks → balance/retention with completed human runs → cohesion pass for new audio → Steamworks/technical close. All three launch characters and the current Foundry replacement slice are closed.
 
 ## P1 — Estructural
 
@@ -335,7 +335,7 @@ Hallazgos de un solo juez, pendientes de triage (no bloquean v1, quedan para rev
 ## Fuera de alcance actual
 - Multiplayer/co-op: no implementado ni anunciado; solo existe el gate interno de viabilidad de `docs/MULTIPLAYER_FEASIBILITY.md`. Local/Remote Play persistiría solo en el save host/local; la progresión por cuenta de invitados no está prometida. Native online solo podría persistir cuentas propias tras validación host-authoritative.
 - Dedicated servers: fuera de alcance.
-- **Ya no están fuera de alcance:** la meta-progresión por perfil/Contratos, el arco de dos mapas y los dos primeros personajes están implementados. Siguen fuera del cierre actual una moneda meta y la evolución de armas. **Field Engineer** is the playable starting character; **Rack Hauler** is playable and unlocked through Proving Ground. **Overclocker is the approved third launch character, but its implementation and art remain pending** (`DISENO_PERSONAJES.md`).
+- **Ya no están fuera de alcance:** la meta-progresión por perfil/Contratos, el arco de dos mapas y los tres personajes de lanzamiento están implementados. Siguen fuera del cierre actual una moneda meta y la evolución de armas. **Field Engineer** is the playable starting character; **Rack Hauler** and **Overclocker** are playable and unlocked through Proving Ground and Two of a Kind respectively (`DISENO_PERSONAJES.md`).
 
 ### Personajes — Field Engineer, Rack Hauler y Overclocker
 
@@ -360,7 +360,7 @@ Antes de integrar un personaje nuevo, verificar TODO este checklist:
 - **Field Repair** cura 1% del HP máximo después de instalar o subir tier de cualquier Core excepto Hull Plates durante gameplay. Hull Plates nunca modifica el HP actual. Field Repair clampea a máximo y no se ejecuta en load, replay, Boss Lab o reconstrucción.
 - Bolt Cannon no se garantiza ni cambia las odds: si entra naturalmente en el draft, solo muestra `Suggested Start`.
 - `PROFILE.unlockedCharacters` persiste IDs y Contracts concede rewards `character`; Proving Ground desbloquea Rack Hauler al terminar runs con cuatro armas iniciales distintas.
-- El menú **Characters** y la selección previa al arma usan el mismo renderer y contenido data-driven. El artículo compone **Identity | Gameplay Identity | Stats**; Signature, icono, Tradeoff y Suggested Start proceden del `CharacterDef` seleccionado. Las nueve stats comparan contra `PLAYER`/`defaultStats()`, por lo que Rack muestra Armor 10%, Damage −10% y Crit Chance 3% con iconos veraces. Un personaje bloqueado conserva requisito/progreso real de Contract y Confirm deshabilitado; desbloqueado muestra `Unlocked`. Field Engineer usa `ref-field-engineer-front-v1.png` y Rack Hauler `ref-rack-hauler-front-v3-seafoam.png`. El renderer conserva los breakpoints, scroll único, navegación teclado/gamepad, accesibilidad y ausencia de WebGL definidos en el contrato anterior.
+- El menú **Characters** y la selección previa al arma usan el mismo renderer y contenido data-driven. El artículo compone **Identity | Gameplay Identity | Stats**; arquetipo, Signature, icono, Tradeoff y Suggested Start proceden del `CharacterDef` seleccionado. Las nueve stats compartidas comparan contra `PLAYER`/`defaultStats()` y Evasion aparece como décima fila solo cuando el personaje se desvía del baseline, como Overclocker. Un personaje bloqueado conserva requisito/progreso real de Contract y Confirm deshabilitado; desbloqueado muestra `Unlocked`. Field Engineer usa `ref-field-engineer-front-v1.png`, Rack Hauler `ref-rack-hauler-front-v3-seafoam.png` y Overclocker `ref-overclocker-front-v1.png`. El renderer conserva los breakpoints, scroll único, navegación teclado/gamepad, accesibilidad y ausencia de WebGL definidos en el contrato anterior.
 - Boss Lab conserva el `characterId` registrado y reconstruye primero ese baseline antes de reproducir Cores; la reproducción no atraviesa el trigger de gameplay de Field Repair.
 - The runtime model v1 uses a measured pack-free side profile plus dedicated procedural rear volume; `backPaintRef` only paints the existing shell. It is definitively approved in-game after the 0°/90°/180°/270° preview, rear-view locomotion check, and 400+ gate (431–440 enemies, 118.87 average FPS, 92.41 minimum bucket, 8.5 ms p99, 0 page errors, and 431/431 enemies moving). Its source sheets remain conversion and provenance inputs, not pending shipped-art approval.
 
@@ -373,15 +373,15 @@ Antes de integrar un personaje nuevo, verificar TODO este checklist:
 - `CHARACTER_REGISTRY['rack-hauler']` usa `modelKey: 'rack-hauler'`, portrait `ref-rack-hauler-front-v3-seafoam.png`, Open Rack config-derived y unlock `proving-ground`. El Contract está activo y concede `{ kind: 'character', id: 'rack-hauler' }` de forma idempotente sin reemplazar el array vivo de `PROFILE`.
 - El modelo runtime consume frontal/lateral/trasera/top seafoam v3: `#BAE8C6`, tool green `#3B9B73`, graphite `#202830`, visor `#E9F6FF`; mide 14.914 vóxeles / 13.120 triángulos por instancia. Previews 0°/90°/180°/270° y capturas reales de Mapa 1/2 están verificadas. El harness read-only mediante hooks DEV seleccionó Rack Hauler real con desbloqueo solo en memoria y sostuvo 430 enemigos durante 12 s en Mapa 2: 430/430 movidos, modelo `rack-hauler` antes/después, 119.94 FPS medios, bucket mínimo 119.76, mediana 8.3 ms, p99 8.5 ms y 0 errores de página. Esto cierra su gate específico 400+ de lectura/modelo y ausencia de degradación obvia. No sustituye el benchmark canónico VFX-heavy de 65 s: `tools/perf-stress.mjs` siempre confirma Field Engineer y no acepta personaje; parametrizarlo queda como cobertura extendida, no como gate de Rack pendiente.
 
-#### Contrato aprobado, pendiente de implementación: Overclocker
+#### Implementación actual: Overclocker
 
-- `overclocker` será el tercer personaje de lanzamiento. El contrato está fijado, pero todavía no existe definición runtime, Contract activo, UI, modelo ni arte aprobado.
+- `CHARACTER_REGISTRY.overclocker` usa `modelKey: 'overclocker'` y portrait `assets/2d/ref-overclocker-front-v1.png`. Runaway Draw, contacto físico ×1,35, Evasion 18 y el resto del perfil se derivan de config; Volt Pulse es solo `Suggested Start`.
 - Perfil aprobado: 85 HP, Armor 0, Damage ×1, Move Speed 11, Attack Speed ×1, Evasion 18 (15,25% efectivo), Crit Chance 8%, Crit Damage +50%, Luck/Regen 0.
 - **Runaway Draw:** cofres y cada slot del Chatarrero se promueven un tier antes de seleccionar el pool, fijar beam/reel y calcular precio: Gray→Green→Blue→Purple→Gold; Gold→Gold. No afecta level-up, Cores, Chaos Module ni recompensas de Contracts.
 - El tier promovido selecciona otro pool; no aumenta la potencia de un Mod concreto. Ante un pool sin candidatos elegibles, desciende al primer tier válido sin conceder locked/capped ni Repair Kit a HP completo. Si no existe candidato, el flujo debe resolverlo explícitamente.
-- Tradeoff: multiplicador ×1,35 solo para contacto físico de swarm/élite/cuerpo de boss/embestida; no se aplica a proyectiles ni ataques telegrafiados. Volt Pulse será `Suggested Start`, nunca garantizado ni equipado.
-- **Two of a Kind:** completar el arco con dos IDs de personaje distintos. Requiere un ledger monotónico y desbloqueo idempotente por el ID estable `overclocker`; el historial limitado de runs no será fuente de verdad.
-- Dirección visual aprobada: reactor dorsal expuesto, aletas y paleta blanco/negro/rojizo-granate. Hex exactos, concept, tres vistas, portrait, `modelKey`, integración UI y validación 400+ siguen pendientes; deben censarse contra ambos mapas y señales rojas antes de activar el personaje.
+- Tradeoff: multiplicador ×1,35 solo para contacto físico de swarm/élite/cuerpo de boss/embestida; no se aplica a proyectiles ni ataques telegrafiados. Volt Pulse es `Suggested Start`, nunca garantizado ni equipado.
+- **Two of a Kind:** completar el arco con dos IDs de personaje registrados distintos. El ledger monotónico `completedCharacterIds` persiste el progreso fuera del historial limitado; el Contract está visible/evaluable y concede `overclocker` por ID estable de forma idempotente, mutando el array vivo de `PROFILE`.
+- Runtime/UI complete: portrait `ref-overclocker-front-v1.png`, packaged front/side/back/top sheets, `modelKey: 'overclocker'`, shared third card, and Locked/Unlocked state connected to Two of a Kind. **Overclocker is final and CLOSED for the current release scope by explicit user acceptance. No separate 400+ benchmark result exists or is claimed.**
 
 ## Orden de implementación
 Ficha+pool → orbes XP → dificultad → separación → damage numbers → elites → roller/gunner → colisiones props → tuning → armas nuevas → draft → tótem+bosses → volador → verificación completa (FPS 100+ enemigos, run jugable de punta a punta).
@@ -434,7 +434,7 @@ Reglas que no se rompen:
 
 Los registros pasan a `userData/run-history.json` (antes solo `localStorage`, dentro del LevelDB de Chromium, ilegible para herramientas). `migrateRunHistory()` corre al arrancar, no de forma perezosa: migrar dentro de `loadRunHistory()` solo se disparaba al TERMINAR una run. **Aviso: `localStorage` es por ORIGEN** — lo escrito por un build empaquetado vive bajo `file://` y una sesión de dev server ve otro almacén.
 
-Campos añadidos por ser irrecuperables después: `startingWeapon`, `difficulty` (estampada `'standard'` aunque no exista selector aún — un leaderboard que mezcla dificultades no ordena nada), `characterId` (activo: registra Field Engineer y Rack Hauler por ID estable), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, `sectorsCleared`, `mapsReached` y `submittedTo` (Steam es dueño del ranking; esto solo evita enviar dos veces). La completitud es **estructural** (`run-complete` o todos los sectores), nunca `durationS >= N`: una derrota larga en el Mapa 2 no es una run completa. Los registros antiguos conservan compatibilidad sin inventar progreso a partir del reloj. **No se guarda semilla de run**: exigiría sembrar el RNG de gameplay primero, que es el refactor de determinismo diferido.
+Fields added because they cannot be reconstructed later: `startingWeapon`, `difficulty` (stamped `'standard'` even before a selector exists), `characterId` (records Field Engineer, Rack Hauler, or Overclocker by stable ID), `bossTypesDefeated`, `damageTaken`, `goldEarned`, `chestsByTier`, `shopPurchases`, `sectorsCleared`, `mapsReached`, and `submittedTo`. Completion is structural (`run-complete` or all sectors), never `durationS >= N`; old records remain compatible without inventing progress from elapsed time. Run seeds are not stored because gameplay RNG is not yet seeded.
 
 ### Ciclo reutilizable de telemetría privada — `main` activa / Mapa 2 inert
 
@@ -463,7 +463,7 @@ Arquitectura que separa RITMO de CONTENIDO, para que añadir contenido nunca obl
 
 #### Estado implementado verificado (2026-08-12)
 
-Hay **29 contratos declarados y 28 activos**. `Proving Ground` está activo y concede Rack Hauler; `Run Completion` es la única definición latente, no se evalúa ni se muestra y conserva internamente `next-core`.
+Hay **29 contratos declarados y 29 activos**. `Proving Ground` concede Rack Hauler; `Two of a Kind` concede Overclocker tras completar el arco con dos personajes registrados distintos.
 
 | Área | Estado actual |
 | --- | --- |
@@ -471,7 +471,7 @@ Hay **29 contratos declarados y 28 activos**. `Proving Ground` está activo y co
 | Cores | 10 por defecto + 10 IDs en `CORE_QUEUE`. Los 11 peldaños activos que pagan `next-core` (Scrap Quota 4 + Veteran 4 + Ascension 3) compiten por esa cola compartida: el ID concedido depende del orden de liquidación, no de un nombre de contrato fijo. Un peldaño queda seco/de repuesto y oculto hasta que exista premio. |
 | Mods | 12 por defecto. Overkill, Purist y Foreman entregan Overload Trigger, Phase Chassis y Magnetron Heart; Endurance consume Coolant Burst y Chain Relay. Endurance III queda seco/de repuesto. |
 | Capacidad | Armas 2 → 3 por Boss Hunter; cores 2 → 4 por Second Wind y Level Milestone; descartes de level-up 3 → 4 por Untouchable. |
-| Personajes | Field Engineer está desbloqueado por defecto. Rack Hauler está registrado y Proving Ground lo concede por ID tras cuatro armas iniciales distintas. |
+| Personajes | Field Engineer está desbloqueado por defecto. Rack Hauler y Overclocker están registrados; Proving Ground y Two of a Kind los conceden por ID estable. |
 
 **Semántica vigente en esta rama:** Second Wind exige completar estructuralmente la run; Boss Hunter, derrotar los 2 bosses exactos del Mapa 1; Purist, completar los 2 sectores con una sola arma y sin mods; Foreman, derrotar los 3 tipos de boss, incluido Hazard Marshal. **Maestría de arma** significa acumular **50.000 de daño de carrera con esa arma**.
 
@@ -490,7 +490,7 @@ Decisiones que sostienen el diseño:
 - Las escaleras llevan **más peldaños que ítems** a propósito. Un peldaño sin premio disponible **ni se liquida ni se ofrece**; reaparece cuando la cola crece.
 - `progressOf()` devuelve actual y objetivo, sirviendo a la vez para "¿está hecho?" y la barra de progreso, que así no pueden discrepar.
 - Se evalúa **una vez por run terminada** contra el ledger, y también al arrancar, así un contrato publicado después se completa retroactivamente sin dejar una ventana donde la pantalla diga COMPLETE sin haber pagado.
-- El único contrato latente (`Run Completion`) permanece definido, pero nunca se evalúa ni se muestra.
+- No hay contratos latentes en el catálogo actual; los 29 se evalúan y muestran cuando tienen una recompensa resoluble.
 
 Umbrales en `config.ts` `CONTRACTS`, marcados como **placeholders**: están anclados a una sola run registrada y necesitan decenas de runs humanas del balance actual antes de significar algo.
 
@@ -1172,7 +1172,11 @@ boss y diez minutos más. **Y** cruza lo que quede del arco por el mismo
 adelanta el reloj del mapa, así que el encuentro sigue llegando por el
 `start-finale` estructural y no por una puerta trasera. **La build en vivo se
 conserva**, exactamente igual que con la T (`overlayLatestRecordedBuild` solo
-actúa si la run no tiene progreso propio).
+actúa si la run no tiene progreso propio). Cuando una run fresca toma una build
+grabada, conserva el personaje seleccionado y recalcula esa build desde sus
+stats base; así una victoria con Rack Hauler se registra como Rack Hauler y
+puede progresar `Two of a Kind`. Solo **Shift+Y**, la variante explícita de
+restauración, recupera también el personaje de la run grabada.
 
 Las dos teclas comparten un único `windClockToFinale()`: dos copias del disparo
 acabarían divergiendo el día que cambie el trigger.

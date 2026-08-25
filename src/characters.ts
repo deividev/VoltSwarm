@@ -3,8 +3,42 @@ import { defaultStats, type PlayerStats } from './stats';
 
 export const DEFAULT_CHARACTER_ID = 'field-engineer' as const;
 export const RACK_HAULER_ID = 'rack-hauler' as const;
-export type CharacterId = typeof DEFAULT_CHARACTER_ID | typeof RACK_HAULER_ID;
+export const OVERCLOCKER_ID = 'overclocker' as const;
+export type CharacterId = typeof DEFAULT_CHARACTER_ID | typeof RACK_HAULER_ID | typeof OVERCLOCKER_ID;
+export type CharacterRewardId = CharacterId;
 export type CharacterCapacityId = CharacterId;
+
+export type PlayerDamageSource =
+  | 'swarm-contact'
+  | 'elite-contact'
+  | 'boss-contact'
+  | 'boss-ram'
+  | 'projectile'
+  | 'telegraphed'
+  | 'other';
+
+const PHYSICAL_CONTACT_SOURCES: ReadonlySet<PlayerDamageSource> = new Set([
+  'swarm-contact',
+  'elite-contact',
+  'boss-contact',
+  'boss-ram',
+]);
+
+/** Config-backed trait seam. Characters without the trait remain bit-identical. */
+export function physicalContactDamageMultiplier(
+  characterId: string,
+  source: PlayerDamageSource,
+): number {
+  return characterId === OVERCLOCKER_ID && PHYSICAL_CONTACT_SOURCES.has(source)
+    ? CHARACTER_BALANCE.overclocker.physicalContactDamageMultiplier
+    : 1;
+}
+
+export function rewardTierShiftForCharacter(characterId: string): number {
+  return characterId === OVERCLOCKER_ID
+    ? CHARACTER_BALANCE.overclocker.rewardTierShift
+    : 0;
+}
 
 export type CharacterUnlock =
   | { kind: 'default' }
@@ -13,6 +47,7 @@ export type CharacterUnlock =
 export interface CharacterDef {
   id: CharacterId;
   name: string;
+  archetype: string;
   shortDescription: string;
   portrait: string | null;
   /** Runtime model registry seam. The model pipeline owns the matching key. */
@@ -22,6 +57,8 @@ export interface CharacterDef {
   stats: PlayerStats;
   signature: { name: string; description: string; badge: string; icon: string };
   tradeoff: string;
+  tradeoffTitle: string;
+  tradeoffIcon: string;
   recommendedWeapon: WeaponId;
   unlock: CharacterUnlock;
 }
@@ -61,10 +98,23 @@ const rackHaulerStats = (): PlayerStats => ({
   luck: CHARACTER_BALANCE.rackHauler.luck,
 });
 
+const overclockerStats = (): PlayerStats => ({
+  ...BASE_STATS,
+  damage: CHARACTER_BALANCE.overclocker.damage,
+  attackSpeed: CHARACTER_BALANCE.overclocker.attackSpeed,
+  critChance: CHARACTER_BALANCE.overclocker.critChance,
+  critDamage: CHARACTER_BALANCE.overclocker.critDamage,
+  armor: CHARACTER_BALANCE.overclocker.armor,
+  regen: CHARACTER_BALANCE.overclocker.regen,
+  luck: CHARACTER_BALANCE.overclocker.luck,
+  evasion: CHARACTER_BALANCE.overclocker.evasion,
+});
+
 export const CHARACTER_REGISTRY: Readonly<Record<CharacterId, CharacterDef>> = {
   [DEFAULT_CHARACTER_ID]: {
     id: DEFAULT_CHARACTER_ID,
     name: 'Field Engineer',
+    archetype: 'Core Sustain',
     shortDescription: 'A forgiving chassis that turns Core upgrades into small repairs.',
     portrait: 'assets/2d/ref-field-engineer-front-v1.png',
     modelKey: 'field-engineer',
@@ -78,12 +128,15 @@ export const CHARACTER_REGISTRY: Readonly<Record<CharacterId, CharacterDef>> = {
       icon: 'assets/2d/icon-item-repair.png',
     },
     tradeoff: `More durability and minor repair access, but ${asPercent(BASE_STATS.damage - CHARACTER_BALANCE.fieldEngineer.damage)} less damage.`,
+    tradeoffTitle: `${asSignedPercent(CHARACTER_BALANCE.fieldEngineer.damage - BASE_STATS.damage)} Damage`,
+    tradeoffIcon: 'assets/2d/icon-stat-damage.png',
     recommendedWeapon: 'bolt',
     unlock: { kind: 'default' },
   },
   [RACK_HAULER_ID]: {
     id: RACK_HAULER_ID,
     name: 'Rack Hauler',
+    archetype: 'Weapon Volume',
     shortDescription: 'A broad weapon carrier that trades Core depth for a larger arsenal.',
     portrait: 'assets/2d/ref-rack-hauler-front-v3-seafoam.png',
     modelKey: 'rack-hauler',
@@ -97,8 +150,32 @@ export const CHARACTER_REGISTRY: Readonly<Record<CharacterId, CharacterDef>> = {
       icon: 'assets/2d/icon-stat-projectiles-v2.png',
     },
     tradeoff: 'Broad weapon coverage with less room for shared Core multipliers.',
+    tradeoffTitle: `${asSignedPercent(CHARACTER_BALANCE.rackHauler.damage - BASE_STATS.damage)} Damage`,
+    tradeoffIcon: 'assets/2d/icon-stat-damage.png',
     recommendedWeapon: 'blades',
     unlock: { kind: 'contract', contractId: 'proving-ground' },
+  },
+  [OVERCLOCKER_ID]: {
+    id: OVERCLOCKER_ID,
+    name: 'Overclocker',
+    archetype: 'High-Risk Loot',
+    shortDescription: 'A glass chassis that turns every paid reward into a higher-tier gamble.',
+    portrait: 'assets/2d/ref-overclocker-front-v1.png',
+    modelKey: 'overclocker',
+    maxHp: CHARACTER_BALANCE.overclocker.maxHp,
+    moveSpeed: CHARACTER_BALANCE.overclocker.moveSpeed,
+    stats: overclockerStats(),
+    signature: {
+      name: 'Runaway Draw',
+      description: `Chests and Scrapper stock roll ${asSignedNumber(CHARACTER_BALANCE.overclocker.rewardTierShift)} tier higher, capped at Gold.`,
+      badge: `${asSignedNumber(CHARACTER_BALANCE.overclocker.rewardTierShift)} CHEST / SCRAPPER TIER`,
+      icon: 'assets/2d/prop-chest-front-v2.png',
+    },
+    tradeoff: `Physical contact from the swarm, elites and boss bodies deals ${asPercent(CHARACTER_BALANCE.overclocker.physicalContactDamageMultiplier - 1)} more damage.`,
+    tradeoffTitle: `${asSignedPercent(CHARACTER_BALANCE.overclocker.physicalContactDamageMultiplier - 1)} Physical Contact Damage Taken`,
+    tradeoffIcon: 'assets/2d/icon-stat-damage.png',
+    recommendedWeapon: 'pulse',
+    unlock: { kind: 'contract', contractId: 'two-of-a-kind' },
   },
 };
 
@@ -125,6 +202,7 @@ const SOCKET_OFFSETS: Readonly<Record<CharacterCapacityId, { weapon: number; cor
     weapon: CHARACTER_BALANCE.rackHauler.weaponSocketOffset,
     core: CHARACTER_BALANCE.rackHauler.coreSocketOffset,
   },
+  [OVERCLOCKER_ID]: { weapon: 0, core: 0 },
 };
 
 /** Projects global Contract-owned PROFILE capacity into a run. Character
@@ -236,6 +314,9 @@ export function characterStatRows(character: CharacterDef): CharacterStatRow[] {
     { id: 'attack-speed', label: 'Attack Speed', value: `x${character.stats.attackSpeed}`, icon: 'assets/2d/icon-stat-attack-speed.png', changed: character.stats.attackSpeed !== BASE_STATS.attackSpeed },
     { id: 'crit-chance', label: 'Crit Chance', value: asPercent(character.stats.critChance), icon: 'assets/2d/icon-stat-crit.png', changed: character.stats.critChance !== BASE_STATS.critChance },
     { id: 'crit-damage', label: 'Crit Damage', value: `+${asPercent(character.stats.critDamage)}`, icon: 'assets/2d/icon-stat-crit-damage.png', changed: character.stats.critDamage !== BASE_STATS.critDamage },
+    ...(character.stats.evasion !== BASE_STATS.evasion
+      ? [{ id: 'evasion', label: 'Evasion', value: `${character.stats.evasion}`, icon: 'assets/2d/icon-stat-evasion.png', changed: true }]
+      : []),
     { id: 'luck', label: 'Luck', value: asPercent(character.stats.luck), icon: 'assets/2d/icon-stat-luck.png', changed: character.stats.luck !== BASE_STATS.luck },
     { id: 'regen', label: 'Regen', value: `${(character.stats.regen * SECONDS_PER_MINUTE) / PLAYER.regenTickS} HP/min`, icon: 'assets/2d/icon-stat-regen.png', changed: character.stats.regen !== BASE_STATS.regen },
   ];

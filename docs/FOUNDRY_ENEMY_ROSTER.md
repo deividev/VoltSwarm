@@ -1,6 +1,6 @@
-# Roster visual aprobado para Swarm Foundry
+# Swarm Foundry enemy roster — current scope closed
 
-Se aprobaron cuatro reemplazos visuales para Mapa 2: **Furnace Mite, Forge Dart, Slagcaster y Axle Runner**. **Furnace Mite quedó integrado y validado en 0.23.0** como variante visual de Voltling exclusiva de Swarm Foundry. **Axle Runner quedó aprobado, integrado y validado en 0.24.0** como sustitución visual permanente de Sparkrunner en Mapa 2, conservando comportamiento, slot de tipo y un único `InstancedMesh`. Forge Dart y Slagcaster permanecen en preproducción.
+**Decision — CLOSED 2026-08-25:** the current Map 2 replacement slice is **Furnace Mite, Axle Runner, and Slagcaster**. Furnace Mite and Axle Runner retain their documented integrations and 400+ evidence. Slagcaster is final and closed by explicit user acceptance; this decision does **not** claim a 400+ benchmark that was never run. Forge Dart, further Rustbrute/Drone replacements, Arc Courier, and every other enemy expansion are deferred outside the current production scope, not permanently rejected.
 
 > **Provenance local:** las rutas bajo `art/concept/` están ignoradas por Git según la política de assets del proyecto. Identifican las fuentes conservadas en la máquina de trabajo, pero no prometen archivos versionados, empaquetados ni disponibles en un clon limpio. Las cuatro referencias runtime de Furnace Mite bajo `public/assets/2d/` forman parte de la unidad 0.23.0 y requieren `git add -f` al preparar el commit.
 
@@ -9,11 +9,10 @@ Se aprobaron cuatro reemplazos visuales para Mapa 2: **Furnace Mite, Forge Dart,
 | Diseño | Sustituye a | Rol heredado | Estado | Contrato visual y de animación |
 | --- | --- | --- | --- | --- |
 | **Furnace Mite** | Voltling | Unidad común, ligera y rápida | ✅ Runtime Map 2 integrado, validado visualmente y con enjambre 400+ | Cuerpo compacto, crisol bajo y silueta ligera. Cuerpo y patas rígidos; nunca debe leerse como una unidad pesada. |
-| **Forge Dart** | Roller | Unidad rápida con trayectoria comprometida | Concepto aprobado; hojas finales pendientes | Silueta angular de chevrón y paleta morada heredada del Roller. La dirección frontal debe leerse inmediatamente desde la cámara de juego. |
-| **Slagcaster** | Gunner | Tirador lento que se detiene para atacar | Runtime Map 2 listo para prueba humana; aprobación visual y gate 400+ pendientes | Se desplaza como una bola industrial compacta; al disparar se despliega y queda anclado. Ambos estados deben conservar correspondencia clara entre todas sus piezas. |
+| **Slagcaster** | Gunner | Tirador lento que se detiene para atacar | ✅ Runtime Map 2 final and closed by explicit user acceptance; no 400+ result claimed | Se desplaza como una bola industrial compacta; al disparar se despliega y queda anclado. Ambos estados deben conservar correspondencia clara entre todas sus piezas. |
 | **Axle Runner** | Sparkrunner | Perseguidor alto y rápido | ✅ Runtime Map 2 aprobado, integrado y validado con enjambre 400+ en Electron | Droide utilitario blanco/cobalto con dos módulos de rueda laterales. Las ruedas y suspensiones permanecen rígidas: solo traslación y el `wobble` global existente. La silueta debe comunicar velocidad, no masa de tanque. |
 
-Rustbrute y Drone siguen **sin sustituto aprobado** para Mapa 2.
+**Deferred scope:** Forge Dart, additional Rustbrute/Drone replacements, Arc Courier, and any other enemy expansion. Their concepts may remain as future provenance, but none is an active production item.
 
 ## Provenance visual local
 
@@ -25,7 +24,7 @@ Estas fuentes documentan la aprobación visual; no son carga runtime:
   - `art/concept/swarm-foundry-enemies/furnace-mite-side-candidate-v2.png`
   - `art/concept/swarm-foundry-enemies/furnace-mite-back-candidate-v1.png`
   - `art/concept/swarm-foundry-enemies/furnace-mite-top-candidate-v1.png`
-- **Forge Dart:** `art/concept/swarm-foundry-enemies/forge-dart-concept-v1.png`
+- **Forge Dart (deferred):** `art/concept/swarm-foundry-enemies/forge-dart-concept-v1.png`
 - **Slagcaster:**
   - Concepto de transformación aprobado: `art/concept/swarm-foundry-enemies/slagcaster-transform-concept-v1.png`.
   - Candidatas cerradas: `slagcaster-closed-front-candidate-v1.png`, `slagcaster-closed-side-candidate-v1.png` y `slagcaster-closed-back-candidate-v1.png` en la misma carpeta.
@@ -35,8 +34,8 @@ Estas fuentes documentan la aprobación visual; no son carga runtime:
   - Hojas técnicas cerradas: `public/assets/2d/ref-slagcaster-closed-{front,side,back}-v1.png`. El endpoint desplegado runtime usa `ref-slagcaster-deployed-{front,side,back}-v3.png`; v1/v2 se conservan como historial. V3 aporta visor central estrecho y cañón grande a la derecha del observador en frontal / izquierda en trasera; el lateral corregido mantiene la boca en el extremo derecho sin patas en tres cuartos.
   - Endpoints estáticos de comparación: `slagcaster-closed` y `slagcaster-deployed` en `src/models/registry.ts`. La clave runtime animada es `slagcaster`.
   - Turnarounds cardinales: `assets/preview/slagcaster-closed-viewer-turnaround.png` y `assets/preview/slagcaster-deployed-viewer-turnaround.png` (más sus capturas `-0/-90/-180/-270`).
-  - Runtime de prueba: Gunner resuelve a `slagcaster` solo en `megafactory`. Una única topología desplegada lleva posición cerrada + `partId` por vértice y `instanceSlagDeploy` por instancia; el shader escalona carcasa, anclajes, crisol y cañón sin sumar meshes ni compartir el progreso entre enemigos.
-  - Capturas del shader real: `assets/preview/slagcaster-transform-deploy-0.png`, `-0_5.png` y `-1.png`. Compila sin errores y los extremos leen correctamente; el 50% todavía separa masas en bloques demasiado evidentes y requiere juicio humano in-game antes de aprobar la animación.
+  - Runtime final: Gunner resolves to `slagcaster` only in `megafactory`. One deployed topology carries the closed position plus per-vertex `partId` and per-instance `instanceSlagDeploy`; the shader staggers shell, anchors, crucible, and cannon without adding meshes or sharing progress between enemies.
+  - Shader captures: `assets/preview/slagcaster-transform-deploy-0.png`, `-0_5.png`, and `-1.png`. The explicit user acceptance closes the shipped visual/runtime result. No independent 400+ benchmark evidence exists for Slagcaster, so none is claimed here.
 - **Axle Runner:**
   - Concept aprobado: `art/concept/swarm-foundry-enemies/axle-runner-concept-v1.png`
   - Frontal técnica aprobada/runtime: `public/assets/2d/ref-axle-runner-front-v1.png`.
@@ -52,7 +51,7 @@ El modelo `axle-runner` usa extrusión frontal con `sideProfileRef`, `backPaintR
 
 **Gate definitivo 2026-08-22:** Electron a 1920×1080, RTX 2060, 430 enemigos iniciales y 428–430 durante 65 s. Axle Runner resolvió realmente el slot Sparkrunner (`modelKey: axle-runner`), preservó la identidad del `InstancedMesh` tipo 1 y los nueve tipos conservaron exactamente nueve `InstancedMesh`. Resultado: 119.55 FPS medios, bucket mínimo 104.99 FPS, frametime 8.3 ms mediana / 8.5 ms p99, 4.91 M triángulos/frame medios, 430/430 enemigos desplazados más de una unidad y cero errores de página/consola. **PASS**.
 
-El concept inicial de Arc Courier se conserva únicamente como reserva visual futura en `art/concept/swarm-foundry-enemies/arc-courier-concept-v1.png`. Ya no gobierna este slot ni sus futuras hojas técnicas.
+The initial Arc Courier concept remains only as deferred future provenance in `art/concept/swarm-foundry-enemies/arc-courier-concept-v1.png`. It does not govern the current slice.
 
 ## Contrato de hojas y modelado
 
@@ -70,15 +69,15 @@ Todas las hojas finales deben ser **ortográficas, planas y contiguas**, con fon
 
 La cenital sigue siendo una guía adicional y no sustituye las tres hojas canónicas. El runtime usa frontal + `sideProfileRef` + `backPaintRef`, pintura cenital opt-in y stamps dentro del mismo `VoxelGrid` para el crisol, las cuatro patas y el visor macro escalonado. El resultado conserva una sola geometría y el mismo `InstancedMesh` del slot Voltling.
 
-### Resto del roster — hojas pendientes
+### Current slice and deferred sources
 
-- [ ] **Forge Dart — 3 hojas:** frontal, lateral y trasera.
+- [ ] **Forge Dart — DEFERRED:** three sheets would be required only if the future slice is reopened.
 - [x] **Axle Runner — 3 hojas:** frontal ✅; lateral ✅; trasera ✅. Modelo voxel aprobado, integrado, validado in-game y con gate Electron 400+ superado.
-- [x] **Slagcaster — 6 hojas:** cerrado frontal/lateral/trasera y desplegado frontal/lateral/trasera. Ambos modelos existen solo como endpoints estáticos de preview; la transformación runtime sigue pendiente.
+- [x] **Slagcaster — 6 sheets and runtime:** closed front/side/back plus deployed front/side/back, topology-stable transformation, and Map 2 integration. Final by explicit user acceptance; no 400+ result claimed.
 
-Slagcaster requiere diseño técnico especial: ambos estados deben compartir topología visual y correspondencia inequívoca de piezas. Su transformación **no puede tratarse como un simple reskin** de Gunner ni resolverse inventando geometría entre vistas. El runtime de prueba usa una representación topology-stable: `slagcaster-transform.ts` envuelve la topología desplegada sobre el diámetro cerrado y asigna partes semánticas; el shader interpola cada grupo con ventanas escalonadas y un atributo de progreso independiente por slot. Sigue siendo exactamente el `InstancedMesh` de Gunner. El proceso imita la disciplina del rig del Hazard Marshal, no su arquitectura multi-`Mesh`.
+Slagcaster required a special technical design: both states share visual topology and unambiguous part correspondence. Its transformation is not a simple Gunner reskin and does not invent geometry between views. The final runtime uses a topology-stable representation: `slagcaster-transform.ts` wraps the deployed topology over the closed diameter and assigns semantic parts; the shader interpolates each group through staggered windows with an independent progress attribute per slot. It remains exactly the Gunner `InstancedMesh`.
 
-Comportamiento de prueba: fuera de la banda Foundry de 9–14 unidades se retrae y se mueve como bola; dentro se detiene y despliega. El límite exterior de 14 mantiene la velocidad heredada de 12 u/s y deja aproximadamente 1,17 s de lectura al disparo desde el borde. El disparo queda bloqueado hasta completar el despliegue y espera solo 0,2 s para que se lea la pose plantada; los disparos posteriores conservan el cooldown Gunner de 3 s. La bola rota alrededor de su centro local; los estados intermedios permanecen verticales y apoyados. V3 refuerza el cañón dentro de la MISMA geometría con cuatro sólidos voxel solapados: puente, barril +Z, carcasa oliva de boca y núcleo caliente. El socket XZ medido queda en `{ lateral: +0,6206, forward: +1,14 }`, sobre la cara máxima real de la boca; se transforma con el mismo yaw y el disparo se reorienta desde allí al jugador. El proyectil conserva cuerpo 1,05, collider 0,42, velocidad 12 y daño 10. Map 1 y la Demo conservan el Gunner, spawn centrado, rango 9–12, temporización histórica y esquirla. Esto aún **no es aprobación visual**: falta comprobar en Electron que el cañón v3 no domina demasiado la silueta, que su puente lee conectado durante el morph, que el origen coincide con la boca y que el enjambre 400+ mantiene el presupuesto.
+Final behavior: outside the 9–14 Foundry band it retracts and rolls; inside it stops and deploys. The outer limit preserves the inherited 12 u/s speed and about 1.17 s of firing read from the edge. Fire remains blocked until deployment completes, then waits 0.2 s; later shots retain the Gunner's 3 s cooldown. The ball rotates around its local center, intermediate states remain upright, and V3 reinforces the cannon inside the same geometry. The measured XZ socket is `{ lateral: +0.6206, forward: +1.14 }`; the projectile retains body 1.05, collider 0.42, speed 12, and damage 10. Map 1 and the Demo keep the original Gunner. Explicit user acceptance closes this result; absent benchmark evidence is not backfilled.
 
 ## Gate de integración posterior
 
@@ -90,7 +89,7 @@ Cada reemplazo se cierra por separado:
 4. Validar lectura, escala, color y VFX dentro del juego.
 5. Revalidar rendimiento y legibilidad con **400+ enemigos**.
 
-Furnace Mite y Axle Runner ya completaron los cinco pasos. Forge Dart y Slagcaster permanecen pendientes desde el primero.
+Furnace Mite and Axle Runner completed the measured five-step gate. Slagcaster is closed by explicit user acceptance without a claimed 400+ run. Forge Dart and all further expansion are deferred until a future scope decision reopens them.
 
 ## Breaker Colossus — futuro boss de Mapa 1
 

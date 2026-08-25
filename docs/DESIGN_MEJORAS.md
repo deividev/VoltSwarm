@@ -271,7 +271,7 @@ Una silueta no define un personaje jugable. Cada personaje futuro debe tener las
 | Pasiva o regla signature | Interactúa con sistemas reales (armas, cores, mods, economía o movimiento), no un bonus plano aislado. |
 | Tradeoff significativo | Aporta una razón para elegirlo y otra para no hacerlo; debe sobrevivir playtest de balance. |
 
-The first playable character is **Field Engineer**, a recognizable evolution of the previous player model. **Rack Hauler** is the implemented second character: its config-backed balance, derived socket-capacity seam, draft enforcement, RIG projection, seafoam v3 portrait/model and Proving Ground unlock are live. Cardinal previews, Map 1/2 captures and its character-specific 400+ swarm gate are verified. **Overclocker is the approved third launch character, but remains unimplemented and has no approved art.**
+**Field Engineer, Rack Hauler, and Overclocker are final and CLOSED for the current release scope.** Field Engineer and Rack Hauler retain their documented measured validation. Overclocker's runtime model, shared selector UI, replay support, and active Two of a Kind unlock are connected; explicit user acceptance closes it without inventing or claiming a separate 400+ benchmark.
 
 ### ✅ Personaje inicial — Field Engineer
 
@@ -288,9 +288,11 @@ The first playable character is **Field Engineer**, a recognizable evolution of 
 - **Signature única — Open Rack:** +1 socket de arma y −1 de Core, aplicados a capacidad abierta y máxima. No garantiza armas ni altera el draft fuera de su capacidad legal.
 - **Proyección:** 3 armas/1 Core iniciales; 4 armas tras Boss Hunter; 2 y 3 Cores tras Second Wind y Full Loadout. Los Contracts siguen liquidando globalmente `PROFILE` 2→3 armas y 2→3→4 Cores.
 - **Suggested Start:** Orbital Blades conserva pool y odds normales.
-- **Runtime:** registrado y jugable con seafoam `#BAE8C6`, tool green `#3B9B73`, graphite `#202830` y visor `#E9F6FF`. Proving Ground está activo; 29 Contracts declarados/28 activos/1 latente. Previews cardinales y Map 1/2 verificados; gate específico 400+ de lectura/modelo superado con 430 enemigos, 430/430 movidos, 119.94 FPS medios, p99 8.5 ms y 0 errores de página. La cobertura canónica VFX-heavy de 65 s sigue sin parametrizar personajes y no reabre este gate.
+- **Runtime:** registrado y jugable con seafoam `#BAE8C6`, tool green `#3B9B73`, graphite `#202830` y visor `#E9F6FF`. Proving Ground está activo; 29 Contracts declarados/29 activos/0 latentes. Previews cardinales y Map 1/2 verificados; gate específico 400+ de lectura/modelo superado con 430 enemigos, 430/430 movidos, 119.94 FPS medios, p99 8.5 ms y 0 errores de página. La cobertura canónica VFX-heavy de 65 s sigue sin parametrizar personajes y no reabre este gate.
 
-### 🟡 Tercer personaje aprobado — Overclocker
+### ✅ Tercer personaje — Overclocker
+
+- **Estado técnico:** balance, promoción de tier, fallback elegible, daño físico tipado y ledger monotónico están implementados y probados. Está registrado con `modelKey: 'overclocker'`, aparece como tercera tarjeta en ambos selectores, es válido para replay y se desbloquea por Two of a Kind.
 
 - **Perfil:** 85 HP, Armor 0, Damage ×1, Move Speed 11, Attack Speed ×1, Evasion 18 (15,25% efectivo), crítico 8%/+50%, Luck/Regen 0.
 - **Signature — Runaway Draw:** cada cofre y slot del Chatarrero se promueve un tier antes de materializar pool, beam/reel y precio: Gray→Green→Blue→Purple→Gold; Gold permanece Gold. Cambia el pool del Mod, no mejora un Mod existente. No afecta level-up, Cores, Chaos Module ni Contracts.
@@ -298,8 +300,8 @@ The first playable character is **Field Engineer**, a recognizable evolution of 
 - **Tradeoff:** ×1,35 de daño solo por contacto físico de swarm, élites, cuerpo de bosses y embestidas; proyectiles y ataques telegrafiados no cambian.
 - **Suggested Start:** Volt Pulse conserva pool y odds normales.
 - **Unlock:** Two of a Kind exige completar el arco con dos IDs de personaje distintos; usa ledger monotónico y concede `overclocker` por ID estable.
-- **Visual:** reactor dorsal expuesto y aletas; dirección de paleta blanco/negro/rojizo-granate. Concept, hex exactos, tres vistas, portrait y modelo todavía están pendientes de aprobación y censo contra ambos mapas/señales rojas.
-- **Status:** contrato de diseño aprobado; gameplay, Contract, UI, assets y gate 400+ aún no implementados.
+- **Visual:** runtime v1 empaquetado desde hojas frontal/lateral/trasera/top con machine white `#E7E5DE`, graphite `#1D232A`, granate `#9B3656` y ruby `#D84A77`; portrait `ref-overclocker-front-v1.png`.
+- **Status:** gameplay, Contract, UI, assets, and replay are implemented. **Final and closed for the current release scope by explicit user acceptance.** No separate 400+ benchmark metrics exist or are claimed.
 
 ### Decisiones cerradas 2026-07-30 (detalle y medición en `DISENO_FRENESI.md` §4)
 

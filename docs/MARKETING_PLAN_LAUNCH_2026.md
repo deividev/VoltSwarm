@@ -4,9 +4,11 @@
 
 > **Alcance de producto:** el juego completo (`codex/map-2`) recorre Scrapyard / Mapa 1 → Swarm Foundry / Mapa 2 → Hazard Marshal; la baseline del combate final está cerrada en el candidato 0.22.0. La Steam Demo separada (`codex/demo-map1`, `0.13.39-demo`) contiene solo Mapa 1: boss derrotado → `SECTOR CLEARED`, timeout sin boss → `SECTOR HELD`; Mapa 2 y Hazard Marshal no son claims de esa build. Volt Warden queda como diseño histórico/futuro. El RC de fin de agosto de 2026 es un objetivo interno de la Demo, nunca una promesa pública de lanzamiento, revisión o disponibilidad.
 >
-> **Estado de producción 2026-08-20:** el siguiente bloque real del juego completo
-> es remate visual de Foundry → 2 personajes restantes → runs humanas/balance y
-> retención → cohesión de audio nuevo → Steamworks/cierre. El tráiler de la Demo
+> **Production status 2026-08-25:** Field Engineer, Rack Hauler, and Overclocker
+> are final and closed. Foundry's current replacement slice—Furnace Mite, Axle
+> Runner, and Slagcaster—is also closed; further enemies are deferred. The active
+> sequence is molten-flow glow/sparks → human runs/balance/retention → new-audio
+> cohesion → Steamworks/technical close. The Demo trailer
 > sigue sin producir ni exportar; sus materiales CUT A/B/C/D no equivalen a un
 > corte aprobado. El futuro S5 es un tráiler del juego completo y no debe
 > confundirse con ese plan de Demo.
@@ -68,9 +70,9 @@ admitiendo solo MP4 o PNG/JPG, nunca GIF.
 1. No asumir `page_status=public_coming_soon`: reconfirmar externamente el estado actual. La URL canónica y el App ID `4979220` son datos verificados, pero no autorizan un claim de disponibilidad.
 2. Registrar wishlists y conversiones únicamente desde Steamworks/publisher; no inferirlas desde tráfico público.
 3. Publicar gameplay real con CTA de wishlist cuando el canal y sus reglas lo permitan.
-4. Mantener el marketing actual con assets existentes mientras producción remata **Swarm Foundry**; Hazard Marshal ya tiene baseline cerrada.
-5. Después, preparar contenido de los **2 personajes restantes**; Field Engineer ya está aprobado. No anunciarlos antes de que existan y pasen validación.
-6. Revisar cohortes cerradas antes de iterar formatos; los playtests humanos de balance quedan para una fase posterior del producto.
+4. Keep current marketing on existing assets while production finishes Foundry's molten-flow glow and voxel sparks; Hazard Marshal, the three characters, and the current Foundry replacement slice are closed.
+5. Treat Forge Dart and all further enemy expansion as deferred future material, not launch claims or active production dependencies.
+6. Review closed cohorts before iterating formats; human balance playtests remain a later product phase.
 
 ### Roles operativos
 
@@ -209,7 +211,7 @@ La activación inicial queda como registro histórico. No ejecutar ni reutilizar
 | Identidad | voxel "industrial toy", siluetas y color | crops honestos de shots 06/08/09 | reconocer Voltswarm sin depender del logo |
 | Construccion abierta | leccion concreta de legibilidad, VFX o balance | before/after nuevo, solo si existe | conversacion util en Reddit; confianza |
 
-**No usar como pilar público hasta que exista en la variante anunciada y pase sus gates:** multiplayer, co-op, los 2 personajes todavía no implementados, fecha o descuento. Swarm Foundry y Hazard Marshal existen en el juego completo, pero nunca son claims de la Demo; Field Engineer sí existe, aunque anunciarlo sigue requiriendo asset/build aprobados.
+**Do not use as a public pillar until it exists in the announced variant and its marketing asset/build is approved:** multiplayer, co-op, deferred enemy expansion, a date, or a discount. All three characters exist in the full game and are closed for current production, but that does not make them Demo claims. Swarm Foundry and Hazard Marshal likewise remain full-game-only claims.
 
 ### Capacidad realista
 

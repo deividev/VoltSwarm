@@ -1135,6 +1135,45 @@ export const VOXEL_MODELS: Record<string, VoxelModelDef> = {
     raisedTopFraction: 0,
     previewScale: 2.0,
   },
+  // OVERCLOCKER — runtime V1. CharacterDef, Contracts and the shared selector
+  // own playability; this registry entry remains the visual/model authority.
+  overclocker: {
+    kind: 'player',
+    ref: 'assets/2d/ref-overclocker-front-v1.png',
+    // The approved sheets contain real gaps between the narrow torso and long
+    // limbs. Multi-view hull carving would cross-product those silhouettes and
+    // phantom-fill the gaps, so keep Rack Hauler's measured-profile route:
+    // front extrusion for topology, side/back/top sheets for measured depth
+    // and paint only.
+    sideProfileRef: 'assets/2d/ref-overclocker-side-v1.png',
+    backPaintRef: 'assets/2d/ref-overclocker-back-v1.png',
+    topPaintRef: 'assets/2d/ref-overclocker-top-v1.png',
+    topPaintColors: [0xe7e5de, 0x1d232a, 0x9b3656],
+    sidePaint: true,
+    // The 319x900 occupied front sheet resolves naturally to 29x82 cells.
+    // 0.0244u per cell keeps the candidate at ~2u tall while preserving the
+    // deliberately narrower footprint and a two-column ruby reactor core.
+    targetWidth: 29,
+    voxelSize: 0.0244,
+    bodyColor: 0xe7e5de,
+    palette: [0xe7e5de, 0x1d232a, 0x9b3656, 0xd84a77],
+    // Ruby belongs only to the small front reactor window. Keep it as a normal
+    // interior detail: frontOnly would bury this two-column feature two voxels
+    // deep, while the standard one-voxel recess already backfills its sides
+    // with armour and prevents ruby from bleeding around the shell. It is not
+    // emissive: this pipeline is one vertex-colour geometry/material, so faking
+    // bloom would require a second mesh or gameplay-only shader.
+    frontOnly: [],
+    armorColors: [0xe7e5de, 0x9b3656],
+    segments: [
+      { from: 0, to: 0.22 },
+      { from: 0.22, to: 0.48 },
+      { from: 0.48, to: 0.7 },
+      { from: 0.7, to: 1 },
+    ],
+    raisedTopFraction: 0,
+    previewScale: 2.0,
+  },
   'tesla-titan': {
     kind: 'boss',
     // REBUILT 2026-07-31. The v1 sheets were a bare column with three flat ring

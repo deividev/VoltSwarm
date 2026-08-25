@@ -3044,6 +3044,21 @@ export const CHARACTER_BALANCE = {
     weaponSocketOffset: 1,
     coreSocketOffset: -1,
   },
+  /** Overclocker's high-risk reward and physical-contact rules. */
+  overclocker: {
+    maxHp: 85,
+    moveSpeed: 11,
+    damage: 1,
+    attackSpeed: 1,
+    critChance: 0.08,
+    critDamage: 0.5,
+    armor: 0,
+    regen: 0,
+    luck: 0,
+    evasion: 18,
+    rewardTierShift: 1,
+    physicalContactDamageMultiplier: 1.35,
+  },
 } as const;
 
 export const PROFILE = {
