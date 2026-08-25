@@ -134,7 +134,7 @@ import {
 } from './settings';
 import { createRunId, loadRunHistory, saveRunRecord, type RunMapRef, type RunOutcome, type RunRecordV1 } from './run-history';
 import { recordRunInLifetime, saveProfile } from './profile';
-import { settleContracts } from './contracts';
+import { settleContractsWithPersistence } from './contracts';
 import { evaluateAchievementsAfterProfileSave } from './achievements';
 import { telemetry } from './telemetry';
 import {
@@ -3395,9 +3395,9 @@ export class Game {
     // already met it, and rewards land in exactly one place.
     recordRunInLifetime(record);
     const profileSaved = saveProfile();
-    const earnedContracts = settleContracts();
-    evaluateAchievementsAfterProfileSave(profileSaved);
-    return { record, earnedContracts };
+    const settlement = settleContractsWithPersistence();
+    evaluateAchievementsAfterProfileSave(profileSaved && settlement.profileSaved);
+    return { record, earnedContracts: settlement.earnedContracts };
   }
 
   /**

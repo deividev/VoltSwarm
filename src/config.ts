@@ -30,6 +30,8 @@ export const ACHIEVEMENTS = {
   fullCircuit: { minimumRunsCompleted: 1 },
   fieldEngineerClear: { requiredCharacterId: 'field-engineer' },
   rackHaulerClear: { requiredCharacterId: 'rack-hauler' },
+  overclockerClear: { requiredCharacterId: 'overclocker' },
+  firstContract: { minimumSettledContracts: 1 },
 } as const;
 
 /** Developer instruments that must NEVER reach a paying player. `npm run package`
@@ -2694,6 +2696,14 @@ export function isWeaponAvailable(id: WeaponId): boolean {
   return !DISABLED_WEAPONS.has(id);
 }
 
+/** Validates persisted/runtime data against the currently playable registry.
+ *  A disabled or unknown weapon must not count as gameplay progress. */
+export function isPlayableWeaponId(value: unknown): value is WeaponId {
+  return typeof value === 'string'
+    && Object.prototype.hasOwnProperty.call(WEAPON_INFO, value)
+    && isWeaponAvailable(value as WeaponId);
+}
+
 /** Every weapon that can currently reach a player, in registry order. */
 export function availableWeaponIds(): WeaponId[] {
   return (Object.keys(WEAPON_INFO) as WeaponId[]).filter(isWeaponAvailable);
@@ -3074,6 +3084,18 @@ export const CHARACTER_BALANCE = {
   },
 } as const;
 
+export const PROFILE_CAPACITY = {
+  weaponSockets: 3,
+  coreSockets: 4,
+  levelupDiscards: 4,
+} as const;
+
+/** Contract-owned non-socket capacity rewards. Persistence uses the same
+ * stable ID and amount to recover paid capacity from a damaged counter. */
+export const PROFILE_CAPACITY_CONTRACT_REWARDS = {
+  extraLevelupDiscard: { contractId: 'untouchable', amount: 1 },
+} as const;
+
 export const PROFILE = {
   /** Stable character ids. Contracts may append future characters. */
   unlockedCharacters: ['field-engineer'],
@@ -3082,11 +3104,12 @@ export const PROFILE = {
   /** Core sockets: 2 default, +2 via contracts (max 4). */
   coreSockets: 2,
   /** Design ceilings — the HUD shows the gap as locked sockets. */
-  maxWeaponSockets: 3,
-  maxCoreSockets: 4,
+  maxWeaponSockets: PROFILE_CAPACITY.weaponSockets,
+  maxCoreSockets: PROFILE_CAPACITY.coreSockets,
+  maxLevelupDiscards: PROFILE_CAPACITY.levelupDiscards,
   /** Level-up discards per run: skip a draft without picking (2026-07-10).
-   *  Lives in PROFILE because contracts may raise it later — the ceiling and
-   *  unlock pacing are an open design question (see DESIGN_MEJORAS). */
+   *  Lives in PROFILE because the Untouchable Contract raises it to its
+   *  config-owned release ceiling. */
   levelupDiscards: 3,
   unlockedWeapons: ['bolt', 'pulse', 'blades', 'press', 'tire'] as WeaponId[],
   /** Stat-card ids (upgrades.ts) available in the level-up draft. */

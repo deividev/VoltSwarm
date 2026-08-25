@@ -88,6 +88,11 @@ test('contract catalog exposes Map 2 branch rules and configured mastery copy', 
     { type: 'kills-in-run', n: config.CONTRACTS.overkillKillsInRun });
   assert.deepEqual(contracts.ALL_CONTRACTS.find(({ id }) => id === 'untouchable').objective,
     { type: 'flawless-run', seconds: config.CONTRACTS.flawlessSeconds });
+  assert.deepEqual(contracts.ALL_CONTRACTS.find(({ id }) => id ===
+    config.PROFILE_CAPACITY_CONTRACT_REWARDS.extraLevelupDiscard.contractId).reward, {
+    kind: 'discards',
+    n: config.PROFILE_CAPACITY_CONTRACT_REWARDS.extraLevelupDiscard.amount,
+  });
 
   const expectedDamage = config.CONTRACTS.ladders.masteryDamage.toLocaleString('en-US');
   for (const contract of contracts.ALL_CONTRACTS.filter(({ id }) => id.startsWith('arsenal-'))) {

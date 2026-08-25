@@ -208,7 +208,7 @@ test('weapon socket migration raises old saves and preserves Boss Hunter payout'
   assert.equal(profile.normalizeWeaponSockets(1, 2, 3, false), 2);
   assert.equal(profile.normalizeWeaponSockets(2, 2, 3, false), 2);
   assert.equal(profile.normalizeWeaponSockets(2, 2, 3, true), 3);
-  assert.equal(profile.normalizeWeaponSockets(99, 2, 3, false), 3);
+  assert.equal(profile.normalizeWeaponSockets(99, 2, 3, false), 2);
   assert.equal(profile.normalizeWeaponSockets('invalid', 2, 3, false), 2);
 });
 

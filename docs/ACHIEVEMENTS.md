@@ -1,6 +1,6 @@
 # Voltswarm — Steam achievements
 
-> Status: launch catalog under implementation. The first ten achievements are implemented locally; the remaining 10 entries are design proposals for human review.
+> Status: launch catalog under implementation. The first fifteen achievements are implemented locally; the remaining 5 entries are design proposals for human review.
 
 ## Implementation status
 
@@ -16,8 +16,13 @@
 | `ach_full_circuit` / `ACH_FULL_CIRCUIT` | Implemented | **Required before release** — not configured or published by this repository change |
 | `ach_field_engineer_clear` / `ACH_FIELD_ENGINEER_CLEAR` | Implemented | **Required before release** — not configured or published by this repository change |
 | `ach_rack_hauler_clear` / `ACH_RACK_HAULER_CLEAR` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_overclocker_clear` / `ACH_OVERCLOCKER_CLEAR` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_first_contract` / `ACH_FIRST_CONTRACT` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_full_capacity` / `ACH_FULL_CAPACITY` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_weapon_level_20` / `ACH_WEAPON_LEVEL_20` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_weapon_mastery` / `ACH_WEAPON_MASTERY` | Implemented | **Required before release** — not configured or published by this repository change |
 
-The canonical Steam metadata lives in `ACHIEVEMENT_REGISTRY`. Achievements are evaluated after profile loading and Contract settlement at startup, and again only after a finished run has been recorded in `LIFETIME` and its profile save has succeeded. The Electron main process accepts only allowlisted API names, persists a crash-safe outbox in `userData/achievement-sync.json`, checks Steam's existing state before activation, queues offline requests, and records local completion so it is not activated again.
+The canonical Steam metadata lives in `ACHIEVEMENT_REGISTRY`. Achievements are evaluated after profile loading and Contract settlement at startup only when any newly settled Contract IDs were saved successfully. End-of-run evaluation likewise requires both the recorded-run profile write and any subsequent Contract-settlement write to succeed. The Electron main process accepts only allowlisted API names, persists a crash-safe outbox in `userData/achievement-sync.json`, checks Steam's existing state before activation, queues offline requests, and records local completion so it is not activated again.
 
 The external Steamworks entries still have to be created and published in App Admin with these exact values:
 
@@ -120,6 +125,56 @@ The external Steamworks entries still have to be created and published in App Ad
 - **Hidden:** False
 - **Achieved icon:** `art/concept/achievements/achievement-fully-loaded-v1.png`
 - **Unachieved icon:** `art/concept/achievements/achievement-fully-loaded-locked-v1.png`
+
+### `ACH_OVERCLOCKER_CLEAR`
+
+- **API Name:** `ACH_OVERCLOCKER_CLEAR`
+- **Display Name:** `Past Redline`
+- **Description:** `Complete the full run as Overclocker.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-past-redline-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-past-redline-locked-v1.png`
+
+### `ACH_FIRST_CONTRACT`
+
+- **API Name:** `ACH_FIRST_CONTRACT`
+- **Display Name:** `Signed and Stamped`
+- **Description:** `Complete your first Contract and receive its reward.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-signed-and-stamped-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-signed-and-stamped-locked-v1.png`
+
+### `ACH_FULL_CAPACITY`
+
+- **API Name:** `ACH_FULL_CAPACITY`
+- **Display Name:** `No Empty Sockets`
+- **Description:** `Unlock maximum Weapon and Core capacity, plus the extra level-up discard.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-no-empty-sockets-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-no-empty-sockets-locked-v1.png`
+
+### `ACH_WEAPON_LEVEL_20`
+
+- **API Name:** `ACH_WEAPON_LEVEL_20`
+- **Display Name:** `Factory Specification`
+- **Description:** `Raise any weapon to level 20 in a single run.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-factory-specification-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-factory-specification-locked-v1.png`
+
+### `ACH_WEAPON_MASTERY`
+
+- **API Name:** `ACH_WEAPON_MASTERY`
+- **Display Name:** `Proven Hardware`
+- **Description:** `Deal 50,000 lifetime damage with a single weapon.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-proven-hardware-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-proven-hardware-locked-v1.png`
 
 ## Launch recommendation
 
@@ -293,18 +348,24 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 - **Hidden:** No.
 - **Estimated difficulty:** Very hard.
 - **Signal:** Existing `LIFETIME.completedCharacterIds`.
+- **Implementation:** Implemented locally with Steam API name `ACH_OVERCLOCKER_CLEAR`. The config-owned predicate requires the exact stable registered character ID `overclocker`; malformed ledgers, display names, art references, and incomplete runs cannot qualify. `completedCharacterIds` is folded only inside the structural `isRunComplete()` branch. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-past-redline-v1.png` (generation master) and `art/concept/achievements/achievement-past-redline-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-past-redline-locked-v1.png` (generation master) and `art/concept/achievements/achievement-past-redline-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
-> Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict the approved Overclocker as a compact frontal voxel bust with its distinctive internal flywheel and cooling assembly glowing from white energy into intense amber-red overdrive, surrounded by controlled cubic voxel sparks. Preserve the real character silhouette and equipment.
+> Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict the approved Overclocker as a slender cream-and-magenta frontal voxel bust, with the actual chest power chamber opened visually to reveal a contained voxel overdrive rotor and cooling stack glowing from white energy into intense amber-red output. Preserve the real character silhouette and color blocking. Do not add external machinery, handheld tools, weapons, cables, or any invented equipment.
 
 ### 12. `ach_first_contract` — P0
 
 - **Display name:** `Signed and Stamped`
 - **Steam description:** `Complete your first Contract and receive its reward.`
-- **Exact condition:** `LIFETIME.completedContracts.length >= 1`; only a settled, paid Contract counts.
+- **Exact condition:** `LIFETIME.completedContracts` contains at least one ID declared by the Contract catalog; only a settled, paid Contract enters this ledger.
 - **Hidden:** No — it introduces persistent progression.
 - **Estimated difficulty:** Easy.
 - **Signal:** Existing completed Contract IDs.
+- **Implementation:** Implemented locally with Steam API name `ACH_FIRST_CONTRACT`. The config-derived threshold requires at least one catalog-valid ID in the durable `LIFETIME.completedContracts` ledger. Contract settlement grants the reward before appending that ID, while dry reward queues remain pending. Its persistence result gates achievement evaluation at both startup and run end, so an in-memory settlement whose save failed cannot unlock; malformed IDs, reward-map entries, and unrelated pending state cannot qualify. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-signed-and-stamped-v1.png` (generation master) and `art/concept/achievements/achievement-signed-and-stamped-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-signed-and-stamped-locked-v1.png` (generation master) and `art/concept/achievements/achievement-signed-and-stamped-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict a thick blank industrial contract plate with no writing, firmly stamped by a mechanical white-lit check seal and ejecting one small unlocked reward module. The physical stamped plate must be the dominant silhouette.
@@ -313,10 +374,13 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 
 - **Display name:** `No Empty Sockets`
 - **Steam description:** `Unlock maximum Weapon and Core capacity, plus the extra level-up discard.`
-- **Exact condition:** `PROFILE.weaponSockets === 3`, `PROFILE.coreSockets === 4`, and `PROFILE.levelupDiscards === 4`.
+- **Exact condition:** `PROFILE.weaponSockets`, `PROFILE.coreSockets`, and `PROFILE.levelupDiscards` exactly equal their config-owned release ceilings: 3, 4, and 4 respectively.
 - **Hidden:** No — this is the major persistent-progression milestone.
 - **Estimated difficulty:** Hard.
 - **Signal:** Existing `PROFILE` fields.
+- **Implementation:** Implemented locally with Steam API name `ACH_FULL_CAPACITY`. `PROFILE_CAPACITY` is the authoritative source for all three ceilings, including the newly explicit discard ceiling. The predicate requires finite exact equality rather than `>=`; profile normalization rejects malformed, fractional, and over-cap persisted values instead of clamping them into an unlock. Durable completed Contract IDs restore the minimum capacity they legitimately paid, including Untouchable's config-owned extra discard, so a damaged counter cannot revoke an earned reward. Socket and discard rewards also refuse to exceed their config ceilings. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-no-empty-sockets-v1.png` (generation master) and `art/concept/achievements/achievement-no-empty-sockets-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-no-empty-sockets-locked-v1.png` (generation master) and `art/concept/achievements/achievement-no-empty-sockets-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict one fully populated industrial loadout chassis with every visible socket occupied: chunky weapon couplings across the top, glowing Core sockets below, and one separate discard token locked into the side. No empty holes and no numeric labels.
@@ -329,6 +393,9 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 - **Hidden:** No — it exposes the real weapon ceiling.
 - **Estimated difficulty:** Medium.
 - **Signal:** Existing `LIFETIME.weaponMaxLevel`.
+- **Implementation:** Implemented locally with Steam API name `ACH_WEAPON_LEVEL_20`. The predicate derives the release ceiling from config-owned `MAX_WEAPON_LEVEL`, accepts only finite integer levels belonging to currently playable IDs in the canonical weapon registry, and rejects unknown IDs, malformed values, and the disabled Oil Sprayer. It uses `>=` because `weaponMaxLevel` is a monotonic career maximum: a legitimate historical value above a later release ceiling must not revoke earned progress. Finished-run folding applies the same playable-ID and integer validation before persisting new maxima; profile loading also sanitizes and rewrites contaminated weapon-level ledgers so rejected data cannot become valid after a future registry change. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-factory-specification-v1.png` (generation master) and `art/concept/achievements/achievement-factory-specification-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-factory-specification-locked-v1.png` (generation master) and `art/concept/achievements/achievement-factory-specification-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict one fully upgraded chunky voxel weapon locked inside a complete segmented white calibration ring, with every segment illuminated and a clean factory-grade energy flare. Do not show digits or written level indicators.
@@ -341,6 +408,9 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 - **Hidden:** No — it is visible cumulative progress.
 - **Estimated difficulty:** Medium.
 - **Signal:** Existing `LIFETIME.damageByWeapon`; threshold remains config-derived.
+- **Implementation:** Implemented locally with Steam API name `ACH_WEAPON_MASTERY`. The predicate reuses `CONTRACTS.ladders.masteryDamage` as its authoritative threshold and accepts only finite damage attributed to currently playable IDs in the canonical weapon registry. Fractional nonnegative damage is preserved because the combat funnel records actual applied damage, including fractional damage-over-time ticks. Finished-run folding and profile loading reject unknown IDs, disabled Oil, non-finite values, strings, and negative entries; contaminated durable ledgers are rewritten so invalid identity data cannot become retroactively eligible after a future registry change. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-proven-hardware-v1.png` (generation master) and `art/concept/achievements/achievement-proven-hardware-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-proven-hardware-locked-v1.png` (generation master) and `art/concept/achievements/achievement-proven-hardware-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict one battle-worn industrial voxel weapon mounted like proven hardware, firing a dense white impact burst into a heavy test plate covered in mechanical dents. Communicate accumulated mastery through the battered plate and stable weapon glow, without numbers.
@@ -434,12 +504,12 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 
 ### Implementation progress
 
-1. **Implemented for achievements 1–10:** canonical typed registry metadata with stable local ID, predicate, display metadata, hidden flag, and Steam API name.
+1. **Implemented for achievements 1–15:** canonical typed registry metadata with stable local ID, predicate, display metadata, hidden flag, and Steam API name.
 2. **Remaining for Core Array:** `LIFETIME.bestDistinctCoresHeld`.
 3. **Remaining for Custom Rig:** `LIFETIME.bestDistinctModsHeld`.
 4. **Compatibility risk for boss achievements:** the runtime currently persists exact `ENEMY_TYPES[].name` strings, and Scrapyard Command and Hazard Contained intentionally use those existing identities. Before any boss display-name rename, introduce stable IDs and migrate old ledgers so already-earned progress remains retroactive.
 5. **Implemented:** profile-independent monotonic `pending` and `unlocked` sets in `achievement-sync.json`.
-6. **Implemented for current predicates:** evaluation after profile load and Contract settlement, and after run recording only when the profile save confirms durable success.
+6. **Implemented for current predicates:** startup evaluation waits for any Contract-settlement save, while end-of-run evaluation requires both the run-ledger save and subsequent Contract-settlement save to confirm durable success.
 7. **Implemented:** Steam allowlist, typed IPC result, crash-safe offline outbox, startup reconciliation, and bounded retry.
 8. **Implemented:** ordinary development has no achievement transport unless `STEAM_APP_ID` is supplied explicitly; packaged builds use App ID `4979220` and remain protected by the release-flag package gate.
 

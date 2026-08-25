@@ -15,6 +15,11 @@ const HAZARD_API_NAME = 'ACH_HAZARD_CONTAINED';
 const FULL_CIRCUIT_API_NAME = 'ACH_FULL_CIRCUIT';
 const FIELD_ENGINEER_API_NAME = 'ACH_FIELD_ENGINEER_CLEAR';
 const RACK_HAULER_API_NAME = 'ACH_RACK_HAULER_CLEAR';
+const OVERCLOCKER_API_NAME = 'ACH_OVERCLOCKER_CLEAR';
+const FIRST_CONTRACT_API_NAME = 'ACH_FIRST_CONTRACT';
+const FULL_CAPACITY_API_NAME = 'ACH_FULL_CAPACITY';
+const WEAPON_LEVEL_API_NAME = 'ACH_WEAPON_LEVEL_20';
+const WEAPON_MASTERY_API_NAME = 'ACH_WEAPON_MASTERY';
 
 function fixture(run) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'voltswarm-achievements-'));
@@ -101,6 +106,11 @@ test('registered achievement API names are accepted by the shared allowlist', ()
   assert.equal(outbox.requestAndFlush(FULL_CIRCUIT_API_NAME, null).status, 'queued');
   assert.equal(outbox.requestAndFlush(FIELD_ENGINEER_API_NAME, null).status, 'queued');
   assert.equal(outbox.requestAndFlush(RACK_HAULER_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(OVERCLOCKER_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(FIRST_CONTRACT_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(FULL_CAPACITY_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(WEAPON_LEVEL_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(WEAPON_MASTERY_API_NAME, null).status, 'queued');
   assert.deepEqual(outbox.snapshot().pending, [
     CACHE_API_NAME,
     SYSTEMS_API_NAME,
@@ -111,6 +121,11 @@ test('registered achievement API names are accepted by the shared allowlist', ()
     FULL_CIRCUIT_API_NAME,
     FIELD_ENGINEER_API_NAME,
     RACK_HAULER_API_NAME,
+    OVERCLOCKER_API_NAME,
+    FIRST_CONTRACT_API_NAME,
+    FULL_CAPACITY_API_NAME,
+    WEAPON_LEVEL_API_NAME,
+    WEAPON_MASTERY_API_NAME,
   ]);
 }));
 

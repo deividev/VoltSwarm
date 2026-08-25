@@ -1,4 +1,11 @@
-import { PROFILE, WEAPON_INFO, isWeaponAvailable, type WeaponId } from './config';
+import {
+  PROFILE,
+  PROFILE_CAPACITY_CONTRACT_REWARDS,
+  WEAPON_INFO,
+  isWeaponAvailable,
+  isPlayableWeaponId,
+  type WeaponId,
+} from './config';
 import { CORE_TITLES } from './upgrades';
 import { MOD_IDS, refreshUnlockedMods, type ModId } from './mods';
 import {
@@ -98,7 +105,7 @@ function emptyLifetime(): LifetimeStats {
   };
 }
 
-/** Progress only. Design ceilings (maxWeaponSockets/maxCoreSockets) are
+/** Progress only. Design ceilings (maxWeaponSockets/maxCoreSockets/maxLevelupDiscards) are
  *  deliberately NOT persisted: they are balance constants, so raising one later
  *  must reach existing players instead of being frozen into their save. */
 interface ProfileSave {
@@ -138,9 +145,10 @@ const VALID_CHARACTERS = new Set<string>(Object.keys(CHARACTER_REGISTRY));
  *  boot; a missing, corrupt or partial save leaves the fresh-profile defaults. */
 export function loadProfile(): void {
   const raw = window.electronAPI?.loadProfile() ?? window.localStorage.getItem(STORAGE_KEY);
+  let sanitizedWeaponProgress = false;
   if (raw) {
     try {
-      applyProfile(JSON.parse(raw) as Partial<ProfileSave>);
+      sanitizedWeaponProgress = applyProfile(JSON.parse(raw) as Partial<ProfileSave>);
     } catch {
       // Corrupt save: keep the defaults rather than refusing to start.
     }
@@ -148,6 +156,10 @@ export function loadProfile(): void {
   // UNLOCKED_MOD_IDS is computed at module init from the DEFAULTS, so it must be
   // rebuilt whenever a save widens the unlocked set.
   refreshUnlockedMods();
+  // Do not leave rejected weapon progress dormant in durable storage. A later
+  // registry change must not turn an old unknown/disabled fabricated entry
+  // into retroactive achievement evidence.
+  if (sanitizedWeaponProgress) saveProfile();
   // A v1 save has no career ledger. Rebuild it from whatever run history
   // survives so playtests recorded before contracts existed still count, and
   // the player is not asked to re-earn what they already did.
@@ -214,10 +226,14 @@ export function recordRunInLifetime(record: RunRecordV1): void {
       (LIFETIME.runsByStartingWeapon[record.startingWeapon] ?? 0) + 1;
   }
   for (const [id, damage] of Object.entries(record.weaponDamage)) {
-    if (damage > 0) LIFETIME.damageByWeapon[id] = (LIFETIME.damageByWeapon[id] ?? 0) + damage;
+    if (isPlayableWeaponId(id) && typeof damage === 'number' && Number.isFinite(damage) && damage > 0) {
+      LIFETIME.damageByWeapon[id] = (LIFETIME.damageByWeapon[id] ?? 0) + damage;
+    }
   }
   for (const [id, level] of Object.entries(record.weaponLevels)) {
-    if (level > 0) LIFETIME.weaponMaxLevel[id] = Math.max(LIFETIME.weaponMaxLevel[id] ?? 0, level);
+    if (isPlayableWeaponId(id) && Number.isInteger(level) && level > 0) {
+      LIFETIME.weaponMaxLevel[id] = Math.max(LIFETIME.weaponMaxLevel[id] ?? 0, level);
+    }
   }
 }
 
@@ -279,7 +295,7 @@ export function resetProfile(): void {
   saveProfile();
 }
 
-function applyProfile(value: Partial<ProfileSave>): void {
+function applyProfile(value: Partial<ProfileSave>): boolean {
   normalizeCharacterUnlocks(value.unlockedCharacters);
   const completedContracts = contractIds(value.lifetime?.completedContracts);
   PROFILE.weaponSockets = normalizeSocketCount(
@@ -296,11 +312,19 @@ function applyProfile(value: Partial<ProfileSave>): void {
     completedContracts,
     'core',
   );
-  PROFILE.levelupDiscards = clampSockets(value.levelupDiscards, DEFAULTS.levelupDiscards, 99);
+  const discardReward = PROFILE_CAPACITY_CONTRACT_REWARDS.extraLevelupDiscard;
+  const earnedDiscardFloor = completedContracts.includes(discardReward.contractId)
+    ? Math.min(PROFILE.maxLevelupDiscards, DEFAULTS.levelupDiscards + discardReward.amount)
+    : DEFAULTS.levelupDiscards;
+  PROFILE.levelupDiscards = clampSockets(
+    value.levelupDiscards,
+    earnedDiscardFloor,
+    PROFILE.maxLevelupDiscards,
+  );
   PROFILE.unlockedWeapons = mergeUnlocks(DEFAULTS.unlockedWeapons, value.unlockedWeapons, VALID_WEAPONS) as WeaponId[];
   PROFILE.unlockedCores = mergeUnlocks(DEFAULTS.unlockedCores, value.unlockedCores, VALID_CORES);
   PROFILE.unlockedMods = mergeUnlocks(DEFAULTS.unlockedMods, value.unlockedMods, VALID_MODS) as ModId[];
-  applyLifetime(value.lifetime);
+  return applyLifetime(value.lifetime);
 }
 
 /** Load, migration and reset all preserve the live array identity held by
@@ -316,9 +340,9 @@ export function normalizeCharacterUnlocks(saved: unknown): void {
 
 /** Field-by-field so a truncated or hand-edited ledger degrades to zeros
  *  instead of poisoning contract progress with NaN. */
-function applyLifetime(saved: LifetimeStats | undefined): void {
+function applyLifetime(saved: LifetimeStats | undefined): boolean {
   const fresh = emptyLifetime();
-  if (!saved || typeof saved !== 'object') { Object.assign(LIFETIME, fresh); return; }
+  if (!saved || typeof saved !== 'object') { Object.assign(LIFETIME, fresh); return false; }
   const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
   const map = (v: unknown): Record<string, number> => {
     const out: Record<string, number> = {};
@@ -329,6 +353,8 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
     }
     return out;
   };
+  const weaponMaxLevel = sanitizeWeaponMaxLevel(saved.weaponMaxLevel);
+  const damageByWeapon = sanitizeDamageByWeapon(saved.damageByWeapon);
   Object.assign(LIFETIME, {
     runsFinished: num(saved.runsFinished),
     runsSurvived: num(saved.runsSurvived),
@@ -358,9 +384,9 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
       : [],
     completedContracts: contractIds(saved.completedContracts),
     grantedRewards: rewardMap(saved.grantedRewards),
-    damageByWeapon: map(saved.damageByWeapon),
+    damageByWeapon: damageByWeapon.value,
     runsByStartingWeapon: map(saved.runsByStartingWeapon),
-    weaponMaxLevel: map(saved.weaponMaxLevel),
+    weaponMaxLevel: weaponMaxLevel.value,
     chestsByTier: map(saved.chestsByTier),
     countedRunIds: Array.isArray(saved.countedRunIds)
       ? saved.countedRunIds.filter((id): id is string => typeof id === 'string')
@@ -401,6 +427,52 @@ function applyLifetime(saved: LifetimeStats | undefined): void {
       }
     }
   }
+  return weaponMaxLevel.changed || damageByWeapon.changed;
+}
+
+function sanitizeWeaponMaxLevel(value: unknown): {
+  value: Record<string, number>;
+  changed: boolean;
+} {
+  const sanitized: Record<string, number> = {};
+  if (value === undefined) return { value: sanitized, changed: false };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { value: sanitized, changed: true };
+  }
+  let changed = false;
+  for (const [id, level] of Object.entries(value as Record<string, unknown>)) {
+    if (isPlayableWeaponId(id) && typeof level === 'number' && Number.isInteger(level) && level > 0) {
+      sanitized[id] = level;
+    } else {
+      changed = true;
+    }
+  }
+  return { value: sanitized, changed };
+}
+
+function sanitizeDamageByWeapon(value: unknown): {
+  value: Record<string, number>;
+  changed: boolean;
+} {
+  const sanitized: Record<string, number> = {};
+  if (value === undefined) return { value: sanitized, changed: false };
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { value: sanitized, changed: true };
+  }
+  let changed = false;
+  for (const [id, damage] of Object.entries(value as Record<string, unknown>)) {
+    if (
+      isPlayableWeaponId(id)
+      && typeof damage === 'number'
+      && Number.isFinite(damage)
+      && damage >= 0
+    ) {
+      sanitized[id] = damage;
+    } else {
+      changed = true;
+    }
+  }
+  return { value: sanitized, changed };
 }
 
 /** Defaults first, then any saved extras. Unknown ids are dropped so a stale or
@@ -429,8 +501,8 @@ function rewardMap(value: unknown): Record<string, Reward> {
 }
 
 function clampSockets(value: unknown, fallback: number, max: number): number {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
-  return Math.min(max, Math.max(fallback, Math.floor(value)));
+  if (typeof value !== 'number' || !Number.isInteger(value) || value < fallback || value > max) return fallback;
+  return value;
 }
 
 /** Migrates the raised fresh-profile floor without making existing Boss Hunter

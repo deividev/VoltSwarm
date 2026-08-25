@@ -1,4 +1,13 @@
-import { BOSS_TYPE_INDEXES, CONTRACTS, ENEMY_TYPES, MAPS, PROFILE, WEAPON_INFO, type WeaponId } from './config';
+import {
+  BOSS_TYPE_INDEXES,
+  CONTRACTS,
+  ENEMY_TYPES,
+  MAPS,
+  PROFILE,
+  PROFILE_CAPACITY_CONTRACT_REWARDS,
+  WEAPON_INFO,
+  type WeaponId,
+} from './config';
 import { CORE_TITLES } from './upgrades';
 import { MOD_REGISTRY, refreshUnlockedMods, type ModId } from './mods';
 import { LIFETIME, saveProfile, type LifetimeStats } from './profile';
@@ -189,9 +198,9 @@ const SIGNATURE: Contract[] = [
     reward: { kind: 'mod', id: 'phase-chassis' as ModId },
   }),
   defineContract({
-    id: 'untouchable', title: 'Untouchable',
+    id: PROFILE_CAPACITY_CONTRACT_REWARDS.extraLevelupDiscard.contractId, title: 'Untouchable',
     objective: { type: 'flawless-run', seconds: CONTRACTS.flawlessSeconds },
-    reward: { kind: 'discards', n: 1 },
+    reward: { kind: 'discards', n: PROFILE_CAPACITY_CONTRACT_REWARDS.extraLevelupDiscard.amount },
   }),
   defineContract({
     id: 'proving-ground', title: 'Proving Ground',
@@ -254,6 +263,11 @@ const LADDERS: Contract[] = [
 ];
 
 export const ALL_CONTRACTS: Contract[] = [...SIGNATURE, ...LADDERS];
+
+/** Runtime identity guard for durable completed-contract ledgers. */
+export function isContractId(value: unknown): value is string {
+  return typeof value === 'string' && ALL_CONTRACTS.some((contract) => contract.id === value);
+}
 
 /** Contracts the player can actually see and earn right now. */
 export const ACTIVE_CONTRACTS: Contract[] = ALL_CONTRACTS.filter((c) => !c.latent);
@@ -412,7 +426,13 @@ export function devCompleteAllContracts(): EarnedContract[] {
 
 /** Evaluates every active contract and pays out the newly completed ones.
  *  Call once per finished run, after the ledger has been updated. */
-export function settleContracts(): EarnedContract[] {
+export interface ContractSettlementResult {
+  earnedContracts: EarnedContract[];
+  /** True when no write was needed or the write containing newly settled IDs succeeded. */
+  profileSaved: boolean;
+}
+
+export function settleContractsWithPersistence(): ContractSettlementResult {
   const earned: EarnedContract[] = [];
   for (const contract of ACTIVE_CONTRACTS) {
     if (LIFETIME.completedContracts.includes(contract.id)) continue;
@@ -431,9 +451,14 @@ export function settleContracts(): EarnedContract[] {
   }
   if (earned.length > 0) {
     refreshUnlockedMods();
-    saveProfile();
+    return { earnedContracts: earned, profileSaved: saveProfile() };
   }
-  return earned;
+  return { earnedContracts: earned, profileSaved: true };
+}
+
+/** Compatibility view for callers that only consume newly earned rows. */
+export function settleContracts(): EarnedContract[] {
+  return settleContractsWithPersistence().earnedContracts;
 }
 
 /** Applies a reward. Queue rewards resolve to the first entry the player does
@@ -477,9 +502,12 @@ export function grantReward(reward: Reward): Reward | null {
         else PROFILE.coreSockets = target;
         return { ...reward, index: target };
       }
-    case 'discards':
-      PROFILE.levelupDiscards += reward.n;
+    case 'discards': {
+      const target = PROFILE.levelupDiscards + reward.n;
+      if (target > PROFILE.maxLevelupDiscards) return null;
+      PROFILE.levelupDiscards = target;
       return reward;
+    }
   }
 }
 

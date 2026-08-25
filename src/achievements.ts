@@ -1,5 +1,13 @@
 import { LIFETIME, type LifetimeStats } from './profile';
-import { ACHIEVEMENTS } from './config';
+import {
+  ACHIEVEMENTS,
+  CONTRACTS,
+  MAX_WEAPON_LEVEL,
+  PROFILE,
+  PROFILE_CAPACITY,
+  isPlayableWeaponId,
+} from './config';
+import { isContractId } from './contracts';
 
 type AchievementLifetime = Pick<
   LifetimeStats,
@@ -11,9 +19,23 @@ type AchievementLifetime = Pick<
   | 'bossTypesDefeated'
   | 'runsCompleted'
   | 'completedCharacterIds'
+  | 'completedContracts'
+  | 'weaponMaxLevel'
+  | 'damageByWeapon'
 >;
 
-export const ACHIEVEMENT_REGISTRY = [
+type AchievementProfile = Pick<typeof PROFILE, 'weaponSockets' | 'coreSockets' | 'levelupDiscards'>;
+
+interface AchievementDefinition {
+  id: string;
+  steamApiName: string;
+  displayName: string;
+  steamDescription: string;
+  hidden: boolean;
+  isComplete(lifetime: AchievementLifetime, profile: AchievementProfile): boolean;
+}
+
+export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
   {
     id: 'ach_first_shift',
     steamApiName: 'ACH_FIRST_SHIFT',
@@ -114,7 +136,60 @@ export const ACHIEVEMENT_REGISTRY = [
       Array.isArray(lifetime.completedCharacterIds)
       && lifetime.completedCharacterIds.includes(ACHIEVEMENTS.rackHaulerClear.requiredCharacterId),
   },
-] as const;
+  {
+    id: 'ach_overclocker_clear',
+    steamApiName: 'ACH_OVERCLOCKER_CLEAR',
+    displayName: 'Past Redline',
+    steamDescription: 'Complete the full run as Overclocker.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Array.isArray(lifetime.completedCharacterIds)
+      && lifetime.completedCharacterIds.includes(ACHIEVEMENTS.overclockerClear.requiredCharacterId),
+  },
+  {
+    id: 'ach_first_contract',
+    steamApiName: 'ACH_FIRST_CONTRACT',
+    displayName: 'Signed and Stamped',
+    steamDescription: 'Complete your first Contract and receive its reward.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Array.isArray(lifetime.completedContracts)
+      && lifetime.completedContracts.filter(isContractId).length
+        >= ACHIEVEMENTS.firstContract.minimumSettledContracts,
+  },
+  {
+    id: 'ach_full_capacity',
+    steamApiName: 'ACH_FULL_CAPACITY',
+    displayName: 'No Empty Sockets',
+    steamDescription: 'Unlock maximum Weapon and Core capacity, plus the extra level-up discard.',
+    hidden: false,
+    isComplete: (_lifetime: AchievementLifetime, profile: AchievementProfile): boolean =>
+      Number.isFinite(profile.weaponSockets)
+      && profile.weaponSockets === PROFILE_CAPACITY.weaponSockets
+      && Number.isFinite(profile.coreSockets)
+      && profile.coreSockets === PROFILE_CAPACITY.coreSockets
+      && Number.isFinite(profile.levelupDiscards)
+      && profile.levelupDiscards === PROFILE_CAPACITY.levelupDiscards,
+  },
+  {
+    id: 'ach_weapon_level_20',
+    steamApiName: 'ACH_WEAPON_LEVEL_20',
+    displayName: 'Factory Specification',
+    steamDescription: 'Raise any weapon to level 20 in a single run.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      hasPlayableWeaponAtReleaseCeiling(lifetime.weaponMaxLevel),
+  },
+  {
+    id: 'ach_weapon_mastery',
+    steamApiName: 'ACH_WEAPON_MASTERY',
+    displayName: 'Proven Hardware',
+    steamDescription: 'Deal 50,000 lifetime damage with a single weapon.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      hasPlayableWeaponDamageAtMastery(lifetime.damageByWeapon),
+  },
+];
 
 export type AchievementRequestResult = {
   ok: boolean;
@@ -132,11 +207,12 @@ export interface AchievementTransport {
 export function evaluateAchievements(
   lifetime: AchievementLifetime = LIFETIME,
   transport: AchievementTransport | undefined = window.electronAPI?.steam,
+  profile: AchievementProfile = PROFILE,
 ): AchievementRequestResult[] {
   if (!transport) return [];
   const results: AchievementRequestResult[] = [];
   for (const achievement of ACHIEVEMENT_REGISTRY) {
-    if (achievement.isComplete(lifetime)) results.push(transport.requestUnlock(achievement.steamApiName));
+    if (achievement.isComplete(lifetime, profile)) results.push(transport.requestUnlock(achievement.steamApiName));
   }
   return results;
 }
@@ -147,8 +223,9 @@ export function evaluateAchievementsAfterProfileSave(
   profileSaved: boolean,
   lifetime: AchievementLifetime = LIFETIME,
   transport: AchievementTransport | undefined = window.electronAPI?.steam,
+  profile: AchievementProfile = PROFILE,
 ): AchievementRequestResult[] {
-  return profileSaved ? evaluateAchievements(lifetime, transport) : [];
+  return profileSaved ? evaluateAchievements(lifetime, transport, profile) : [];
 }
 
 function sumPositive(values: Record<string, number>): number {
@@ -156,4 +233,21 @@ function sumPositive(values: Record<string, number>): number {
     (total, value) => total + (Number.isFinite(value) && value > 0 ? value : 0),
     0,
   );
+}
+
+function hasPlayableWeaponAtReleaseCeiling(values: unknown): boolean {
+  if (!values || typeof values !== 'object' || Array.isArray(values)) return false;
+  return Object.entries(values).some(([id, level]) =>
+    isPlayableWeaponId(id)
+    && Number.isInteger(level)
+    && (level as number) >= MAX_WEAPON_LEVEL);
+}
+
+function hasPlayableWeaponDamageAtMastery(values: unknown): boolean {
+  if (!values || typeof values !== 'object' || Array.isArray(values)) return false;
+  return Object.entries(values).some(([id, damage]) =>
+    isPlayableWeaponId(id)
+    && typeof damage === 'number'
+    && Number.isFinite(damage)
+    && damage >= CONTRACTS.ladders.masteryDamage);
 }

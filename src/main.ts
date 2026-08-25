@@ -1,7 +1,7 @@
 import './ui.css';
 import { loadProfile } from './profile';
 import { migrateRunHistory } from './run-history';
-import { backfillGrantedRewards, settleContracts } from './contracts';
+import { backfillGrantedRewards, settleContractsWithPersistence } from './contracts';
 import { Game } from './game';
 import { evaluateAchievements } from './achievements';
 
@@ -23,7 +23,7 @@ loadProfile();
 // Recover payout records for contracts settled before they were tracked, so an
 // older save does not show its finished ladder rungs as "Claimed" with no icon.
 backfillGrantedRewards();
-settleContracts();
-evaluateAchievements();
+const startupSettlement = settleContractsWithPersistence();
+if (startupSettlement.profileSaved) evaluateAchievements();
 
 new Game(container);
