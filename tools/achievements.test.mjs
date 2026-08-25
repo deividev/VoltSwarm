@@ -16,6 +16,7 @@ const {
 const profile = await server.ssrLoadModule('/src/profile.ts');
 const contracts = await server.ssrLoadModule('/src/contracts.ts');
 const config = await server.ssrLoadModule('/src/config.ts');
+const mods = await server.ssrLoadModule('/src/mods.ts');
 
 const lifetime = (overrides = {}) => ({
   runsFinished: 0,
@@ -29,6 +30,11 @@ const lifetime = (overrides = {}) => ({
   completedContracts: [],
   weaponMaxLevel: {},
   damageByWeapon: {},
+  bestDistinctCoresHeld: 0,
+  bestDistinctPermanentModsHeld: 0,
+  bestPuristSectors: 0,
+  bestFlawlessRunS: 0,
+  bestKillsInRun: 0,
   ...overrides,
 });
 
@@ -409,6 +415,445 @@ test('Proven Hardware requires config-derived lifetime damage for a playable reg
   assert.equal(provenHardware.isComplete(lifetime({ damageByWeapon: ['bolt', threshold] })), false);
 });
 
+test('Core Array unlocks only at the exact config-owned distinct Core capacity', () => {
+  const coreArray = ACHIEVEMENT_REGISTRY.find((entry) => entry.id === 'ach_four_core_array');
+  assert.ok(coreArray);
+  assert.deepEqual({
+    steamApiName: coreArray.steamApiName,
+    displayName: coreArray.displayName,
+    steamDescription: coreArray.steamDescription,
+    hidden: coreArray.hidden,
+  }, {
+    steamApiName: 'ACH_FOUR_CORE_ARRAY',
+    displayName: 'Core Array',
+    steamDescription: 'Finish a recorded run carrying four distinct Cores.',
+    hidden: false,
+  });
+  assert.equal(config.PROFILE_CAPACITY.coreSockets, 4);
+  assert.equal(coreArray.isComplete(lifetime({ bestDistinctCoresHeld: 3 })), false);
+  assert.equal(coreArray.isComplete(lifetime({ bestDistinctCoresHeld: 4 })), true);
+  assert.equal(coreArray.isComplete(lifetime({ bestDistinctCoresHeld: 5 })), false);
+  assert.equal(coreArray.isComplete(lifetime({ bestDistinctCoresHeld: -1 })), false);
+  assert.equal(coreArray.isComplete(lifetime({ bestDistinctCoresHeld: 3.5 })), false);
+  assert.equal(coreArray.isComplete(lifetime({ bestDistinctCoresHeld: Number.NaN })), false);
+  assert.equal(coreArray.isComplete(lifetime({ bestDistinctCoresHeld: Number.POSITIVE_INFINITY })), false);
+  assert.equal(coreArray.isComplete(lifetime({ bestDistinctCoresHeld: '4' })), false);
+});
+
+test('Custom Rig unlocks at the config-owned distinct Mod threshold', () => {
+  const customRig = ACHIEVEMENT_REGISTRY.find((entry) => entry.id === 'ach_five_mod_rig');
+  assert.ok(customRig);
+  assert.deepEqual({
+    steamApiName: customRig.steamApiName,
+    displayName: customRig.displayName,
+    steamDescription: customRig.steamDescription,
+    hidden: customRig.hidden,
+  }, {
+    steamApiName: 'ACH_FIVE_MOD_RIG',
+    displayName: 'Custom Rig',
+    steamDescription: 'Finish a recorded run carrying five distinct Mods.',
+    hidden: false,
+  });
+  assert.equal(config.ACHIEVEMENTS.fiveModRig.minimumDistinctMods, 5);
+  assert.equal(customRig.isComplete(lifetime({ bestDistinctPermanentModsHeld: 4 })), false);
+  assert.equal(customRig.isComplete(lifetime({ bestDistinctPermanentModsHeld: 5 })), true);
+  assert.equal(customRig.isComplete(lifetime({ bestDistinctPermanentModsHeld: 6 })), true);
+  assert.equal(customRig.isComplete(lifetime({ bestDistinctPermanentModsHeld: -1 })), false);
+  assert.equal(customRig.isComplete(lifetime({ bestDistinctPermanentModsHeld: 4.5 })), false);
+  assert.equal(customRig.isComplete(lifetime({ bestDistinctPermanentModsHeld: Number.NaN })), false);
+  assert.equal(customRig.isComplete(lifetime({ bestDistinctPermanentModsHeld: Number.POSITIVE_INFINITY })), false);
+  assert.equal(customRig.isComplete(lifetime({ bestDistinctPermanentModsHeld: '5' })), false);
+});
+
+test('Purist unlocks only from the config-derived full-sector telemetry', () => {
+  const purist = ACHIEVEMENT_REGISTRY.find((entry) => entry.id === 'ach_purist');
+  assert.ok(purist);
+  assert.deepEqual({
+    steamApiName: purist.steamApiName,
+    displayName: purist.displayName,
+    steamDescription: purist.steamDescription,
+    hidden: purist.hidden,
+  }, {
+    steamApiName: 'ACH_PURIST',
+    displayName: 'Purist',
+    steamDescription: 'Clear both sectors in one run with exactly one weapon and no Mods.',
+    hidden: false,
+  });
+  const threshold = config.CONTRACTS.puristSectors;
+  assert.equal(threshold, config.MAPS.length);
+  assert.equal(purist.isComplete(lifetime({ bestPuristSectors: threshold - 1 })), false);
+  assert.equal(purist.isComplete(lifetime({ bestPuristSectors: threshold })), true);
+  assert.equal(purist.isComplete(lifetime({ bestPuristSectors: threshold + 1 })), false);
+  for (const malformed of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY, '2', null]) {
+    assert.equal(purist.isComplete(lifetime({ bestPuristSectors: malformed })), false);
+  }
+});
+
+test('Purist folding requires a complete trustworthy one-weapon permanent-Mod-free run', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const restoreLifetime = () => {
+    for (const key of Object.keys(profile.LIFETIME)) {
+      if (!(key in savedLifetime)) delete profile.LIFETIME[key];
+    }
+    for (const [key, value] of Object.entries(savedLifetime)) {
+      if (Array.isArray(profile.LIFETIME[key]) && Array.isArray(value)) {
+        profile.LIFETIME[key].splice(0, profile.LIFETIME[key].length, ...structuredClone(value));
+      } else {
+        profile.LIFETIME[key] = structuredClone(value);
+      }
+    }
+  };
+  const run = (id, { outcome = 'run-complete', sectorsCleared = config.MAPS.length,
+    weaponLevels = { bolt: 1 }, modCounts = {} } = {}) => ({
+    id,
+    outcome,
+    map: { id: 'swarm-foundry', number: 2, title: 'Swarm Foundry' },
+    characterId: 'field-engineer',
+    sectorsCleared,
+    mapsReached: 2,
+    durationS: 1_200,
+    kills: 1,
+    bossesDefeated: 1,
+    level: 1,
+    weaponLevels,
+    weaponDamage: {},
+    coreLevels: {},
+    modCounts,
+  });
+  const doesNotQualify = [
+    run('purist-partial', { outcome: 'sector-cleared', sectorsCleared: config.MAPS.length - 1 }),
+    run('purist-in-progress', { outcome: 'in-progress' }),
+    run('purist-no-weapon', { weaponLevels: {} }),
+    run('purist-two-weapons', { weaponLevels: { bolt: 1, pulse: 1 } }),
+    run('purist-disabled-oil', { weaponLevels: { bolt: 1, oil: 1 } }),
+    run('purist-unknown-weapon', { weaponLevels: { bolt: 1, unknown: 1 } }),
+    run('purist-fractional-weapon', { weaponLevels: { bolt: 1, pulse: 1.5 } }),
+    run('purist-nonfinite-weapon', { weaponLevels: { bolt: 1, pulse: Number.POSITIVE_INFINITY } }),
+    run('purist-permanent-mod', { modCounts: { 'stun-bumper': 1 } }),
+    run('purist-unknown-mod', { modCounts: { unknown: 1 } }),
+    run('purist-fractional-mod', { modCounts: { repair: 1.5 } }),
+  ];
+  try {
+    profile.LIFETIME.bestPuristSectors = 0;
+    for (const record of doesNotQualify) profile.recordRunInLifetime(record);
+    assert.equal(profile.LIFETIME.bestPuristSectors, 0);
+
+    profile.recordRunInLifetime(run('purist-consumables-allowed', {
+      weaponLevels: { bolt: 1, oil: 0, pulse: 0 },
+      modCounts: { repair: 1, haste: 2, 'scrap-cache': 1, frenzy: 3 },
+    }));
+    assert.equal(profile.LIFETIME.bestPuristSectors, config.CONTRACTS.puristSectors);
+  } finally {
+    restoreLifetime();
+  }
+});
+
+test('Untouchable unlocks at the shared Contract duration and accepts legitimate fractional seconds', () => {
+  const untouchable = ACHIEVEMENT_REGISTRY.find((entry) => entry.id === 'ach_untouchable');
+  assert.ok(untouchable);
+  assert.deepEqual({
+    steamApiName: untouchable.steamApiName,
+    displayName: untouchable.displayName,
+    steamDescription: untouchable.steamDescription,
+    hidden: untouchable.hidden,
+  }, {
+    steamApiName: 'ACH_UNTOUCHABLE',
+    displayName: 'Untouchable',
+    steamDescription: 'Survive for five minutes in a single run without taking damage.',
+    hidden: false,
+  });
+  const threshold = config.CONTRACTS.flawlessSeconds;
+  assert.equal(threshold, 300);
+  assert.equal(untouchable.isComplete(lifetime({ bestFlawlessRunS: threshold - 0.001 })), false);
+  assert.equal(untouchable.isComplete(lifetime({ bestFlawlessRunS: threshold })), true);
+  assert.equal(untouchable.isComplete(lifetime({ bestFlawlessRunS: threshold + 0.125 })), true);
+  for (const malformed of [-1, Number.NaN, Number.POSITIVE_INFINITY, '300', null]) {
+    assert.equal(untouchable.isComplete(lifetime({ bestFlawlessRunS: malformed })), false);
+  }
+});
+
+test('Untouchable folding requires terminal zero-damage evidence and trustworthy duration', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const restoreLifetime = () => {
+    for (const key of Object.keys(profile.LIFETIME)) {
+      if (!(key in savedLifetime)) delete profile.LIFETIME[key];
+    }
+    for (const [key, value] of Object.entries(savedLifetime)) {
+      if (Array.isArray(profile.LIFETIME[key]) && Array.isArray(value)) {
+        profile.LIFETIME[key].splice(0, profile.LIFETIME[key].length, ...structuredClone(value));
+      } else {
+        profile.LIFETIME[key] = structuredClone(value);
+      }
+    }
+  };
+  const run = (id, { outcome = 'defeat', durationS = config.CONTRACTS.flawlessSeconds,
+    damageTaken = 0 } = {}) => ({
+    id,
+    outcome,
+    map: { id: 'scrapyard', number: 1, title: 'Scrapyard' },
+    characterId: 'field-engineer',
+    durationS,
+    kills: 0,
+    bossesDefeated: 0,
+    level: 1,
+    weaponLevels: { bolt: 1 },
+    weaponDamage: {},
+    coreLevels: {},
+    modCounts: {},
+    ...(damageTaken !== undefined ? { damageTaken } : {}),
+  });
+  try {
+    profile.LIFETIME.bestFlawlessRunS = 0;
+    profile.recordRunInLifetime(run('untouchable-in-progress', { outcome: 'in-progress' }));
+    const legacyUnknown = run('untouchable-legacy-unknown', { durationS: 600 });
+    delete legacyUnknown.damageTaken;
+    profile.recordRunInLifetime(legacyUnknown);
+    profile.recordRunInLifetime(run('untouchable-damaged', { damageTaken: 1, durationS: 600 }));
+    profile.recordRunInLifetime(run('untouchable-negative-duration', { durationS: -1 }));
+    profile.recordRunInLifetime(run('untouchable-nonfinite-duration', { durationS: Number.POSITIVE_INFINITY }));
+    assert.equal(profile.LIFETIME.bestFlawlessRunS, 0);
+
+    profile.recordRunInLifetime(run('untouchable-short', {
+      durationS: config.CONTRACTS.flawlessSeconds - 0.001,
+    }));
+    assert.equal(profile.LIFETIME.bestFlawlessRunS, config.CONTRACTS.flawlessSeconds - 0.001);
+    profile.recordRunInLifetime(run('untouchable-exact', {
+      outcome: 'sector-cleared',
+      durationS: config.CONTRACTS.flawlessSeconds,
+    }));
+    assert.equal(profile.LIFETIME.bestFlawlessRunS, config.CONTRACTS.flawlessSeconds);
+  } finally {
+    restoreLifetime();
+  }
+});
+
+test('Overkill unlocks at the shared Contract integer kill threshold', () => {
+  const overkill = ACHIEVEMENT_REGISTRY.find((entry) => entry.id === 'ach_overkill');
+  assert.ok(overkill);
+  assert.deepEqual({
+    steamApiName: overkill.steamApiName,
+    displayName: overkill.displayName,
+    steamDescription: overkill.steamDescription,
+    hidden: overkill.hidden,
+  }, {
+    steamApiName: 'ACH_OVERKILL',
+    displayName: 'Overkill',
+    steamDescription: 'Destroy 800 machines in a single run.',
+    hidden: false,
+  });
+  const threshold = config.CONTRACTS.overkillKillsInRun;
+  assert.equal(threshold, 800);
+  assert.equal(overkill.isComplete(lifetime({ bestKillsInRun: threshold - 1 })), false);
+  assert.equal(overkill.isComplete(lifetime({ bestKillsInRun: threshold })), true);
+  assert.equal(overkill.isComplete(lifetime({ bestKillsInRun: threshold + 1 })), true);
+  for (const malformed of [-1, 799.5, Number.NaN, Number.POSITIVE_INFINITY, '800', null]) {
+    assert.equal(overkill.isComplete(lifetime({ bestKillsInRun: malformed })), false);
+  }
+});
+
+test('Overkill folding accepts only finite integer kills from terminal records', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const restoreLifetime = () => {
+    for (const key of Object.keys(profile.LIFETIME)) {
+      if (!(key in savedLifetime)) delete profile.LIFETIME[key];
+    }
+    for (const [key, value] of Object.entries(savedLifetime)) {
+      if (Array.isArray(profile.LIFETIME[key]) && Array.isArray(value)) {
+        profile.LIFETIME[key].splice(0, profile.LIFETIME[key].length, ...structuredClone(value));
+      } else {
+        profile.LIFETIME[key] = structuredClone(value);
+      }
+    }
+  };
+  const run = (id, { outcome = 'defeat', kills = config.CONTRACTS.overkillKillsInRun } = {}) => ({
+    id,
+    outcome,
+    map: { id: 'scrapyard', number: 1, title: 'Scrapyard' },
+    characterId: 'field-engineer',
+    durationS: 600,
+    kills,
+    bossesDefeated: 0,
+    level: 1,
+    weaponLevels: { bolt: 1 },
+    weaponDamage: {},
+    coreLevels: {},
+    modCounts: {},
+    damageTaken: 1,
+  });
+  try {
+    profile.LIFETIME.bestKillsInRun = 0;
+    profile.recordRunInLifetime(run('overkill-in-progress', { outcome: 'in-progress', kills: 2_000 }));
+    profile.recordRunInLifetime(run('overkill-negative', { kills: -1 }));
+    profile.recordRunInLifetime(run('overkill-fractional', { kills: 800.5 }));
+    profile.recordRunInLifetime(run('overkill-nonfinite', { kills: Number.POSITIVE_INFINITY }));
+    assert.equal(profile.LIFETIME.bestKillsInRun, 0);
+
+    profile.recordRunInLifetime(run('overkill-below', {
+      kills: config.CONTRACTS.overkillKillsInRun - 1,
+    }));
+    assert.equal(profile.LIFETIME.bestKillsInRun, config.CONTRACTS.overkillKillsInRun - 1);
+    profile.recordRunInLifetime(run('overkill-exact', {
+      outcome: 'sector-cleared',
+      kills: config.CONTRACTS.overkillKillsInRun,
+    }));
+    assert.equal(profile.LIFETIME.bestKillsInRun, config.CONTRACTS.overkillKillsInRun);
+  } finally {
+    restoreLifetime();
+  }
+});
+
+test('Mod telemetry folds valid distinct IDs and counts duplicate copies once', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const restoreLifetime = () => {
+    for (const key of Object.keys(profile.LIFETIME)) {
+      if (!(key in savedLifetime)) delete profile.LIFETIME[key];
+    }
+    for (const [key, value] of Object.entries(savedLifetime)) {
+      if (Array.isArray(profile.LIFETIME[key]) && Array.isArray(value)) {
+        profile.LIFETIME[key].splice(0, profile.LIFETIME[key].length, ...structuredClone(value));
+      } else {
+        profile.LIFETIME[key] = structuredClone(value);
+      }
+    }
+  };
+  const run = (id, outcome, modCounts) => ({
+    id,
+    outcome,
+    map: { id: 'scrapyard', number: 1, title: 'Scrapyard' },
+    characterId: 'field-engineer',
+    durationS: 1,
+    kills: 0,
+    bossesDefeated: 0,
+    level: 1,
+    weaponLevels: { bolt: 1 },
+    weaponDamage: {},
+    coreLevels: {},
+    modCounts,
+  });
+  try {
+    profile.LIFETIME.bestDistinctPermanentModsHeld = 0;
+    profile.recordRunInLifetime(run('custom-rig-in-progress', 'in-progress', {
+      repair: 1,
+      haste: 1,
+      'scrap-cache': 1,
+      frenzy: 1,
+      'stun-bumper': 1,
+    }));
+    assert.equal(profile.LIFETIME.bestDistinctPermanentModsHeld, 0);
+
+    profile.recordRunInLifetime(run('custom-rig-consumables-only', 'defeat', {
+      repair: 1,
+      haste: 1,
+      'scrap-cache': 1,
+      frenzy: 1,
+      'stun-bumper': 1,
+    }));
+    assert.equal(
+      profile.LIFETIME.bestDistinctPermanentModsHeld,
+      1,
+      'instant consumables are used, not carried as installed rig hardware',
+    );
+
+    profile.recordRunInLifetime(run('custom-rig-terminal', 'defeat', {
+      repair: 7,
+      haste: 1,
+      'scrap-cache': 2,
+      frenzy: 1,
+      'stun-bumper': 3,
+      'kick-plate': 1,
+      'loose-bolts': 2,
+      'detonator-rig': 1,
+      'barrier-cell': 3,
+      unknown: 1,
+      'coolant-burst': 0,
+      'orb-siphon': 1.5,
+      'chain-relay': Number.POSITIVE_INFINITY,
+    }));
+    assert.equal(
+      profile.LIFETIME.bestDistinctPermanentModsHeld,
+      config.ACHIEVEMENTS.fiveModRig.minimumDistinctMods,
+    );
+    const customRig = ACHIEVEMENT_REGISTRY.find((entry) => entry.id === 'ach_five_mod_rig');
+    assert.equal(customRig.isComplete(profile.LIFETIME), true);
+
+    profile.recordRunInLifetime(run('custom-rig-six-permanent', 'defeat', {
+      'stun-bumper': 1,
+      'kick-plate': 1,
+      'loose-bolts': 1,
+      'detonator-rig': 1,
+      'barrier-cell': 1,
+      'coolant-burst': 1,
+    }));
+    assert.equal(profile.LIFETIME.bestDistinctPermanentModsHeld, 6);
+  } finally {
+    restoreLifetime();
+  }
+});
+
+test('Core telemetry folds only valid distinct IDs from terminal run records', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const restoreLifetime = () => {
+    for (const key of Object.keys(profile.LIFETIME)) {
+      if (!(key in savedLifetime)) delete profile.LIFETIME[key];
+    }
+    for (const [key, value] of Object.entries(savedLifetime)) {
+      if (Array.isArray(profile.LIFETIME[key]) && Array.isArray(value)) {
+        profile.LIFETIME[key].splice(0, profile.LIFETIME[key].length, ...structuredClone(value));
+      } else {
+        profile.LIFETIME[key] = structuredClone(value);
+      }
+    }
+  };
+  const run = (id, outcome, coreLevels) => ({
+    id,
+    outcome,
+    map: { id: 'scrapyard', number: 1, title: 'Scrapyard' },
+    characterId: 'field-engineer',
+    durationS: 1,
+    kills: 0,
+    bossesDefeated: 0,
+    level: 1,
+    weaponLevels: { bolt: 1 },
+    weaponDamage: {},
+    coreLevels,
+    modCounts: {},
+  });
+  try {
+    profile.LIFETIME.bestDistinctCoresHeld = 0;
+    profile.recordRunInLifetime(run('core-array-in-progress', 'in-progress', {
+      damage: 1,
+      'attack-speed': 1,
+      'move-speed': 1,
+      'max-hp': 1,
+    }));
+    assert.equal(profile.LIFETIME.bestDistinctCoresHeld, 0);
+
+    profile.recordRunInLifetime(run('core-array-terminal', 'defeat', {
+      damage: 1,
+      'attack-speed': 2,
+      'move-speed': 1,
+      'max-hp': 3,
+      unknown: 1,
+      armor: 0,
+      regen: 1.5,
+      luck: Number.POSITIVE_INFINITY,
+    }));
+    assert.equal(profile.LIFETIME.bestDistinctCoresHeld, config.PROFILE_CAPACITY.coreSockets);
+
+    profile.LIFETIME.bestDistinctCoresHeld = 0;
+    profile.recordRunInLifetime(run('core-array-impossible-over-cap', 'defeat', {
+      damage: 1,
+      'attack-speed': 1,
+      'move-speed': 1,
+      'max-hp': 1,
+      armor: 1,
+    }));
+    assert.equal(profile.LIFETIME.bestDistinctCoresHeld, 0);
+  } finally {
+    restoreLifetime();
+  }
+});
+
 test('finished-run folding accepts only trustworthy playable weapon progress', () => {
   const savedLifetime = structuredClone(profile.LIFETIME);
   const restoreLifetime = () => {
@@ -539,6 +984,604 @@ test('PROFILE load sanitizes and re-saves weapon progress against the playable r
       pulse: config.CONTRACTS.ladders.masteryDamage,
       ricochet: 0,
     });
+  } finally {
+    restoreObject(profile.LIFETIME, savedLifetime);
+    restoreObject(config.PROFILE, savedProfile);
+    window.localStorage = originalStorage;
+  }
+});
+
+test('PROFILE migration backfills and persists build telemetry from bounded valid run history', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const savedProfile = structuredClone(config.PROFILE);
+  const originalStorage = window.localStorage;
+  const restoreObject = (target, saved) => {
+    for (const key of Object.keys(target)) if (!(key in saved)) delete target[key];
+    for (const [key, value] of Object.entries(saved)) {
+      if (Array.isArray(target[key]) && Array.isArray(value)) {
+        target[key].splice(0, target[key].length, ...structuredClone(value));
+      } else {
+        target[key] = structuredClone(value);
+      }
+    }
+  };
+  const historyRecord = (id, coreLevels, modCounts = {}) => ({
+    schemaVersion: 1,
+    id,
+    endedAt: '2026-08-25T00:00:00.000Z',
+    buildVersion: '0.30.4',
+    outcome: 'defeat',
+    map: { id: 'scrapyard', number: 1, title: 'Scrapyard' },
+    durationS: 1,
+    level: 1,
+    kills: 0,
+    bossesDefeated: 0,
+    totalDamage: 0,
+    weaponLevels: { bolt: 1 },
+    weaponDamage: {},
+    coreLevels,
+    modCounts,
+  });
+  const stored = {
+    'voltswarm:profile': JSON.stringify({
+      version: 5,
+      lifetime: {
+        runsFinished: 2,
+        totalSectorsCleared: 0,
+        completedCharacterIds: [],
+      },
+    }),
+    'voltswarm:run-history:v1': JSON.stringify([
+      historyRecord('core-backfill-valid', {
+        damage: 1,
+        'attack-speed': 2,
+        'move-speed': 1,
+        'max-hp': 1,
+        unknown: 1,
+        armor: 0,
+      }, {
+        repair: 4,
+        haste: 1,
+        'scrap-cache': 2,
+        frenzy: 1,
+        'stun-bumper': 3,
+        'kick-plate': 1,
+        'loose-bolts': 2,
+        'detonator-rig': 1,
+        'barrier-cell': 3,
+        unknown: 1,
+        'coolant-burst': 1.5,
+      }),
+      historyRecord('core-backfill-impossible', {
+        damage: 1,
+        'attack-speed': 1,
+        'move-speed': 1,
+        'max-hp': 1,
+        armor: 1,
+      }),
+    ]),
+  };
+  let persisted = null;
+  try {
+    window.localStorage = {
+      getItem: (key) => stored[key] ?? null,
+      setItem: (key, value) => {
+        stored[key] = value;
+        if (key === 'voltswarm:profile') persisted = value;
+      },
+      removeItem: (key) => { delete stored[key]; },
+    };
+    profile.loadProfile();
+    assert.equal(profile.LIFETIME.bestDistinctCoresHeld, config.PROFILE_CAPACITY.coreSockets);
+    assert.equal(
+      profile.LIFETIME.bestDistinctPermanentModsHeld,
+      config.ACHIEVEMENTS.fiveModRig.minimumDistinctMods,
+    );
+    assert.equal(
+      ACHIEVEMENT_REGISTRY.find((entry) => entry.id === 'ach_five_mod_rig')
+        .isComplete(profile.LIFETIME),
+      true,
+    );
+    assert.ok(persisted, 'new monotonic telemetry must be persisted after bounded backfill');
+    assert.equal(
+      JSON.parse(persisted).lifetime.bestDistinctCoresHeld,
+      config.PROFILE_CAPACITY.coreSockets,
+    );
+    assert.equal(
+      JSON.parse(persisted).lifetime.bestDistinctPermanentModsHeld,
+      config.ACHIEVEMENTS.fiveModRig.minimumDistinctMods,
+    );
+  } finally {
+    restoreObject(profile.LIFETIME, savedLifetime);
+    restoreObject(config.PROFILE, savedProfile);
+    window.localStorage = originalStorage;
+  }
+});
+
+test('PROFILE ignores interim mixed-Mod telemetry and preserves valid permanent-only maxima', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const savedProfile = structuredClone(config.PROFILE);
+  const originalStorage = window.localStorage;
+  const restoreObject = (target, saved) => {
+    for (const key of Object.keys(target)) if (!(key in saved)) delete target[key];
+    for (const [key, value] of Object.entries(saved)) {
+      if (Array.isArray(target[key]) && Array.isArray(value)) {
+        target[key].splice(0, target[key].length, ...structuredClone(value));
+      } else {
+        target[key] = structuredClone(value);
+      }
+    }
+  };
+  const history = JSON.stringify([{
+    schemaVersion: 1,
+    id: 'interim-mod-telemetry-history',
+    endedAt: '2026-08-25T00:00:00.000Z',
+    buildVersion: '0.30.4',
+    outcome: 'defeat',
+    map: { id: 'scrapyard', number: 1, title: 'Scrapyard' },
+    durationS: 1,
+    level: 1,
+    kills: 0,
+    bossesDefeated: 0,
+    totalDamage: 0,
+    weaponLevels: { bolt: 1 },
+    weaponDamage: {},
+    coreLevels: {},
+    modCounts: {
+      repair: 1,
+      haste: 1,
+      'scrap-cache': 1,
+      frenzy: 1,
+      'stun-bumper': 1,
+    },
+  }]);
+  const load = (lifetimeSave) => {
+    let persisted = null;
+    const stored = {
+      'voltswarm:profile': JSON.stringify({ version: 5, lifetime: lifetimeSave }),
+      'voltswarm:run-history:v1': history,
+    };
+    window.localStorage = {
+      getItem: (key) => stored[key] ?? null,
+      setItem: (key, value) => {
+        stored[key] = value;
+        if (key === 'voltswarm:profile') persisted = value;
+      },
+      removeItem: (key) => { delete stored[key]; },
+    };
+    profile.loadProfile();
+    return JSON.parse(persisted);
+  };
+  try {
+    const recovered = load({
+      runsFinished: 1,
+      totalSectorsCleared: 0,
+      completedCharacterIds: [],
+      bestDistinctCoresHeld: 0,
+      bestDistinctModsHeld: 5,
+    });
+    assert.equal(profile.LIFETIME.bestDistinctPermanentModsHeld, 1);
+    assert.equal(recovered.lifetime.bestDistinctPermanentModsHeld, 1);
+    assert.equal('bestDistinctModsHeld' in recovered.lifetime, false);
+    const customRig = ACHIEVEMENT_REGISTRY.find((entry) => entry.id === 'ach_five_mod_rig');
+    assert.equal(customRig.isComplete(profile.LIFETIME), false);
+
+    const preserved = load({
+      runsFinished: 1,
+      totalSectorsCleared: 0,
+      completedCharacterIds: [],
+      bestDistinctCoresHeld: 0,
+      bestDistinctModsHeld: 5,
+      bestDistinctPermanentModsHeld: 6,
+    });
+    assert.equal(profile.LIFETIME.bestDistinctPermanentModsHeld, 6);
+    assert.equal(preserved.lifetime.bestDistinctPermanentModsHeld, 6);
+    assert.equal('bestDistinctModsHeld' in preserved.lifetime, false);
+  } finally {
+    restoreObject(profile.LIFETIME, savedLifetime);
+    restoreObject(config.PROFILE, savedProfile);
+    window.localStorage = originalStorage;
+  }
+});
+
+test('PROFILE ignores legacy mixed Purist telemetry and backfills only strict surviving evidence', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const savedProfile = structuredClone(config.PROFILE);
+  const originalStorage = window.localStorage;
+  const restoreObject = (target, saved) => {
+    for (const key of Object.keys(target)) if (!(key in saved)) delete target[key];
+    for (const [key, value] of Object.entries(saved)) {
+      if (Array.isArray(target[key]) && Array.isArray(value)) {
+        target[key].splice(0, target[key].length, ...structuredClone(value));
+      } else {
+        target[key] = structuredClone(value);
+      }
+    }
+  };
+  const historyRecord = (id, weaponLevels, modCounts) => ({
+    schemaVersion: 1,
+    id,
+    endedAt: '2026-08-25T00:00:00.000Z',
+    buildVersion: '0.30.4',
+    outcome: 'run-complete',
+    map: { id: 'swarm-foundry', number: 2, title: 'Swarm Foundry' },
+    sectorsCleared: config.MAPS.length,
+    mapsReached: config.MAPS.length,
+    durationS: 1_200,
+    level: 1,
+    kills: 0,
+    bossesDefeated: 0,
+    totalDamage: 0,
+    weaponLevels,
+    weaponDamage: {},
+    coreLevels: {},
+    modCounts,
+  });
+  const load = (lifetimeSave, history) => {
+    let persisted = null;
+    const stored = {
+      'voltswarm:profile': JSON.stringify({ version: 5, lifetime: lifetimeSave }),
+      'voltswarm:run-history:v1': JSON.stringify(history),
+    };
+    window.localStorage = {
+      getItem: (key) => stored[key] ?? null,
+      setItem: (key, value) => {
+        stored[key] = value;
+        if (key === 'voltswarm:profile') persisted = value;
+      },
+      removeItem: (key) => { delete stored[key]; },
+    };
+    profile.loadProfile();
+    return JSON.parse(persisted);
+  };
+  try {
+    const contaminated = load({
+      runsFinished: 1,
+      totalSectorsCleared: config.MAPS.length,
+      bestMinimalSectors: config.CONTRACTS.puristSectors,
+    }, [historyRecord('legacy-purist-contaminated', { bolt: 1 }, { 'stun-bumper': 1 })]);
+    assert.equal(profile.LIFETIME.bestPuristSectors, 0);
+    assert.equal(contaminated.lifetime.bestPuristSectors, 0);
+    assert.equal('bestMinimalSectors' in contaminated.lifetime, false);
+
+    const recovered = load({
+      runsFinished: 1,
+      totalSectorsCleared: config.MAPS.length,
+      bestMinimalSectors: config.CONTRACTS.puristSectors,
+    }, [historyRecord('legacy-purist-valid', { bolt: 1, oil: 0 }, {
+      repair: 1,
+      haste: 1,
+      'scrap-cache': 1,
+      frenzy: 1,
+    })]);
+    assert.equal(profile.LIFETIME.bestPuristSectors, config.CONTRACTS.puristSectors);
+    assert.equal(recovered.lifetime.bestPuristSectors, config.CONTRACTS.puristSectors);
+
+    const preserved = load({
+      runsFinished: 1,
+      totalSectorsCleared: config.MAPS.length,
+      bestMinimalSectors: config.CONTRACTS.puristSectors,
+      bestPuristSectors: config.CONTRACTS.puristSectors,
+    }, [historyRecord('new-purist-weaker-history', { bolt: 1, pulse: 1 }, {})]);
+    assert.equal(profile.LIFETIME.bestPuristSectors, config.CONTRACTS.puristSectors);
+    assert.equal(preserved.lifetime.bestPuristSectors, config.CONTRACTS.puristSectors);
+    assert.equal('bestMinimalSectors' in preserved.lifetime, false);
+  } finally {
+    restoreObject(profile.LIFETIME, savedLifetime);
+    restoreObject(config.PROFILE, savedProfile);
+    window.localStorage = originalStorage;
+  }
+});
+
+test('PROFILE backfills missing flawless telemetry only from terminal records with known zero damage', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const savedProfile = structuredClone(config.PROFILE);
+  const originalStorage = window.localStorage;
+  const restoreObject = (target, saved) => {
+    for (const key of Object.keys(target)) if (!(key in saved)) delete target[key];
+    for (const [key, value] of Object.entries(saved)) {
+      if (Array.isArray(target[key]) && Array.isArray(value)) {
+        target[key].splice(0, target[key].length, ...structuredClone(value));
+      } else {
+        target[key] = structuredClone(value);
+      }
+    }
+  };
+  const historyRecord = (id, { durationS, damageTaken }) => ({
+    schemaVersion: 1,
+    id,
+    endedAt: '2026-08-25T00:00:00.000Z',
+    buildVersion: '0.30.4',
+    outcome: 'sector-cleared',
+    map: { id: 'scrapyard', number: 1, title: 'Scrapyard' },
+    durationS,
+    level: 1,
+    kills: 0,
+    bossesDefeated: 0,
+    totalDamage: 0,
+    weaponLevels: { bolt: 1 },
+    weaponDamage: {},
+    coreLevels: {},
+    modCounts: {},
+    ...(damageTaken !== undefined ? { damageTaken } : {}),
+  });
+  const load = (lifetimeSave, history) => {
+    let persisted = null;
+    const stored = {
+      'voltswarm:profile': JSON.stringify({ version: 5, lifetime: lifetimeSave }),
+      'voltswarm:run-history:v1': JSON.stringify(history),
+    };
+    window.localStorage = {
+      getItem: (key) => stored[key] ?? null,
+      setItem: (key, value) => {
+        stored[key] = value;
+        if (key === 'voltswarm:profile') persisted = value;
+      },
+      removeItem: (key) => { delete stored[key]; },
+    };
+    profile.loadProfile();
+    return JSON.parse(persisted);
+  };
+  try {
+    const recovered = load({
+      runsFinished: 3,
+      totalSectorsCleared: 1,
+      bestPuristSectors: 0,
+    }, [
+      historyRecord('flawless-legacy-unknown', { durationS: 600, damageTaken: undefined }),
+      historyRecord('flawless-damaged', { durationS: 500, damageTaken: 1 }),
+      historyRecord('flawless-valid', { durationS: 300.125, damageTaken: 0 }),
+    ]);
+    assert.equal(profile.LIFETIME.bestFlawlessRunS, 300.125);
+    assert.equal(recovered.lifetime.bestFlawlessRunS, 300.125);
+    assert.equal(
+      ACHIEVEMENT_REGISTRY.find((entry) => entry.id === 'ach_untouchable')
+        .isComplete(profile.LIFETIME),
+      true,
+    );
+
+    const preserved = load({
+      runsFinished: 3,
+      totalSectorsCleared: 1,
+      bestPuristSectors: 0,
+      bestFlawlessRunS: 450.5,
+    }, [historyRecord('flawless-weaker-history', { durationS: 100, damageTaken: 0 })]);
+    assert.equal(profile.LIFETIME.bestFlawlessRunS, 450.5);
+    assert.equal(preserved.lifetime.bestFlawlessRunS, 450.5);
+
+    const malformedRaw = JSON.stringify({
+      version: 5,
+      lifetime: {
+        runsFinished: 1,
+        totalSectorsCleared: 0,
+        bestPuristSectors: 0,
+        bestFlawlessRunS: '__NONFINITE__',
+      },
+    }).replace('"__NONFINITE__"', '1e309');
+    let malformedPersisted = null;
+    window.localStorage = {
+      getItem: (key) => key === 'voltswarm:profile'
+        ? malformedRaw
+        : key === 'voltswarm:run-history:v1'
+          ? JSON.stringify([historyRecord('flawless-short-history', { durationS: 299.5, damageTaken: 0 })])
+          : null,
+      setItem: (key, value) => {
+        if (key === 'voltswarm:profile') malformedPersisted = value;
+      },
+      removeItem: () => {},
+    };
+    profile.loadProfile();
+    assert.equal(profile.LIFETIME.bestFlawlessRunS, 299.5);
+    assert.equal(JSON.parse(malformedPersisted).lifetime.bestFlawlessRunS, 299.5);
+  } finally {
+    restoreObject(profile.LIFETIME, savedLifetime);
+    restoreObject(config.PROFILE, savedProfile);
+    window.localStorage = originalStorage;
+  }
+});
+
+test('PROFILE backfills missing or malformed best-kill telemetry from strict terminal history', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const savedProfile = structuredClone(config.PROFILE);
+  const originalStorage = window.localStorage;
+  const restoreObject = (target, saved) => {
+    for (const key of Object.keys(target)) if (!(key in saved)) delete target[key];
+    for (const [key, value] of Object.entries(saved)) {
+      if (Array.isArray(target[key]) && Array.isArray(value)) {
+        target[key].splice(0, target[key].length, ...structuredClone(value));
+      } else {
+        target[key] = structuredClone(value);
+      }
+    }
+  };
+  const historyRecord = (id, kills) => ({
+    schemaVersion: 1,
+    id,
+    endedAt: '2026-08-25T00:00:00.000Z',
+    buildVersion: '0.30.4',
+    outcome: 'sector-cleared',
+    map: { id: 'scrapyard', number: 1, title: 'Scrapyard' },
+    durationS: 600,
+    level: 1,
+    kills,
+    bossesDefeated: 0,
+    totalDamage: 0,
+    weaponLevels: { bolt: 1 },
+    weaponDamage: {},
+    coreLevels: {},
+    modCounts: {},
+    damageTaken: 1,
+  });
+  const load = (lifetimeSave, history) => {
+    let persisted = null;
+    const stored = {
+      'voltswarm:profile': JSON.stringify({ version: 5, lifetime: lifetimeSave }),
+      'voltswarm:run-history:v1': JSON.stringify(history),
+    };
+    window.localStorage = {
+      getItem: (key) => stored[key] ?? null,
+      setItem: (key, value) => {
+        stored[key] = value;
+        if (key === 'voltswarm:profile') persisted = value;
+      },
+      removeItem: (key) => { delete stored[key]; },
+    };
+    profile.loadProfile();
+    return JSON.parse(persisted);
+  };
+  try {
+    const recovered = load({
+      runsFinished: 3,
+      totalSectorsCleared: 1,
+      bestPuristSectors: 0,
+      bestFlawlessRunS: 0,
+    }, [
+      historyRecord('overkill-history-fractional', 1_000.5),
+      historyRecord('overkill-history-negative', -5),
+      historyRecord('overkill-history-valid', config.CONTRACTS.overkillKillsInRun),
+    ]);
+    assert.equal(profile.LIFETIME.bestKillsInRun, config.CONTRACTS.overkillKillsInRun);
+    assert.equal(recovered.lifetime.bestKillsInRun, config.CONTRACTS.overkillKillsInRun);
+    assert.equal(
+      ACHIEVEMENT_REGISTRY.find((entry) => entry.id === 'ach_overkill')
+        .isComplete(profile.LIFETIME),
+      true,
+    );
+
+    const preserved = load({
+      runsFinished: 3,
+      totalSectorsCleared: 1,
+      bestPuristSectors: 0,
+      bestFlawlessRunS: 0,
+      bestKillsInRun: 900,
+    }, [historyRecord('overkill-weaker-history', 100)]);
+    assert.equal(profile.LIFETIME.bestKillsInRun, 900);
+    assert.equal(preserved.lifetime.bestKillsInRun, 900);
+
+    for (const malformed of [799.5, -1, '__NONFINITE__']) {
+      const raw = JSON.stringify({
+        version: 5,
+        lifetime: {
+          runsFinished: 1,
+          totalSectorsCleared: 0,
+          bestPuristSectors: 0,
+          bestFlawlessRunS: 0,
+          bestKillsInRun: malformed,
+        },
+      }).replace('"__NONFINITE__"', '1e309');
+      let persisted = null;
+      window.localStorage = {
+        getItem: (key) => key === 'voltswarm:profile'
+          ? raw
+          : key === 'voltswarm:run-history:v1'
+            ? JSON.stringify([historyRecord('overkill-valid-recovery', 799)])
+            : null,
+        setItem: (key, value) => {
+          if (key === 'voltswarm:profile') persisted = value;
+        },
+        removeItem: () => {},
+      };
+      profile.loadProfile();
+      assert.equal(profile.LIFETIME.bestKillsInRun, 799);
+      assert.equal(JSON.parse(persisted).lifetime.bestKillsInRun, 799);
+    }
+  } finally {
+    restoreObject(profile.LIFETIME, savedLifetime);
+    restoreObject(config.PROFILE, savedProfile);
+    window.localStorage = originalStorage;
+  }
+});
+
+test('PROFILE normalization rejects malformed or impossible Core telemetry', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const savedProfile = structuredClone(config.PROFILE);
+  const originalStorage = window.localStorage;
+  const restoreObject = (target, saved) => {
+    for (const key of Object.keys(target)) if (!(key in saved)) delete target[key];
+    for (const [key, value] of Object.entries(saved)) {
+      if (Array.isArray(target[key]) && Array.isArray(value)) {
+        target[key].splice(0, target[key].length, ...structuredClone(value));
+      } else {
+        target[key] = structuredClone(value);
+      }
+    }
+  };
+  try {
+    for (const malformed of ['4', 3.5, 5, -1, null, '__NONFINITE__']) {
+      let persisted = null;
+      const raw = JSON.stringify({
+        version: 5,
+        lifetime: {
+          runsFinished: 1,
+          totalSectorsCleared: 0,
+          completedCharacterIds: [],
+          bestDistinctCoresHeld: malformed,
+        },
+      }).replace('"__NONFINITE__"', '1e309');
+      window.localStorage = {
+        getItem: (key) => key === 'voltswarm:profile' ? raw : null,
+        setItem: (key, value) => {
+          if (key === 'voltswarm:profile') persisted = value;
+        },
+        removeItem: () => {},
+      };
+      profile.loadProfile();
+      assert.equal(profile.LIFETIME.bestDistinctCoresHeld, 0);
+      assert.equal(JSON.parse(persisted).lifetime.bestDistinctCoresHeld, 0);
+    }
+  } finally {
+    restoreObject(profile.LIFETIME, savedLifetime);
+    restoreObject(config.PROFILE, savedProfile);
+    window.localStorage = originalStorage;
+  }
+});
+
+test('PROFILE normalization rejects malformed or impossible Mod telemetry', () => {
+  const savedLifetime = structuredClone(profile.LIFETIME);
+  const savedProfile = structuredClone(config.PROFILE);
+  const originalStorage = window.localStorage;
+  const restoreObject = (target, saved) => {
+    for (const key of Object.keys(target)) if (!(key in saved)) delete target[key];
+    for (const [key, value] of Object.entries(saved)) {
+      if (Array.isArray(target[key]) && Array.isArray(value)) {
+        target[key].splice(0, target[key].length, ...structuredClone(value));
+      } else {
+        target[key] = structuredClone(value);
+      }
+    }
+  };
+  try {
+    for (const malformed of [
+      '5',
+      4.5,
+      mods.PERMANENT_MOD_IDS.length + 1,
+      mods.MOD_IDS.length,
+      -1,
+      null,
+      '__NONFINITE__',
+    ]) {
+      let persisted = null;
+      const raw = JSON.stringify({
+        version: 5,
+        lifetime: {
+          runsFinished: 1,
+          totalSectorsCleared: 0,
+          completedCharacterIds: [],
+          bestDistinctCoresHeld: 0,
+          bestDistinctPermanentModsHeld: malformed,
+        },
+      }).replace('"__NONFINITE__"', '1e309');
+      window.localStorage = {
+        getItem: (key) => key === 'voltswarm:profile' ? raw : null,
+        setItem: (key, value) => {
+          if (key === 'voltswarm:profile') persisted = value;
+        },
+        removeItem: () => {},
+      };
+      profile.loadProfile();
+      assert.equal(profile.LIFETIME.bestDistinctPermanentModsHeld, 0);
+      assert.equal(JSON.parse(persisted).lifetime.bestDistinctPermanentModsHeld, 0);
+    }
   } finally {
     restoreObject(profile.LIFETIME, savedLifetime);
     restoreObject(config.PROFILE, savedProfile);
@@ -978,6 +2021,76 @@ test('startup evaluation awards persisted playable weapon mastery retroactively'
   assert.deepEqual(requested, ['ACH_WEAPON_MASTERY']);
 });
 
+test('startup evaluation awards a persisted four-Core run retroactively', () => {
+  const requested = [];
+  const transport = {
+    requestUnlock(name) {
+      requested.push(name);
+      return { ok: true, status: 'queued', name };
+    },
+  };
+  evaluateAchievements(lifetime({
+    bestDistinctCoresHeld: config.PROFILE_CAPACITY.coreSockets,
+  }), transport);
+  assert.deepEqual(requested, ['ACH_FOUR_CORE_ARRAY']);
+});
+
+test('startup evaluation awards a persisted five-Mod run retroactively', () => {
+  const requested = [];
+  const transport = {
+    requestUnlock(name) {
+      requested.push(name);
+      return { ok: true, status: 'queued', name };
+    },
+  };
+  evaluateAchievements(lifetime({
+    bestDistinctPermanentModsHeld: config.ACHIEVEMENTS.fiveModRig.minimumDistinctMods,
+  }), transport);
+  assert.deepEqual(requested, ['ACH_FIVE_MOD_RIG']);
+});
+
+test('startup evaluation awards a persisted strict Purist clear retroactively', () => {
+  const requested = [];
+  const transport = {
+    requestUnlock(name) {
+      requested.push(name);
+      return { ok: true, status: 'queued', name };
+    },
+  };
+  evaluateAchievements(lifetime({
+    bestPuristSectors: config.CONTRACTS.puristSectors,
+  }), transport);
+  assert.deepEqual(requested, ['ACH_PURIST']);
+});
+
+test('startup evaluation awards persisted flawless survival retroactively', () => {
+  const requested = [];
+  const transport = {
+    requestUnlock(name) {
+      requested.push(name);
+      return { ok: true, status: 'queued', name };
+    },
+  };
+  evaluateAchievements(lifetime({
+    bestFlawlessRunS: config.CONTRACTS.flawlessSeconds,
+  }), transport);
+  assert.deepEqual(requested, ['ACH_UNTOUCHABLE']);
+});
+
+test('startup evaluation awards a persisted Overkill run retroactively', () => {
+  const requested = [];
+  const transport = {
+    requestUnlock(name) {
+      requested.push(name);
+      return { ok: true, status: 'queued', name };
+    },
+  };
+  evaluateAchievements(lifetime({
+    bestKillsInRun: config.CONTRACTS.overkillKillsInRun,
+  }), transport);
+  assert.deepEqual(requested, ['ACH_OVERKILL']);
+});
+
 test('all implemented achievements coexist in one evaluation', () => {
   const requested = [];
   const transport = {
@@ -998,6 +2111,11 @@ test('all implemented achievements coexist in one evaluation', () => {
     completedContracts: ['first-blood'],
     weaponMaxLevel: { bolt: config.MAX_WEAPON_LEVEL },
     damageByWeapon: { bolt: config.CONTRACTS.ladders.masteryDamage },
+    bestDistinctCoresHeld: config.PROFILE_CAPACITY.coreSockets,
+    bestDistinctPermanentModsHeld: config.ACHIEVEMENTS.fiveModRig.minimumDistinctMods,
+    bestPuristSectors: config.CONTRACTS.puristSectors,
+    bestFlawlessRunS: config.CONTRACTS.flawlessSeconds,
+    bestKillsInRun: config.CONTRACTS.overkillKillsInRun,
   }), transport, achievementProfile({
     weaponSockets: 3,
     coreSockets: 4,
@@ -1019,6 +2137,11 @@ test('all implemented achievements coexist in one evaluation', () => {
     'ACH_FULL_CAPACITY',
     'ACH_WEAPON_LEVEL_20',
     'ACH_WEAPON_MASTERY',
+    'ACH_FOUR_CORE_ARRAY',
+    'ACH_FIVE_MOD_RIG',
+    'ACH_PURIST',
+    'ACH_UNTOUCHABLE',
+    'ACH_OVERKILL',
   ]);
 });
 
@@ -1050,6 +2173,11 @@ test('a failed post-run profile write cannot request eligible achievements', () 
       completedContracts: ['first-blood'],
       weaponMaxLevel: { bolt: config.MAX_WEAPON_LEVEL },
       damageByWeapon: { bolt: config.CONTRACTS.ladders.masteryDamage },
+      bestDistinctCoresHeld: config.PROFILE_CAPACITY.coreSockets,
+      bestDistinctPermanentModsHeld: config.ACHIEVEMENTS.fiveModRig.minimumDistinctMods,
+      bestPuristSectors: config.CONTRACTS.puristSectors,
+      bestFlawlessRunS: config.CONTRACTS.flawlessSeconds,
+      bestKillsInRun: config.CONTRACTS.overkillKillsInRun,
     }),
     transport,
     achievementProfile({

@@ -179,6 +179,20 @@ export const MOD_REGISTRY: Record<ModId, ModInfo> = {
 
 export const MOD_IDS = Object.keys(MOD_REGISTRY) as ModId[];
 
+/** Validates saved/run data against the complete active Mod registry. */
+export function isModId(value: unknown): value is ModId {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(MOD_REGISTRY, value);
+}
+
+/** Carryable rig modules only. Instant consumables are run events, not
+ * installed hardware, even though both share the unified reward registry. */
+export function isPermanentModId(value: unknown): value is PermanentModId {
+  return isModId(value) && MOD_REGISTRY[value].kind === 'permanent';
+}
+
+/** Derived from registry kind metadata so additions cannot drift from runtime semantics. */
+export const PERMANENT_MOD_IDS = MOD_IDS.filter(isPermanentModId);
+
 /** Mods this profile has unlocked — contract-locked ones never drop or
  *  appear in the shop (gating state: config.PROFILE). Recomputed from PROFILE
  *  whenever an unlock happens at runtime (dev unlock panel today, contracts

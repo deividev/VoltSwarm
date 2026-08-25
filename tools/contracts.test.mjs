@@ -44,6 +44,10 @@ function record(id, outcome, {
   sectorsCleared = 0,
   durationS = 600,
   characterId = 'field-engineer',
+  weaponLevels,
+  modCounts,
+  damageTaken,
+  kills = 0,
 } = {}) {
   return {
     id,
@@ -53,13 +57,14 @@ function record(id, outcome, {
     sectorsCleared,
     mapsReached: sectorsCleared + 1,
     durationS,
-    kills: 0,
+    kills,
     bossesDefeated: sectorsCleared,
     level: 1,
-    weaponLevels: weapons === 0 ? {} : weapons === 1 ? { bolt: 1 } : { bolt: 1, pulse: 1 },
+    weaponLevels: weaponLevels ?? (weapons === 0 ? {} : weapons === 1 ? { bolt: 1 } : { bolt: 1, pulse: 1 }),
     weaponDamage: {},
     coreLevels: {},
-    modCounts: mods === 0 ? {} : { 'coolant-burst': mods },
+    modCounts: modCounts ?? (mods === 0 ? {} : { 'coolant-burst': mods }),
+    ...(damageTaken !== undefined ? { damageTaken } : {}),
   };
 }
 
@@ -199,7 +204,7 @@ test('Map 2 requirements pin both current maps and exact boss identities', () =>
   assert.equal(contracts.ALL_CONTRACTS.find(({ id }) => id === 'second-wind').description,
     'Complete 1 run by clearing all 2 current sectors in order: Map 1: Scrapyard and Map 2: Swarm Foundry; a partial clear or defeat does not count.');
   assert.equal(contracts.ALL_CONTRACTS.find(({ id }) => id === 'purist').description,
-    'Clear all 2 current sectors in a single run—Map 1: Scrapyard and Map 2: Swarm Foundry—while carrying exactly 1 positive-level weapon and 0 Mods; a partial clear or defeat does not count.');
+    'Clear all 2 current sectors in a single run—Map 1: Scrapyard and Map 2: Swarm Foundry—while carrying exactly 1 positive-level playable weapon and 0 installed permanent Mods; instant consumables do not occupy Mod sockets, and a partial clear or defeat does not count.');
 });
 
 test('Proving Ground grants Rack Hauler once and preserves the live character-id array', () => {
@@ -453,6 +458,7 @@ test('full-run contracts retain structural Map 2 semantics', () => {
 
   profile.recordRunInLifetime(record('purist-complete', 'run-complete', {
     sectorsCleared: config.MAPS.length,
+    modCounts: { repair: 1, haste: 1, 'scrap-cache': 1, frenzy: 1 },
   }));
   assert.equal(contracts.progressOf(purist.objective).current, config.MAPS.length);
 });
@@ -464,8 +470,51 @@ test('old lifetime saves normalize missing structural counters to zero', () => {
   }));
   profile.loadProfile();
   assert.equal(profile.LIFETIME.runsCompleted, 0);
-  assert.equal(profile.LIFETIME.bestMinimalSectors, 0);
+  assert.equal(profile.LIFETIME.bestPuristSectors, 0);
   assert.deepEqual(profile.LIFETIME.completedCharacterIds, []);
+});
+
+test('Untouchable Contract progress uses terminal zero-damage duration and treats legacy absence as unknown', () => {
+  const untouchable = contracts.ALL_CONTRACTS.find(({ id }) => id === 'untouchable');
+  assert.deepEqual(untouchable.objective, {
+    type: 'flawless-run',
+    seconds: config.CONTRACTS.flawlessSeconds,
+  });
+  profile.recordRunInLifetime(record('untouchable-legacy-unknown', 'sector-cleared', {
+    durationS: 600,
+  }));
+  profile.recordRunInLifetime(record('untouchable-damaged', 'sector-cleared', {
+    durationS: 600,
+    damageTaken: 1,
+  }));
+  assert.equal(contracts.progressOf(untouchable.objective).current, 0);
+  profile.recordRunInLifetime(record('untouchable-flawless', 'sector-cleared', {
+    durationS: config.CONTRACTS.flawlessSeconds,
+    damageTaken: 0,
+  }));
+  assert.equal(
+    contracts.progressOf(untouchable.objective).current,
+    config.CONTRACTS.flawlessSeconds,
+  );
+});
+
+test('Overkill Contract progress shares terminal integer kill telemetry with the achievement', () => {
+  const overkill = contracts.ALL_CONTRACTS.find(({ id }) => id === 'overkill');
+  assert.deepEqual(overkill.objective, {
+    type: 'kills-in-run',
+    n: config.CONTRACTS.overkillKillsInRun,
+  });
+  profile.recordRunInLifetime(record('overkill-fractional', 'sector-cleared', {
+    kills: config.CONTRACTS.overkillKillsInRun + 0.5,
+  }));
+  assert.equal(contracts.progressOf(overkill.objective).current, 0);
+  profile.recordRunInLifetime(record('overkill-terminal', 'sector-cleared', {
+    kills: config.CONTRACTS.overkillKillsInRun,
+  }));
+  assert.equal(
+    contracts.progressOf(overkill.objective).current,
+    config.CONTRACTS.overkillKillsInRun,
+  );
 });
 
 test('completed-character ledger is monotonic, idempotent, and ignores incomplete or unknown runs', () => {

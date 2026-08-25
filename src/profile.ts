@@ -1,13 +1,22 @@
 import {
   PROFILE,
+  PROFILE_CAPACITY,
   PROFILE_CAPACITY_CONTRACT_REWARDS,
+  CONTRACTS,
   WEAPON_INFO,
   isWeaponAvailable,
   isPlayableWeaponId,
   type WeaponId,
 } from './config';
-import { CORE_TITLES } from './upgrades';
-import { MOD_IDS, refreshUnlockedMods, type ModId } from './mods';
+import { CORE_TITLES, isCoreId } from './upgrades';
+import {
+  MOD_IDS,
+  PERMANENT_MOD_IDS,
+  isPermanentModId,
+  isModId,
+  refreshUnlockedMods,
+  type ModId,
+} from './mods';
 import {
   clearRunHistory,
   isRunComplete,
@@ -66,10 +75,16 @@ export interface LifetimeStats {
   weaponMaxLevel: Record<string, number>;
   chestsByTier: Record<string, number>;
   bestModsHeld: number;
+  /** Most distinct valid Cores carried when a terminal run record was written. */
+  bestDistinctCoresHeld: number;
+  /** Most distinct permanent Mods carried when a terminal run record was written. */
+  bestDistinctPermanentModsHeld: number;
   bestGoldEarnedInRun: number;
   /** Longest finished run carrying ONE weapon and ZERO mods. */
   bestMinimalRunS: number;
-  bestMinimalSectors: number;
+  /** Full sectors credited by a structurally complete run carrying exactly one
+   * playable weapon and no installed permanent Mods. */
+  bestPuristSectors: number;
   /** Longest finished run that took no damage at all. */
   bestFlawlessRunS: number;
   /** Character ids that have each completed the full current arc. Monotonic and
@@ -97,8 +112,10 @@ function emptyLifetime(): LifetimeStats {
     bestKillsInRun: 0, bestLevel: 0, bestDurationS: 0, bossesDefeated: 0, bossTypesDefeated: [],
     damageTaken: 0, goldEarned: 0, shopPurchases: 0,
     damageByWeapon: {}, runsByStartingWeapon: {}, weaponMaxLevel: {},
-    chestsByTier: {}, bestModsHeld: 0, bestGoldEarnedInRun: 0,
-    bestMinimalRunS: 0, bestMinimalSectors: 0, bestFlawlessRunS: 0,
+    chestsByTier: {}, bestModsHeld: 0, bestDistinctCoresHeld: 0,
+    bestDistinctPermanentModsHeld: 0,
+    bestGoldEarnedInRun: 0,
+    bestMinimalRunS: 0, bestPuristSectors: 0, bestFlawlessRunS: 0,
     completedCharacterIds: [],
     completedContracts: [], grantedRewards: {},
     countedRunIds: [],
@@ -145,10 +162,10 @@ const VALID_CHARACTERS = new Set<string>(Object.keys(CHARACTER_REGISTRY));
  *  boot; a missing, corrupt or partial save leaves the fresh-profile defaults. */
 export function loadProfile(): void {
   const raw = window.electronAPI?.loadProfile() ?? window.localStorage.getItem(STORAGE_KEY);
-  let sanitizedWeaponProgress = false;
+  let profileNeedsRewrite = false;
   if (raw) {
     try {
-      sanitizedWeaponProgress = applyProfile(JSON.parse(raw) as Partial<ProfileSave>);
+      profileNeedsRewrite = applyProfile(JSON.parse(raw) as Partial<ProfileSave>);
     } catch {
       // Corrupt save: keep the defaults rather than refusing to start.
     }
@@ -159,7 +176,7 @@ export function loadProfile(): void {
   // Do not leave rejected weapon progress dormant in durable storage. A later
   // registry change must not turn an old unknown/disabled fabricated entry
   // into retroactive achievement evidence.
-  if (sanitizedWeaponProgress) saveProfile();
+  if (profileNeedsRewrite) saveProfile();
   // A v1 save has no career ledger. Rebuild it from whatever run history
   // survives so playtests recorded before contracts existed still count, and
   // the player is not asked to re-earn what they already did.
@@ -193,13 +210,26 @@ export function recordRunInLifetime(record: RunRecordV1): void {
   for (const kind of record.bossTypesDefeated ?? []) {
     if (!LIFETIME.bossTypesDefeated.includes(kind)) LIFETIME.bossTypesDefeated.push(kind);
   }
-  LIFETIME.bestKillsInRun = Math.max(LIFETIME.bestKillsInRun, record.kills);
+  const terminalKills = terminalKillCountOf(record);
+  if (terminalKills > 0) {
+    LIFETIME.bestKillsInRun = Math.max(LIFETIME.bestKillsInRun, terminalKills);
+  }
   LIFETIME.bestLevel = Math.max(LIFETIME.bestLevel, record.level);
   LIFETIME.bestDurationS = Math.max(LIFETIME.bestDurationS, record.durationS);
   LIFETIME.bestModsHeld = Math.max(
     LIFETIME.bestModsHeld,
     Object.values(record.modCounts).reduce((total, n) => total + Math.max(0, n), 0),
   );
+  if (isTerminalRunOutcome(record.outcome)) {
+    LIFETIME.bestDistinctCoresHeld = Math.max(
+      LIFETIME.bestDistinctCoresHeld,
+      distinctValidCoresHeld(record.coreLevels),
+    );
+    LIFETIME.bestDistinctPermanentModsHeld = Math.max(
+      LIFETIME.bestDistinctPermanentModsHeld,
+      distinctValidPermanentModsHeld(record.modCounts),
+    );
+  }
   // Style feats, derived from the record rather than tracked live: a run counts
   // as minimal when exactly one weapon was carried and no mod was taken, and as
   // flawless when it recorded zero damage taken. Records written before the
@@ -208,10 +238,14 @@ export function recordRunInLifetime(record: RunRecordV1): void {
   const modsTaken = Object.values(record.modCounts).reduce((total, n) => total + Math.max(0, n), 0);
   if (weaponsCarried === 1 && modsTaken === 0) {
     LIFETIME.bestMinimalRunS = Math.max(LIFETIME.bestMinimalRunS, record.durationS);
-    LIFETIME.bestMinimalSectors = Math.max(LIFETIME.bestMinimalSectors, sectorsCleared);
   }
-  if (record.damageTaken === 0) {
-    LIFETIME.bestFlawlessRunS = Math.max(LIFETIME.bestFlawlessRunS, record.durationS);
+  const puristSectors = puristSectorsOf(record);
+  if (puristSectors > 0) {
+    LIFETIME.bestPuristSectors = Math.max(LIFETIME.bestPuristSectors, puristSectors);
+  }
+  const flawlessDurationS = flawlessDurationOf(record);
+  if (flawlessDurationS > 0) {
+    LIFETIME.bestFlawlessRunS = Math.max(LIFETIME.bestFlawlessRunS, flawlessDurationS);
   }
 
   LIFETIME.damageTaken += record.damageTaken ?? 0;
@@ -343,6 +377,14 @@ export function normalizeCharacterUnlocks(saved: unknown): void {
 function applyLifetime(saved: LifetimeStats | undefined): boolean {
   const fresh = emptyLifetime();
   if (!saved || typeof saved !== 'object') { Object.assign(LIFETIME, fresh); return false; }
+  const hasInterimDistinctModsKey = Object.prototype.hasOwnProperty.call(
+    saved,
+    'bestDistinctModsHeld',
+  );
+  const hasLegacyMinimalSectorsKey = Object.prototype.hasOwnProperty.call(
+    saved,
+    'bestMinimalSectors',
+  );
   const num = (v: unknown): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : 0);
   const map = (v: unknown): Record<string, number> => {
     const out: Record<string, number> = {};
@@ -355,6 +397,13 @@ function applyLifetime(saved: LifetimeStats | undefined): boolean {
   };
   const weaponMaxLevel = sanitizeWeaponMaxLevel(saved.weaponMaxLevel);
   const damageByWeapon = sanitizeDamageByWeapon(saved.damageByWeapon);
+  const bestDistinctCoresHeld = normalizeBestDistinctCoresHeld(saved.bestDistinctCoresHeld);
+  const bestDistinctPermanentModsHeld = normalizeBestDistinctPermanentModsHeld(
+    saved.bestDistinctPermanentModsHeld,
+  );
+  const bestPuristSectors = normalizeBestPuristSectors(saved.bestPuristSectors);
+  const bestFlawlessRunS = normalizeBestFlawlessRunS(saved.bestFlawlessRunS);
+  const bestKillsInRun = normalizeBestKillsInRun(saved.bestKillsInRun);
   Object.assign(LIFETIME, {
     runsFinished: num(saved.runsFinished),
     runsSurvived: num(saved.runsSurvived),
@@ -364,7 +413,7 @@ function applyLifetime(saved: LifetimeStats | undefined): boolean {
     maxMapsReached: num(saved.maxMapsReached),
     totalKills: num(saved.totalKills),
     totalPlayS: num(saved.totalPlayS),
-    bestKillsInRun: num(saved.bestKillsInRun),
+    bestKillsInRun: bestKillsInRun.value,
     bestLevel: num(saved.bestLevel),
     bestDurationS: num(saved.bestDurationS),
     bossesDefeated: num(saved.bossesDefeated),
@@ -375,10 +424,12 @@ function applyLifetime(saved: LifetimeStats | undefined): boolean {
     goldEarned: num(saved.goldEarned),
     shopPurchases: num(saved.shopPurchases),
     bestModsHeld: num(saved.bestModsHeld),
+    bestDistinctCoresHeld: bestDistinctCoresHeld.value,
+    bestDistinctPermanentModsHeld: bestDistinctPermanentModsHeld.value,
     bestGoldEarnedInRun: num(saved.bestGoldEarnedInRun),
     bestMinimalRunS: num(saved.bestMinimalRunS),
-    bestMinimalSectors: num(saved.bestMinimalSectors),
-    bestFlawlessRunS: num(saved.bestFlawlessRunS),
+    bestPuristSectors: bestPuristSectors.value,
+    bestFlawlessRunS: bestFlawlessRunS.value,
     completedCharacterIds: Array.isArray(saved.completedCharacterIds)
       ? [...new Set(saved.completedCharacterIds.filter((id): id is string => isCharacterId(id)))]
       : [],
@@ -407,11 +458,6 @@ function applyLifetime(saved: LifetimeStats | undefined): boolean {
       (best, record) => Math.max(best, mapsReachedOf(record)),
       0,
     );
-    LIFETIME.bestMinimalSectors = history.reduce((best, record) => {
-      const weapons = Object.values(record.weaponLevels).filter((level) => level > 0).length;
-      const mods = Object.values(record.modCounts).reduce((sum, count) => sum + Math.max(0, count), 0);
-      return weapons === 1 && mods === 0 ? Math.max(best, sectorsClearedOf(record)) : best;
-    }, 0);
   }
   // Legacy ledgers predate the monotonic character-completion union. A
   // one-time best-effort migration can recover surviving records; after this
@@ -427,7 +473,209 @@ function applyLifetime(saved: LifetimeStats | undefined): boolean {
       }
     }
   }
-  return weaponMaxLevel.changed || damageByWeapon.changed;
+  if (bestDistinctCoresHeld.needsBackfill) {
+    LIFETIME.bestDistinctCoresHeld = loadRunHistory().reduce(
+      (best, record) => Math.max(best, distinctValidCoresHeld(record.coreLevels)),
+      0,
+    );
+  }
+  if (bestDistinctPermanentModsHeld.needsBackfill) {
+    LIFETIME.bestDistinctPermanentModsHeld = loadRunHistory().reduce(
+      (best, record) => Math.max(best, distinctValidPermanentModsHeld(record.modCounts)),
+      0,
+    );
+  }
+  if (bestPuristSectors.needsBackfill) {
+    LIFETIME.bestPuristSectors = loadRunHistory().reduce(
+      (best, record) => Math.max(best, puristSectorsOf(record)),
+      0,
+    );
+  }
+  if (bestFlawlessRunS.needsBackfill) {
+    LIFETIME.bestFlawlessRunS = loadRunHistory().reduce(
+      (best, record) => Math.max(best, flawlessDurationOf(record)),
+      0,
+    );
+  }
+  if (bestKillsInRun.needsBackfill) {
+    LIFETIME.bestKillsInRun = loadRunHistory().reduce(
+      (best, record) => Math.max(best, terminalKillCountOf(record)),
+      0,
+    );
+  }
+  return weaponMaxLevel.changed
+    || damageByWeapon.changed
+    || bestDistinctCoresHeld.changed
+    || bestDistinctPermanentModsHeld.changed
+    || bestPuristSectors.changed
+    || bestFlawlessRunS.changed
+    || bestKillsInRun.changed
+    || hasInterimDistinctModsKey
+    || hasLegacyMinimalSectorsKey;
+}
+
+function isTerminalRunOutcome(value: unknown): boolean {
+  return value === 'defeat' || value === 'sector-cleared' || value === 'run-complete';
+}
+
+function distinctValidCoresHeld(value: unknown): number {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return 0;
+  const count = Object.entries(value as Record<string, unknown>).filter(([id, level]) =>
+    isCoreId(id)
+    && typeof level === 'number'
+    && Number.isFinite(level)
+    && Number.isInteger(level)
+    && level > 0).length;
+  return count <= PROFILE_CAPACITY.coreSockets ? count : 0;
+}
+
+function normalizeBestDistinctCoresHeld(value: unknown): {
+  value: number;
+  changed: boolean;
+  needsBackfill: boolean;
+} {
+  if (
+    typeof value === 'number'
+    && Number.isFinite(value)
+    && Number.isInteger(value)
+    && value >= 0
+    && value <= PROFILE_CAPACITY.coreSockets
+  ) {
+    return { value, changed: false, needsBackfill: false };
+  }
+  return { value: 0, changed: true, needsBackfill: true };
+}
+
+function distinctValidPermanentModsHeld(value: unknown): number {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return 0;
+  return Object.entries(value as Record<string, unknown>).filter(([id, count]) =>
+    isPermanentModId(id)
+    && typeof count === 'number'
+    && Number.isFinite(count)
+    && Number.isInteger(count)
+    && count > 0).length;
+}
+
+function normalizeBestDistinctPermanentModsHeld(value: unknown): {
+  value: number;
+  changed: boolean;
+  needsBackfill: boolean;
+} {
+  if (
+    typeof value === 'number'
+    && Number.isFinite(value)
+    && Number.isInteger(value)
+    && value >= 0
+    && value <= PERMANENT_MOD_IDS.length
+  ) {
+    return { value, changed: false, needsBackfill: false };
+  }
+  return { value: 0, changed: true, needsBackfill: true };
+}
+
+function puristSectorsOf(record: RunRecordV1): number {
+  if (!isTerminalRunOutcome(record.outcome) || !isRunComplete(record)) return 0;
+  if (!hasExactlyOneTrustworthyPlayableWeapon(record.weaponLevels)) return 0;
+  if (!hasTrustworthyNoPermanentMods(record.modCounts)) return 0;
+  const sectors = sectorsClearedOf(record);
+  return sectors >= CONTRACTS.puristSectors
+    ? CONTRACTS.puristSectors
+    : 0;
+}
+
+function hasExactlyOneTrustworthyPlayableWeapon(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  let carried = 0;
+  for (const [id, level] of Object.entries(value as Record<string, unknown>)) {
+    if (
+      !Object.prototype.hasOwnProperty.call(WEAPON_INFO, id)
+      || typeof level !== 'number'
+      || !Number.isFinite(level)
+      || !Number.isInteger(level)
+      || level < 0
+    ) return false;
+    if (level === 0) continue;
+    if (!isPlayableWeaponId(id)) return false;
+    carried += 1;
+  }
+  return carried === 1;
+}
+
+function hasTrustworthyNoPermanentMods(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  for (const [id, count] of Object.entries(value as Record<string, unknown>)) {
+    if (
+      !isModId(id)
+      || typeof count !== 'number'
+      || !Number.isFinite(count)
+      || !Number.isInteger(count)
+      || count < 0
+    ) return false;
+    if (isPermanentModId(id) && count > 0) return false;
+  }
+  return true;
+}
+
+function normalizeBestPuristSectors(value: unknown): {
+  value: number;
+  changed: boolean;
+  needsBackfill: boolean;
+} {
+  if (
+    typeof value === 'number'
+    && Number.isFinite(value)
+    && Number.isInteger(value)
+    && (value === 0 || value === CONTRACTS.puristSectors)
+  ) {
+    return { value, changed: false, needsBackfill: false };
+  }
+  return { value: 0, changed: true, needsBackfill: true };
+}
+
+function flawlessDurationOf(record: RunRecordV1): number {
+  if (!isTerminalRunOutcome(record.outcome) || record.damageTaken !== 0) return 0;
+  return typeof record.durationS === 'number'
+    && Number.isFinite(record.durationS)
+    && record.durationS >= 0
+    ? record.durationS
+    : 0;
+}
+
+function normalizeBestFlawlessRunS(value: unknown): {
+  value: number;
+  changed: boolean;
+  needsBackfill: boolean;
+} {
+  if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+    return { value, changed: false, needsBackfill: false };
+  }
+  return { value: 0, changed: true, needsBackfill: true };
+}
+
+function terminalKillCountOf(record: RunRecordV1): number {
+  if (!isTerminalRunOutcome(record.outcome)) return 0;
+  return typeof record.kills === 'number'
+    && Number.isFinite(record.kills)
+    && Number.isInteger(record.kills)
+    && record.kills >= 0
+    ? record.kills
+    : 0;
+}
+
+function normalizeBestKillsInRun(value: unknown): {
+  value: number;
+  changed: boolean;
+  needsBackfill: boolean;
+} {
+  if (
+    typeof value === 'number'
+    && Number.isFinite(value)
+    && Number.isInteger(value)
+    && value >= 0
+  ) {
+    return { value, changed: false, needsBackfill: false };
+  }
+  return { value: 0, changed: true, needsBackfill: true };
 }
 
 function sanitizeWeaponMaxLevel(value: unknown): {

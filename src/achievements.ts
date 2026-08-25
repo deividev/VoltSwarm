@@ -22,6 +22,11 @@ type AchievementLifetime = Pick<
   | 'completedContracts'
   | 'weaponMaxLevel'
   | 'damageByWeapon'
+  | 'bestDistinctCoresHeld'
+  | 'bestDistinctPermanentModsHeld'
+  | 'bestPuristSectors'
+  | 'bestFlawlessRunS'
+  | 'bestKillsInRun'
 >;
 
 type AchievementProfile = Pick<typeof PROFILE, 'weaponSockets' | 'coreSockets' | 'levelupDiscards'>;
@@ -188,6 +193,57 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     hidden: false,
     isComplete: (lifetime: AchievementLifetime): boolean =>
       hasPlayableWeaponDamageAtMastery(lifetime.damageByWeapon),
+  },
+  {
+    id: 'ach_four_core_array',
+    steamApiName: 'ACH_FOUR_CORE_ARRAY',
+    displayName: 'Core Array',
+    steamDescription: 'Finish a recorded run carrying four distinct Cores.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Number.isInteger(lifetime.bestDistinctCoresHeld)
+      && lifetime.bestDistinctCoresHeld === PROFILE_CAPACITY.coreSockets,
+  },
+  {
+    id: 'ach_five_mod_rig',
+    steamApiName: 'ACH_FIVE_MOD_RIG',
+    displayName: 'Custom Rig',
+    steamDescription: 'Finish a recorded run carrying five distinct Mods.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Number.isInteger(lifetime.bestDistinctPermanentModsHeld)
+      && lifetime.bestDistinctPermanentModsHeld >= ACHIEVEMENTS.fiveModRig.minimumDistinctMods,
+  },
+  {
+    id: 'ach_purist',
+    steamApiName: 'ACH_PURIST',
+    displayName: 'Purist',
+    steamDescription: 'Clear both sectors in one run with exactly one weapon and no Mods.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Number.isInteger(lifetime.bestPuristSectors)
+      && lifetime.bestPuristSectors === CONTRACTS.puristSectors,
+  },
+  {
+    id: 'ach_untouchable',
+    steamApiName: 'ACH_UNTOUCHABLE',
+    displayName: 'Untouchable',
+    steamDescription: 'Survive for five minutes in a single run without taking damage.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      typeof lifetime.bestFlawlessRunS === 'number'
+      && Number.isFinite(lifetime.bestFlawlessRunS)
+      && lifetime.bestFlawlessRunS >= CONTRACTS.flawlessSeconds,
+  },
+  {
+    id: 'ach_overkill',
+    steamApiName: 'ACH_OVERKILL',
+    displayName: 'Overkill',
+    steamDescription: 'Destroy 800 machines in a single run.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Number.isInteger(lifetime.bestKillsInRun)
+      && lifetime.bestKillsInRun >= CONTRACTS.overkillKillsInRun,
   },
 ];
 

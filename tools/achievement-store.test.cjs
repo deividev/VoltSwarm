@@ -20,6 +20,11 @@ const FIRST_CONTRACT_API_NAME = 'ACH_FIRST_CONTRACT';
 const FULL_CAPACITY_API_NAME = 'ACH_FULL_CAPACITY';
 const WEAPON_LEVEL_API_NAME = 'ACH_WEAPON_LEVEL_20';
 const WEAPON_MASTERY_API_NAME = 'ACH_WEAPON_MASTERY';
+const FOUR_CORE_ARRAY_API_NAME = 'ACH_FOUR_CORE_ARRAY';
+const FIVE_MOD_RIG_API_NAME = 'ACH_FIVE_MOD_RIG';
+const PURIST_API_NAME = 'ACH_PURIST';
+const UNTOUCHABLE_API_NAME = 'ACH_UNTOUCHABLE';
+const OVERKILL_API_NAME = 'ACH_OVERKILL';
 
 function fixture(run) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'voltswarm-achievements-'));
@@ -111,6 +116,11 @@ test('registered achievement API names are accepted by the shared allowlist', ()
   assert.equal(outbox.requestAndFlush(FULL_CAPACITY_API_NAME, null).status, 'queued');
   assert.equal(outbox.requestAndFlush(WEAPON_LEVEL_API_NAME, null).status, 'queued');
   assert.equal(outbox.requestAndFlush(WEAPON_MASTERY_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(FOUR_CORE_ARRAY_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(FIVE_MOD_RIG_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(PURIST_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(UNTOUCHABLE_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(OVERKILL_API_NAME, null).status, 'queued');
   assert.deepEqual(outbox.snapshot().pending, [
     CACHE_API_NAME,
     SYSTEMS_API_NAME,
@@ -126,6 +136,11 @@ test('registered achievement API names are accepted by the shared allowlist', ()
     FULL_CAPACITY_API_NAME,
     WEAPON_LEVEL_API_NAME,
     WEAPON_MASTERY_API_NAME,
+    FOUR_CORE_ARRAY_API_NAME,
+    FIVE_MOD_RIG_API_NAME,
+    PURIST_API_NAME,
+    UNTOUCHABLE_API_NAME,
+    OVERKILL_API_NAME,
   ]);
 }));
 

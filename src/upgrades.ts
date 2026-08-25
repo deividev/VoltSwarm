@@ -313,6 +313,11 @@ export const CORE_TITLES: Record<string, string> = Object.fromEntries(
 CORE_TITLES['chaos'] = 'Chaos Module';
 CORE_TITLES['projectile-count'] = 'Ammo Feeder';
 
+/** Validates saved/run data against the complete active Core registry. */
+export function isCoreId(value: unknown): value is string {
+  return typeof value === 'string' && Object.prototype.hasOwnProperty.call(CORE_TITLES, value);
+}
+
 /** Luck-weighted tier roll — shared by the card draft, the chest reel and
  *  the merchant stock. */
 export function rollRarity(luck: number, random: () => number = Math.random): Rarity {

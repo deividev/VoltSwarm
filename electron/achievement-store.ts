@@ -16,6 +16,11 @@ export const STEAM_ACHIEVEMENT_NAMES = [
   'ACH_FULL_CAPACITY',
   'ACH_WEAPON_LEVEL_20',
   'ACH_WEAPON_MASTERY',
+  'ACH_FOUR_CORE_ARRAY',
+  'ACH_FIVE_MOD_RIG',
+  'ACH_PURIST',
+  'ACH_UNTOUCHABLE',
+  'ACH_OVERKILL',
 ] as const;
 export type SteamAchievementName = typeof STEAM_ACHIEVEMENT_NAMES[number];
 

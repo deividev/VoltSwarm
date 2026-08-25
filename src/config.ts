@@ -32,6 +32,7 @@ export const ACHIEVEMENTS = {
   rackHaulerClear: { requiredCharacterId: 'rack-hauler' },
   overclockerClear: { requiredCharacterId: 'overclocker' },
   firstContract: { minimumSettledContracts: 1 },
+  fiveModRig: { minimumDistinctMods: 5 },
 } as const;
 
 /** Developer instruments that must NEVER reach a paying player. `npm run package`

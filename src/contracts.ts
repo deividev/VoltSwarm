@@ -125,7 +125,7 @@ export function describeObjective(objective: Objective): string {
     case 'distinct-starting-weapons': return `Finish runs with ${objective.n.toLocaleString('en-US')} different starting weapons across your career.`;
     case 'distinct-completed-characters': return `Complete the full arc with ${objective.n.toLocaleString('en-US')} different ${plural(objective.n, 'character')} across your career.`;
     case 'minimal-run': return `Survive ${formatDuration(objective.seconds)} in a single run while carrying exactly 1 positive-level weapon and 0 Mods.`;
-    case 'minimal-sectors': return `Clear all ${objective.n.toLocaleString('en-US')} current sectors in a single run—${mapRoster()}—while carrying exactly 1 positive-level weapon and 0 Mods; a partial clear or defeat does not count.`;
+    case 'minimal-sectors': return `Clear all ${objective.n.toLocaleString('en-US')} current sectors in a single run—${mapRoster()}—while carrying exactly 1 positive-level playable weapon and 0 installed permanent Mods; instant consumables do not occupy Mod sockets, and a partial clear or defeat does not count.`;
     case 'flawless-run': return `Survive ${formatDuration(objective.seconds)} in a single run while taking exactly 0 damage.`;
   }
 }
@@ -298,7 +298,7 @@ export function progressOf(objective: Objective, stats: LifetimeStats = LIFETIME
       };
     }
     case 'minimal-run': return { current: stats.bestMinimalRunS, target: objective.seconds };
-    case 'minimal-sectors': return { current: stats.bestMinimalSectors, target: objective.n };
+    case 'minimal-sectors': return { current: stats.bestPuristSectors, target: objective.n };
     case 'flawless-run': return { current: stats.bestFlawlessRunS, target: objective.seconds };
     case 'weapons-mastered':
       return {

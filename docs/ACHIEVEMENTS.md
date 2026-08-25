@@ -1,6 +1,6 @@
 # Voltswarm — Steam achievements
 
-> Status: launch catalog under implementation. The first fifteen achievements are implemented locally; the remaining 5 entries are design proposals for human review.
+> Status: all twenty launch achievements are implemented locally and await external Steamworks App Admin configuration/publication.
 
 ## Implementation status
 
@@ -21,6 +21,11 @@
 | `ach_full_capacity` / `ACH_FULL_CAPACITY` | Implemented | **Required before release** — not configured or published by this repository change |
 | `ach_weapon_level_20` / `ACH_WEAPON_LEVEL_20` | Implemented | **Required before release** — not configured or published by this repository change |
 | `ach_weapon_mastery` / `ACH_WEAPON_MASTERY` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_four_core_array` / `ACH_FOUR_CORE_ARRAY` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_five_mod_rig` / `ACH_FIVE_MOD_RIG` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_purist` / `ACH_PURIST` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_untouchable` / `ACH_UNTOUCHABLE` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_overkill` / `ACH_OVERKILL` | Implemented | **Required before release** — not configured or published by this repository change |
 
 The canonical Steam metadata lives in `ACHIEVEMENT_REGISTRY`. Achievements are evaluated after profile loading and Contract settlement at startup only when any newly settled Contract IDs were saved successfully. End-of-run evaluation likewise requires both the recorded-run profile write and any subsequent Contract-settlement write to succeed. The Electron main process accepts only allowlisted API names, persists a crash-safe outbox in `userData/achievement-sync.json`, checks Steam's existing state before activation, queues offline requests, and records local completion so it is not activated again.
 
@@ -175,6 +180,56 @@ The external Steamworks entries still have to be created and published in App Ad
 - **Hidden:** False
 - **Achieved icon:** `art/concept/achievements/achievement-proven-hardware-v1.png`
 - **Unachieved icon:** `art/concept/achievements/achievement-proven-hardware-locked-v1.png`
+
+### `ACH_FOUR_CORE_ARRAY`
+
+- **API Name:** `ACH_FOUR_CORE_ARRAY`
+- **Display Name:** `Core Array`
+- **Description:** `Finish a recorded run carrying four distinct Cores.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-core-array-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-core-array-locked-v1.png`
+
+### `ACH_FIVE_MOD_RIG`
+
+- **API Name:** `ACH_FIVE_MOD_RIG`
+- **Display Name:** `Custom Rig`
+- **Description:** `Finish a recorded run carrying five distinct Mods.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-custom-rig-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-custom-rig-locked-v1.png`
+
+### `ACH_PURIST`
+
+- **API Name:** `ACH_PURIST`
+- **Display Name:** `Purist`
+- **Description:** `Clear both sectors in one run with exactly one weapon and no Mods.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-purist-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-purist-locked-v1.png`
+
+### `ACH_UNTOUCHABLE`
+
+- **API Name:** `ACH_UNTOUCHABLE`
+- **Display Name:** `Untouchable`
+- **Description:** `Survive for five minutes in a single run without taking damage.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-untouchable-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-untouchable-locked-v1.png`
+
+### `ACH_OVERKILL`
+
+- **API Name:** `ACH_OVERKILL`
+- **Display Name:** `Overkill`
+- **Description:** `Destroy 800 machines in a single run.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-overkill-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-overkill-locked-v1.png`
 
 ## Launch recommendation
 
@@ -423,7 +478,10 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 - **Hidden:** No — it promotes use of full Core capacity.
 - **Estimated difficulty:** Medium.
 - **Signal:** Available in `RunRecordV1`, but only while the record remains inside the 250-run history.
-- **Minimal telemetry required:** Add monotonic `LIFETIME.bestDistinctCoresHeld` for durable retroactivity.
+- **Telemetry:** Implemented as monotonic `LIFETIME.bestDistinctCoresHeld` for durable retroactivity. New profiles fold it only from terminal run records. Older profiles perform a one-time best-effort backfill from the bounded 250-run history and immediately persist the result; records that already aged out cannot be recovered.
+- **Implementation:** Implemented locally with Steam API name `ACH_FOUR_CORE_ARRAY`. The exact threshold derives from the release Core capacity in `PROFILE_CAPACITY.coreSockets`. Folding counts distinct IDs only when they exist in the active `CORE_TITLES` registry and have positive finite integer levels; unknown IDs, duplicate object keys, fractional/non-finite levels, non-terminal records, and impossible over-cap sets do not qualify. Persisted telemetry accepts only finite integers from zero through the release capacity, with malformed values reset or recovered from surviving valid history. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-core-array-v1.png` (generation master) and `art/concept/achievements/achievement-core-array-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-core-array-locked-v1.png` (generation master) and `art/concept/achievements/achievement-core-array-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict four visually distinct voxel Core orbs locked into a compact cross-shaped industrial array, each with a truthful different internal symbol shape and accent color, all feeding one stable white central conduit. Make the complete Core array the dominant silhouette.
@@ -432,11 +490,14 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 
 - **Display name:** `Custom Rig`
 - **Steam description:** `Finish a recorded run carrying five distinct Mods.`
-- **Exact condition:** A recorded run contains five distinct IDs in `modCounts` with positive counts; duplicate copies do not increase the distinct count.
+- **Exact condition:** A recorded terminal run contains five distinct permanent-Mod IDs in `modCounts` with positive counts; duplicate copies do not increase the distinct count, and instant consumables never count as carried Mods.
 - **Hidden:** No — it promotes variety rather than an exact RNG combination.
 - **Estimated difficulty:** Medium.
 - **Signal:** Available in `RunRecordV1`, but only while the record remains inside the bounded history.
-- **Minimal telemetry required:** Add monotonic `LIFETIME.bestDistinctModsHeld`.
+- **Telemetry:** Implemented as monotonic `LIFETIME.bestDistinctPermanentModsHeld` for durable retroactivity. New profiles fold it only from terminal run records. Older profiles perform a one-time best-effort backfill from the bounded 250-run history and immediately persist the result; records that already aged out cannot be recovered. The never-shipped interim key `bestDistinctModsHeld` is ignored rather than trusted because it mixed consumables with installed hardware.
+- **Implementation:** Implemented locally with Steam API name `ACH_FIVE_MOD_RIG`. The threshold lives in `ACHIEVEMENTS.fiveModRig.minimumDistinctMods`; the monotonic maximum may legitimately exceed five because permanent Mods have no socket limit. Folding derives carryable identity from `MOD_REGISTRY[id].kind === 'permanent'` and requires positive finite integer copy counts. The four instant consumables remain reward/run-event counters and never count as installed harness hardware; multiple copies of one permanent Mod count once, while unknown IDs, malformed counts, and non-terminal records do not qualify. Persisted telemetry accepts only finite integers from zero through the registry-derived permanent-Mod count; malformed or impossible values are reset or recovered from surviving valid history without clamp-to-unlock. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-custom-rig-v1.png` (generation master) and `art/concept/achievements/achievement-custom-rig-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-custom-rig-locked-v1.png` (generation master) and `art/concept/achievements/achievement-custom-rig-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict a single custom industrial harness fitted with five clearly distinct chunky voxel Mod modules, each using a different truthful mechanical silhouette such as relay, coolant tank, trigger block, magnetic coil, and reinforced plate. Connect them with restrained white power traces and avoid written labels.
@@ -445,10 +506,14 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 
 - **Display name:** `Purist`
 - **Steam description:** `Clear both sectors in one run with exactly one weapon and no Mods.`
-- **Exact condition:** `LIFETIME.bestMinimalSectors >= 2`; exactly one positive-level weapon, zero Mods, and both sectors structurally credited.
+- **Exact condition:** `LIFETIME.bestPuristSectors` reaches the config-derived current full-sector count (`CONTRACTS.puristSectors`, currently 2). It is earned only by a terminal `isRunComplete()` record with all sectors structurally credited, exactly one positive-level currently playable weapon, and zero installed permanent Mods. Instant consumables do not occupy Mod sockets and do not disqualify the run.
 - **Hidden:** No — players must know the condition to attempt it deliberately.
 - **Estimated difficulty:** Very hard.
-- **Signal:** Existing `LIFETIME.bestMinimalSectors`.
+- **Signal:** Implemented as monotonic `LIFETIME.bestPuristSectors`.
+- **Telemetry:** The former `bestMinimalSectors` scalar is not trusted because its historical fold counted unknown/disabled weapon keys and treated instant consumables as installed Mods. On first load, the replacement field is backfilled only from surviving bounded run history using current playable-weapon and permanent-Mod registry semantics, then persisted. Evidence already aged out of history cannot be recovered automatically.
+- **Implementation:** Implemented locally with Steam API name `ACH_PURIST`. The predicate uses `CONTRACTS.puristSectors`, which derives from the release map roster. Folding rejects partial or non-terminal records, zero or multiple weapons, positive-level disabled Oil, unknown IDs, and malformed/non-finite/fractional levels or counts. Exactly one valid playable weapon qualifies, while any positive permanent Mod disqualifies; valid instant consumable counters are ignored as non-installed run events. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-purist-v1.png` (generation master) and `art/concept/achievements/achievement-purist-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-purist-locked-v1.png` (generation master) and `art/concept/achievements/achievement-purist-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict one solitary industrial voxel weapon standing upright between two cleared sector plates, surrounded by visibly empty Mod sockets and a clean narrow white energy path. Emphasize deliberate minimalism: one weapon, no additional modules, no clutter.
@@ -457,10 +522,13 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 
 - **Display name:** `Untouchable`
 - **Steam description:** `Survive for five minutes in a single run without taking damage.`
-- **Exact condition:** `LIFETIME.bestFlawlessRunS >= 300`, only when `damageTaken === 0`; legacy records without the field are unknown and do not count.
+- **Exact condition:** finite `LIFETIME.bestFlawlessRunS >= CONTRACTS.flawlessSeconds` (currently 300), folded only from a terminal recorded run with exact `damageTaken === 0`. Legacy records without `damageTaken` are unknown and never count; incomplete or quit runs cannot contribute.
 - **Hidden:** No — the condition must be visible.
 - **Estimated difficulty:** Very hard.
-- **Signal:** Existing `LIFETIME.bestFlawlessRunS`.
+- **Signal:** Existing monotonic `LIFETIME.bestFlawlessRunS`, now normalized and backfilled strictly from bounded terminal history when absent or malformed.
+- **Implementation:** Implemented locally with Steam API name `ACH_UNTOUCHABLE`. The achievement and existing Untouchable Contract share the single authoritative `CONTRACTS.flawlessSeconds` threshold. The runtime damage funnel increments `runDamageTaken` only for actual post-armor HP damage; evasion and Barrier Cell blocks record no damage because the hit does not harm the player. Run finalization copies that counter into `RunRecordV1.damageTaken`. Folding requires a terminal outcome, exact known zero damage, and a finite nonnegative duration; fractional seconds are legitimate because run duration is recorded to millisecond precision. Existing valid monotonic values remain durable, while missing or invalid values are best-effort recovered from surviving history and re-saved. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-untouchable-v1.png` (generation master) and `art/concept/achievements/achievement-untouchable-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-untouchable-locked-v1.png` (generation master) and `art/concept/achievements/achievement-untouchable-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict a pristine compact industrial robot protected inside a perfectly intact white voxel shield shell while hostile red-orange cubic voxel projectiles narrowly deflect around the outside. The robot and shield must show absolutely no damage, cracks, or impacts.
@@ -469,10 +537,13 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 
 - **Display name:** `Overkill`
 - **Steam description:** `Destroy 800 machines in a single run.`
-- **Exact condition:** `LIFETIME.bestKillsInRun` reaches `CONTRACTS.overkillKillsInRun`, currently 800.
+- **Exact condition:** finite integer `LIFETIME.bestKillsInRun >= CONTRACTS.overkillKillsInRun` (currently 800), folded only from a terminal recorded run. Quit or incomplete runs and malformed, negative, fractional, or non-finite counts never contribute.
 - **Hidden:** No — this is a deliberate density-mastery objective.
 - **Estimated difficulty:** Hard.
-- **Signal:** Existing `LIFETIME.bestKillsInRun`; threshold remains config-derived.
+- **Signal:** Existing monotonic `LIFETIME.bestKillsInRun`, now normalized and backfilled strictly from bounded terminal history when absent or malformed.
+- **Implementation:** Implemented locally with Steam API name `ACH_OVERKILL`. The achievement and existing Overkill Contract share the single authoritative `CONTRACTS.overkillKillsInRun` threshold. `Progression.addKill()` runs once from the common `onEnemyDeath()` callback before boss classification, so every destroyed enemy machine counts exactly once: ordinary enemies, elites, summoned reinforcements, and bosses all contribute. Run finalization persists the integer count; quitting only emits abandonment telemetry and never creates or folds a run record. Existing valid monotonic values remain durable, while missing or invalid values are best-effort recovered from surviving terminal history and re-saved. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-overkill-v1.png` (generation master) and `art/concept/achievements/achievement-overkill-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-overkill-locked-v1.png` (generation master) and `art/concept/achievements/achievement-overkill-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict one compact white-powered player machine at the center of a dense circular swarm of small hostile robot silhouettes, releasing an enormous multi-layer cubic voxel shockwave that breaks the surrounding machines into clean mechanical cubes. No gore and no organic debris.
@@ -496,7 +567,7 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 ### Existing fields and events
 
 - `LIFETIME.runsFinished`, `runsCompleted`, `bestLevel`, `bossesDefeated`, `bossTypesDefeated`, and `maxMapsReached`.
-- `LIFETIME.completedCharacterIds`, `weaponMaxLevel`, `damageByWeapon`, `bestMinimalSectors`, `bestFlawlessRunS`, and `bestKillsInRun`.
+- `LIFETIME.completedCharacterIds`, `weaponMaxLevel`, `damageByWeapon`, `bestDistinctCoresHeld`, `bestDistinctPermanentModsHeld`, `bestPuristSectors`, `bestFlawlessRunS`, and `bestKillsInRun`.
 - `LIFETIME.chestsByTier` and completed Contract IDs.
 - `PROFILE.weaponSockets`, `coreSockets`, and `levelupDiscards`.
 - `RunRecordV1.coreLevels` and `modCounts`.
@@ -504,14 +575,17 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 
 ### Implementation progress
 
-1. **Implemented for achievements 1–15:** canonical typed registry metadata with stable local ID, predicate, display metadata, hidden flag, and Steam API name.
-2. **Remaining for Core Array:** `LIFETIME.bestDistinctCoresHeld`.
-3. **Remaining for Custom Rig:** `LIFETIME.bestDistinctModsHeld`.
-4. **Compatibility risk for boss achievements:** the runtime currently persists exact `ENEMY_TYPES[].name` strings, and Scrapyard Command and Hazard Contained intentionally use those existing identities. Before any boss display-name rename, introduce stable IDs and migrate old ledgers so already-earned progress remains retroactive.
-5. **Implemented:** profile-independent monotonic `pending` and `unlocked` sets in `achievement-sync.json`.
-6. **Implemented for current predicates:** startup evaluation waits for any Contract-settlement save, while end-of-run evaluation requires both the run-ledger save and subsequent Contract-settlement save to confirm durable success.
-7. **Implemented:** Steam allowlist, typed IPC result, crash-safe offline outbox, startup reconciliation, and bounded retry.
-8. **Implemented:** ordinary development has no achievement transport unless `STEAM_APP_ID` is supplied explicitly; packaged builds use App ID `4979220` and remain protected by the release-flag package gate.
+1. **Implemented for achievements 1–20:** canonical typed registry metadata with stable local ID, predicate, display metadata, hidden flag, and Steam API name.
+2. **Implemented for Core Array:** monotonic `LIFETIME.bestDistinctCoresHeld`, with bounded-history migration for older saves.
+3. **Implemented for Custom Rig:** config-owned threshold plus monotonic `LIFETIME.bestDistinctPermanentModsHeld`, with bounded-history migration for older saves.
+4. **Implemented for Purist:** migration-safe `LIFETIME.bestPuristSectors`, strict structural completion, playable-weapon validation, and permanent-Mod-only installed-build semantics.
+5. **Implemented for Untouchable:** shared Contract threshold plus terminal, known-zero-damage telemetry normalization and bounded-history recovery.
+6. **Implemented for Overkill:** shared Contract threshold plus terminal integer kill telemetry normalization and bounded-history recovery.
+7. **Compatibility risk for boss achievements:** the runtime currently persists exact `ENEMY_TYPES[].name` strings, and Scrapyard Command and Hazard Contained intentionally use those existing identities. Before any boss display-name rename, introduce stable IDs and migrate old ledgers so already-earned progress remains retroactive.
+8. **Implemented:** profile-independent monotonic `pending` and `unlocked` sets in `achievement-sync.json`.
+9. **Implemented for current predicates:** startup evaluation waits for any Contract-settlement save, while end-of-run evaluation requires both the run-ledger save and subsequent Contract-settlement write to confirm durable success.
+10. **Implemented:** Steam allowlist, typed IPC result, crash-safe offline outbox, startup reconciliation, and bounded retry.
+11. **Implemented:** ordinary development has no achievement transport unless `STEAM_APP_ID` is supplied explicitly; packaged builds use App ID `4979220` and remain protected by the release-flag package gate.
 
 ## Steam icon treatment
 
@@ -537,6 +611,9 @@ Derive each unachieved icon from the approved achieved composition: preserve the
 
 - Achievements must be monotonic and re-evaluated from `LIFETIME` on startup.
 - Core Array and Custom Rig are not durably retroactive until their monotonic fields exist.
+- Purist legacy evidence can be recovered only while its strict qualifying run remains in bounded history; the unsafe historical scalar is intentionally ignored.
+- Missing Untouchable telemetry can be recovered only from surviving history with an explicit `damageTaken: 0`; older records without that field remain unknown by design.
+- Missing or malformed Overkill telemetry can be recovered only while a valid terminal integer kill record survives bounded history.
 - Missing legacy fields mean unknown, never zero.
 - Full Circuit must use structural `isRunComplete()` evidence, never duration or final-boss death alone.
 - Local profile reset must never revoke a Steam achievement.
