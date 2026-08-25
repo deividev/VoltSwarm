@@ -1,6 +1,6 @@
 # Voltswarm — Roadmap a Steam
 
-Actualizado: 2026-08-21. Unidad funcional del juego completo: **0.23.0**. No existe paquete 0.23.0. Rama Demo separada: `codex/demo-map1` (`0.13.39-demo`).
+Actualizado: 2026-08-25. Unidad funcional del juego completo: **0.30.1** (source/HEAD). Las release flags siguen bloqueando el empaquetado; no existe paquete 0.30.1. Rama Demo separada: `codex/demo-map1` (`0.13.39-demo`).
 
 ## Alcance de variantes — decisión vigente
 
@@ -18,7 +18,7 @@ Actualizado: 2026-08-21. Unidad funcional del juego completo: **0.23.0**. No exi
 
 **⚠️ ORDEN REORDENADO POR DECISIÓN DEL USUARIO (2026-07-25): el gate de viabilidad multijugador se DIFIERE a post-lanzamiento.** Se conserva la cobertura de smoke tests; el determinismo de tick fijo sigue diferido.
 
-**Current full-game order:** release hygiene + smoke ✅ → persistent profile + Contracts ✅ → audio v1 ✅ → Swarm Foundry + **Hazard Marshal baseline ✅** → **three launch characters CLOSED ✅** → **current Foundry replacement slice CLOSED ✅** → molten-flow glow and voxel sparks → human playtests, balance, and retention → Steamworks/technical close. The multiplayer gate is reconsidered **after** launch.
+**Current full-game order:** release hygiene + smoke ✅ → persistent profile + Contracts ✅ → audio v1 ✅ → Swarm Foundry + **Hazard Marshal baseline ✅** → **three launch characters CLOSED ✅** → **current Foundry replacement slice and ambient visual state CLOSED ✅** → human playtests, balance, and retention → Steamworks/technical close. The multiplayer gate is reconsidered **after** launch.
 
 Orden anterior (superseded): foundation de audio → viabilidad multijugador → contenido/balance/retención → catálogo de audio → Steamworks. **Nombre: Voltswarm — CERRADO (confirmado 2026-07-05).** Precio objetivo histórico: **$4.99** con descuento de lanzamiento 10-15%; revisión de mercado previa al lanzamiento pendiente.
 
@@ -28,7 +28,7 @@ Orden anterior (superseded): foundation de audio → viabilidad multijugador →
 
 **Objetivo interno de RC de la Demo: fin de agosto de 2026.** No es fecha pública, promesa de disponibilidad ni predicción de revisión externa. Se revalida contra su checklist congelado y no fija la fecha del juego completo. El objetivo anterior del 4 de noviembre queda como registro histórico, no como gobernanza vigente.
 
-**Operational status:** the commercial handoff and audio v1 do not close the full game. Map 2 base scenery and the Hazard Marshal gameplay baseline are closed. Field Engineer, Rack Hauler, and Overclocker are final and closed for the current release scope; Rack keeps its measured 400+ evidence, while Overclocker is closed by explicit user acceptance without claiming a separate benchmark. Foundry's current replacement slice is Furnace Mite, Axle Runner, and Slagcaster, all closed. Molten-flow glow and voxel sparks remain; Forge Dart and any further enemy replacements/expansion are deferred. Human playtests and final calibration will use this comparable build.
+**Operational status:** the commercial handoff and audio v1 do not close the full game. Map 2 base scenery and the Hazard Marshal gameplay baseline are closed. Field Engineer, Rack Hauler, and Overclocker are final and closed for the current release scope; Rack keeps its measured 400+ evidence, while Overclocker is closed by explicit user acceptance without claiming a separate benchmark. Foundry's current replacement slice is Furnace Mite, Axle Runner, and Slagcaster, all closed. Its ambient presentation is also closed at the current visual state; molten-flow glow and voxel sparks are optional future enhancements. Forge Dart and any further enemy replacements/expansion are deferred. Human playtests and final calibration will use this comparable build.
 
 ## Hecho (pase de endurecimiento, 2026-07-04)
 
@@ -141,7 +141,7 @@ Si el resultado es **GO**, el primer objetivo jugable será **exactamente 2 juga
 
 ## Fase 5 — Arco completo, personajes y balance
 
-**Current internal priority:** finish Swarm Foundry's molten-flow glow and voxel sparks, then run human playtests, balance, and retention on a comparable build. The three launch characters and current enemy replacement slice are closed and no longer occupy this sequence. Hazard Marshal does not block it: its gameplay baseline was accepted in v0.22.0.
+**Current internal priority:** run human playtests, balance, and retention on a comparable build. The three launch characters, current enemy replacement slice, and current Foundry ambient visual state are closed and no longer occupy this sequence. Molten-flow glow and voxel sparks are optional future enhancements. Hazard Marshal does not block it: its gameplay baseline was accepted in v0.22.0.
 
 - ✅ **Swarm Foundry replacement slice — CLOSED 2026-08-25:** Furnace Mite replaces Voltling, Axle Runner replaces Sparkrunner, and Slagcaster replaces Gunner. Furnace Mite and Axle Runner retain their documented 400+ evidence. Slagcaster is final by explicit user acceptance; no 400+ result is invented or claimed for it. Forge Dart, further Rustbrute/Drone replacements, Arc Courier, and all other enemy expansion are deferred outside the current production scope. See `docs/FOUNDRY_ENEMY_ROSTER.md` for provenance and measured evidence.
 
@@ -191,7 +191,7 @@ La lista levantada 2026-07-26 queda como registro histórico de decisiones. El c
 
 **7. Boss final — BASELINE CERRADA EN v0.22.0:** Hazard Marshal está integrado mediante la clave histórica `final-boss` y se dibuja con el `InstancedMesh` de `EnemySystem`. Tiene llegada propia con fuego del jugador retenido, arena despejada, combate autorado de tres fases, barrido, líneas de ensamblaje, sobrecarga, telegrafías, refuerzos, cues espaciales y desenlace diferido para que el golpe mortal se lea. El cierre pasó 36/36 tests, typecheck y el check runtime automatizado del finale. **Fuera del cierre:** balance fino basado en runs humanas terminadas y una posible arena reactiva/modular.
 
-**8. Map and roster — CURRENT SLICE CLOSED:** raster floor, stacks, cells, cover, arena wall, and per-map sky/fog are integrated. Furnace Mite, Axle Runner, and Slagcaster form the closed replacement slice. Forge Dart and further roster expansion are deferred, not active omissions. Ambient molten-flow glow and voxel sparks remain. Any future enemy content must satisfy the 400+ rule when that deferred work is reopened.
+**8. Map and roster — CURRENT SLICE CLOSED:** raster floor, stacks, cells, cover, arena wall, and per-map sky/fog are integrated. Furnace Mite, Axle Runner, and Slagcaster form the closed replacement slice. The current ambient visual state is closed; molten-flow glow and voxel sparks are optional future enhancements. Forge Dart and further roster expansion are deferred, not active omissions. Any future enemy content must satisfy the 400+ rule when that deferred work is reopened.
 
 **Instrumentación lista para la primera run:** mapa final, `sectorsCleared`, `mapsReached`, completitud estructural y distribución en `pnpm stats`. Los playtests humanos se harán sobre una build comparable; no convierten esta primera versión procedural en arte final.
 - Semilla de layout aleatoria por run, escalera extendida de bosses/elites, meta-progresión ligera y contenido adicional desbloqueable.
@@ -209,7 +209,7 @@ La lista levantada 2026-07-26 queda como registro histórico de decisiones. El c
 ## Fase 4b — Cohesión de audio para contenido nuevo (DESPUÉS de personajes y balance humano)
 
 - **Audio v1 está cerrado.** Esta fase ya no es una deuda del build actual.
-- After the remaining Foundry ambient VFX and comparable human runs, re-audit new events and perform the final cohesion pass against the closed character/enemy content.
+- After comparable human runs, re-audit new events and perform the final cohesion pass against the closed character/enemy content. Optional Foundry ambient enhancements do not block this phase.
 - La música o mezcla adicional se adelanta únicamente si el tráiler final la necesita.
 
 ## Fase 6 — Steamworks técnico + cierre

@@ -4,18 +4,18 @@
 
 **Juego completo (`codex/map-2`):** Mapa 1 / Scrapyard → Mapa 2 **Swarm Foundry** → **Hazard Marshal**. Hazard Marshal conserva `modelKey: 'final-boss'` y su baseline jugable quedó **CERRADA en el candidato 0.22.0**: llegada propia, arena despejada con muro, fuego retenido en las 11 armas, combate de tres fases, sweep/volley/assembly/overload, refuerzos, audio y desenlace. Solo quedan diferidos el balance fino con runs humanas y una posible arena reactiva/modular. Volt Warden es diseño histórico/futuro, no el boss final vigente.
 
-### Snapshot vigente — candidato 0.22.0 (2026-08-20)
+### Snapshot vigente — source/HEAD 0.30.1 (2026-08-25)
 
 | Área | Estado real |
 | --- | --- |
 | Arco | Mapa 1 exige 10:00 + ≥1 boss; sin boss termina `OBJECTIVE FAILED` (`boss-required`). El cruce conserva build, nivel, XP y descartes, cura al 100% y deja oro en 0. El crédito final depende de sectores acreditados; matar solo al boss final sin crédito previo no produce `run-complete`. |
-| Foundry | Raster floor, stacks/cells, cover, arena wall, and per-map sky/fog are implemented. The current replacement slice is CLOSED with Furnace Mite, Axle Runner, and Slagcaster. Forge Dart, further Rustbrute/Drone replacements, Arc Courier, and other enemy expansion are deferred. Molten-flow glow and voxel sparks remain pending. |
+| Foundry | Raster floor, stacks/cells, cover, arena wall, and per-map sky/fog are implemented. The current replacement slice is CLOSED with Furnace Mite, Axle Runner, and Slagcaster. The ambient presentation is closed at its current visual state; molten-flow glow and voxel sparks are optional future enhancements. Forge Dart, further Rustbrute/Drone replacements, Arc Courier, and other enemy expansion are deferred. |
 | Profile and content | Global weapons 2→3; global Cores 2→4; discards 3→4. 11 registered weapons / 10 playable (Oil disabled), 20 Cores, 17 Mods, and 29 declared / 29 active Contracts. Field Engineer, Rack Hauler, and Overclocker are final and CLOSED for the current release scope; Proving Ground and Two of a Kind unlock the two additional characters. |
 | Recompensas | Cofres pagados a 0.5× entregan Mods. Skip/descartes está implementado; Reroll y Banish siguen pendientes. Barrier Cell: 30 s base, −3 s por copias 7–10, mínimo 18 s, cap 10. La recomendación de arma del personaje se presenta como `Suggested Start`, nunca como obligación. |
 | Audio | Audio v1 aceptado. Las recetas y manifiestos están versionados, pero la reconstrucción completa del pack runtime activo aún no está unificada en un solo comando; `pnpm audio:generate` sí cubre foundation, navegación UI y `boss-assembly-open`. El finale tiene cues propias `boss-sweep-charge/warn/fire`, `boss-volley`, `boss-assembly-open/spawn` y `boss-overload-open/erupt`. Oil emite `oil-drop`, pero el evento no está enabled ni en el manifiesto y permanece silencioso. |
-| Entrega | Working tree `0.22.0`; `HEAD` todavía `0.21.0`. `shortMaps=false`; `mapTransitionKey=true` y `finaleKey=true`, por lo que `pnpm package` sigue bloqueado. No existe paquete 0.22.0. |
+| Entrega | Source/HEAD `0.30.1`; `shortMaps=false`; `mapTransitionKey=true` y `finaleKey=true`, por lo que `pnpm package` sigue bloqueado. No existe paquete 0.30.1. |
 
-**Next sequence:** Foundry molten-flow glow and voxel sparks → completed human runs plus `pnpm stats` for balance/retention → cohesion pass for new audio → Steamworks/technical close. Closed characters and deferred enemy expansion are not active work items.
+**Next sequence:** completed human runs plus `pnpm stats` for balance/retention → cohesion pass for new audio → Steamworks/technical close. Closed characters, the current Foundry visual state, and deferred enemy expansion are not active work items.
 
 ## Swarm Foundry — escenografía del Mapa 2 (2026-08-17, v0.13.49 → 0.13.55)
 
@@ -33,7 +33,7 @@
 
 **Rendimiento validado:** 430 enemigos, mediana de frametime 8.30 ms y p99 8.50 ms contra un período de vsync de 8.33 — sigue limitado por el refresco, no por la carga.
 
-**Remaining visual work:** the independent ambient pass for molten-flow glow and voxel sparks. The current enemy replacement slice is closed; additional replacements are deferred rather than active backlog. Per-map sky/fog, arena clearing, and the base wall are implemented; a reactive/modular arena remains optional.
+**Foundry visual scope:** the current ambient presentation is closed. Molten-flow glow and voxel sparks are optional future enhancements, not RC requirements. The current enemy replacement slice is closed; additional replacements are deferred rather than active backlog. Per-map sky/fog, arena clearing, and the base wall are implemented; a reactive/modular arena remains optional.
 
 **Steam Demo (`codex/demo-map1`, snapshot separado `0.13.39-demo`):** solo Scrapyard / Mapa 1. Boss derrotado → `SECTOR CLEARED`; timeout sin boss → `SECTOR HELD`. No transiciona a Mapa 2 ni contiene Hazard Marshal, y no describe el flujo ni los metadatos de producto de esta rama de juego completo.
 
@@ -80,7 +80,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
 3. ⏸️ **Preparación/viabilidad multijugador — DIFERIDA A POST-LANZAMIENTO (decisión del usuario 2026-07-25).** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno, para una feature que `MULTIPLAYER_FEASIBILITY.md` documenta como no diferenciadora, no prometida y que puede terminar NO-GO — mientras el contenido que decide si el juego vale su precio quedaba comprimido. Del gate se rescató solo la mitad barata: cobertura de smoke tests. **El determinismo de tick fijo, el RNG sembrado y los snapshots siguen sin implementar**, y por eso tampoco se guarda semilla en los registros de run. Si el gate se retoma y da GO, el primer objetivo sigue siendo exactamente 2 jugadores local split-screen; online peer-host exige aprobación posterior; hybrid y dedicated servers quedan fuera de alcance.
-4. 🟡 **NOW:** the full arc is playable and the Hazard Marshal baseline is closed in 0.22.0. Next: Foundry molten-flow glow and voxel sparks → balance/retention with completed human runs → cohesion pass for new audio → Steamworks/technical close. All three launch characters and the current Foundry replacement slice are closed.
+4. 🟡 **NOW:** the full arc is playable and the Hazard Marshal baseline is closed in 0.22.0. Next: balance/retention with completed human runs → cohesion pass for new audio → Steamworks/technical close. All three launch characters, the current Foundry visual state, and the current Foundry replacement slice are closed.
 
 ## P1 — Estructural
 
