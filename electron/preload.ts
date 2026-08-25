@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webFrame } from 'electron';
+import type { AchievementSyncResult } from './achievement-store';
 
 const LEGACY_PROGRESS_KEYS = [
   'voltswarm:profile',
@@ -34,9 +35,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     webFrame.setZoomFactor([1, 1.25, 1.5].includes(factor) ? factor : 1);
   },
   loadProfile: (): string | null => ipcRenderer.sendSync('profile:load') as string | null,
-  saveProfile: (data: string): void => {
-    ipcRenderer.sendSync('profile:save', data);
-  },
+  saveProfile: (data: string): boolean =>
+    ipcRenderer.sendSync('profile:save', data) as boolean,
   loadRunHistory: (): string | null => ipcRenderer.sendSync('run-history:load') as string | null,
   saveRunHistory: (data: string): void => {
     ipcRenderer.sendSync('run-history:save', data);
@@ -63,8 +63,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   },
   steam: {
     isAvailable: (): boolean => ipcRenderer.sendSync('steam:available') as boolean,
-    unlockAchievement: (name: string): void => {
-      ipcRenderer.sendSync('steam:unlock', name);
-    },
+    requestUnlock: (name: string): AchievementSyncResult =>
+      ipcRenderer.sendSync('steam:request-achievement', name) as AchievementSyncResult,
   },
 });

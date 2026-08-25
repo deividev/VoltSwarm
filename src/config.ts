@@ -19,6 +19,14 @@ export const ARENA_WALL_INSET = 1;
 /** Movement limit for anything that walks: the wall's inner face. */
 export const PLAY_HALF_SIZE = ARENA_HALF_SIZE - ARENA_WALL_INSET;
 
+export const ACHIEVEMENTS = {
+  firstShift: { minimumRunsFinished: 1 },
+  cacheOpened: { minimumPaidChests: 1 },
+  systemsOnline: { minimumLevel: 10 },
+  firstBossDown: { minimumBossesDefeated: 1 },
+  foundryBound: { minimumMapsReached: 2 },
+} as const;
+
 /** Developer instruments that must NEVER reach a paying player. `npm run package`
  *  refuses to build while any of these is true (tools/check-release-flags.mjs),
  *  so leaving one on during a playtest cannot silently ship. */

@@ -45,6 +45,11 @@ const TEXT_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.css', '.html', '.json'
 /** Paperwork that must never ship, listed so the error names the real files. */
 const PAPERWORK_EXTENSIONS = new Set(['.md', '.markdown', '.txt']);
 
+const isRequiredNativeRuntime = (file) =>
+  file.path === 'node_modules/steamworks.js/package.json'
+  || file.path === 'node_modules/steamworks.js/index.js'
+  || file.path.startsWith('node_modules/steamworks.js/dist/win64/');
+
 const toPosix = (entry) => entry.replace(/\\/g, '/').replace(/^\/+/, '');
 
 function readEntries(archive) {
@@ -78,7 +83,8 @@ export function inspectAsar(archive) {
   const files = readEntries(archive);
   const problems = [];
 
-  const paperwork = files.filter((f) => PAPERWORK_EXTENSIONS.has(extname(f.path).toLowerCase()));
+  const paperwork = files.filter((f) =>
+    PAPERWORK_EXTENSIONS.has(extname(f.path).toLowerCase()) && !isRequiredNativeRuntime(f));
   if (paperwork.length > 0) {
     problems.push({
       rule: 'paperwork',
@@ -87,7 +93,7 @@ export function inspectAsar(archive) {
     });
   }
 
-  const vendored = files.filter((f) => f.path.split('/').includes('node_modules'));
+  const vendored = files.filter((f) => f.path.split('/').includes('node_modules') && !isRequiredNativeRuntime(f));
   if (vendored.length > 0) {
     problems.push({
       rule: 'node_modules',
@@ -97,7 +103,7 @@ export function inspectAsar(archive) {
     });
   }
 
-  const strays = files.filter((f) => !ALLOWED_ROOTS.has(f.path.split('/')[0]));
+  const strays = files.filter((f) => !ALLOWED_ROOTS.has(f.path.split('/')[0]) && !isRequiredNativeRuntime(f));
   if (strays.length > 0) {
     problems.push({
       rule: 'unexpected-root',

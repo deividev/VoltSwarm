@@ -6,6 +6,12 @@ import { hasTelemetryConsent, persistTelemetryConsent } from './telemetry/consen
 import { isPlaytestEligible, TELEMETRY_CONFIG } from './telemetry/config';
 import { completePlaytestReset, isPlaytestResetRequired, preparePlaytestReset } from './playtest-reset';
 import { readSaveOrQuarantine, writeFileAtomic } from './safe-save';
+import {
+  AchievementOutbox,
+  resolveSteamAppId,
+  type AchievementSyncResult,
+  type SteamAchievementClient,
+} from './achievement-store';
 
 let mainWindow: BrowserWindow | null = null;
 let telemetryClient: TelemetryClient | null = null;
@@ -14,23 +20,42 @@ let pendingPlaytestResetEpoch: string | null = null;
 const APP_TITLE = 'Voltswarm';
 const benchmarkMode = app.isPackaged && process.argv.includes('--audio-benchmark');
 
-// Steam SDK client, or null when Steam is disabled. `steamworks.js` is optional:
-// it is required lazily so the app builds and runs without the dependency.
-let steamClient: { achievement: { activate(name: string): boolean } } | null = null;
+interface SteamworksModule {
+  init(appId: number): SteamAchievementClient;
+  electronEnableSteamOverlay(disableEachFrameInvalidation?: boolean): void;
+}
 
-function initSteam(): void {
-  const appId = process.env['STEAM_APP_ID'];
-  if (!appId) return; // Steam stays disabled until an App ID is configured.
+let steamClient: SteamAchievementClient | null = null;
+let achievementOutbox: AchievementOutbox | null = null;
+
+function initSteam(appId: number): void {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const steamworks = require('steamworks.js');
-    steamClient = steamworks.init(Number(appId));
-    if (typeof steamworks.electronEnableSteamOverlay === 'function') {
-      steamworks.electronEnableSteamOverlay();
-    }
+    const steamworks = require('steamworks.js') as SteamworksModule;
+    steamClient = steamworks.init(appId);
+    steamworks.electronEnableSteamOverlay();
   } catch (error) {
     console.warn('Steam disabled:', (error as Error).message);
     steamClient = null;
+  }
+}
+
+function achievementSyncFile(): string {
+  return path.join(app.getPath('userData'), 'achievement-sync.json');
+}
+
+function flushAchievementOutbox(): AchievementSyncResult[] {
+  return achievementOutbox?.flush(steamClient) ?? [];
+}
+
+function scheduleAchievementRetries(appId: number): void {
+  // Startup plus three bounded repairs covers Steam becoming ready shortly
+  // after launch without leaving a permanent timer or retrying forever.
+  for (const delayMs of [5_000, 20_000, 60_000]) {
+    setTimeout(() => {
+      if (!steamClient) initSteam(appId);
+      flushAchievementOutbox();
+    }, delayMs).unref();
   }
 }
 
@@ -407,16 +432,26 @@ void app.whenReady().then(() => {
     event.returnValue = steamClient !== null;
   });
 
-  ipcMain.on('steam:unlock', (event, name: string) => {
-    try {
-      steamClient?.achievement.activate(name);
-      event.returnValue = true;
-    } catch {
-      event.returnValue = false;
-    }
+  ipcMain.on('steam:request-achievement', (event, name: string) => {
+    event.returnValue = achievementOutbox?.requestAndFlush(name, steamClient) ?? {
+      ok: false,
+      status: 'failed',
+      name,
+      error: 'Achievement sync is not initialized.',
+    } satisfies AchievementSyncResult;
   });
 
-  initSteam();
+  const steamAppId = resolveSteamAppId(app.isPackaged, process.env['STEAM_APP_ID']);
+  // Development is deliberately inert unless the developer supplies an App
+  // ID explicitly. Do not even create a pending outbox entry: a normal dev run
+  // must not become a production unlock when the player later launches Steam.
+  // Packaged builds always enable the durable outbox with Voltswarm's App ID.
+  if (steamAppId !== null) {
+    achievementOutbox = new AchievementOutbox(achievementSyncFile());
+    initSteam(steamAppId);
+    flushAchievementOutbox();
+    scheduleAchievementRetries(steamAppId);
+  }
   createWindow();
 
   app.on('activate', () => {

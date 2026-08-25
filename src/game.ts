@@ -135,6 +135,7 @@ import {
 import { createRunId, loadRunHistory, saveRunRecord, type RunMapRef, type RunOutcome, type RunRecordV1 } from './run-history';
 import { recordRunInLifetime, saveProfile } from './profile';
 import { settleContracts } from './contracts';
+import { evaluateAchievementsAfterProfileSave } from './achievements';
 import { telemetry } from './telemetry';
 import {
   advanceRunFlow,
@@ -3393,8 +3394,9 @@ export class Game {
     // a contract published later completes retroactively for a player who
     // already met it, and rewards land in exactly one place.
     recordRunInLifetime(record);
-    saveProfile();
+    const profileSaved = saveProfile();
     const earnedContracts = settleContracts();
+    evaluateAchievementsAfterProfileSave(profileSaved);
     return { record, earnedContracts };
   }
 

@@ -3,6 +3,7 @@ import { loadProfile } from './profile';
 import { migrateRunHistory } from './run-history';
 import { backfillGrantedRewards, settleContracts } from './contracts';
 import { Game } from './game';
+import { evaluateAchievements } from './achievements';
 
 const container = document.getElementById('app');
 if (!container) throw new Error('Missing #app container');
@@ -23,5 +24,6 @@ loadProfile();
 // older save does not show its finished ladder rungs as "Claimed" with no icon.
 backfillGrantedRewards();
 settleContracts();
+evaluateAchievements();
 
 new Game(container);

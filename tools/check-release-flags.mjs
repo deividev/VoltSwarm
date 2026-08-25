@@ -2,8 +2,9 @@
 // installer while a developer instrument is still switched on fails loudly
 // instead of shipping a cheat menu or a capture rig to a paying player.
 //
-// `package:dir` is deliberately NOT guarded — that target exists for quick local
-// runs where dev tools are wanted.
+// `package:dir` calls this guard explicitly as well. An unpacked Electron output
+// still has app.isPackaged=true and can use production services, so it must
+// never be treated as a safe shortcut around release flags.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';

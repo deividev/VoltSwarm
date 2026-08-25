@@ -15,7 +15,7 @@ interface Window {
       listener: (display: { width: number; height: number; scaleFactor: number }) => void,
     ): () => void;
     loadProfile(): string | null;
-    saveProfile(data: string): void;
+    saveProfile(data: string): boolean;
     loadRunHistory(): string | null;
     saveRunHistory(data: string): void;
     applyPendingPlaytestReset(): boolean;
@@ -36,7 +36,12 @@ interface Window {
     };
     steam: {
       isAvailable(): boolean;
-      unlockAchievement(name: string): void;
+      requestUnlock(name: string): {
+        ok: boolean;
+        status: 'unlocked' | 'queued' | 'already-unlocked' | 'rejected' | 'failed';
+        name: string;
+        error?: string;
+      };
     };
   };
 }

@@ -227,8 +227,10 @@ function backfillLifetime(history: RunRecordV1[]): void {
   if (history.length > 0) saveProfile();
 }
 
-/** Writes the current PROFILE. Call after any progression change. */
-export function saveProfile(): void {
+/** Writes the current PROFILE. Call after any progression change.
+ * Returns whether the canonical persistence seam confirmed the write, so a
+ * downstream achievement can never outrun the career fact that earned it. */
+export function saveProfile(): boolean {
   const save: ProfileSave = {
     version: VERSION,
     unlockedCharacters: [...PROFILE.unlockedCharacters],
@@ -241,8 +243,23 @@ export function saveProfile(): void {
     lifetime: LIFETIME,
   };
   const raw = JSON.stringify(save, null, 2);
-  window.electronAPI?.saveProfile(raw);
-  window.localStorage.setItem(STORAGE_KEY, raw);
+  if (window.electronAPI) {
+    const saved = window.electronAPI.saveProfile(raw);
+    // Keep the legacy browser copy current for migration/debugging, but it is
+    // not authoritative while Electron has a native profile file.
+    try {
+      window.localStorage.setItem(STORAGE_KEY, raw);
+    } catch {
+      // Native persistence already decided the truthful result.
+    }
+    return saved;
+  }
+  try {
+    window.localStorage.setItem(STORAGE_KEY, raw);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** Wipes stored progress and restores the fresh-profile state. */
