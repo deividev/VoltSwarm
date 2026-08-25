@@ -8,8 +8,9 @@
 >
 > **Scope:** the Steam Demo (`codex/demo-map1`) only — Scrapyard / Map 1, run
 > ends with `Sector Cleared` only after defeating the boss; timeout without boss
-> is `Sector Held`. Map 2, Swarm Foundry, Hazard Marshal,
-> leaderboards and co-op are full-game content and must not appear in a single
+> is `Sector Held`. Map 2, Swarm Foundry and Hazard Marshal are full-game
+> content. Leaderboards are not implemented and are outside launch scope;
+> co-op is also not a current feature. None of them may appear in a single
 > frame or a single word of this trailer.
 
 ## 1. Goal and constraints

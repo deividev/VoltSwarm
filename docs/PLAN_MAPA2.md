@@ -485,7 +485,7 @@ Un cambio a la vez; validar cada fase in-game antes de la siguiente. Números en
 1. Foundry molten-flow glow and voxel sparks.
 2. Completed human runs plus `pnpm stats` for balance and retention.
 3. Cohesion pass for new audio.
-4. Steamworks and technical close. A reactive/modular arena remains optional.
+4. External Steamworks publication/icon confirmation, production achievement-unlock smoke, and technical close. The 20 launch achievements and their `steamworks.js` 0.4.0 Steam achievement transport are implemented in 0.30.5; SDK/overlay initialization, packaging, IPC, allowlist, and outbox are auxiliary support for that flow, not independent Steam features. The maintainer confirms all 20 App Admin entries created for App ID `4979220`, but publication, uploaded icons, and production-build unlocking are not evidenced here. All other Steamworks product APIs are outside launch scope and carry no commitment; reconsider only post-launch if sufficient visibility/traction justifies them. A reactive/modular arena remains optional.
 
 The three launch characters and current enemy replacement slice are closed. Deferred enemy expansion is not part of this active backlog.
 

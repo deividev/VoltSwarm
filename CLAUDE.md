@@ -4,9 +4,16 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 
 ## Alcance de variantes (fuente de verdad)
 
-- **Juego completo (`codex/map-2`):** Scrapyard / Mapa 1 → Swarm Foundry / Mapa 2 → **Hazard Marshal**. El arco y finale son jugables; `modelKey: 'final-boss'`, combate, arena y moveset siguen provisionales. Volt Warden es histórico/futuro.
-- **Steam Demo (`codex/demo-map1`, separada):** solo Scrapyard / Mapa 1; termina a los 10 minutos como `SECTOR CLEARED`, sin transición.
+- **Juego completo (`codex/map-2`):** Scrapyard / Mapa 1 → Swarm Foundry / Mapa 2 → **Hazard Marshal**. El boss conserva `modelKey: 'final-boss'`; su baseline jugable quedó cerrada en `0.22.0`. Balance humano y una arena reactiva/modular son mejoras diferidas. Volt Warden es histórico/futuro.
+- **Steam Demo (`codex/demo-map1`, separada; snapshot `0.13.39-demo`):** solo Scrapyard / Mapa 1. Boss derrotado → `SECTOR CLEARED`; timeout sin boss → `SECTOR HELD`. Nunca transiciona a Mapa 2.
 - Fin de agosto de 2026 es objetivo interno de RC de la Demo, no promesa pública ni confirmación de revisión/disponibilidad.
+
+## Estado vigente del juego completo — 0.30.6 (2026-08-25)
+
+- **Achievements:** catálogo de lanzamiento 20/20 implementado en `ACHIEVEMENT_REGISTRY`, con evaluación retroactiva/end-of-run y **Steam achievement transport** mediante `steamworks.js` `0.4.0`, IPC aislado, allowlist y outbox persistente/idempotente. SDK init, App ID, `electronEnableSteamOverlay`, packaging nativo e IPC son soporte auxiliar del desbloqueo, no features Steamworks independientes.
+- **Steamworks App Admin:** el mantenedor confirma que las 20 entradas correspondientes están creadas para App ID `4979220`. Esto NO demuestra que los últimos cambios estén publicados, que ambos iconos estén subidos o que el desbloqueo haya pasado smoke end-to-end en una build de producción.
+- **Pendientes Steam de lanzamiento:** confirmar externamente publicación e iconos y ejecutar el smoke de desbloqueo de achievements en producción. Las release flags `mapTransitionKey=true` y `finaleKey=true` siguen bloqueando `pnpm package`; no existe paquete `0.30.6`.
+- **Otras APIs Steamworks:** Leaderboards, User Stats, Cloud, Workshop, Rich Presence, Friends/lobbies/networking, Steam Input, Inventory/DLC/microtransactions y cualquier otra integración no están implementadas y quedan fuera del lanzamiento. Solo se reconsideran post-lanzamiento con suficiente visibilidad/tracción; no hay compromiso ni promesa.
 
 ## ⚡ Lo primero que hay que mirar, según lo que te pidan
 
@@ -92,6 +99,7 @@ Regla general: si el pedido no encaja claro en una fila, `docs/PRD.md` primero (
 | `docs/PROMPTS_IMAGENES.md` | Prompts concretos de generación de imágenes IA, todos con la regla voxel reforzada. |
 | `docs/REFERENCIAS_VISUALES.md` | Plan técnico del pase visual (bloom, sombras, toon, partículas) con referencias externas. |
 | `docs/ROADMAP_STEAM.md` | Plan ordenado y con razones hacia el lanzamiento en Steam (fases 0-6 + post-lanzamiento). |
+| `docs/ACHIEVEMENTS.md` | Catálogo canónico de 20 logros, metadatos App Admin y arquitectura de desbloqueo con `steamworks.js`. |
 | `docs/DISENO_FRENESI.md` | Estudio MEDIDO de por qué el juego se siente y se ve quieto (curva de densidad, jugador inalcanzable, meseta final) + ideas por ejes. §4 = decisiones cerradas de dash y personajes, con el hallazgo clave: el i-frame global capa el DPS del enjambre a 20, así que más densidad se VE más loca sin ser más peligrosa. |
 | `docs/ANIMACION_RIG.md` | Sistema de animación por rig de piezas voxel (genérico, no solo del boss): cuándo se puede usar y cuándo NO, cómo partir un modelo en bandas, convenio de signos, qué hace que una marcha no parezca sintética, herramientas de captura, y la decisión de resolver el golpe con tinte en vez de animación. |
 | `docs/DISENO_AUDIO.md` | Foundation `AudioDirector`/buses/presupuesto que se implementa ahora, más catálogo de ~95 SFX/música que se completa después de contenido/balance. |
@@ -454,7 +462,7 @@ murió** — el beat del boss y el del payoff quedan conectados por causa.
   - **Tire Fire está en otra liga**: 2.187 kills / nivel 41 frente a 550 / nivel 22 de Bolt en runs completas equivalentes, y eso que Bolt tenía el DOBLE de sockets de core. Acumula el 74% del daño de toda la carrera.
   - **Las runs son binarias**: se muere antes de los 3 minutos (76s, 94s, 154s, 291s) o se llega a los 600s. No hay término medio, así que la mediana no describe ninguna partida real. Solo 33% de finalización.
   - El chatarrero (primera visita 2:00) **apenas existe** en la mitad de las runs: 0-1 compras en cuatro de las seis.
-- **Siguiente secuencia del juego completo:** completar Swarm Foundry + Hazard Marshal provisional → 3 personajes diferenciados → balance y retención con datos reales → catálogo completo de audio → Steamworks/cierre. La Demo no amplía este arco. **El gate de viabilidad multijugador se DIFIRIÓ a post-lanzamiento por decisión del usuario**; multiplayer/co-op no está implementado ni anunciado. **RC interno de la Demo:** fin de agosto de 2026; no es fecha pública, promesa de disponibilidad ni confirmación de revisión. Las afirmaciones de Coming Soon siguen requiriendo confirmación externa. Leaderboards: confirmados para el juego completo, todavía no implementados.
+- **Siguiente secuencia del juego completo (esta línea sustituye el orden histórico anterior):** runs humanas, balance y retención → cohesión del audio nuevo → confirmar publicación/iconos de los 20 achievements creados en App Admin → smoke de desbloqueo en producción → cierre técnico. Swarm Foundry, Hazard Marshal, los tres personajes de lanzamiento y el catálogo/runtime de achievements ya están cerrados. La Demo no amplía este arco. **El gate de viabilidad multijugador se DIFIRIÓ a post-lanzamiento por decisión del usuario**; multiplayer/co-op no está implementado ni anunciado. **El resto de APIs Steamworks están fuera del lanzamiento y solo se reevaluarán post-lanzamiento con suficiente visibilidad/tracción; no están confirmadas ni prometidas.** **RC interno de la Demo:** fin de agosto de 2026; no es fecha pública, promesa de disponibilidad ni confirmación de revisión. Las afirmaciones de Coming Soon siguen requiriendo confirmación externa.
 
 ---
 

@@ -27,6 +27,8 @@ Fecha: 2026-07-03. Objetivo: subir el nivel visual manteniendo el estilo "juguet
 
 Regla de oro (de Megabonk): cada efecto se valida con el enjambre al máximo (400+) antes de darse por bueno. El look nunca paga con FPS.
 
-## Nota Steam (2-3 semanas)
+## Nota Steam
 
-El boilerplate ya trae empaquetado Electron + integración Steamworks (achievements, overlay). Lo que faltará para la página: cápsulas, GIFs del enjambre con el look nuevo, y demo. Los pasos 1-8 de arriba son exactamente lo que hace que esos GIFs vendan.
+> **Histórico:** la estimación inicial de 2–3 semanas y la descripción del boilerplate ya no representan el estado actual.
+
+La implementación cerrada en `0.30.5` incluye los 20 achievements de lanzamiento y su **Steam achievement transport** con `steamworks.js` `0.4.0`; SDK/overlay initialization, packaging, IPC, allowlist y outbox son soporte auxiliar del desbloqueo, no features independientes. El mantenedor confirma 20/20 entradas creadas en Steamworks App Admin para App ID `4979220`. Los masters conseguidos/bloqueados y sus exports de revisión existen en `art/concept/achievements/`. Aun así, la creación externa no prueba publicación, iconos subidos ni el desbloqueo end-to-end en producción. Todas las demás APIs Steamworks quedan fuera del lanzamiento y solo se reconsideran post-lanzamiento con suficiente visibilidad/tracción, sin compromiso.

@@ -8,7 +8,18 @@
 > are final and closed. Foundry's current replacement slice—Furnace Mite, Axle
 > Runner, and Slagcaster—is also closed; further enemies are deferred. The active
 > sequence is molten-flow glow/sparks → human runs/balance/retention → new-audio
-> cohesion → Steamworks/technical close. The Demo trailer
+> cohesion → external Steamworks achievement publication/icon confirmation, production achievement-unlock smoke, and
+> technical close. Steamworks product APIs beyond achievement unlocking—including
+> Leaderboards, User Stats, Cloud, Workshop, Rich Presence, Friends/lobbies/networking,
+> Steam Input, Inventory/DLC/microtransactions—are not implemented and are outside
+> launch scope; reconsider post-launch only if Voltswarm demonstrates sufficient
+> visibility/traction, with no commitment or marketing promise. In current full-game source `0.30.6`, all 20 launch
+> achievements and the `steamworks.js` `0.4.0` Steam achievement transport are implemented. SDK/overlay
+> initialization, App ID, packaging, IPC, allowlist, and outbox are auxiliary unlock infrastructure, not separate features. The
+> maintainer confirms that all 20 matching entries are created in Steamworks
+> App Admin for App ID `4979220`; this is NOT evidence that the latest changes
+> are published/live, that both icon states were uploaded, or that production
+> smoke passed. The Demo trailer
 > sigue sin producir ni exportar; sus materiales CUT A/B/C/D no equivalen a un
 > corte aprobado. El futuro S5 es un tráiler del juego completo y no debe
 > confundirse con ese plan de Demo.
@@ -102,7 +113,7 @@ admitiendo solo MP4 o PNG/JPG, nunca GIF.
 
 Definiciones para una activación T1 reconfirmada (página pública):
 
-- `W0` = wishlists totales reales al empezar a medir. Hoy es desconocido.
+- `W0` = baseline histórico exacto de wishlists al inicio de la ventana T1. No está reconstruido ni confirmado, por lo que permanece sin valor operativo. El conteo actual aproximado reportado por el mantenedor —~30 wishlists a 2026-08-25— es una referencia fechada, no live, NO sustituye `W0` y requiere un export de Steamworks para conocer la cifra exacta vigente.
 - `R = max(0, 1000 - W0)` = wishlists restantes.
 - `D = dias entre T1 y la fecha interna de lanzamiento vigente`.
 - `ritmo_diario = R / D`.
