@@ -3,7 +3,14 @@ import { ACHIEVEMENTS } from './config';
 
 type AchievementLifetime = Pick<
   LifetimeStats,
-  'runsFinished' | 'chestsByTier' | 'bestLevel' | 'bossesDefeated' | 'maxMapsReached'
+  | 'runsFinished'
+  | 'chestsByTier'
+  | 'bestLevel'
+  | 'bossesDefeated'
+  | 'maxMapsReached'
+  | 'bossTypesDefeated'
+  | 'runsCompleted'
+  | 'completedCharacterIds'
 >;
 
 export const ACHIEVEMENT_REGISTRY = [
@@ -54,6 +61,58 @@ export const ACHIEVEMENT_REGISTRY = [
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Number.isFinite(lifetime.maxMapsReached)
       && lifetime.maxMapsReached >= ACHIEVEMENTS.foundryBound.minimumMapsReached,
+  },
+  {
+    id: 'ach_scrapyard_command',
+    steamApiName: 'ACH_SCRAPYARD_COMMAND',
+    displayName: 'Scrapyard Command',
+    steamDescription: 'Defeat both Crusher King and Tesla Titan across your career.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Array.isArray(lifetime.bossTypesDefeated)
+      && ACHIEVEMENTS.scrapyardCommand.requiredBossTypes.every(
+        (bossType) => lifetime.bossTypesDefeated.includes(bossType),
+      ),
+  },
+  {
+    id: 'ach_hazard_contained',
+    steamApiName: 'ACH_HAZARD_CONTAINED',
+    displayName: 'Hazard Contained',
+    steamDescription: 'Defeat the Hazard Marshal.',
+    hidden: true,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Array.isArray(lifetime.bossTypesDefeated)
+      && lifetime.bossTypesDefeated.includes(ACHIEVEMENTS.hazardContained.requiredBossType),
+  },
+  {
+    id: 'ach_full_circuit',
+    steamApiName: 'ACH_FULL_CIRCUIT',
+    displayName: 'Full Circuit',
+    steamDescription: 'Complete the full run by clearing both sectors in order.',
+    hidden: true,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Number.isFinite(lifetime.runsCompleted)
+      && lifetime.runsCompleted >= ACHIEVEMENTS.fullCircuit.minimumRunsCompleted,
+  },
+  {
+    id: 'ach_field_engineer_clear',
+    steamApiName: 'ACH_FIELD_ENGINEER_CLEAR',
+    displayName: 'Field Tested',
+    steamDescription: 'Complete the full run as Field Engineer.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Array.isArray(lifetime.completedCharacterIds)
+      && lifetime.completedCharacterIds.includes(ACHIEVEMENTS.fieldEngineerClear.requiredCharacterId),
+  },
+  {
+    id: 'ach_rack_hauler_clear',
+    steamApiName: 'ACH_RACK_HAULER_CLEAR',
+    displayName: 'Fully Loaded',
+    steamDescription: 'Complete the full run as Rack Hauler.',
+    hidden: false,
+    isComplete: (lifetime: AchievementLifetime): boolean =>
+      Array.isArray(lifetime.completedCharacterIds)
+      && lifetime.completedCharacterIds.includes(ACHIEVEMENTS.rackHaulerClear.requiredCharacterId),
   },
 ] as const;
 

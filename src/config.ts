@@ -25,6 +25,11 @@ export const ACHIEVEMENTS = {
   systemsOnline: { minimumLevel: 10 },
   firstBossDown: { minimumBossesDefeated: 1 },
   foundryBound: { minimumMapsReached: 2 },
+  scrapyardCommand: { requiredBossTypes: ['Crusher King', 'Tesla Titan'] as const },
+  hazardContained: { requiredBossType: 'Hazard Marshal' },
+  fullCircuit: { minimumRunsCompleted: 1 },
+  fieldEngineerClear: { requiredCharacterId: 'field-engineer' },
+  rackHaulerClear: { requiredCharacterId: 'rack-hauler' },
 } as const;
 
 /** Developer instruments that must NEVER reach a paying player. `npm run package`

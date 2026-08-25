@@ -1,6 +1,6 @@
 # Voltswarm — Steam achievements
 
-> Status: launch catalog under implementation. The first five achievements are implemented locally; the remaining 15 entries are design proposals for human review.
+> Status: launch catalog under implementation. The first ten achievements are implemented locally; the remaining 10 entries are design proposals for human review.
 
 ## Implementation status
 
@@ -11,6 +11,11 @@
 | `ach_systems_online` / `ACH_SYSTEMS_ONLINE` | Implemented | **Required before release** — not configured or published by this repository change |
 | `ach_first_boss_down` / `ACH_FIRST_BOSS_DOWN` | Implemented | **Required before release** — not configured or published by this repository change |
 | `ach_foundry_bound` / `ACH_FOUNDRY_BOUND` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_scrapyard_command` / `ACH_SCRAPYARD_COMMAND` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_hazard_contained` / `ACH_HAZARD_CONTAINED` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_full_circuit` / `ACH_FULL_CIRCUIT` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_field_engineer_clear` / `ACH_FIELD_ENGINEER_CLEAR` | Implemented | **Required before release** — not configured or published by this repository change |
+| `ach_rack_hauler_clear` / `ACH_RACK_HAULER_CLEAR` | Implemented | **Required before release** — not configured or published by this repository change |
 
 The canonical Steam metadata lives in `ACHIEVEMENT_REGISTRY`. Achievements are evaluated after profile loading and Contract settlement at startup, and again only after a finished run has been recorded in `LIFETIME` and its profile save has succeeded. The Electron main process accepts only allowlisted API names, persists a crash-safe outbox in `userData/achievement-sync.json`, checks Steam's existing state before activation, queues offline requests, and records local completion so it is not activated again.
 
@@ -65,6 +70,56 @@ The external Steamworks entries still have to be created and published in App Ad
 - **Hidden:** False
 - **Achieved icon:** `art/concept/achievements/achievement-foundry-bound-v1.png`
 - **Unachieved icon:** `art/concept/achievements/achievement-foundry-bound-locked-v1.png`
+
+### `ACH_SCRAPYARD_COMMAND`
+
+- **API Name:** `ACH_SCRAPYARD_COMMAND`
+- **Display Name:** `Scrapyard Command`
+- **Description:** `Defeat both Crusher King and Tesla Titan across your career.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-scrapyard-command-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-scrapyard-command-locked-v1.png`
+
+### `ACH_HAZARD_CONTAINED`
+
+- **API Name:** `ACH_HAZARD_CONTAINED`
+- **Display Name:** `Hazard Contained`
+- **Description:** `Defeat the Hazard Marshal.`
+- **Set By:** Client
+- **Hidden:** True
+- **Achieved icon:** `art/concept/achievements/achievement-hazard-contained-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-hazard-contained-locked-v1.png`
+
+### `ACH_FULL_CIRCUIT`
+
+- **API Name:** `ACH_FULL_CIRCUIT`
+- **Display Name:** `Full Circuit`
+- **Description:** `Complete the full run by clearing both sectors in order.`
+- **Set By:** Client
+- **Hidden:** True
+- **Achieved icon:** `art/concept/achievements/achievement-full-circuit-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-full-circuit-locked-v1.png`
+
+### `ACH_FIELD_ENGINEER_CLEAR`
+
+- **API Name:** `ACH_FIELD_ENGINEER_CLEAR`
+- **Display Name:** `Field Tested`
+- **Description:** `Complete the full run as Field Engineer.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-field-tested-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-field-tested-locked-v1.png`
+
+### `ACH_RACK_HAULER_CLEAR`
+
+- **API Name:** `ACH_RACK_HAULER_CLEAR`
+- **Display Name:** `Fully Loaded`
+- **Description:** `Complete the full run as Rack Hauler.`
+- **Set By:** Client
+- **Hidden:** False
+- **Achieved icon:** `art/concept/achievements/achievement-fully-loaded-v1.png`
+- **Unachieved icon:** `art/concept/achievements/achievement-fully-loaded-locked-v1.png`
 
 ## Launch recommendation
 
@@ -159,10 +214,13 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 
 - **Display name:** `Scrapyard Command`
 - **Steam description:** `Defeat both Crusher King and Tesla Titan across your career.`
-- **Exact condition:** `LIFETIME.bossTypesDefeated` contains both persisted identities `Crusher King` and `Tesla Titan`.
+- **Exact condition:** `LIFETIME.bossTypesDefeated` contains both exact persisted runtime identities `Crusher King` and `Tesla Titan`. These are the current `ENEMY_TYPES[].name` strings recorded by `BossSystem.defeatedTypes`, not the model keys `crusher-king` and `tesla-titan`.
 - **Hidden:** No — this promotes boss variety across runs.
 - **Estimated difficulty:** Medium.
 - **Signal:** Existing `LIFETIME.bossTypesDefeated`.
+- **Implementation:** Implemented locally with Steam API name `ACH_SCRAPYARD_COMMAND`. The required persisted identity set is config-owned, order-independent, duplicate-safe, and malformed non-array ledgers cannot qualify. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-scrapyard-command-v1.png` (generation master) and `art/concept/achievements/achievement-scrapyard-command-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-scrapyard-command-locked-v1.png` (generation master) and `art/concept/achievements/achievement-scrapyard-command-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict a unified trophy made from the heavy crushing jaw plate of Crusher King crossed with the angular electric coil crown of Tesla Titan. Make both boss motifs clearly distinct while joining them into one compact scrapyard command emblem. Tesla energy is white rather than generic cyan.
@@ -175,6 +233,9 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 - **Hidden:** Yes — it conceals the final boss identity until reached.
 - **Estimated difficulty:** Hard.
 - **Signal:** Existing `LIFETIME.bossTypesDefeated`.
+- **Implementation:** Implemented locally with Steam API name `ACH_HAZARD_CONTAINED`. The predicate uses the exact persisted runtime identity `Hazard Marshal`, not the `final-boss` model key; malformed non-array ledgers cannot qualify. Canonical metadata keeps this achievement hidden. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-hazard-contained-v1.png` (generation master) and `art/concept/achievements/achievement-hazard-contained-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-hazard-contained-locked-v1.png` (generation master) and `art/concept/achievements/achievement-hazard-contained-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict the unmistakable armored faceplate and hazard-light crown of the Hazard Marshal locked inside a heavy white-energy containment clamp, with its red overload glow extinguishing into dark cubic voxel smoke. Keep the final-boss faceplate dominant and menacing but toy-like.
@@ -187,6 +248,9 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 - **Hidden:** Yes — it conceals the final structural outcome.
 - **Estimated difficulty:** Hard.
 - **Signal:** Existing `LIFETIME.runsCompleted` and `run-complete` outcome.
+- **Implementation:** Implemented locally with Steam API name `ACH_FULL_CIRCUIT`. The config-derived predicate reads only the finite durable `LIFETIME.runsCompleted` ledger. That ledger is folded through `isRunComplete()` from structural sector credit or an explicit `run-complete` outcome; duration, Map 2 arrival, and a Hazard Marshal defeat alone do not qualify. Canonical metadata keeps this achievement hidden. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-full-circuit-v1.png` (generation master) and `art/concept/achievements/achievement-full-circuit-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-full-circuit-locked-v1.png` (generation master) and `art/concept/achievements/achievement-full-circuit-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
 > Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict two large industrial sector plates, one scrapyard steel and one molten foundry metal, connected into a closed white electrical circuit around a bright central completion core. The complete loop must be the dominant readable silhouette.
@@ -199,9 +263,12 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 - **Hidden:** No.
 - **Estimated difficulty:** Hard.
 - **Signal:** Existing `LIFETIME.completedCharacterIds`.
+- **Implementation:** Implemented locally with Steam API name `ACH_FIELD_ENGINEER_CLEAR`. The config-owned predicate requires the exact stable registered character ID `field-engineer`; malformed ledgers, display names, asset identifiers, and incomplete runs cannot qualify. `completedCharacterIds` is folded only inside the structural `isRunComplete()` branch. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-field-tested-v1.png` (generation master) and `art/concept/achievements/achievement-field-tested-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-field-tested-locked-v1.png` (generation master) and `art/concept/achievements/achievement-field-tested-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
-> Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict the approved Field Engineer as a compact frontal voxel bust holding an oversized industrial repair wrench across the body, with a repaired white power node glowing beside the shoulder. Preserve the character's real silhouette and equipment identity.
+> Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict the approved Field Engineer as a compact frontal voxel bust with the character's distinctive shoulder repair module actively restoring a bright white power node beside the shoulder. Preserve the character's real silhouette and equipment identity; do not add a wrench or any invented handheld tool.
 
 ### 10. `ach_rack_hauler_clear` — P0
 
@@ -211,9 +278,12 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 - **Hidden:** No.
 - **Estimated difficulty:** Hard.
 - **Signal:** Existing `LIFETIME.completedCharacterIds`.
+- **Implementation:** Implemented locally with Steam API name `ACH_RACK_HAULER_CLEAR`. The config-owned predicate requires the exact stable registered character ID `rack-hauler`; malformed ledgers, display names, art references, and incomplete runs cannot qualify. `completedCharacterIds` is folded only inside the structural `isRunComplete()` branch. Steamworks App Admin configuration and publication remain external steps.
+- **Achieved icon:** `art/concept/achievements/achievement-fully-loaded-v1.png` (generation master) and `art/concept/achievements/achievement-fully-loaded-v1-128.png` (small-size review export).
+- **Unachieved icon:** `art/concept/achievements/achievement-fully-loaded-locked-v1.png` (generation master) and `art/concept/achievements/achievement-fully-loaded-locked-v1-128.png` (small-size review export).
 - **Full image prompt:**
 
-> Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict the approved Rack Hauler as a compact frontal voxel bust carrying its distinctive oversized weapon rack, visibly loaded with several chunky industrial weapon modules and held together by bright white power clamps. Preserve the real character silhouette and avoid inventing equipment.
+> Create a square Steam achievement icon for Voltswarm, designed to remain immediately readable at very small sizes. Stylized 3D voxel art with an industrial-toy appearance, chunky visible cubic voxel blocks, compact geometry, flat per-face shading, crisp hard stepped edges, and one dominant unmistakable silhouette. Use the current Voltswarm palette: dark graphite and gunmetal foundations, painted construction amber where appropriate, WHITE energy and power light, and only restrained existing gameplay accent colors when truthful to the subject. Use a simple high-contrast background with a subtle radial glow and no environmental clutter. Center the subject with generous negative space and avoid thin details. No text, no letters, no words, no logos, no digits, no written numbers, no UI labels, no watermark, no gore, no blood, and no realistic organic anatomy. Everything must be explicitly constructed as voxel geometry, including particles, energy, smoke, sparks, and lighting accents. No smooth curves, vector-flat blobs, irregular splashes, gradients, photorealism, realistic smoke, or excessive bloom. All-ages appropriate, polished game-achievement presentation. Depict the approved Rack Hauler as a compact frontal voxel bust dominated by its wide seafoam shoulder housings and their real visible socket panels, carrying compact abstract industrial modules secured by bright white power clamps. Preserve the real broad character silhouette. Do not add recognizable guns, handheld weapons, or any extra equipment not present on the approved character.
 
 ### 11. `ach_overclocker_clear` — P0
 
@@ -364,10 +434,10 @@ Energy is **white**, following the current art-direction decision in `docs/DIREC
 
 ### Implementation progress
 
-1. **Implemented for achievements 1–5:** canonical typed registry metadata with stable local ID, predicate, display metadata, hidden flag, and Steam API name.
+1. **Implemented for achievements 1–10:** canonical typed registry metadata with stable local ID, predicate, display metadata, hidden flag, and Steam API name.
 2. **Remaining for Core Array:** `LIFETIME.bestDistinctCoresHeld`.
 3. **Remaining for Custom Rig:** `LIFETIME.bestDistinctModsHeld`.
-4. **Remaining before boss achievements:** stable boss IDs plus migration from persisted display names.
+4. **Compatibility risk for boss achievements:** the runtime currently persists exact `ENEMY_TYPES[].name` strings, and Scrapyard Command and Hazard Contained intentionally use those existing identities. Before any boss display-name rename, introduce stable IDs and migrate old ledgers so already-earned progress remains retroactive.
 5. **Implemented:** profile-independent monotonic `pending` and `unlocked` sets in `achievement-sync.json`.
 6. **Implemented for current predicates:** evaluation after profile load and Contract settlement, and after run recording only when the profile save confirms durable success.
 7. **Implemented:** Steam allowlist, typed IPC result, crash-safe offline outbox, startup reconciliation, and bounded retry.

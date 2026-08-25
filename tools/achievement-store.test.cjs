@@ -10,6 +10,11 @@ const CACHE_API_NAME = 'ACH_CACHE_OPENED';
 const SYSTEMS_API_NAME = 'ACH_SYSTEMS_ONLINE';
 const FIRST_BOSS_API_NAME = 'ACH_FIRST_BOSS_DOWN';
 const FOUNDRY_API_NAME = 'ACH_FOUNDRY_BOUND';
+const SCRAPYARD_API_NAME = 'ACH_SCRAPYARD_COMMAND';
+const HAZARD_API_NAME = 'ACH_HAZARD_CONTAINED';
+const FULL_CIRCUIT_API_NAME = 'ACH_FULL_CIRCUIT';
+const FIELD_ENGINEER_API_NAME = 'ACH_FIELD_ENGINEER_CLEAR';
+const RACK_HAULER_API_NAME = 'ACH_RACK_HAULER_CLEAR';
 
 function fixture(run) {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'voltswarm-achievements-'));
@@ -91,11 +96,21 @@ test('registered achievement API names are accepted by the shared allowlist', ()
   assert.equal(outbox.requestAndFlush(SYSTEMS_API_NAME, null).status, 'queued');
   assert.equal(outbox.requestAndFlush(FIRST_BOSS_API_NAME, null).status, 'queued');
   assert.equal(outbox.requestAndFlush(FOUNDRY_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(SCRAPYARD_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(HAZARD_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(FULL_CIRCUIT_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(FIELD_ENGINEER_API_NAME, null).status, 'queued');
+  assert.equal(outbox.requestAndFlush(RACK_HAULER_API_NAME, null).status, 'queued');
   assert.deepEqual(outbox.snapshot().pending, [
     CACHE_API_NAME,
     SYSTEMS_API_NAME,
     FIRST_BOSS_API_NAME,
     FOUNDRY_API_NAME,
+    SCRAPYARD_API_NAME,
+    HAZARD_API_NAME,
+    FULL_CIRCUIT_API_NAME,
+    FIELD_ENGINEER_API_NAME,
+    RACK_HAULER_API_NAME,
   ]);
 }));
 
