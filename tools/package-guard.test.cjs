@@ -14,3 +14,19 @@ test('every supported packaging entry point runs the release flag guard', () => 
     'unpacked builds are still app.isPackaged and must not bypass release flags',
   );
 });
+
+test('packaging keeps the native Steam runtime and excludes type-only dependencies', () => {
+  assert.ok(pkg.dependencies['steamworks.js'], 'Steamworks must remain a production dependency');
+  assert.ok(
+    pkg.build.asarUnpack.includes('node_modules/steamworks.js/dist/win64/*.node'),
+    'the native Steamworks addon must remain unpacked for Electron to load it',
+  );
+  assert.ok(
+    pkg.build.asarUnpack.includes('node_modules/steamworks.js/dist/win64/*.dll'),
+    'the Steamworks runtime DLL must remain unpacked beside the native addon',
+  );
+  assert.ok(
+    pkg.build.files.includes('!node_modules/undici-types/**'),
+    'undici-types is pulled through steamworks.js type declarations and must not ship at runtime',
+  );
+});

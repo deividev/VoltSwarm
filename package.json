@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.30.7",
+  "version": "0.30.8",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -90,6 +90,7 @@
       "electron/dist/**/*",
       "package.json",
       "!node_modules/three/**",
+      "!node_modules/undici-types/**",
       "!node_modules/steamworks.js/dist/linux64/**",
       "!node_modules/steamworks.js/dist/osx/**",
       "!node_modules/steamworks.js/dist/win64/*.lib",

@@ -68,6 +68,30 @@ Thumbs.db
 !/audio-masters/runtime/*.mp3
 !/audio-masters/runtime/*.ogg
 
+# Narrow durable exception for historical model sheets used by regression tests.
+# They stay outside public/ (and therefore outside Vite/electron-builder), while
+# a fresh clone retains the exact source evidence those tests inspect.
+!/art/
+/art/*
+!/art/concept/
+/art/concept/*
+!/art/concept/drone/
+/art/concept/drone/*
+!/art/concept/drone/reference-history/
+/art/concept/drone/reference-history/*
+!/art/concept/drone/reference-history/ref-drone-back-v1.png
+!/art/concept/drone/reference-history/ref-drone-front.png
+!/art/concept/swarm-foundry-enemies/
+/art/concept/swarm-foundry-enemies/*
+!/art/concept/swarm-foundry-enemies/reference-history/
+/art/concept/swarm-foundry-enemies/reference-history/*
+!/art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-back-v1.png
+!/art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-back-v2.png
+!/art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-front-v1.png
+!/art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-front-v2.png
+!/art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-side-v1.png
+!/art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-side-v2.png
+
 # Shipped Overclocker runtime sheets are the minimal exception to the local-only
 # asset policy. Parent directories must be reopened before exact file negations.
 !/public/assets/

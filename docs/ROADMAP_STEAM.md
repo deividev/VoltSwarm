@@ -1,6 +1,6 @@
 # Voltswarm — Roadmap a Steam
 
-Updated: 2026-08-26. Full-game functional unit: **0.30.7** (source/HEAD). Production release flags are off; packaging runs only from the committed candidate, and no `0.30.7` package is claimed yet. Separate Demo branch: `codex/demo-map1` (`0.13.39-demo`).
+Updated: 2026-08-26. Full-game functional unit: **0.30.8** (source/HEAD). Production release flags are off; packaging runs only from the committed candidate, and no `0.30.8` package is claimed yet. Separate Demo branch: `codex/demo-map1` (`0.13.39-demo`).
 
 ## Alcance de variantes — decisión vigente
 
@@ -223,7 +223,7 @@ La lista levantada 2026-07-26 queda como registro histórico de decisiones. El c
 1. ✅ **Achievements + Steam achievement transport implemented in 0.30.5:** the launch catalog is 20/20 in `ACHIEVEMENT_REGISTRY`; `steamworks.js` is pinned to `0.4.0`; Electron exposes the unlock request through isolated `contextBridge` IPC; the main process enforces a 20-name allowlist and persists `pending`/`unlocked` in `userData/achievement-sync.json`; every flush checks `isActivated()` before `activate()`, with startup and bounded offline retries; packaged builds use App ID `4979220`, ordinary development is inert without explicit `STEAM_APP_ID`, and Windows native binaries are covered by `asarUnpack`. SDK init, App ID, `electronEnableSteamOverlay`, packaging, IPC, allowlist, and outbox are auxiliary achievement infrastructure, not independent Steam features. **External boundary:** the maintainer confirms that all 20 matching entries are created in Steamworks App Admin, but Git does not prove publication, icon upload, or an end-to-end achievement unlock in a production build. Those confirmations remain RC work; overlay behavior is not a separate product-smoke target.
 1b. **FUERA DEL ALCANCE DE LANZAMIENTO — other Steamworks product APIs:** Leaderboards, User Stats, Cloud, Workshop, Rich Presence, Friends/lobbies/networking, Steam Input, Inventory/DLC/microtransactions, and every other non-achievement integration are not implemented, confirmed, or promised and do not form part of Steam close/RC. Reevaluate post-launch only if sufficient visibility/traction justifies a new investment decision.
 2. Legal: créditos, licencias de terceros (three.js MIT), EULA si aplica
-3. Code signing (budget for a certificate or accept SmartScreen "Unknown Publisher"). Legal, signing, and the RC build remain open. In the `0.30.7` candidate, `shortMaps`, `audioDiagnostics`, `mapTransitionKey`, and `finaleKey` are `false`; packaging runs only after committing and validating those bytes.
+3. Code signing (budget for a certificate or accept SmartScreen "Unknown Publisher"). Legal, signing, and the RC build remain open. In the `0.30.8` candidate, `shortMaps`, `audioDiagnostics`, `mapTransitionKey`, and `finaleKey` are `false`; packaging runs only after committing and validating those bytes.
 4. **Histórico superseded (2026-07-14):** la decisión de no Demo/Next Fest fue reemplazada por la Steam Demo de Mapa 1. No gobierna el plan actual ni limita la Demo.
 
 ## Post-lanzamiento (del gap-analysis vs Megabonk; NO bloquean v1)

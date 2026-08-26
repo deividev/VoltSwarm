@@ -91,8 +91,8 @@ test('Slagcaster registers two preview-only measured-profile endpoints', () => {
 
 test('deployed v2 sheets correct front/back handedness without changing the side profile', async () => {
   for (const view of ['front', 'back']) {
-    const v1 = await readRgbaPng(`public/assets/2d/ref-slagcaster-deployed-${view}-v1.png`);
-    const v2 = await readRgbaPng(`public/assets/2d/ref-slagcaster-deployed-${view}-v2.png`);
+    const v1 = await readRgbaPng(`art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-${view}-v1.png`);
+    const v2 = await readRgbaPng(`art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-${view}-v2.png`);
     assert.deepEqual([v2.width, v2.height], [v1.width, v1.height]);
     const mirrored = Buffer.alloc(v1.pixels.length);
     for (let y = 0; y < v1.height; y++) for (let x = 0; x < v1.width; x++) {
@@ -101,8 +101,8 @@ test('deployed v2 sheets correct front/back handedness without changing the side
     }
     assert.deepEqual(v2.pixels, mirrored, `${view} v2 must be the exact handedness correction`);
   }
-  const sideV1 = await readRgbaPng('public/assets/2d/ref-slagcaster-deployed-side-v1.png');
-  const sideV2 = await readRgbaPng('public/assets/2d/ref-slagcaster-deployed-side-v2.png');
+  const sideV1 = await readRgbaPng('art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-side-v1.png');
+  const sideV2 = await readRgbaPng('art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-side-v2.png');
   assert.deepEqual(sideV2.pixels, sideV1.pixels, 'side firing direction must not change');
 });
 
@@ -608,22 +608,21 @@ test('runtime Slagcaster bolt geometry stays visibly ahead of its collider', () 
   geometry.dispose();
 });
 
-test('all Slagcaster runtime sheets are 1024 RGBA with hard alpha and one flat palette', async () => {
+test('all Slagcaster runtime and historical sheets are 1024 RGBA with hard alpha and one flat palette', async () => {
   const approved = new Set([
     '120,130,57,255',
     '35,40,48,255',
     '255,168,3,255',
   ]);
-  const sheets = [
-    ...['front', 'side', 'back'].map((view) => `ref-slagcaster-closed-${view}-v1.png`),
+  const paths = [
+    ...['front', 'side', 'back'].map((view) => `public/assets/2d/ref-slagcaster-closed-${view}-v1.png`),
     ...['front', 'side', 'back'].flatMap((view) => [
-      `ref-slagcaster-deployed-${view}-v1.png`,
-      `ref-slagcaster-deployed-${view}-v2.png`,
-      `ref-slagcaster-deployed-${view}-v3.png`,
+      `art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-${view}-v1.png`,
+      `art/concept/swarm-foundry-enemies/reference-history/ref-slagcaster-deployed-${view}-v2.png`,
+      `public/assets/2d/ref-slagcaster-deployed-${view}-v3.png`,
     ]),
   ];
-  for (const sheet of sheets) {
-    const path = `public/assets/2d/${sheet}`;
+  for (const path of paths) {
     const image = await readRgbaPng(path);
     assert.deepEqual([image.width, image.height], [1024, 1024], `${path} dimensions drifted`);
     const colors = new Set();

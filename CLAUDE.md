@@ -8,12 +8,12 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 - **Steam Demo (`codex/demo-map1`, separada; snapshot `0.13.39-demo`):** solo Scrapyard / Mapa 1. Boss derrotado → `SECTOR CLEARED`; timeout sin boss → `SECTOR HELD`. Nunca transiciona a Mapa 2.
 - Fin de agosto de 2026 es objetivo interno de RC de la Demo, no promesa pública ni confirmación de revisión/disponibilidad.
 
-## Estado vigente del juego completo — 0.30.7 (2026-08-26)
+## Estado vigente del juego completo — 0.30.8 (2026-08-26)
 
 - **Achievements:** catálogo de lanzamiento 20/20 implementado en `ACHIEVEMENT_REGISTRY`, con evaluación retroactiva/end-of-run y **Steam achievement transport** mediante `steamworks.js` `0.4.0`, IPC aislado, allowlist y outbox persistente/idempotente. SDK init, App ID, `electronEnableSteamOverlay`, packaging nativo e IPC son soporte auxiliar del desbloqueo, no features Steamworks independientes.
 - **Steamworks App Admin:** el mantenedor confirma que las 20 entradas correspondientes están creadas para App ID `4979220`. Esto NO demuestra que los últimos cambios estén publicados, que ambos iconos estén subidos o que el desbloqueo haya pasado smoke end-to-end en una build de producción.
 - **Audio:** final levels, mix, and crossfade baseline accepted by the maintainer after human playtesting. The canonical pack reconstructs 50 events / 97 variants from 96 versioned masters. The acceptance does not invent diagnostic counters or quantitative route data that were not supplied.
-- **Remaining Steam launch work:** generate the package from the committed `0.30.7` candidate, externally confirm publication/icons, and run the production achievement-unlock smoke. `shortMaps=false`, `audioDiagnostics=false`, `mapTransitionKey=false`, and `finaleKey=false`; no `0.30.7` package is claimed yet.
+- **Remaining Steam launch work:** generate the package from the committed `0.30.8` candidate, externally confirm publication/icons, and run the production achievement-unlock smoke. `shortMaps=false`, `audioDiagnostics=false`, `mapTransitionKey=false`, and `finaleKey=false`; no `0.30.8` package is claimed yet.
 - **Otras APIs Steamworks:** Leaderboards, User Stats, Cloud, Workshop, Rich Presence, Friends/lobbies/networking, Steam Input, Inventory/DLC/microtransactions y cualquier otra integración no están implementadas y quedan fuera del lanzamiento. Solo se reconsideran post-lanzamiento con suficiente visibilidad/tracción; no hay compromiso ni promesa.
 
 ## ⚡ Lo primero que hay que mirar, según lo que te pidan
