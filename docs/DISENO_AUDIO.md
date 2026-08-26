@@ -14,7 +14,7 @@
 
 ## Convención de nombres y formato
 
-- Archivos: `public/assets/audio/sfx/<categoria>-<nombre>[-vN].ogg` (o `.wav` si falla `ffmpeg`). El routing, incluida la m?sica temporal, viene siempre de `tools/audio/manifest.json`; no hay una ruta fija de m?sica en config. La m?sica final ir? en su familia exportada cuando exista.
+- Archivos runtime: `public/assets/audio/sfx/*`. El routing vigente viene de `tools/audio/runtime-pack.json`, reconstruido como `assets/audio/sfx/manifest.json`; no hay rutas fijas por evento en el director. `tools/audio/foundation-manifest.json` y `tmp/audio-foundation-runtime/` son solo fixtures de regresión de recetas y nunca sobrescriben el pack aceptado.
 - Formato: OGG Vorbis (Electron/Chromium lo come nativo), 44.1kHz. SFX mono salvo ambientes/música (estéreo).
 - Prioridad: **P1** = mínimo para que el juego "suene completo" · **P2** = pulido profesional · **P3** = detalle fino post-playtest.
 

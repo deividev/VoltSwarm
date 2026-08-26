@@ -4,8 +4,8 @@ import { BIT_DEPTH, CHANNELS, EVENT_RECIPE, FADE_SECONDS, GENERATOR_HASH, RATE, 
 
 const root = resolve(import.meta.dirname, '../..');
 const masterRoot = resolve(root, 'art/audio/sfx/masters');
-const runtimeRoot = resolve(root, 'public');
-const runtimeAudioRoot = resolve(root, 'public/assets/audio/sfx');
+const runtimeRoot = root;
+const runtimeAudioRoot = resolve(root, 'tmp/audio-foundation-runtime');
 const tolerance = 0.002;
 
 function filePath(path) { return resolve(root, path); }
@@ -39,11 +39,11 @@ export function validateManifest(manifest, { checkFiles = true } = {}) {
   if (checkFiles) {
     const listed = new Set(listedPaths(manifest));
     if (existsSync(masterRoot)) for (const name of readdirSync(masterRoot).filter((name) => name.endsWith('.wav'))) if (!listed.has(`art/audio/sfx/masters/${name}`)) failures.push(`orphan master ${name}`);
-    if (existsSync(runtimeAudioRoot)) for (const name of readdirSync(runtimeAudioRoot).filter((name) => name !== 'manifest.json')) if (!listed.has(`assets/audio/sfx/${name}`)) failures.push(`orphan runtime export ${name}`);
+    if (existsSync(runtimeAudioRoot)) for (const name of readdirSync(runtimeAudioRoot).filter((name) => name !== 'manifest.json')) if (!listed.has(`tmp/audio-foundation-runtime/${name}`)) failures.push(`orphan runtime export ${name}`);
   }
   return failures;
 }
-export function loadManifest() { return JSON.parse(readFileSync(resolve(root, 'tools/audio/manifest.json'), 'utf8')); }
+export function loadManifest() { return JSON.parse(readFileSync(resolve(root, 'tools/audio/foundation-manifest.json'), 'utf8')); }
 if (process.argv[1]?.replace(/\\/g, '/').endsWith('/tools/audio/validate.mjs')) {
   const failures = validateManifest(loadManifest());
   if (failures.length) { failures.forEach((failure) => console.error(`audio validation: ${failure}`)); process.exit(1); }

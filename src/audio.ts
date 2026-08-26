@@ -28,18 +28,16 @@ export interface AudioEvent { id: AudioEventId; key?: string; priority?: number;
 export interface AudioDiagnostics { activeVoices: number; peakActiveVoices: number; drops: number; steals: number; loadFailures: number; leakedVoices: number; attempts: number; accepted: number; contextState: string; }
 export interface AudioBusGains { master: number; sfx: number; music: number; }
 
-type Voice = { source: AudioBufferSourceNode; gain: GainNode; bus: 'sfx' | 'music'; priority: number; key?: string; loop: boolean; volume: number };
-type ManifestAsset = { runtime: { path: string; format: 'ogg' | 'wav' } };
+type Voice = { source: AudioBufferSourceNode; gain: GainNode; bus: 'sfx' | 'music'; priority: number; key?: string; loop: boolean; volume: number; disposed: boolean };
+type ManifestAsset = { runtime: { path: string; format: 'mp3' | 'ogg' | 'wav' } };
 type Manifest = { events?: Partial<Record<AudioEventId, ManifestAsset[]>> };
 
 export function audioBusGains(
   settings: Pick<GameSettings, 'masterVolume' | 'musicVolume' | 'sfxVolume'>,
   paused: boolean,
-  menu: boolean,
+  _menu: boolean,
 ): AudioBusGains {
-  const musicMultiplier =
-    (paused ? AUDIO.fades.pauseMusicGain : 1) *
-    (menu ? AUDIO.fades.menuMusicGain : 1);
+  const musicMultiplier = paused ? AUDIO.fades.pauseMusicGain : 1;
   return {
     master: settings.masterVolume,
     sfx: settings.sfxVolume * AUDIO.mix.sfxBusGain,
@@ -80,9 +78,13 @@ export class AudioDirector {
   private readonly voices = new Set<Voice>();
   private readonly keyed = new Map<string, Voice>();
   private readonly lastEvent = new Map<string, number>();
+  /** Invalidates an async keyed load when its owner stops before decode ends. */
+  private readonly keyRevision = new Map<string, number>();
   /** Style-audition pins: event -> fixed variant index (dev cycling via debugCycleVariant). */
   private readonly pinnedVariant = new Map<AudioEventId, number>();
   private generation = 0;
+  private musicRevision = 0;
+  private desiredMusicKey: string | null = null;
   private sfxLoopsSuspended = false;
   private listenerX = 0;
   private listenerZ = 0;
@@ -137,7 +139,29 @@ export class AudioDirector {
     this.lastEvent.set(key, now);
     this.accepted++;
     if (!this.context || this.context.state !== 'running') return;
-    void this.play(event, this.generation);
+    const keyRevision = event.key === undefined ? undefined : (this.keyRevision.get(event.key) ?? 0);
+    void this.play(event, this.generation, keyRevision);
+  }
+  /**
+   * Requests the one current music bed. The outgoing bed is kept alive until
+   * the incoming buffer is ready, then both gains ride one exact crossfade.
+   * A later request invalidates every earlier async fetch/decode, so a delayed
+   * menu load can never resurrect after a run has started.
+   */
+  transitionMusic(id: AudioEventId, key: string, volume: number): void {
+    if (this.desiredMusicKey === key) return;
+    this.desiredMusicKey = key;
+    const revision = ++this.musicRevision;
+    void this.playMusicTransition(id, key, volume, revision);
+  }
+  /** Stops the current music and cancels any pending replacement. */
+  stopMusic(fadeS: number = AUDIO.fades.musicCrossfadeS): void {
+    this.desiredMusicKey = null;
+    this.musicRevision++;
+    for (const voice of [...this.voices].filter((candidate) => candidate.bus === 'music')) {
+      this.fadeVoiceToSilence(voice, fadeS);
+      if (voice.key && this.keyed.get(voice.key) === voice) this.keyed.delete(voice.key);
+    }
   }
   /** Update the listener (player) world position for distance attenuation of
    *  world-positioned one-shots (`emit({pos})`). Call each frame while playing. */
@@ -178,9 +202,12 @@ export class AudioDirector {
   setMenu(menu: boolean): void { this.menu = menu; this.applyGains(AUDIO.fades.pauseDuckS); }
   reset(): void {
     this.generation++;
+    this.musicRevision++;
+    this.desiredMusicKey = null;
     this.manifest = null;
     this.manifestPromise = null;
     this.buffers.clear();
+    this.keyRevision.clear();
     for (const voice of [...this.voices]) this.stopVoice(voice, AUDIO.fades.defaultS);
     this.keyed.clear();
   }
@@ -208,6 +235,7 @@ export class AudioDirector {
    * cheap exponential stop it already had.
    */
   fadeOutLoop(key: string, fadeS: number): void {
+    this.invalidateKey(key);
     const voice = this.keyed.get(key);
     if (!voice) return;
     if (!this.context) return;
@@ -221,6 +249,7 @@ export class AudioDirector {
     if (this.keyed.get(key) === voice) this.keyed.delete(key);
   }
   stopLoop(key: string): void {
+    this.invalidateKey(key);
     const voice = this.keyed.get(key);
     if (!voice) return;
     this.stopVoice(voice, AUDIO.fades.defaultS);
@@ -281,13 +310,13 @@ export class AudioDirector {
     this.sfx.gain.setTargetAtTime(gains.sfx, at, fadeS);
     this.music.gain.setTargetAtTime(gains.music, at, fadeS);
   }
-  private async play(event: AudioEvent, token: number): Promise<void> {
+  private async play(event: AudioEvent, token: number, keyRevision?: number): Promise<void> {
     // Duplicate keyed loops must be rejected before any cap admission can evict a voice.
     if (event.loop && event.key && this.keyed.has(event.key)) return;
     const path = await this.resolvePath(event.id, token);
-    if (token !== this.generation || !path || !this.context || !this.sfx || !this.music) return;
+    if (!this.requestIsCurrent(event.key, keyRevision) || token !== this.generation || !path || !this.context || !this.sfx || !this.music) return;
     const buffer = await this.loadBuffer(path, token);
-    if (token !== this.generation || !buffer || !this.context || !this.sfx || !this.music) return;
+    if (!this.requestIsCurrent(event.key, keyRevision) || token !== this.generation || !buffer || !this.context || !this.sfx || !this.music) return;
     if (event.loop && event.key && this.keyed.has(event.key)) return;
     // Loops default to the music bus (menu/foundation music), but a weapon loop
     // can pin itself to the sfx bus so it obeys the SFX slider and never fights
@@ -321,15 +350,77 @@ export class AudioDirector {
     const spatial = event.pos ? this.spatialGain(event.pos) : 1;
     source.buffer = buffer; source.loop = Boolean(event.loop); gain.gain.value = startMuted ? 0 : (event.volume ?? 1) * spatial;
     source.connect(gain); gain.connect(bus === 'music' ? this.music : this.sfx);
-    const voice: Voice = { source, gain, bus, priority: event.priority ?? 0, key: event.key, loop: Boolean(event.loop), volume: event.volume ?? 1 };
+    const voice: Voice = { source, gain, bus, priority: event.priority ?? 0, key: event.key, loop: Boolean(event.loop), volume: event.volume ?? 1, disposed: false };
     this.voices.add(voice); if (event.key) this.keyed.set(event.key, voice);
     this.peakActiveVoices = Math.max(this.peakActiveVoices, this.voices.size);
-    source.onended = () => {
-      if (!this.voices.delete(voice)) this.leaks++;
-      if (event.key && this.keyed.get(event.key) === voice) this.keyed.delete(event.key);
-      source.disconnect(); gain.disconnect();
-    };
+    source.onended = () => this.disposeVoice(voice);
     source.start();
+  }
+  private async playMusicTransition(id: AudioEventId, key: string, volume: number, revision: number): Promise<void> {
+    const token = this.generation;
+    const path = await this.resolvePath(id, token);
+    if (!this.musicRequestIsCurrent(key, revision, token) || !path || !this.context || !this.music) return;
+    const buffer = await this.loadBuffer(path, token);
+    if (!this.musicRequestIsCurrent(key, revision, token) || !buffer || !this.context || !this.music) return;
+
+    const at = this.context.currentTime;
+    const existing = [...this.voices].filter((voice) => voice.bus === 'music');
+    // A rapid third transition may arrive while the first bed is still fading.
+    // Retire every older outgoing source now so the real music cap remains two:
+    // one outgoing plus one incoming, never an accumulating fade tail.
+    for (const voice of existing.slice(0, -1)) this.disposeVoiceImmediately(voice, at);
+    const outgoing = existing.at(-1);
+    if (outgoing) {
+      this.fadeVoiceToSilence(outgoing, AUDIO.fades.musicCrossfadeS);
+      if (outgoing.key && this.keyed.get(outgoing.key) === outgoing) this.keyed.delete(outgoing.key);
+    }
+
+    const source = this.context.createBufferSource();
+    const gain = this.context.createGain();
+    source.buffer = buffer;
+    source.loop = true;
+    gain.gain.setValueAtTime(0, at);
+    gain.gain.linearRampToValueAtTime(volume, at + AUDIO.fades.musicCrossfadeS);
+    source.connect(gain);
+    gain.connect(this.music);
+    const voice: Voice = { source, gain, bus: 'music', priority: 2, key, loop: true, volume, disposed: false };
+    this.voices.add(voice);
+    this.keyed.set(key, voice);
+    this.peakActiveVoices = Math.max(this.peakActiveVoices, this.voices.size);
+    source.onended = () => this.disposeVoice(voice);
+    source.start(at);
+  }
+  private musicRequestIsCurrent(key: string, revision: number, generation: number): boolean {
+    return generation === this.generation && revision === this.musicRevision && key === this.desiredMusicKey;
+  }
+  private requestIsCurrent(key: string | undefined, revision: number | undefined): boolean {
+    return key === undefined || revision === (this.keyRevision.get(key) ?? 0);
+  }
+  private invalidateKey(key: string): void {
+    this.keyRevision.set(key, (this.keyRevision.get(key) ?? 0) + 1);
+  }
+  private fadeVoiceToSilence(voice: Voice, fadeS: number): void {
+    if (!this.context || voice.disposed) return;
+    const at = this.context.currentTime;
+    try {
+      voice.gain.gain.cancelScheduledValues(at);
+      voice.gain.gain.setValueAtTime(voice.gain.gain.value, at);
+      voice.gain.gain.linearRampToValueAtTime(0, at + fadeS);
+      voice.source.stop(at + fadeS);
+    } catch { /* voice already ended */ }
+  }
+  private disposeVoiceImmediately(voice: Voice, at: number): void {
+    if (voice.disposed) return;
+    try { voice.source.stop(at); } catch { /* voice already ended */ }
+    this.disposeVoice(voice);
+  }
+  private disposeVoice(voice: Voice): void {
+    if (voice.disposed) return;
+    voice.disposed = true;
+    if (!this.voices.delete(voice)) this.leaks++;
+    if (voice.key && this.keyed.get(voice.key) === voice) this.keyed.delete(voice.key);
+    voice.source.disconnect();
+    voice.gain.disconnect();
   }
   private stopVoice(voice: Voice, fadeS: number): void {
     if (!this.context) return;

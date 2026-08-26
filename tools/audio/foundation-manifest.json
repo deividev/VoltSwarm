@@ -31,7 +31,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/ui-confirm-v1.ogg"
         }
       }
     ],
@@ -61,7 +61,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/ui-confirm-v1.ogg"
         }
       }
     ],
@@ -91,7 +91,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/ui-confirm-v1.ogg"
         }
       }
     ],
@@ -121,7 +121,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/levelup-open-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/levelup-open-v1.ogg"
         }
       }
     ],
@@ -151,7 +151,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/ui-confirm-v1.ogg"
         }
       }
     ],
@@ -181,7 +181,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/ui-confirm-v1.ogg"
         }
       }
     ],
@@ -211,7 +211,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/ui-confirm-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/ui-confirm-v1.ogg"
         }
       }
     ],
@@ -241,7 +241,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/weapon-activation-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/weapon-activation-v1.ogg"
         }
       }
     ],
@@ -271,7 +271,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/bolt-cannon-fire-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/bolt-cannon-fire-v1.ogg"
         }
       },
       {
@@ -299,7 +299,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/bolt-cannon-fire-v2.ogg"
+          "path": "tmp/audio-foundation-runtime/bolt-cannon-fire-v2.ogg"
         }
       },
       {
@@ -327,7 +327,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/bolt-cannon-fire-v3.ogg"
+          "path": "tmp/audio-foundation-runtime/bolt-cannon-fire-v3.ogg"
         }
       }
     ],
@@ -357,7 +357,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/player-hit-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/player-hit-v1.ogg"
         }
       }
     ],
@@ -387,7 +387,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/shield-block-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/shield-block-v1.ogg"
         }
       }
     ],
@@ -417,7 +417,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/enemy-death-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/enemy-death-v1.ogg"
         }
       },
       {
@@ -445,7 +445,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/enemy-death-v2.ogg"
+          "path": "tmp/audio-foundation-runtime/enemy-death-v2.ogg"
         }
       },
       {
@@ -473,7 +473,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/enemy-death-v3.ogg"
+          "path": "tmp/audio-foundation-runtime/enemy-death-v3.ogg"
         }
       }
     ],
@@ -503,7 +503,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/xp-pickup-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/xp-pickup-v1.ogg"
         }
       },
       {
@@ -531,7 +531,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/xp-pickup-v2.ogg"
+          "path": "tmp/audio-foundation-runtime/xp-pickup-v2.ogg"
         }
       },
       {
@@ -559,7 +559,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/xp-pickup-v3.ogg"
+          "path": "tmp/audio-foundation-runtime/xp-pickup-v3.ogg"
         }
       }
     ],
@@ -589,7 +589,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/gold-pickup-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/gold-pickup-v1.ogg"
         }
       },
       {
@@ -617,7 +617,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/gold-pickup-v2.ogg"
+          "path": "tmp/audio-foundation-runtime/gold-pickup-v2.ogg"
         }
       },
       {
@@ -645,7 +645,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/gold-pickup-v3.ogg"
+          "path": "tmp/audio-foundation-runtime/gold-pickup-v3.ogg"
         }
       }
     ],
@@ -675,7 +675,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/levelup-open-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/levelup-open-v1.ogg"
         }
       }
     ],
@@ -705,7 +705,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/levelup-open-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/levelup-open-v1.ogg"
         }
       }
     ],
@@ -735,7 +735,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/chest-open-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/chest-open-v1.ogg"
         }
       }
     ],
@@ -765,7 +765,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/chest-reveal-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/chest-reveal-v1.ogg"
         }
       }
     ],
@@ -795,7 +795,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/merchant-arrival-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/merchant-arrival-v1.ogg"
         }
       }
     ],
@@ -825,7 +825,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/gold-pickup-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/gold-pickup-v1.ogg"
         }
       },
       {
@@ -853,7 +853,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/gold-pickup-v2.ogg"
+          "path": "tmp/audio-foundation-runtime/gold-pickup-v2.ogg"
         }
       },
       {
@@ -881,7 +881,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/gold-pickup-v3.ogg"
+          "path": "tmp/audio-foundation-runtime/gold-pickup-v3.ogg"
         }
       }
     ],
@@ -911,7 +911,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/boss-awaken-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/boss-awaken-v1.ogg"
         }
       }
     ],
@@ -941,7 +941,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/boss-awaken-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/boss-awaken-v1.ogg"
         }
       }
     ],
@@ -971,7 +971,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/boss-defeat-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/boss-defeat-v1.ogg"
         }
       }
     ],
@@ -1001,7 +1001,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/run-victory-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/run-victory-v1.ogg"
         }
       }
     ],
@@ -1031,7 +1031,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/run-defeat-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/run-defeat-v1.ogg"
         }
       }
     ],
@@ -1061,7 +1061,7 @@
         },
         "runtime": {
           "format": "ogg",
-          "path": "assets/audio/sfx/foundation-music-v1.ogg"
+          "path": "tmp/audio-foundation-runtime/foundation-music-v1.ogg"
         }
       }
     ]

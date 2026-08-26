@@ -18,6 +18,7 @@ const source = readFileSync(configPath, 'utf8');
 const GUARDED = [
   { block: 'DEV_TOOLS', key: 'unlockPanel', why: 'the main-menu Unlocks panel would ship to players' },
   { block: 'DEV_TOOLS', key: 'auditionKeys', why: 'the F2-F9 SFX audition hotkeys would ship to players' },
+  { block: 'DEV_TOOLS', key: 'audioDiagnostics', why: 'the renderer audio diagnostics hook would ship to players' },
   { block: 'DEV_TOOLS', key: 'bossLab', why: 'the B/N boss-lab hotkeys would let players skip to minute 8 with a loaded build' },
   { block: 'DEV_TOOLS', key: 'startingMapSelector', why: 'the development starting-map selector would ship to players' },
   { block: 'DEV_TOOLS', key: 'simulateMap1Handoff', why: 'the Map 2 dev-start with a simulated Map 1 build would ship to players' },

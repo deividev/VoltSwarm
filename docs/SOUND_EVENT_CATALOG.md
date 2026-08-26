@@ -3,27 +3,27 @@
 **Rewritten 2026-07-18** against the settled style foundation. The old
 industrial-toy material catalog and its six-prototype gate are SUPERSEDED.
 
-> **Current status 2026-08-20:** audio v1 is accepted/closed and its offline
-> pipeline is operational, with tracked recipes and manifests. Canonical generation
-> is only partially unified: `pnpm audio:generate` covers foundation, UI navigation
-> and `boss-assembly-open`, not every WAV in the active prototype manifest. This
-> catalog remains open for future content and cohesion work; "v1 closed" does not
-> mean every future event exists or that the complete runtime pack can be rebuilt
-> by one command yet.
+> **Current status 2026-08-26:** audio v1 and the final `0.30.7` cohesion/mix
+> baseline are accepted/closed after maintainer playtesting. `pnpm audio:generate`
+> reconstructs the complete active pack (50 events, 97
+> variants) from hash-pinned immutable masters. `runtime-pack.json` is the tracked
+> source; `assets/audio/sfx/manifest.json` is the only runtime manifest. This
+> catalog remains open only for future content or an explicit later remix.
 > Hazard Marshal's baseline cues are wired. The only known emitted silent hook is
 > Oil Sprayer's `oil-drop`, which is not enabled or present in the runtime manifest;
 > Oil itself is disabled from the playable path.
 
-> ⚠️ **PENDING — HIGH PRIORITY (user 2026-07-21): full SFX VOLUME-BALANCE pass.**
-> The set is not level-balanced — some sounds sit right, some too low, some too
-> high (surfaced when the welder was nearly inaudible over music at ~50%). Must be
-> judged IN-GAME over the music bed. Two knobs per sound: `normalize(peak)` in the
-> generator + `emit({volume})` at the call site. Target = the loudness pyramid
-> (law 5). Current effective-level map lives in memory `sfx-volume-balance-review`.
+> ✅ **CLOSED 2026-08-26 for `0.30.7`: full SFX volume/mix pass.** The maintainer
+> playtested the current levels in game and accepted the volume, mix and crossfade
+> baseline. No diagnostic counters or quantitative route data were supplied, so
+> none are claimed. Two knobs remain available for future revisions:
+> `normalize(peak)` in the generator + `emit({volume})` at the call site. The
+> loudness pyramid (law 5) remains the target.
 > **Baseline bus correction 2026-08-09:** the complete SFX bus now carries a
 > config-owned `0.85` trim, keeping priority weapon cues above the music without
 > letting the aggregate effects bed dominate it. The per-event in-game pass is
-> still pending; this global correction does not pretend to replace it.
+> The human `0.30.7` acceptance closes the per-event release gate without
+> converting that global trim into a claim of per-event measurement.
 
 ## Style foundation (settled in the 2026-07-18 session — laws, not suggestions)
 
@@ -46,14 +46,15 @@ industrial-toy material catalog and its six-prototype gate are SUPERSEDED.
 
 ## Status legend
 
-- **DONE** — asset wired in the prototypes manifest and accepted in-game.
-- **WIRED** — asset plays in-game; final verdict / long-run polish pending.
+- **DONE** — asset wired in the canonical runtime pack and accepted in-game.
+- **WIRED** — asset plays in-game; the current `0.30.7` mix verdict applies unless a row explicitly says otherwise.
 - **SILENT HOOK** — the game emits the event; no asset assigned (plays nothing).
 - **TYPE ONLY** — event id exists in `AudioEventId`; nothing emits it yet.
 - **NO HOOK** — neither event nor emit exists yet.
 
 Current runtime source of truth: `AUDIO.validation.enabledEvents` (config.ts) +
-`public/assets/audio/prototypes/manifest.json` (version `phase2-*`).
+`tools/audio/runtime-pack.json`, copied exactly to
+`public/assets/audio/sfx/manifest.json` by `pnpm audio:generate`.
 
 ## 1. Integrated today (the validated foundation)
 
@@ -61,8 +62,8 @@ Current runtime source of truth: `AUDIO.validation.enabledEvents` (config.ts) +
 |---|---|---|---|
 | `ui-confirm` | `modern-ui-confirm-1` (fixed variant 0) | semantic confirm only; the prototype manifest retains audition candidates but release routing never random-mixes UI families | DONE |
 | `ui-focus` | `ui-focus-v1..v4` | dark low electric texture, 55ms microvariants; only an eligible hover/keyboard/Tab/gamepad target change emits it, never initial setup or repeats | DONE |
-| `bolt-cannon-fire` | `burst-bolt` x4 | 3-tick electric micro-burst "brrt", peak 0.78, weapon dominates | WIRED (long-run verdict pending) |
-| `enemy-death` | `cube-death` x4 | voxel cube burst: pop + dice-knock cluster + rebounds, ≤3kHz, peak 0.33, cooldown 0.16s | WIRED (long-run verdict pending) |
+| `bolt-cannon-fire` | `burst-bolt` x4 | 3-tick electric micro-burst "brrt", peak 0.78, weapon dominates | WIRED (`0.30.7` mix accepted) |
+| `enemy-death` | `cube-death` x4 | voxel cube burst: pop + dice-knock cluster + rebounds, ≤3kHz, peak 0.33, cooldown 0.16s | WIRED (`0.30.7` mix accepted) |
 | `xp-pickup` | `pickup-xp` x4 | soft rising blip, 40ms, peak 0.42; accumulator number rides the player | WIRED |
 | `gold-pickup` | `pickup-gold` x4 | small metallic clink, 50ms, peak 0.48 | WIRED |
 | `levelup-intro` | `levelup-r8` (modern) | fanfare INSIDE the 0.72s LEVEL UP text window: impact → rising run → glory dyad | DONE |
@@ -73,11 +74,11 @@ Current runtime source of truth: `AUDIO.validation.enabledEvents` (config.ts) +
 | `chest-reveal` | `modern-chest-reveal` | act 3: impact in the flash, arp riding the 0.6s icon rise, top note at settle. **Fijado a la variante 0 desde `AUDIO.fixedVariantIndex`**: el manifiesto conserva los otros candidatos para audición, pero una run normal ya no los sortea. Un pin de audición dev sigue teniendo prioridad. | DONE |
 | `foundation-music` | `music-lead.mp3` = "Neon Horizon" | in-run bed, loops on music bus, ducks on pause/menu | WIRED (provisional lead; more takes planned) |
 | `menu-music` | `menu-music.mp3` = "Neon Swarm (4)" | title-screen theme; the app opens on a one-time input gate, then any keyboard/gamepad button activates Web Audio, starts this keyed loop once, and reveals the menu without leaking that edge into navigation; returning from a run skips the gate and restores the theme directly | WIRED |
-| `player-hit` | `player-hit` x2 | PRIORITY danger: metallic clang + heavy sub thud + downward stress bend, peak 0.85 | WIRED (batch A, verdict pending) |
-| `shield-block` | `shield-block` x2 | positive twin: bright electric deflect crack + barrier ting, no low thud, peak 0.72 | WIRED (batch A, verdict pending) |
-| `boss-portal` | `boss-portal` | 2.5s telegraph charge (rising drone + beam-synced strobe pulses + surge), keyed one-shot cut on spawn; fires on `summonJustBegan` | WIRED (batch B, verdict pending) |
-| `boss-awaken` | `boss-awaken` | telegraph impact → rising electric power surge → eruption, peak 0.92 | WIRED (batch B, verdict pending) |
-| `boss-defeat` | `boss-defeat` | giant cube collapse + triumphant rising synth victory bloom, peak 0.9 | WIRED (batch B, verdict pending) |
+| `player-hit` | `player-hit` x2 | PRIORITY danger: metallic clang + heavy sub thud + downward stress bend, peak 0.85 | WIRED (batch A; `0.30.7` mix accepted) |
+| `shield-block` | `shield-block` x2 | positive twin: bright electric deflect crack + barrier ting, no low thud, peak 0.72 | WIRED (batch A; `0.30.7` mix accepted) |
+| `boss-portal` | `boss-portal` | 2.5s telegraph charge (rising drone + beam-synced strobe pulses + surge), keyed one-shot cut on spawn; fires on `summonJustBegan` | WIRED (batch B; `0.30.7` mix accepted) |
+| `boss-awaken` | `boss-awaken` | telegraph impact → rising electric power surge → eruption, peak 0.92 | WIRED (batch B; `0.30.7` mix accepted) |
+| `boss-defeat` | `boss-defeat` | giant cube collapse + triumphant rising synth victory bloom, peak 0.9 | WIRED (batch B; `0.30.7` mix accepted) |
 | `run-start` | `run-start` | quick power-on rise, hands off to music | WIRED (batch C) |
 | `menu-enter` | `menu-enter` | soft settle returning to menu | WIRED (batch C) |
 | `pause` / `resume` | `pause` / `resume` | mirrored down-tick / up-tick pair | WIRED (batch C) |
@@ -121,10 +122,10 @@ vs deaths, frequent=invisible, keyed loops per owner (never per projectile).
 | Junk Ricochet | `ricochet-throw` | WIRED ✓ user-liked v4: springy ELECTRIC launch ("dwip" + wobble tail). NOT metal-impact — 3 ping/clank takes failed ("crystal/glass"); electric-spring direction won. **Lesson for remaining weapons: our world is electric, not acoustic-metal.** |
 | Saw Blades | `blades-spin` + `blades-loop` + `blades-hit` | DONE (user-accepted 2026-07-21): rev one-shot on the spin-up edge + a **seamless breathing loop** (`blades-loop`, sfx-bus keyed, suspended under overlays) + a **metallic SHEAR hit** (`blades-hit` v7 — resonant-noise shear, NOT modal ring; modal read as "struck glass", same as the ricochet). First sfx-bus keyed loop — see the sfx-loop infra note below. |
 | Welder | `welder-beam` | DONE (user-accepted 2026-07-21 "el sonido de arc me vale"): sustained electric-arc LOOP via the sfx-bus keyed-loop path. Beam ignites (acquires target) → `startWeaponLoop`; drops target → `stopWeaponLoop`. Removed from `WEAPON_FIRE_SFX` (its `weaponActivated` fires per tick → would machine-gun a one-shot). |
-| Tire | `tire-launch` | WIRED (2026-07-21, v2 pending verdict): "Tire Fire" = burning tire rolls in a line. v1 (rubber scrub + spring) REJECTED — represented nothing of the weapon. v2 = fiery WHOOMP + heavy dark-rubber thud + rolling flame-crackle tail that dopplers away. |
+| Tire | `tire-launch` | WIRED (2026-07-21 v2; `0.30.7` mix accepted): "Tire Fire" = burning tire rolls in a line. v1 (rubber scrub + spring) REJECTED — represented nothing of the weapon. v2 = fiery WHOOMP + heavy dark-rubber thud + rolling flame-crackle tail that dopplers away. |
 | Oil Sprayer | `oil-drop` | SILENT HOOK: emitted but not enabled/manifested; weapon disabled from the playable path |
-| Acid | `acid-throw` | WIRED (2026-07-22, pending verdict): "Acid Drum — lobs drums that burst into a corrosive zone". Lob whoosh → wet BURST/splash → corrosive FIZZ + discrete chemical BUBBLE blips + an energized green edge (palette tie). Chemical fizz+bubble = a signature nobody else has. `prototype-r31-acid.mjs`. **Pool-sizzle loop DONE 2026-07-22 (`acid-loop`, DISTANCE-ATTENUATED):** one shared corrosive sizzle (fizz + bubbles + low hum, seamless) plays while ANY zone lives; its volume fades with the player's distance to the NEAREST pool (world-positioned sound). `prototype-r32-acid-loop.mjs`; config `AUDIO.acidLoop` (baseVolume 0.42, maxHearingDistance 32). |
-| Turbine | `turbine-launch` + `turbine-loop` | WIRED (2026-07-22, pending verdict). **Launch (v1 RESTORED):** airy fan spin-up whine + swirling wind-VORTEX whoosh + launch gust + airy top. The v2 "electric energy vortex" was REJECTED ("no me gusta nada") — reverted to the airier v1 the user preferred. `prototype-r30-turbine.mjs`. **Travel-roar LOOP (`turbine-loop`):** a swirling wind roar while any tornado flies, DISTANCE-ATTENUATED to the nearest tornado (the world-distance rule) — it fades as the tornado spins off. `prototype-r33-turbine-loop.mjs`, config `AUDIO.turbineLoop`. Named user-facing unit "vortex" (not "tornado"). |
+| Acid | `acid-throw` | WIRED (2026-07-22; `0.30.7` mix accepted): "Acid Drum — lobs drums that burst into a corrosive zone". Lob whoosh → wet BURST/splash → corrosive FIZZ + discrete chemical BUBBLE blips + an energized green edge (palette tie). Chemical fizz+bubble = a signature nobody else has. `prototype-r31-acid.mjs`. **Pool-sizzle loop DONE 2026-07-22 (`acid-loop`, DISTANCE-ATTENUATED):** one shared corrosive sizzle (fizz + bubbles + low hum, seamless) plays while ANY zone lives; its volume fades with the player's distance to the NEAREST pool (world-positioned sound). `prototype-r32-acid-loop.mjs`; config `AUDIO.acidLoop` (baseVolume 0.42, maxHearingDistance 32). |
+| Turbine | `turbine-launch` + `turbine-loop` | WIRED (2026-07-22; `0.30.7` mix accepted). **Launch (v1 RESTORED):** airy fan spin-up whine + swirling wind-VORTEX whoosh + launch gust + airy top. The v2 "electric energy vortex" was REJECTED ("no me gusta nada") — reverted to the airier v1 the user preferred. `prototype-r30-turbine.mjs`. **Travel-roar LOOP (`turbine-loop`):** a swirling wind roar while any tornado flies, DISTANCE-ATTENUATED to the nearest tornado (the world-distance rule) — it fades as the tornado spins off. `prototype-r33-turbine-loop.mjs`, config `AUDIO.turbineLoop`. Named user-facing unit "vortex" (not "tornado"). |
 | Dismantler | `dismantler-swipe` | DONE (user-accepted 2026-07-22): "Heavy claw strike, executes <15% HP". Light STRIKE lead-in + mechanical servo + a DOMINANT, clearly-articulated TRIPLE torn shred ("shk-shk-shk", spaced ~45ms, gritty low-Q rakes) + amber edge. v1's shred was masked under a heavy strike+sub; v2 made the shred lead the mix. Heavier/darker than the light blades-shear so the two don't collide. `prototype-r29-dismantler.mjs`. |
 
 **Sfx-bus keyed-loop infra (added 2026-07-21 for Saw Blades + Welder — the
@@ -184,9 +185,10 @@ tint-states, pickup-consumables (Repair/Volt Cache/Frenzy/Overdrive).
 - Chest deny (can't afford), shop leave/deny, socket fill, upgrade discard,
   banner generic whoosh, low-HP warning loop (careful: annoyance risk).
 
-## Closing validation (once ALL SFX are wired)
+## Closing validation (completed for `0.30.7`)
 
-Two passes before audio is declared done, in a real long run with music playing:
+The maintainer accepted the current in-game result on 2026-08-26. These remain
+the required passes whenever the pack or mix changes:
 1. **Cohesion pass** — listen to every SFX over the Neon Horizon bed; flag any
    that "sounds like another game" (watch the most physical ones: cube death,
    player-hit). No retro, no clash with music or the voxel visuals.
@@ -197,15 +199,15 @@ Two passes before audio is declared done, in a real long run with music playing:
 
 ## Production notes
 
-- Current prototype assets originate from deterministic DSP recipes, but not every
-  active WAV is wired into the canonical generation command yet. Regenerate through
-  its owning recipe when available; never hand-edit WAVs.
+- Active assets are immutable accepted masters pinned by SHA-256. Procedural
+  recipes remain authoring sources for new candidates; never hand-edit masters or
+  let a generator refactor silently replace an accepted winner.
 - ElevenLabs (`tools/audio/elevenlabs-sfx*.mjs`, key in `.env`) remains the
   texture-rich alternative; every timing-critical asset must be trimmed to its
   animation window.
 - Storm rules unchanged: voice caps, cooldowns, aggregation, keyed loops
   (`AUDIO.voiceCaps`, `AUDIO.cooldownS`).
-- Audio v1's active generated pack is accepted and its recipes/manifests are tracked;
-  full one-command reconstruction remains incomplete. Historical rejected fixtures
+- Audio v1's active pack is accepted and reconstructs in one command from the
+  tracked `audio-masters/runtime/` vault. Historical rejected fixtures
   remain historical only; do not relabel the current v1 pack as rejected. Future catalog scale-out still needs
   the same provenance, in-game judgment and cohesion pass.

@@ -134,8 +134,10 @@ export function variantCount(recipe) { return recipe.family === 'pickup' || reci
 
 const root = resolve(import.meta.dirname, '../..');
 const master = resolve(root, 'art/audio/sfx/masters');
-const runtime = resolve(root, 'public/assets/audio/sfx');
-const runtimePath = (name, ext) => `assets/audio/sfx/${name}.${ext}`;
+// Recipe regression output only. The accepted runtime pack is reconstructed by
+// rebuild-runtime-pack.mjs; foundation experiments must never overwrite it.
+const runtime = resolve(root, 'tmp/audio-foundation-runtime');
+const runtimePath = (name, ext) => `tmp/audio-foundation-runtime/${name}.${ext}`;
 function exportRuntime(wavPath, name, wavData) {
   const oggPath = resolve(runtime, `${name}.ogg`);
   const ffmpeg = process.platform === 'win32' ? 'ffmpeg.exe' : 'ffmpeg';
@@ -159,7 +161,7 @@ export function generate() {
   const events = Object.fromEntries(Object.entries(EVENT_RECIPE).map(([eventId, recipeId]) => [eventId, recipeAssets[recipeId].map((asset) => ({ ...asset, semanticEvent: eventId }))]));
   const manifest = { version: VERSION, generator: { version: VERSION, hash: GENERATOR_HASH }, events };
   const serialized = JSON.stringify(manifest, null, 2) + '\n';
-  writeFileSync(resolve(root, 'tools/audio/manifest.json'), serialized); writeFileSync(resolve(runtime, 'manifest.json'), serialized);
+  writeFileSync(resolve(root, 'tools/audio/foundation-manifest.json'), serialized); writeFileSync(resolve(runtime, 'manifest.json'), serialized);
   return manifest;
 }
 if (process.argv[1]?.replace(/\\/g, '/').endsWith('/tools/audio/generate.mjs')) {

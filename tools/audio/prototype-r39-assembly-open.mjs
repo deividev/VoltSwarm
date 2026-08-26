@@ -26,7 +26,8 @@
 // House style holds: modern industrial, never retro; deterministic; short
 // enough to leave air before the first bay lands.
 //
-// Output: public/assets/audio/prototypes/boss-assembly-open.wav
+// Output: tmp/audio-prototypes/boss-assembly-open.wav (candidate only; promotion
+// requires listening plus a runtime-pack.json hash/provenance update)
 // Usage: node tools/audio/prototype-r39-assembly-open.mjs
 
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -39,7 +40,7 @@ import {
 
 const OUT_DIR = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  '..', '..', 'public', 'assets', 'audio', 'prototypes',
+  '..', '..', 'tmp', 'audio-prototypes',
 );
 
 /** Filtered noise with a shaped envelope — air, grit, the brush of a motor. */

@@ -543,7 +543,7 @@ export class Game {
 
     // Dev-only hook so automated smoke/performance tests can inspect state.
     const benchmarkMode = new URLSearchParams(window.location.search).has('audioBenchmark');
-    if (import.meta.env.DEV || benchmarkMode) {
+    if (import.meta.env.DEV || DEV_TOOLS.audioDiagnostics || benchmarkMode) {
       (window as unknown as Record<string, unknown>)['__voltswarm'] = this;
       (window as unknown as Record<string, unknown>)['__voltswarmAudio'] = {
         diagnostics: () => this.audio.diagnostics(),
@@ -606,9 +606,8 @@ export class Game {
       this.state = 'playing';
       this.audio.setMenu(false);
       this.audio.setPaused(false);
-      this.audio.stopLoop('menu-music-loop'); // menu theme hands over to the run bed
       this.audio.emit({ id: 'run-start' });
-      this.audio.emit({ id: 'foundation-music', key: 'foundation-run-loop', loop: true, priority: 2, volume: AUDIO.music.runLoopVolume });
+      this.audio.transitionMusic('foundation-music', 'foundation-run-loop', AUDIO.music.runLoopVolume);
       if (this.currentRunId && this.startingWeapon) {
         telemetry.startRun(this.currentRunId, {
           mapId: this.currentMap.id,
@@ -1111,7 +1110,7 @@ export class Game {
     this.hud.showMainMenu();
     void this.audio.activateFromUserGesture().then(() => {
       if (this.state !== 'menu' || !this.hud.isMainMenuVisible()) return;
-      this.audio.emit({ id: 'menu-music', key: 'menu-music-loop', loop: true, priority: 2, volume: AUDIO.music.menuLoopVolume });
+      this.audio.transitionMusic('menu-music', 'menu-music-loop', AUDIO.music.menuLoopVolume);
     });
   }
 
@@ -1141,7 +1140,7 @@ export class Game {
     this.benchmarkGoldPickups = 0;
     this.audio.setMenu(false);
     this.audio.setPaused(false);
-    this.audio.emit({ id: 'foundation-music', key: 'foundation-run-loop', loop: true, priority: 2, volume: AUDIO.music.runLoopVolume });
+    this.audio.transitionMusic('foundation-music', 'foundation-run-loop', AUDIO.music.runLoopVolume);
     this.timer.reset();
     return { scenario: AUDIO.benchmark.scenario, seed: AUDIO.benchmark.seed, enemies: this.enemies.activeCount, digest: `${AUDIO.benchmark.seed}:${AUDIO.benchmark.typeCounts.join('-')}:${AUDIO.benchmark.sacrificeIntervalS}:${AUDIO.benchmark.sacrificeBatch}` };
   }
@@ -1442,7 +1441,7 @@ export class Game {
     void this.audio.preloadEnabled();
     this.audio.setMenu(true);
     this.audio.emit({ id: 'menu-enter' });
-    this.audio.emit({ id: 'menu-music', key: 'menu-music-loop', loop: true, priority: 2, volume: AUDIO.music.menuLoopVolume });
+    this.audio.transitionMusic('menu-music', 'menu-music-loop', AUDIO.music.menuLoopVolume);
     this.hud.showMainMenu();
     this.timer.reset();
   }
@@ -3311,7 +3310,7 @@ export class Game {
     if (!summary) return;
     this.state = 'ended';
     this.audio.emit({ id: outcome === 'defeat' ? 'run-defeat' : 'run-victory', priority: 5 });
-    this.audio.stopLoop('foundation-run-loop');
+    this.audio.stopMusic();
     this.audio.setPaused(true);
     this.hud.showEnd(
       outcome,
@@ -3430,7 +3429,7 @@ export class Game {
     // of the pause duck, which only lowers it.
     this.audio.emit({ id: 'player-fatal', priority: 5 });
     this.audio.setSfxLoopsSuspended(true);
-    this.audio.fadeOutLoop('foundation-run-loop', DEFEAT_TRANSITION.musicFadeS);
+    this.audio.stopMusic(DEFEAT_TRANSITION.musicFadeS);
 
     // One bounded impulse, replacing (not stacking with) the ordinary hit shake.
     this.shakeAmp = DEFEAT_TRANSITION.fatalShakeAmp;

@@ -37,8 +37,7 @@ export function renderUiNavigation(recipeId, variantIndex = 0) {
 }
 
 const root = resolve(import.meta.dirname, '../..');
-const sourceManifest = resolve(root, 'tools/audio/prototype-manifest.json');
-const runtimeRoot = resolve(root, 'public/assets/audio/prototypes');
+const candidateRoot = resolve(root, 'tmp/audio-prototypes/ui-navigation');
 const hash = (data) => createHash('sha256').update(data).digest('hex');
 const writeIfChanged = (path, data) => {
   try { if (readFileSync(path).equals(data)) return; } catch { /* first generation */ }
@@ -46,26 +45,23 @@ const writeIfChanged = (path, data) => {
 };
 
 export function generateUiNavigationPrototypes() {
-  const manifest = JSON.parse(readFileSync(sourceManifest, 'utf8'));
-  mkdirSync(runtimeRoot, { recursive: true });
+  const generated = {};
+  mkdirSync(candidateRoot, { recursive: true });
   for (const [eventId, recipe] of Object.entries(UI_NAVIGATION_RECIPES)) {
-    manifest.events[eventId] = Array.from({ length: recipe.variants }, (_, variantIndex) => {
+    generated[eventId] = Array.from({ length: recipe.variants }, (_, variantIndex) => {
       const name = `${eventId}-v${variantIndex + 1}`;
       const data = wav(renderUiNavigation(eventId, variantIndex));
-      writeIfChanged(resolve(runtimeRoot, `${name}.wav`), data);
+      writeIfChanged(resolve(candidateRoot, `${name}.wav`), data);
       return {
-        runtime: { path: `assets/audio/prototypes/${name}.wav`, format: 'wav' },
+        candidate: { path: `tmp/audio-prototypes/ui-navigation/${name}.wav`, format: 'wav' },
         provenance: { recipeId: eventId, version: UI_NAVIGATION_VERSION, seed: recipe.seed, variantIndex, generatorHash: UI_NAVIGATION_HASH, sha256: hash(data) },
       };
     });
   }
-  const serialized = Buffer.from(JSON.stringify(manifest, null, 2) + '\n');
-  writeIfChanged(sourceManifest, serialized);
-  writeIfChanged(resolve(runtimeRoot, 'manifest.json'), serialized);
-  return manifest;
+  return generated;
 }
 
 if (process.argv[1]?.replace(/\\/g, '/').endsWith('/tools/audio/ui-navigation.mjs')) {
-  const manifest = generateUiNavigationPrototypes();
-  console.log(`UI navigation audio generated: ${manifest.events['ui-focus'].length} focus variants + ${manifest.events['ui-back'].length} back variant`);
+  const candidates = generateUiNavigationPrototypes();
+  console.log(`UI navigation candidates generated: ${candidates['ui-focus'].length} focus variants + ${candidates['ui-back'].length} back variant (not promoted)`);
 }

@@ -7,7 +7,7 @@ const server = await createServer({ server: { middlewareMode: true }, appType: '
 const { audioBusGains, selectAudioVariantIndex } = await server.ssrLoadModule('/src/audio.ts');
 const { AUDIO } = await server.ssrLoadModule('/src/config.ts');
 const manifest = JSON.parse(await readFile(
-  new URL('../public/assets/audio/prototypes/manifest.json', import.meta.url),
+  new URL('../public/assets/audio/sfx/manifest.json', import.meta.url),
   'utf8',
 ));
 // The RUNTIME manifest above is a build artefact: `prebuild` regenerates it from
@@ -15,7 +15,7 @@ const manifest = JSON.parse(await readFile(
 // survives exactly until the next `pnpm build`, which is how five boss cues
 // shipped enabled, emitted, and completely silent (2026-08-19).
 const sourceManifest = JSON.parse(await readFile(
-  new URL('./audio/prototype-manifest.json', import.meta.url),
+  new URL('./audio/runtime-pack.json', import.meta.url),
   'utf8',
 ));
 
@@ -34,7 +34,7 @@ test('configured chest reveal stays on modern variant zero', () => {
     0.99,
   );
   assert.equal(index, 0);
-  assert.equal(entries[index].runtime.path, 'assets/audio/prototypes/modern-chest-reveal.wav');
+  assert.equal(entries[index].runtime.path, 'assets/audio/sfx/modern-chest-reveal.wav');
 });
 
 test('chest open and events without policy keep random selection', () => {
@@ -49,11 +49,14 @@ test('variant selection is bounds-safe for malformed pins and empty manifests', 
   assert.equal(selectAudioVariantIndex(0, 0, 0, 0), null);
 });
 
-test('menu music obeys the Music Volume setting and SFX uses the calibrated bus trim', () => {
+test('menu music obeys Music Volume without changing the shared bus gain', () => {
   const full = audioBusGains({ masterVolume: 0.8, musicVolume: 1, sfxVolume: 1 }, false, true);
+  const run = audioBusGains({ masterVolume: 0.8, musicVolume: 1, sfxVolume: 1 }, false, false);
   const muted = audioBusGains({ masterVolume: 0.8, musicVolume: 0, sfxVolume: 1 }, false, true);
 
-  assert.equal(full.music, AUDIO.fades.menuMusicGain);
+  assert.equal(full.music, 1);
+  assert.equal(full.music, run.music, 'menu state raised/lowered the shared music bus');
+  assert.equal(AUDIO.music.menuLoopVolume, 0.675);
   assert.equal(muted.music, 0);
   assert.equal(full.sfx, AUDIO.mix.sfxBusGain);
 });
@@ -81,4 +84,11 @@ test('a one-shot never evicts a sustained loop', async () => {
   // that weapon fully stops and restarts — silence with no visible cause.
   const source = await readFile(new URL('../src/audio.ts', import.meta.url), 'utf8');
   assert.match(source, /const victim = existing[\s\S]{0,40}\.filter\(\(v\) => !v\.loop\)/);
+});
+
+test('Game lifecycle overlaps menu into run but ends run music before menu reset', async () => {
+  const source = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
+  assert.match(source, /this\.audio\.setMenu\(false\);\s*this\.audio\.setPaused\(false\);\s*this\.audio\.emit\(\{ id: 'run-start' \}\);\s*this\.audio\.transitionMusic\('foundation-music'/);
+  assert.match(source, /private endRun[\s\S]*?this\.audio\.stopMusic\(\);[\s\S]*?this\.hud\.showEnd/);
+  assert.match(source, /private quitToMenu[\s\S]*?this\.audio\.reset\(\);[\s\S]*?this\.audio\.setMenu\(true\);[\s\S]*?this\.audio\.transitionMusic\('menu-music'/);
 });

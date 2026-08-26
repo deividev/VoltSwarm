@@ -1,6 +1,6 @@
 # Voltswarm — Roadmap a Steam
 
-Actualizado: 2026-08-25. Unidad funcional del juego completo: **0.30.6** (source/HEAD). Las release flags siguen bloqueando el empaquetado; no existe paquete 0.30.6. Rama Demo separada: `codex/demo-map1` (`0.13.39-demo`).
+Updated: 2026-08-26. Full-game functional unit: **0.30.7** (source/HEAD). Production release flags are off; packaging runs only from the committed candidate, and no `0.30.7` package is claimed yet. Separate Demo branch: `codex/demo-map1` (`0.13.39-demo`).
 
 ## Alcance de variantes — decisión vigente
 
@@ -210,19 +210,20 @@ La lista levantada 2026-07-26 queda como registro histórico de decisiones. El c
 
 ## Fase 4b — Cohesión de audio para contenido nuevo (DESPUÉS de personajes y balance humano)
 
-- **Audio v1 está cerrado.** Esta fase ya no es una deuda del build actual.
-- After comparable human runs, re-audit new events and perform the final cohesion pass against the closed character/enemy content. Optional Foundry ambient enhancements do not block this phase.
+- **✅ Phase closed 2026-08-26 in `0.30.7`:** the complete active runtime pack reconstructs from the versioned `audio-masters/runtime/` vault with hashes/provenance and atomic promotion; `assets/audio/sfx/manifest.json` is the only runtime manifest. Suno/ElevenLabs assets remain immutable external masters. Menu→run overlaps two voices without changing the shared bus; run end fades to silence before the later menu fade-in.
+- **✅ Human gate closed:** the maintainer playtested the current state and accepted its levels, mix, and crossfade. Honest evidence lives in `AUDIO_MIX_ACCEPTANCE_0.30.7.md`: no diagnostic counters or quantitative route data were supplied or invented. A later pack, mix/fade, or music-lifecycle change reopens `pnpm audio:mix-sheet`.
+- No se inventan camas de Foundry/boss: el pack actual solo tiene tema de menú + bed compartida de run. Optional Foundry ambient enhancements do not block this phase.
 - La música o mezcla adicional se adelanta únicamente si el tráiler final la necesita.
 
 ## Fase 6 — verificación externa/RC del desbloqueo de achievements + cierre
 
 0b. ✅ **Pantalla "PRESS ANY KEY" implementada:** el primer gesto activa Web Audio, arranca el tema y revela el menú sin filtrar ese input a la navegación.
 0d. ✅ **Secuencia de derrota implementada:** transición propia, barra de HP visible a 0, sobrecarga/reventón y stinger antes de resultados.
-0c. **Crossfade entre pistas de música** (apuntado 2026-07-19): fade out/in en toda transición de música (menú → run, run → menú, futuras camas por mapa y capa de boss) en vez del corte seco actual (`stopLoop` ya desvanece la saliente vía `fades.defaultS`, pero la entrante arranca en seco). Implementación esperada: rampa de gain por voz al emitir loops keyed, duraciones en `AUDIO.fades` (config). Pulido de Fase 6 junto a 0b; si el catálogo de audio de Fase 4b mete la capa de boss antes, adelantarlo ahí.
+0c. ✅ **Crossfade entre pistas de música implementado 2026-08-25:** `AudioDirector.transitionMusic` mantiene la saliente hasta que el buffer entrante está listo, cruza ambas ganancias durante `AUDIO.fades.musicCrossfadeS`, invalida fetch/decode obsoletos y limita las colas rápidas a una saliente + una entrante. La compensación del menú vive en su voz (`0.675` conserva exactamente el antiguo `1.5 × 0.45`), no en el bus compartido. Menú→run solapa pistas; fin de run→resultados desvanece a silencio y la vuelta posterior al menú hace fade-in limpio. No existen pistas específicas de Foundry/boss.
 1. ✅ **Achievements + Steam achievement transport implemented in 0.30.5:** the launch catalog is 20/20 in `ACHIEVEMENT_REGISTRY`; `steamworks.js` is pinned to `0.4.0`; Electron exposes the unlock request through isolated `contextBridge` IPC; the main process enforces a 20-name allowlist and persists `pending`/`unlocked` in `userData/achievement-sync.json`; every flush checks `isActivated()` before `activate()`, with startup and bounded offline retries; packaged builds use App ID `4979220`, ordinary development is inert without explicit `STEAM_APP_ID`, and Windows native binaries are covered by `asarUnpack`. SDK init, App ID, `electronEnableSteamOverlay`, packaging, IPC, allowlist, and outbox are auxiliary achievement infrastructure, not independent Steam features. **External boundary:** the maintainer confirms that all 20 matching entries are created in Steamworks App Admin, but Git does not prove publication, icon upload, or an end-to-end achievement unlock in a production build. Those confirmations remain RC work; overlay behavior is not a separate product-smoke target.
 1b. **FUERA DEL ALCANCE DE LANZAMIENTO — other Steamworks product APIs:** Leaderboards, User Stats, Cloud, Workshop, Rich Presence, Friends/lobbies/networking, Steam Input, Inventory/DLC/microtransactions, and every other non-achievement integration are not implemented, confirmed, or promised and do not form part of Steam close/RC. Reevaluate post-launch only if sufficient visibility/traction justifies a new investment decision.
 2. Legal: créditos, licencias de terceros (three.js MIT), EULA si aplica
-3. Firma de código (presupuestar certificado o aceptar SmartScreen "Unknown Publisher"). Legal, firma, build RC y release flags siguen abiertos; hoy `mapTransitionKey` y `finaleKey` bloquean `pnpm package`.
+3. Code signing (budget for a certificate or accept SmartScreen "Unknown Publisher"). Legal, signing, and the RC build remain open. In the `0.30.7` candidate, `shortMaps`, `audioDiagnostics`, `mapTransitionKey`, and `finaleKey` are `false`; packaging runs only after committing and validating those bytes.
 4. **Histórico superseded (2026-07-14):** la decisión de no Demo/Next Fest fue reemplazada por la Steam Demo de Mapa 1. No gobierna el plan actual ni limita la Demo.
 
 ## Post-lanzamiento (del gap-analysis vs Megabonk; NO bloquean v1)

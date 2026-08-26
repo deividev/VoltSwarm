@@ -77,6 +77,7 @@ export const BOSS_LAB = {
 export const DEV_TOOLS: {
   unlockPanel: boolean;
   auditionKeys: boolean;
+  audioDiagnostics: boolean;
   bossLab: boolean;
   startingMapSelector: boolean;
   simulateMap1Handoff: boolean;
@@ -95,6 +96,9 @@ export const DEV_TOOLS: {
   /** F2-F9 hotkeys that cycle and preview SFX variants in-game while authoring
    *  audio. Turn back on for the full-catalog audio pass. */
   auditionKeys: false,
+  /** Exposes read-only AudioDirector gains/voice diagnostics for a real Electron
+   *  mix-calibration run. Release packaging rejects this when enabled. */
+  audioDiagnostics: false,
   /** Boss lab: press B mid-run to jump to BOSS_LAB.atMinute with a recorded
    *  build loaded and a boss summoned on top of you. See BOSS_LAB. */
   bossLab: false,
@@ -113,7 +117,7 @@ export const DEV_TOOLS: {
    *  feel otherwise costs a full ten-minute map plus a boss kill. The arc state
    *  advances through run-flow's own enterMap, so the shortcut cannot drift from
    *  the real crossing. check-release-flags.mjs fails the build while this is true. */
-  mapTransitionKey: true,
+  mapTransitionKey: false,
   /** Y mid-run: jump straight to the FINALE — the arena reset plus the Hazard
    *  Marshal's arrival — carrying the live run exactly as T does.
    *
@@ -123,7 +127,7 @@ export const DEV_TOOLS: {
    *  arc through run-flow's own `enterMap` and then arms the same structural
    *  `start-finale`, so the shortcut cannot show a beat players never get.
    *  check-release-flags.mjs fails the build while this is true. */
-  finaleKey: true,
+  finaleKey: false,
   /** K mid-run: apply a guaranteed lethal hit through the REAL damage funnel.
    *  The defeat beat is otherwise only reachable by dying for real, which makes
    *  measuring its phases, audio and freeze rules a matter of luck. It goes
@@ -188,7 +192,14 @@ export const AUDIO = {
      *  sequence is how the attack is dodged. */
     'boss-overload-erupt': 0.12,
   },
-  fades: { defaultS: 0.04, pauseDuckS: 0.12, pauseMusicGain: 0.22, menuMusicGain: 0.45 },
+  fades: {
+    defaultS: 0.04,
+    pauseDuckS: 0.12,
+    pauseMusicGain: 0.22,
+    /** Maintainer-accepted 0.30.7 baseline after in-game listening. Any later
+     *  mix or lifecycle change reopens the human calibration flow. */
+    musicCrossfadeS: 0.75,
+  },
   /** Mix-wide calibration sits below the player-facing sliders. The SFX trim
    *  leaves priority weapon cues slightly above the run bed without letting
    *  the complete effects bus overpower it. */
@@ -212,14 +223,13 @@ export const AUDIO = {
     /** Base gain of the in-run music loop. Loud by default — players who find
      *  it strong turn it down with the Music Volume setting (user 2026-07-18). */
     runLoopVolume: 0.8,
-    /** Menu theme gain. Compensates fades.menuMusicGain (0.45 duck designed to
-     *  quiet RUN music behind menus) so the dedicated menu theme sits near the
-     *  run bed's perceived level. */
-    menuLoopVolume: 1.5,
+    /** Preserves the accepted menu level (the old 1.5 voice × 0.45 shared-bus
+     *  compensation = 0.675) without raising the whole music bus during the
+     *  menu -> run overlap. Track balance belongs to the track voice. */
+    menuLoopVolume: 0.675,
   },
   paths: {
-    manifest: 'assets/audio/prototypes/manifest.json',
-    finalManifest: 'assets/audio/sfx/manifest.json',
+    manifest: 'assets/audio/sfx/manifest.json',
   },
   diagnostics: {
     stressEventCount: 10_000,

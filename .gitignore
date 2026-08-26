@@ -59,6 +59,15 @@ Thumbs.db
 *.ogg
 *.woff2
 
+# Canonical accepted audio masters are the deliberate binary exception. The
+# runtime pack is reconstructed byte-for-byte from this small, hash-pinned
+# vault, so a normal clone must contain it even though other media stays local.
+!/audio-masters/
+!/audio-masters/runtime/
+!/audio-masters/runtime/*.wav
+!/audio-masters/runtime/*.mp3
+!/audio-masters/runtime/*.ogg
+
 # Shipped Overclocker runtime sheets are the minimal exception to the local-only
 # asset policy. Parent directories must be reopened before exact file negations.
 !/public/assets/

@@ -1,6 +1,6 @@
 # Voltswarm — Steam achievements
 
-> **Status at 0.30.6 (2026-08-25): 20/20 launch achievements are implemented in the game, and the maintainer confirms that the matching 20 entries have been created in Steamworks App Admin for App ID `4979220`.** The repository does not prove that the latest Steamworks changes were published, that every achieved/unachieved icon was uploaded, or that the achievement-unlock flow passed an end-to-end smoke test in a production build. All other Steamworks product APIs are not implemented and are outside launch scope; reconsider post-launch only if the project demonstrates sufficient visibility/traction, with no commitment.
+> **Status at 0.30.7 (2026-08-26): 20/20 launch achievements are implemented in the game, and the maintainer confirms that the matching 20 entries have been created in Steamworks App Admin for App ID `4979220`.** The repository does not prove that the latest Steamworks changes were published, that every achieved/unachieved icon was uploaded, or that the achievement-unlock flow passed an end-to-end smoke test in a production build. All other Steamworks product APIs are not implemented and are outside launch scope; reconsider post-launch only if the project demonstrates sufficient visibility/traction, with no commitment.
 
 ## Status matrix
 

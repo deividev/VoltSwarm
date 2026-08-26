@@ -7,7 +7,7 @@ import { hash, wav } from './audio/generate.mjs';
 
 const server = await createServer({ server: { middlewareMode: true }, appType: 'custom' });
 const { UI_ACTION_CUES, UiFocusTracker, isMouseHover, uiActionCue } = await server.ssrLoadModule('/src/ui-audio.ts');
-const manifest = JSON.parse(await readFile(new URL('./audio/prototype-manifest.json', import.meta.url), 'utf8'));
+const manifest = JSON.parse(await readFile(new URL('./audio/runtime-pack.json', import.meta.url), 'utf8'));
 test.after(async () => server.close());
 
 test('semantic UI actions prevent generic confirmation collisions', () => {
@@ -36,14 +36,14 @@ test('only mouse-capable pointer hover may request ui-focus', () => {
   assert.equal(isMouseHover({}), false);
 });
 
-test('ui-focus is a reproducible four-variant prototype and ui-back has provenance', () => {
+test('ui-focus is a reproducible four-variant runtime family and ui-back has provenance', () => {
   for (const [eventId, recipe] of Object.entries(UI_NAVIGATION_RECIPES)) {
     const entries = manifest.events[eventId];
     assert.equal(entries.length, recipe.variants);
     entries.forEach((entry, index) => {
-      assert.equal(entry.provenance.generatorHash, UI_NAVIGATION_HASH);
-      assert.equal(entry.provenance.variantIndex, index);
-      assert.equal(entry.provenance.sha256, hash(wav(renderUiNavigation(eventId, index))));
+      assert.equal(entry.source.provenance.generatorHash, UI_NAVIGATION_HASH);
+      assert.equal(entry.source.provenance.variantIndex, index);
+      assert.equal(entry.source.sha256, hash(wav(renderUiNavigation(eventId, index))));
     });
   }
 });

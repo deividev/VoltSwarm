@@ -1,15 +1,17 @@
 # Pipeline de autoría de audio
 
-**Decisión:** los SFX procedurales se generan **offline** de forma determinista y el runtime solo reproduce assets pre-renderizados. La música de menú/run/boss se genera con Suno bajo un plan comercial válido. Este documento define qué se conserva para reproducir, licenciar y mapear cada asset.
+**Decisión:** los SFX procedurales se generan **offline** de forma determinista y
+el runtime solo reproduce assets pre-renderizados. Los candidatos externos de
+ElevenLabs y la música Suno NO son reproducibles desde su prompt: se conservan
+como masters inmutables con hash y provenance. Este documento define qué se
+conserva para reconstruir, licenciar y mapear cada asset.
 
-> **Estado vigente 2026-08-20:** audio v1 está aceptado/cerrado y el pipeline
-> offline está operativo, con recetas y manifiestos versionados. La reconstrucción
-> completa del pack runtime activo todavía no está unificada: `pnpm audio:generate`
-> cubre foundation, navegación UI y `boss-assembly-open`, no todos los WAV del
-> manifiesto de prototipos. El catálogo sigue abierto para contenido nuevo y
-> cohesión final: v1 cerrado no significa que todos los eventos futuros estén
-> producidos. `boss-assembly-open` forma parte de la generación canónica del
-> Hazard Marshal; no depende de un archivo manual en `tmp`.
+> **Current status 2026-08-26:** `pnpm audio:generate` reconstructs the complete
+> active runtime pack (50 events, 97 variants) from accepted immutable masters,
+> verifies hashes/format/provenance, and atomically promotes the output to
+> `public/assets/audio/sfx/`. The maintainer listened to the current state in game
+> and accepted its mix, levels, and crossfade as the `0.30.7` baseline.
+> Structural validation complements that verdict; it does not replace it.
 
 ## 1. SFX procedural offline
 
@@ -25,17 +27,20 @@
 
 El manifiesto versionado mapea `semanticEventId → family → variantes → runtime export`. Por asset conserva los campos deterministas generados: receta/version, seed, índice de variante, versión/hash del generador, hash y formato PCM del WAV, duración, pico, normalización, fade y formato/ruta del export. Git conserva autoría y cambio; no se guardan fecha de render, responsable ni commit por entrada. El manifiesto permite que `AudioDirector` no conozca nombres físicos ni reglas de generación.
 
-**Layout operativo** (fuentes y manifiestos bajo source control; exports runtime siguen el pipeline de assets del repo):
+**Layout operativo vigente:**
 
 ```text
-tools/audio/generate.mjs        # recetas versionadas + generador offline
-tools/audio/manifest.json       # semantic event -> export + provenance
-tools/audio/validate.mjs        # validaci?n read-only y fixtures
-art/audio/sfx/masters/          # WAV masters locales, ignorados/regenerables
-public/assets/audio/sfx/        # OGG/WAV runtime locales, ignorados/regenerables
+tools/audio/runtime-pack.json          # lock canónico: eventos, paths, hashes y provenance
+tools/audio/rebuild-runtime-pack.mjs   # validación + staging + promoción atómica
+tools/audio/validate-runtime-pack.mjs  # cobertura/formato/hash/orphans; admite --dist
+audio-masters/runtime/                 # vault canónico versionado: 96 masters aceptados
+public/assets/audio/sfx/               # ÚNICO pack runtime; manifiesto + bytes exactos
 ```
 
-Antes de aceptar un lote: reproducir desde receta/seed, verificar hash/manifiesto, revisar picos/normalización/fades y actualizar la referencia del evento semántico. Los thresholds numéricos de mix/runtime pertenecen a config, no al generador ni al director.
+Antes de aceptar un lote nuevo: producir desde su receta/origen, escuchar, fijar
+el master ganador y su hash en `runtime-pack.json`, reconstruir y validar. El
+pack canónico reconstruye **los bytes aceptados**; no vuelve a decidir qué
+candidato gana. Los thresholds numéricos de mix/runtime pertenecen a config.
 
 ## 2. Música generada con Suno
 
@@ -59,18 +64,57 @@ Fuentes oficiales: [Suno commercial use / subscription](https://help.suno.com/en
 - [ ] Runtime: `AUDIO.voiceCaps` config-owned y benchmark 400+/60 FPS registrado con drops de voz/fugas de fuentes.
 
 
-## Implementation status (updated 2026-08-20)
+## Implementation status (updated 2026-08-26)
 
-Repository deliverables include generator scripts, embedded versioned recipes and tracked manifests. `art/audio` WAV masters and `public/assets/audio` runtime exports remain locales/ignorados por política. `pnpm audio:generate` (también invocado por `pnpm build`) regenera el pack foundation, la navegación UI y `boss-assembly-open`; **no reconstruye todavía todos los WAV del manifiesto runtime de prototipos desde cero**. El manifiesto conserva recipe/version/seed, generator hash, variant index, WAV hash y metadatos PCM/duración/pico/fade. `pnpm audio:validate` valida outputs existentes sin generarlos; `pnpm audio:foundation-check` genera y prueba el pack foundation. OGG es preferido cuando ffmpeg/libvorbis local funciona; WAV fallback es válido. El pack v1 está aceptado, pero completar la cobertura de generación canónica sigue siendo deuda de pipeline, no de dirección artística.
+`pnpm audio:generate` (también `prebuild`) reconstruye los 50 eventos habilitados
+desde `runtime-pack.json`. Falla si falta un master, cambia un hash, la extensión
+no coincide con WAV/OGG/MP3, hay cobertura incompleta o queda un orphan; solo
+después promociona el staging. `pnpm audio:validate` relee el pack público y
+`node tools/audio/validate-runtime-pack.mjs --dist` prueba la copia de Vite.
+`AUDIO.paths.manifest` carga ese mismo `assets/audio/sfx/manifest.json`; el árbol
+`prototypes/` ya no es runtime ni se copia al build.
 
-### UI navigation prototypes
+### External masters are not recipes
 
-The active `assets/audio/prototypes/manifest.json` is ignored runtime state, so
-`tools/audio/prototype-manifest.json` is its tracked source. `node
-tools/audio/ui-navigation.mjs` updates only `ui-focus` and `ui-back` WAV
-exports plus that manifest; it deliberately does not regenerate unrelated SFX.
-The four focus variants and the Back asset retain recipe/seed/hash provenance in
-the source manifest and are synchronized by `pnpm audio:generate`.
+Suno takes (`Neon Horizon`, `Neon Swarm (4)`) and ElevenLabs candidates are
+non-deterministic external generations. Their chosen bytes are immutable masters
+with SHA-256 and prompt/catalog provenance in `runtime-pack.json`. Reconstruction
+copies them exactly. It MUST NOT call either provider or pretend the prompt can
+recreate the same take. Procedural winners also remain byte-pinned so a later
+generator refactor cannot silently alter an already accepted mix.
+
+## Final cohesion calibration (human gate)
+
+**Gate CLOSED for `0.30.7` on 2026-08-26.** The maintainer completed human
+playtesting and accepted the current volume, mix and crossfade baseline. The
+acceptance record is `docs/AUDIO_MIX_ACCEPTANCE_0.30.7.md`. It deliberately does
+not invent route notes, diagnostic counters or quantitative run data that were
+not supplied. Any later change to the runtime pack, `AUDIO` mix/fade values or
+music lifecycle invalidates this release-scoped acceptance and reopens the flow
+below.
+
+### Recalibration workflow
+
+1. Temporarily set `DEV_TOOLS.audioDiagnostics=true`, then run
+   `pnpm audio:generate && pnpm audio:validate && pnpm build && pnpm electron:build`.
+   Validate the built copy with
+   `node tools/audio/validate-runtime-pack.mjs --dist`.
+2. Run `pnpm audio:mix-sheet`; it creates a pending evidence sheet tied to the
+   exact runtime-pack hash, AUDIO-config hash, Git HEAD/dirty diff identity and
+   hashes of the tested `dist` files. Any mix/fade edit requires a new sheet.
+3. Launch those exact frozen bytes with `pnpm exec electron .` — do NOT use
+   `pnpm electron:start`, because it rebuilds after the evidence sheet is bound.
+   Complete menu → Scrapyard → Foundry → Hazard Marshal → menu. Record the three
+   route notes, five listening checkpoints and
+   `window.__voltswarmAudio.diagnostics()` in the sheet. Revert the flag to
+   `false`; the release guard refuses packaging while it is enabled.
+4. Change only one config-owned mix value per comparison. A newly generated report stays
+   `pending-human-listening` until the maintainer records the final decision.
+
+The automated 400+ benchmark proves voice/performance hygiene, not loudness or
+cohesion. No Map 2 bed or boss track exists in the active pack. Menu → run is a
+real two-track overlap; end-of-run intentionally fades the run bed to silence so
+the later menu return starts a clean fade-in rather than overlapping results.
 
 ## Artistic approval status
 
@@ -78,7 +122,7 @@ Audio v1's current generated pack is accepted. Read `SOUND_EVENT_CATALOG.md`
 before authoring; `SOUND_DIRECTION.md` is superseded where it conflicts with the
 six current style laws. New content still requires its brief, deterministic
 recipe/provenance, integración explícita en el pipeline canónico correspondiente y un
-veredicto in-game. Hasta que el comando cubra todo el manifiesto activo, no se debe
-afirmar reproducibilidad completa del pack desde un checkout limpio. Nunca se deben
-editar a mano los masters/exports locales. Los fixtures históricos rechazados no
+veredicto in-game. Nunca se deben editar a mano los masters/exports locales.
+`audio-masters/runtime/` is the narrow tracked-media exception, so a normal clone
+contains every accepted byte needed for one-command reconstruction. Los fixtures históricos rechazados no
 definen el estado del pack v1 activo.

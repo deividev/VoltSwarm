@@ -13,7 +13,7 @@
 > Leaderboards, User Stats, Cloud, Workshop, Rich Presence, Friends/lobbies/networking,
 > Steam Input, Inventory/DLC/microtransactions—are not implemented and are outside
 > launch scope; reconsider post-launch only if Voltswarm demonstrates sufficient
-> visibility/traction, with no commitment or marketing promise. In current full-game source `0.30.6`, all 20 launch
+> visibility/traction, with no commitment or marketing promise. In current full-game source `0.30.7`, all 20 launch
 > achievements and the `steamworks.js` `0.4.0` Steam achievement transport are implemented. SDK/overlay
 > initialization, App ID, packaging, IPC, allowlist, and outbox are auxiliary unlock infrastructure, not separate features. The
 > maintainer confirms that all 20 matching entries are created in Steamworks

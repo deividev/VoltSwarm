@@ -1,0 +1,1693 @@
+{
+  "version": "runtime-pack-v1",
+  "sourceVault": "audio-masters/runtime",
+  "sourcePathPolicy": "source.path records the accepted asset's original authoring location; canonical reconstruction reads sourceVault/<runtime basename>",
+  "orphanPolicy": "exact",
+  "note": "Canonical active runtime pack. Sources are immutable accepted masters; reconstruction copies exact bytes and never regenerates external takes.",
+  "events": {
+    "bolt-cannon-fire": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/burst-bolt-1.wav",
+          "sha256": "62fdf849e237cdb0141291baf6b947e571c6a441127952b4af22f6bad7339781",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/burst-bolt-1.wav",
+          "format": "wav",
+          "sha256": "62fdf849e237cdb0141291baf6b947e571c6a441127952b4af22f6bad7339781"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/burst-bolt-2.wav",
+          "sha256": "db500d61862c8946e123ebdd4b4a3f61b056b136c0124d17b4dde5cfc11f380e",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/burst-bolt-2.wav",
+          "format": "wav",
+          "sha256": "db500d61862c8946e123ebdd4b4a3f61b056b136c0124d17b4dde5cfc11f380e"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/burst-bolt-3.wav",
+          "sha256": "ce5ca68ec738508f12baa358aa8e66caac1ff99264ec392a00de8ee7498c5d53",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/burst-bolt-3.wav",
+          "format": "wav",
+          "sha256": "ce5ca68ec738508f12baa358aa8e66caac1ff99264ec392a00de8ee7498c5d53"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/burst-bolt-4.wav",
+          "sha256": "cd1699b8d084fff971568433923902980d12b349cdfbf85e6108dfc30cdacd89",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/burst-bolt-4.wav",
+          "format": "wav",
+          "sha256": "cd1699b8d084fff971568433923902980d12b349cdfbf85e6108dfc30cdacd89"
+        }
+      }
+    ],
+    "ui-confirm": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/modern-ui-confirm-1.wav",
+          "sha256": "0f1cbbe76fd7c1b7f669559bbfdd1ebffa3a0f20342e0137d5546e8800404f8b",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/modern-ui-confirm-1.wav",
+          "format": "wav",
+          "sha256": "0f1cbbe76fd7c1b7f669559bbfdd1ebffa3a0f20342e0137d5546e8800404f8b"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ai2-ui-confirm-1.wav",
+          "sha256": "42690885d7483173f9ec36b510dbddac3ebca2d515568b75882982a0871bfcc6",
+          "origin": "elevenlabs-immutable-master",
+          "provenance": {
+            "recipe": "tools/audio/elevenlabs-sfx-v2.mjs",
+            "promptKey": "ai2-ui-confirm",
+            "regeneration": "non-deterministic-do-not-substitute"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ai2-ui-confirm-1.wav",
+          "format": "wav",
+          "sha256": "42690885d7483173f9ec36b510dbddac3ebca2d515568b75882982a0871bfcc6"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ai2-ui-confirm-2.wav",
+          "sha256": "3fd9dc5384b90cd104bbda22c44e470ca2f163d999753d87811ec903ff11804d",
+          "origin": "elevenlabs-immutable-master",
+          "provenance": {
+            "recipe": "tools/audio/elevenlabs-sfx-v2.mjs",
+            "promptKey": "ai2-ui-confirm",
+            "regeneration": "non-deterministic-do-not-substitute"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ai2-ui-confirm-2.wav",
+          "format": "wav",
+          "sha256": "3fd9dc5384b90cd104bbda22c44e470ca2f163d999753d87811ec903ff11804d"
+        }
+      }
+    ],
+    "enemy-death": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/cube-death-1.wav",
+          "sha256": "bf1dda1d45937d54e768ed54fedc2c30e43b9ec20312689f20b1cc5c0bd621d6",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/cube-death-1.wav",
+          "format": "wav",
+          "sha256": "bf1dda1d45937d54e768ed54fedc2c30e43b9ec20312689f20b1cc5c0bd621d6"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/cube-death-2.wav",
+          "sha256": "84c9c135e5dc9d04fcbe8b527c3e3334ae6f187c6ece640854584ae8d29d80a6",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/cube-death-2.wav",
+          "format": "wav",
+          "sha256": "84c9c135e5dc9d04fcbe8b527c3e3334ae6f187c6ece640854584ae8d29d80a6"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/cube-death-3.wav",
+          "sha256": "b3e2998ae02c9761024fd14d943182bebc03762e9daab627782eb8615b2bfbc4",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/cube-death-3.wav",
+          "format": "wav",
+          "sha256": "b3e2998ae02c9761024fd14d943182bebc03762e9daab627782eb8615b2bfbc4"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/cube-death-4.wav",
+          "sha256": "2575b4e53103a7e3f49b70bfd8a4b78a8b7d177f7227cd0a19eeeb27a3956f9c",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/cube-death-4.wav",
+          "format": "wav",
+          "sha256": "2575b4e53103a7e3f49b70bfd8a4b78a8b7d177f7227cd0a19eeeb27a3956f9c"
+        }
+      }
+    ],
+    "levelup-open": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/modern-levelup-open.wav",
+          "sha256": "c66162c274cef15a7ffee65a97592dce29521c04a18fdf2394ceb3ddaa150e4d",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/modern-levelup-open.wav",
+          "format": "wav",
+          "sha256": "c66162c274cef15a7ffee65a97592dce29521c04a18fdf2394ceb3ddaa150e4d"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ai2-levelup-open-1.wav",
+          "sha256": "f26f8e08679fc1160d8c22163425f76c3dac41ea32cdc48b4308a488106ac665",
+          "origin": "elevenlabs-immutable-master",
+          "provenance": {
+            "recipe": "tools/audio/elevenlabs-sfx-v2.mjs",
+            "promptKey": "ai2-levelup-open",
+            "regeneration": "non-deterministic-do-not-substitute"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ai2-levelup-open-1.wav",
+          "format": "wav",
+          "sha256": "f26f8e08679fc1160d8c22163425f76c3dac41ea32cdc48b4308a488106ac665"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ai2-levelup-open-2.wav",
+          "sha256": "8308b697ed4650ae2748bf426fbebc7af7791c06aafe0c276c89533d31637585",
+          "origin": "elevenlabs-immutable-master",
+          "provenance": {
+            "recipe": "tools/audio/elevenlabs-sfx-v2.mjs",
+            "promptKey": "ai2-levelup-open",
+            "regeneration": "non-deterministic-do-not-substitute"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ai2-levelup-open-2.wav",
+          "format": "wav",
+          "sha256": "8308b697ed4650ae2748bf426fbebc7af7791c06aafe0c276c89533d31637585"
+        }
+      }
+    ],
+    "chest-open": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/modern-chest-open.wav",
+          "sha256": "7f6c40bdec0310ddbb525b984634dbcfb727bc490cae0ce5b676ea481b50be2e",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/modern-chest-open.wav",
+          "format": "wav",
+          "sha256": "7f6c40bdec0310ddbb525b984634dbcfb727bc490cae0ce5b676ea481b50be2e"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ai2-chest-open-1.wav",
+          "sha256": "4ec5b18a6a036fcdf2eabe1b876b9e6b61a105329332ef91e45f82166c720e82",
+          "origin": "elevenlabs-immutable-master",
+          "provenance": {
+            "recipe": "tools/audio/elevenlabs-sfx-v2.mjs",
+            "promptKey": "ai2-chest-open",
+            "regeneration": "non-deterministic-do-not-substitute"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ai2-chest-open-1.wav",
+          "format": "wav",
+          "sha256": "4ec5b18a6a036fcdf2eabe1b876b9e6b61a105329332ef91e45f82166c720e82"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ai2-chest-open-2.wav",
+          "sha256": "d87b08dd2b112cb9523842d021d39a437d80ad30db187ac98cb71ee2de26a903",
+          "origin": "elevenlabs-immutable-master",
+          "provenance": {
+            "recipe": "tools/audio/elevenlabs-sfx-v2.mjs",
+            "promptKey": "ai2-chest-open",
+            "regeneration": "non-deterministic-do-not-substitute"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ai2-chest-open-2.wav",
+          "format": "wav",
+          "sha256": "d87b08dd2b112cb9523842d021d39a437d80ad30db187ac98cb71ee2de26a903"
+        }
+      }
+    ],
+    "foundation-music": [
+      {
+        "source": {
+          "path": "tmp/music-prototypes/Neon Horizon/Neon Horizon.mp3",
+          "sha256": "6430d48456a4c9422dd50e788f49564c2ffcafa6db13a57f1c3fb7846444cf88",
+          "origin": "suno-immutable-master",
+          "provenance": {
+            "catalog": "docs/MUSIC_PROMPTS.md#neon-horizon--in-run-combat-bed-style-anchor",
+            "take": "Neon Horizon",
+            "generatedUnderPaidPlan": true
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/music-lead.mp3",
+          "format": "mp3",
+          "sha256": "6430d48456a4c9422dd50e788f49564c2ffcafa6db13a57f1c3fb7846444cf88"
+        }
+      }
+    ],
+    "chest-spin": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/modern-chest-spin.wav",
+          "sha256": "c2354d546853406462d04fe465bc3f0c96d78d98ccb1a717e67efb4c7b17cb7d",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/modern-chest-spin.wav",
+          "format": "wav",
+          "sha256": "c2354d546853406462d04fe465bc3f0c96d78d98ccb1a717e67efb4c7b17cb7d"
+        }
+      }
+    ],
+    "chest-reveal": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/modern-chest-reveal.wav",
+          "sha256": "915b87e60bd80cb603b60b2ea2dddad595582cf628e0e8b45e90067d9ee0ae96",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/modern-chest-reveal.wav",
+          "format": "wav",
+          "sha256": "915b87e60bd80cb603b60b2ea2dddad595582cf628e0e8b45e90067d9ee0ae96"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ai2-chest-reveal-1.wav",
+          "sha256": "54ef23d036b59566b03dd7aa9b6065ace82be98634b0bc9066fb4e82bdf6fe3f",
+          "origin": "elevenlabs-immutable-master",
+          "provenance": {
+            "recipe": "tools/audio/elevenlabs-sfx-v2.mjs",
+            "promptKey": "ai2-chest-reveal",
+            "regeneration": "non-deterministic-do-not-substitute"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ai2-chest-reveal-1.wav",
+          "format": "wav",
+          "sha256": "54ef23d036b59566b03dd7aa9b6065ace82be98634b0bc9066fb4e82bdf6fe3f"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ai2-chest-reveal-2.wav",
+          "sha256": "a69cf1d8fe0e7c1767801936a95fb1620d6dd3dd3dfb5b9538fb38949af707f3",
+          "origin": "elevenlabs-immutable-master",
+          "provenance": {
+            "recipe": "tools/audio/elevenlabs-sfx-v2.mjs",
+            "promptKey": "ai2-chest-reveal",
+            "regeneration": "non-deterministic-do-not-substitute"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ai2-chest-reveal-2.wav",
+          "format": "wav",
+          "sha256": "a69cf1d8fe0e7c1767801936a95fb1620d6dd3dd3dfb5b9538fb38949af707f3"
+        }
+      }
+    ],
+    "levelup-intro": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/modern-levelup-intro.wav",
+          "sha256": "2e55aca16c4541b2fabcffe5603695f96ae74b4d59fe31c8e4fc46c5b01482b0",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/modern-levelup-intro.wav",
+          "format": "wav",
+          "sha256": "2e55aca16c4541b2fabcffe5603695f96ae74b4d59fe31c8e4fc46c5b01482b0"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ai2-levelup-intro-1.wav",
+          "sha256": "9c86302c531f65a0f9f03c2c58abe60bae7d37f66c8f59391a669655e2cf714b",
+          "origin": "elevenlabs-immutable-master",
+          "provenance": {
+            "recipe": "tools/audio/elevenlabs-sfx-v2.mjs",
+            "promptKey": "ai2-levelup-intro",
+            "regeneration": "non-deterministic-do-not-substitute"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ai2-levelup-intro-1.wav",
+          "format": "wav",
+          "sha256": "9c86302c531f65a0f9f03c2c58abe60bae7d37f66c8f59391a669655e2cf714b"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ai2-levelup-intro-2.wav",
+          "sha256": "a6a1dec8fd733cd2f56c07c78363683e33f378046ba47851a8971a8dcf01bb71",
+          "origin": "elevenlabs-immutable-master",
+          "provenance": {
+            "recipe": "tools/audio/elevenlabs-sfx-v2.mjs",
+            "promptKey": "ai2-levelup-intro",
+            "regeneration": "non-deterministic-do-not-substitute"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ai2-levelup-intro-2.wav",
+          "format": "wav",
+          "sha256": "a6a1dec8fd733cd2f56c07c78363683e33f378046ba47851a8971a8dcf01bb71"
+        }
+      }
+    ],
+    "xp-pickup": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pickup-xp-1.wav",
+          "sha256": "0be7bdb067180d052270fc75a145550fab4240936527f191a3e845362cf0b852",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pickup-xp-1.wav",
+          "format": "wav",
+          "sha256": "0be7bdb067180d052270fc75a145550fab4240936527f191a3e845362cf0b852"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pickup-xp-2.wav",
+          "sha256": "dc9def41a760c55f729125201d9f1933976314fff6faa9efc2e735755c4774c0",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pickup-xp-2.wav",
+          "format": "wav",
+          "sha256": "dc9def41a760c55f729125201d9f1933976314fff6faa9efc2e735755c4774c0"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pickup-xp-3.wav",
+          "sha256": "9965bd17f85cf4da69d13a3cbb06b61c93fe29f036f86d0e62f344cbe819ced2",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pickup-xp-3.wav",
+          "format": "wav",
+          "sha256": "9965bd17f85cf4da69d13a3cbb06b61c93fe29f036f86d0e62f344cbe819ced2"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pickup-xp-4.wav",
+          "sha256": "39727e73e675b74be85d500c4519a8266663370b6115be4d50674ed7a53eda0b",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pickup-xp-4.wav",
+          "format": "wav",
+          "sha256": "39727e73e675b74be85d500c4519a8266663370b6115be4d50674ed7a53eda0b"
+        }
+      }
+    ],
+    "gold-pickup": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pickup-gold-1.wav",
+          "sha256": "8e4848003f4b3cc969e756b398e6fad1e37f361f02cdad9cbdb5c428cb7f642d",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pickup-gold-1.wav",
+          "format": "wav",
+          "sha256": "8e4848003f4b3cc969e756b398e6fad1e37f361f02cdad9cbdb5c428cb7f642d"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pickup-gold-2.wav",
+          "sha256": "13cba5bf124322c002b379dcfab7d9e0739e7f2e385b47659adf79b097e145da",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pickup-gold-2.wav",
+          "format": "wav",
+          "sha256": "13cba5bf124322c002b379dcfab7d9e0739e7f2e385b47659adf79b097e145da"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pickup-gold-3.wav",
+          "sha256": "ea1c6c0bdf57fadf509a5651ca293d6761d48bd3541c0449e28a3afd149a9aa8",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pickup-gold-3.wav",
+          "format": "wav",
+          "sha256": "ea1c6c0bdf57fadf509a5651ca293d6761d48bd3541c0449e28a3afd149a9aa8"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pickup-gold-4.wav",
+          "sha256": "2c8417e825d2f7a4a217a68e9b5d86d404f548a466581d0c38a27d4311a4095e",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pickup-gold-4.wav",
+          "format": "wav",
+          "sha256": "2c8417e825d2f7a4a217a68e9b5d86d404f548a466581d0c38a27d4311a4095e"
+        }
+      }
+    ],
+    "panel-open": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/modern-levelup-open.wav",
+          "sha256": "c66162c274cef15a7ffee65a97592dce29521c04a18fdf2394ceb3ddaa150e4d",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/modern-levelup-open.wav",
+          "format": "wav",
+          "sha256": "c66162c274cef15a7ffee65a97592dce29521c04a18fdf2394ceb3ddaa150e4d"
+        }
+      }
+    ],
+    "menu-music": [
+      {
+        "source": {
+          "path": "tmp/music-prototypes/Menu/Neon Swarm (4).mp3",
+          "sha256": "6b683fd4f5f6056e18c3041a356fe7cc08ca183e06189ae22c8faf9053f7571e",
+          "origin": "suno-immutable-master",
+          "provenance": {
+            "catalog": "docs/MUSIC_PROMPTS.md#album-plan--distinct-themes-one-style-soundtrack-dlc-candidate",
+            "take": "Neon Swarm (4)",
+            "generatedUnderPaidPlan": true
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/menu-music.mp3",
+          "format": "mp3",
+          "sha256": "6b683fd4f5f6056e18c3041a356fe7cc08ca183e06189ae22c8faf9053f7571e"
+        }
+      }
+    ],
+    "player-hit": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/player-hit-c-1.wav",
+          "sha256": "568b7350077f7b7ce44b174bbafdfe30166547570a5040cb220f12d7c4269747",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/player-hit-c-1.wav",
+          "format": "wav",
+          "sha256": "568b7350077f7b7ce44b174bbafdfe30166547570a5040cb220f12d7c4269747"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/player-hit-c-2.wav",
+          "sha256": "c70c58843606213d2581f674dfea22c5745d05d1133ceb4d282c7a0bd90e5ac2",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/player-hit-c-2.wav",
+          "format": "wav",
+          "sha256": "c70c58843606213d2581f674dfea22c5745d05d1133ceb4d282c7a0bd90e5ac2"
+        }
+      }
+    ],
+    "player-fatal": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/player-fatal-1.wav",
+          "sha256": "7f2a9208ddee9a400796c6635b4fd79f585285895833270605137fd244a0064a",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/player-fatal-1.wav",
+          "format": "wav",
+          "sha256": "7f2a9208ddee9a400796c6635b4fd79f585285895833270605137fd244a0064a"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/player-fatal-2.wav",
+          "sha256": "adc94bcbab1fbd0c706fca543a89a6352a6fbcae5d3b9824d4a8a8678b005429",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/player-fatal-2.wav",
+          "format": "wav",
+          "sha256": "adc94bcbab1fbd0c706fca543a89a6352a6fbcae5d3b9824d4a8a8678b005429"
+        }
+      }
+    ],
+    "shield-block": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/shield-block-1.wav",
+          "sha256": "0140330ebd14b38f8b52aa753e9231e7628c2ecfb5a7d90f78bf26c135c1e4e7",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/shield-block-1.wav",
+          "format": "wav",
+          "sha256": "0140330ebd14b38f8b52aa753e9231e7628c2ecfb5a7d90f78bf26c135c1e4e7"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/shield-block-2.wav",
+          "sha256": "1f7b614347bef3fba125b8252371c75a9fbe599dd01f2d1eceea5944ea787078",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/shield-block-2.wav",
+          "format": "wav",
+          "sha256": "1f7b614347bef3fba125b8252371c75a9fbe599dd01f2d1eceea5944ea787078"
+        }
+      }
+    ],
+    "boss-awaken": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-awaken.wav",
+          "sha256": "de2e76d9462c5453bdcc9c6649d5b0b98e1e082b55412ac004dcc455ca3eed7e",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-awaken.wav",
+          "format": "wav",
+          "sha256": "de2e76d9462c5453bdcc9c6649d5b0b98e1e082b55412ac004dcc455ca3eed7e"
+        }
+      }
+    ],
+    "boss-defeat": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-defeat.wav",
+          "sha256": "ac1f60787d716f3964cf5dbcd5bc7e35e3de292ec00c17e64d15a656c3ce15bd",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-defeat.wav",
+          "format": "wav",
+          "sha256": "ac1f60787d716f3964cf5dbcd5bc7e35e3de292ec00c17e64d15a656c3ce15bd"
+        }
+      }
+    ],
+    "boss-portal": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-portal.wav",
+          "sha256": "8a5c04e3d70059b492701585a214fdf812e3d9dbacea99e95a20c31ae27877bc",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-portal.wav",
+          "format": "wav",
+          "sha256": "8a5c04e3d70059b492701585a214fdf812e3d9dbacea99e95a20c31ae27877bc"
+        }
+      }
+    ],
+    "run-start": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/run-start.wav",
+          "sha256": "a9eaeb126426b23d9aba55c8ab6285cee6ca2c4a0750be317a108cbdc49f5ede",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/run-start.wav",
+          "format": "wav",
+          "sha256": "a9eaeb126426b23d9aba55c8ab6285cee6ca2c4a0750be317a108cbdc49f5ede"
+        }
+      }
+    ],
+    "menu-enter": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/menu-enter.wav",
+          "sha256": "fbf520857a24ad59ff665aba5c0bddc986716bd3c1da11a6c0be59404441cf02",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/menu-enter.wav",
+          "format": "wav",
+          "sha256": "fbf520857a24ad59ff665aba5c0bddc986716bd3c1da11a6c0be59404441cf02"
+        }
+      }
+    ],
+    "pause": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pause.wav",
+          "sha256": "f6cabd689e5d9417286b7297efcaa48fd1161d5bad714162cf5c8b6c3ec9f54d",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pause.wav",
+          "format": "wav",
+          "sha256": "f6cabd689e5d9417286b7297efcaa48fd1161d5bad714162cf5c8b6c3ec9f54d"
+        }
+      }
+    ],
+    "resume": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/resume.wav",
+          "sha256": "d875ca1e38d2f200501052b582636b71893be07a0f2662a8b9dc02742fb679de",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/resume.wav",
+          "format": "wav",
+          "sha256": "d875ca1e38d2f200501052b582636b71893be07a0f2662a8b9dc02742fb679de"
+        }
+      }
+    ],
+    "run-victory": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/run-victory-b.wav",
+          "sha256": "c095f10e9db00079c271589a7e4a536525c99d7995b9d57f1336c932624364d5",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/run-victory-b.wav",
+          "format": "wav",
+          "sha256": "c095f10e9db00079c271589a7e4a536525c99d7995b9d57f1336c932624364d5"
+        }
+      }
+    ],
+    "run-defeat": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/run-defeat.wav",
+          "sha256": "7f6f727722d8c46319c92202caa8e4aceab0cd0c33b2c6db090924504a6665ea",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/run-defeat.wav",
+          "format": "wav",
+          "sha256": "7f6f727722d8c46319c92202caa8e4aceab0cd0c33b2c6db090924504a6665ea"
+        }
+      }
+    ],
+    "merchant-arrival": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/merchant-arrival-b.wav",
+          "sha256": "a36e63a110c8bc9b40d9c443e87be124cfe902c66c886dff5ef02a48465fa62c",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/merchant-arrival-b.wav",
+          "format": "wav",
+          "sha256": "a36e63a110c8bc9b40d9c443e87be124cfe902c66c886dff5ef02a48465fa62c"
+        }
+      }
+    ],
+    "shop-purchase": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/shop-purchase-1.wav",
+          "sha256": "062e02b1c253fef92f463d13dda7a32d17e36eade3eafbee9334d0813de354a7",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/shop-purchase-1.wav",
+          "format": "wav",
+          "sha256": "062e02b1c253fef92f463d13dda7a32d17e36eade3eafbee9334d0813de354a7"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/shop-purchase-2.wav",
+          "sha256": "37183922eadc5ffb929741ebef961a28e7a75a68a4e91fc74555d4d539a74533",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/shop-purchase-2.wav",
+          "format": "wav",
+          "sha256": "37183922eadc5ffb929741ebef961a28e7a75a68a4e91fc74555d4d539a74533"
+        }
+      }
+    ],
+    "pulse-fire": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pulse-fire-1.wav",
+          "sha256": "1a28cb9391738cbe37919db89b47606edac33c14b6f82b295836e321b565e897",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pulse-fire-1.wav",
+          "format": "wav",
+          "sha256": "1a28cb9391738cbe37919db89b47606edac33c14b6f82b295836e321b565e897"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pulse-fire-2.wav",
+          "sha256": "59e1d0c753cb7f3d9de7c3d1ae552daa8532e22956a166c784307e289c161f6f",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pulse-fire-2.wav",
+          "format": "wav",
+          "sha256": "59e1d0c753cb7f3d9de7c3d1ae552daa8532e22956a166c784307e289c161f6f"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/pulse-fire-3.wav",
+          "sha256": "686a9ca428138576abd098888c443c53407dee002f6206b212ca97d0466a9d51",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/pulse-fire-3.wav",
+          "format": "wav",
+          "sha256": "686a9ca428138576abd098888c443c53407dee002f6206b212ca97d0466a9d51"
+        }
+      }
+    ],
+    "press-slam": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/press-slam-1.wav",
+          "sha256": "611a6d326bbedfb70734023985eaa1ec4a639ea887ed91c4b40cb49d16aec45e",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/press-slam-1.wav",
+          "format": "wav",
+          "sha256": "611a6d326bbedfb70734023985eaa1ec4a639ea887ed91c4b40cb49d16aec45e"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/press-slam-2.wav",
+          "sha256": "bfea7ea3e713405a14ddbe66b98814aa9c6a7e38b6809925708258ef5d33e7c4",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/press-slam-2.wav",
+          "format": "wav",
+          "sha256": "bfea7ea3e713405a14ddbe66b98814aa9c6a7e38b6809925708258ef5d33e7c4"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/press-slam-3.wav",
+          "sha256": "f815bce47ab2714e15ab3eabe64d634e81cee56c491ffbc6733af9cea9839a57",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/press-slam-3.wav",
+          "format": "wav",
+          "sha256": "f815bce47ab2714e15ab3eabe64d634e81cee56c491ffbc6733af9cea9839a57"
+        }
+      }
+    ],
+    "ricochet-throw": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ricochet-throw-1.wav",
+          "sha256": "5f193ad7c9256b6a9e4ba351f1f3cadaff9d967462230d41ac58923f4c759382",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ricochet-throw-1.wav",
+          "format": "wav",
+          "sha256": "5f193ad7c9256b6a9e4ba351f1f3cadaff9d967462230d41ac58923f4c759382"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ricochet-throw-2.wav",
+          "sha256": "50887c409caa3869f801a052bf98f72ab147b8b3096178d74ef19b8d8a01c436",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ricochet-throw-2.wav",
+          "format": "wav",
+          "sha256": "50887c409caa3869f801a052bf98f72ab147b8b3096178d74ef19b8d8a01c436"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ricochet-throw-3.wav",
+          "sha256": "719a2b929c1a6ffae83bf88bd5381ae6929c83b7cd1727c96c1642d988de68f2",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ricochet-throw-3.wav",
+          "format": "wav",
+          "sha256": "719a2b929c1a6ffae83bf88bd5381ae6929c83b7cd1727c96c1642d988de68f2"
+        }
+      }
+    ],
+    "blades-loop": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/blades-loop-1.wav",
+          "sha256": "5458671f3e9efaadd7b7e864238ea67332da0d33c2da556774176611188e88a5",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/blades-loop-1.wav",
+          "format": "wav",
+          "sha256": "5458671f3e9efaadd7b7e864238ea67332da0d33c2da556774176611188e88a5"
+        }
+      }
+    ],
+    "welder-beam": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/welder-beam-1.wav",
+          "sha256": "c3116db423eca2beed9f4c08702daac5cfb836af695bbbd8f6736f8d73269dbc",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/welder-beam-1.wav",
+          "format": "wav",
+          "sha256": "c3116db423eca2beed9f4c08702daac5cfb836af695bbbd8f6736f8d73269dbc"
+        }
+      }
+    ],
+    "blades-hit": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/blades-hit-1.wav",
+          "sha256": "f9be844ad547c62c35c67f85bb548bcab74212cb015eb10bf9dec0d286f535f7",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/blades-hit-1.wav",
+          "format": "wav",
+          "sha256": "f9be844ad547c62c35c67f85bb548bcab74212cb015eb10bf9dec0d286f535f7"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/blades-hit-2.wav",
+          "sha256": "fa550377a020e90cc320e573f9bcaf262858d8670b530a3d2b2ed15f420dfb14",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/blades-hit-2.wav",
+          "format": "wav",
+          "sha256": "fa550377a020e90cc320e573f9bcaf262858d8670b530a3d2b2ed15f420dfb14"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/blades-hit-3.wav",
+          "sha256": "aa7b6644ca886273900110061752a4529c946748ea665da1d00705c9706aca3d",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/blades-hit-3.wav",
+          "format": "wav",
+          "sha256": "aa7b6644ca886273900110061752a4529c946748ea665da1d00705c9706aca3d"
+        }
+      }
+    ],
+    "blades-spin": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/blades-spin-1.wav",
+          "sha256": "71719583d5e3e059c9ed1fcadf378e595eebc57532e9fab128f6d5522ef01d6a",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/blades-spin-1.wav",
+          "format": "wav",
+          "sha256": "71719583d5e3e059c9ed1fcadf378e595eebc57532e9fab128f6d5522ef01d6a"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/blades-spin-2.wav",
+          "sha256": "92871b7251ba9dc2f8b9d125540c4b4b0aa4f5a54fba4a13fa08ca5fee3a3ecd",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/blades-spin-2.wav",
+          "format": "wav",
+          "sha256": "92871b7251ba9dc2f8b9d125540c4b4b0aa4f5a54fba4a13fa08ca5fee3a3ecd"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/blades-spin-3.wav",
+          "sha256": "88d6641d5516e2bc886fec6f8d0e80a7951854e79ec27a3769579a30f4e4bd69",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/blades-spin-3.wav",
+          "format": "wav",
+          "sha256": "88d6641d5516e2bc886fec6f8d0e80a7951854e79ec27a3769579a30f4e4bd69"
+        }
+      }
+    ],
+    "tire-launch": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/tire-launch-1.wav",
+          "sha256": "49a01adde68908f1c51d291fba8faa9872e98f53ceeb72f65836fb069dada925",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/tire-launch-1.wav",
+          "format": "wav",
+          "sha256": "49a01adde68908f1c51d291fba8faa9872e98f53ceeb72f65836fb069dada925"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/tire-launch-2.wav",
+          "sha256": "9df362c5adf863ad202fad02ea8b8a883cdde821c9cc4a843d3b0ea03c1f1dec",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/tire-launch-2.wav",
+          "format": "wav",
+          "sha256": "9df362c5adf863ad202fad02ea8b8a883cdde821c9cc4a843d3b0ea03c1f1dec"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/tire-launch-3.wav",
+          "sha256": "8eb20318b17b6214e4098290660e5c8919504fa629c1508e488a2a1f21abb496",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/tire-launch-3.wav",
+          "format": "wav",
+          "sha256": "8eb20318b17b6214e4098290660e5c8919504fa629c1508e488a2a1f21abb496"
+        }
+      }
+    ],
+    "dismantler-swipe": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/dismantler-swipe-1.wav",
+          "sha256": "8f11bb05454626e8326b6cb696b158233cec22fe66358f56d23e114a59380660",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/dismantler-swipe-1.wav",
+          "format": "wav",
+          "sha256": "8f11bb05454626e8326b6cb696b158233cec22fe66358f56d23e114a59380660"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/dismantler-swipe-2.wav",
+          "sha256": "a50c28892394afcc76307082a2504d99e0478f7b5910b9161adcc6bd04f420ca",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/dismantler-swipe-2.wav",
+          "format": "wav",
+          "sha256": "a50c28892394afcc76307082a2504d99e0478f7b5910b9161adcc6bd04f420ca"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/dismantler-swipe-3.wav",
+          "sha256": "8a7f29616e6d766adf391dcd89c2663f7905bb2fad1e94260a5e503748eae405",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/dismantler-swipe-3.wav",
+          "format": "wav",
+          "sha256": "8a7f29616e6d766adf391dcd89c2663f7905bb2fad1e94260a5e503748eae405"
+        }
+      }
+    ],
+    "turbine-launch": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/turbine-launch-1.wav",
+          "sha256": "d15d4109d67cf6c055bc2441c39558502a3189b1774365dd9f602671e65c859f",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/turbine-launch-1.wav",
+          "format": "wav",
+          "sha256": "d15d4109d67cf6c055bc2441c39558502a3189b1774365dd9f602671e65c859f"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/turbine-launch-2.wav",
+          "sha256": "5471aec42ca15fea73bcbe9cab03aae8a1a8ed9ae5be54b2802448de666edea7",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/turbine-launch-2.wav",
+          "format": "wav",
+          "sha256": "5471aec42ca15fea73bcbe9cab03aae8a1a8ed9ae5be54b2802448de666edea7"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/turbine-launch-3.wav",
+          "sha256": "b3baa8dc0ad20808ec2aba5a987c8fdf579f782e06bff09772a65e5a49600ce8",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/turbine-launch-3.wav",
+          "format": "wav",
+          "sha256": "b3baa8dc0ad20808ec2aba5a987c8fdf579f782e06bff09772a65e5a49600ce8"
+        }
+      }
+    ],
+    "acid-loop": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/acid-loop-1.wav",
+          "sha256": "b10682f222d7fa0876a3bcae62eb8a1ad4150f8be62f03c64b0e7d54b3a1608d",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/acid-loop-1.wav",
+          "format": "wav",
+          "sha256": "b10682f222d7fa0876a3bcae62eb8a1ad4150f8be62f03c64b0e7d54b3a1608d"
+        }
+      }
+    ],
+    "turbine-loop": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/turbine-loop-1.wav",
+          "sha256": "f9cef9a7cad1db86a466cdcff767b5ed86010a7c29d8fcda65dca3ddaf30ea95",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/turbine-loop-1.wav",
+          "format": "wav",
+          "sha256": "f9cef9a7cad1db86a466cdcff767b5ed86010a7c29d8fcda65dca3ddaf30ea95"
+        }
+      }
+    ],
+    "acid-throw": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/acid-throw-1.wav",
+          "sha256": "032423898910b064d4df724ecd5e261bcff9d81b08a71334d464e67e0a7b8f17",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/acid-throw-1.wav",
+          "format": "wav",
+          "sha256": "032423898910b064d4df724ecd5e261bcff9d81b08a71334d464e67e0a7b8f17"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/acid-throw-2.wav",
+          "sha256": "3d409ec413206e6039bccaa632cb5ec0acc14dc020a402fabf8741de0aa6fa32",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/acid-throw-2.wav",
+          "format": "wav",
+          "sha256": "3d409ec413206e6039bccaa632cb5ec0acc14dc020a402fabf8741de0aa6fa32"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/acid-throw-3.wav",
+          "sha256": "ed495827e3111dcbe41195369c0085429c808fd37af37f5b62d4f2c5cb351038",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/acid-throw-3.wav",
+          "format": "wav",
+          "sha256": "ed495827e3111dcbe41195369c0085429c808fd37af37f5b62d4f2c5cb351038"
+        }
+      }
+    ],
+    "ui-focus": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ui-focus-v1.wav",
+          "sha256": "9d93352a41f73ca56dad6b65440a646f1c328bfd415b9fa5f1dc929d3f6e1b9b",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "recipeId": "ui-focus",
+            "version": "ui-navigation-v1",
+            "seed": 211,
+            "variantIndex": 0,
+            "generatorHash": "dd84a38e396ca6ee8ad7c099eb5ad8090a6b28eabaa23fe32a2ce4853d118e0a",
+            "sha256": "9d93352a41f73ca56dad6b65440a646f1c328bfd415b9fa5f1dc929d3f6e1b9b"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ui-focus-v1.wav",
+          "format": "wav",
+          "sha256": "9d93352a41f73ca56dad6b65440a646f1c328bfd415b9fa5f1dc929d3f6e1b9b"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ui-focus-v2.wav",
+          "sha256": "4bc509af5e94be4c179bb8ed2129b25d399c5e716e541ce22d0bdd44fd221976",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "recipeId": "ui-focus",
+            "version": "ui-navigation-v1",
+            "seed": 211,
+            "variantIndex": 1,
+            "generatorHash": "dd84a38e396ca6ee8ad7c099eb5ad8090a6b28eabaa23fe32a2ce4853d118e0a",
+            "sha256": "4bc509af5e94be4c179bb8ed2129b25d399c5e716e541ce22d0bdd44fd221976"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ui-focus-v2.wav",
+          "format": "wav",
+          "sha256": "4bc509af5e94be4c179bb8ed2129b25d399c5e716e541ce22d0bdd44fd221976"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ui-focus-v3.wav",
+          "sha256": "dd30b1de84e088af595685ec45638bc33b08925ff181d3e03e8a8009a4173649",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "recipeId": "ui-focus",
+            "version": "ui-navigation-v1",
+            "seed": 211,
+            "variantIndex": 2,
+            "generatorHash": "dd84a38e396ca6ee8ad7c099eb5ad8090a6b28eabaa23fe32a2ce4853d118e0a",
+            "sha256": "dd30b1de84e088af595685ec45638bc33b08925ff181d3e03e8a8009a4173649"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ui-focus-v3.wav",
+          "format": "wav",
+          "sha256": "dd30b1de84e088af595685ec45638bc33b08925ff181d3e03e8a8009a4173649"
+        }
+      },
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ui-focus-v4.wav",
+          "sha256": "9c7a7a5a25cc02d9351f736bffae54335c4398a210bd034c0719c29d6d21e962",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "recipeId": "ui-focus",
+            "version": "ui-navigation-v1",
+            "seed": 211,
+            "variantIndex": 3,
+            "generatorHash": "dd84a38e396ca6ee8ad7c099eb5ad8090a6b28eabaa23fe32a2ce4853d118e0a",
+            "sha256": "9c7a7a5a25cc02d9351f736bffae54335c4398a210bd034c0719c29d6d21e962"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ui-focus-v4.wav",
+          "format": "wav",
+          "sha256": "9c7a7a5a25cc02d9351f736bffae54335c4398a210bd034c0719c29d6d21e962"
+        }
+      }
+    ],
+    "ui-back": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/ui-back-v1.wav",
+          "sha256": "3d7ea695f41026360488e1c1a9e23b7c6cb48f48e8a5141577da6d05ffe86af5",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "recipeId": "ui-back",
+            "version": "ui-navigation-v1",
+            "seed": 307,
+            "variantIndex": 0,
+            "generatorHash": "dd84a38e396ca6ee8ad7c099eb5ad8090a6b28eabaa23fe32a2ce4853d118e0a",
+            "sha256": "3d7ea695f41026360488e1c1a9e23b7c6cb48f48e8a5141577da6d05ffe86af5"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/ui-back-v1.wav",
+          "format": "wav",
+          "sha256": "3d7ea695f41026360488e1c1a9e23b7c6cb48f48e8a5141577da6d05ffe86af5"
+        }
+      }
+    ],
+    "boss-sweep-charge": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-sweep-charge.wav",
+          "sha256": "1ebf8eb86a8e38862941db49e9db18dec4876783f106da94b5bb74c137be79c5",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-sweep-charge.wav",
+          "format": "wav",
+          "sha256": "1ebf8eb86a8e38862941db49e9db18dec4876783f106da94b5bb74c137be79c5"
+        }
+      }
+    ],
+    "boss-sweep-warn": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-sweep-warn.wav",
+          "sha256": "a99664119f514804f3b0f288c3fc84c1a6b908650cc016b324a86b6464c13148",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-sweep-warn.wav",
+          "format": "wav",
+          "sha256": "a99664119f514804f3b0f288c3fc84c1a6b908650cc016b324a86b6464c13148"
+        }
+      }
+    ],
+    "boss-sweep-fire": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-sweep-fire.wav",
+          "sha256": "77ddb8b5dec99551fba45c28dcffcc64820f1a0ef3079d1423ef02e47e2d97a3",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-sweep-fire.wav",
+          "format": "wav",
+          "sha256": "77ddb8b5dec99551fba45c28dcffcc64820f1a0ef3079d1423ef02e47e2d97a3"
+        }
+      }
+    ],
+    "boss-overload-open": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-overload-open.wav",
+          "sha256": "d17473fde25e227f924a7a624c9933865b27ec6310f74dbc2b44afb2dbedbce5",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-overload-open.wav",
+          "format": "wav",
+          "sha256": "d17473fde25e227f924a7a624c9933865b27ec6310f74dbc2b44afb2dbedbce5"
+        }
+      }
+    ],
+    "boss-overload-erupt": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-overload-erupt.wav",
+          "sha256": "3734ef9bb43cbf5e7feded181dd254580bfd7846641f057d284b9b43739d2525",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-overload-erupt.wav",
+          "format": "wav",
+          "sha256": "3734ef9bb43cbf5e7feded181dd254580bfd7846641f057d284b9b43739d2525"
+        }
+      }
+    ],
+    "boss-volley": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-volley.wav",
+          "sha256": "4dfdecabec1d5814061a4a348ccb608fa6beda79a48f21a201bbdea20498b638",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-volley.wav",
+          "format": "wav",
+          "sha256": "4dfdecabec1d5814061a4a348ccb608fa6beda79a48f21a201bbdea20498b638"
+        }
+      }
+    ],
+    "boss-assembly-open": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-assembly-open.wav",
+          "sha256": "0c7b718206f613f3aa648f899f339e4b2e47934c2eb53c60f89621badc9b5659",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-assembly-open.wav",
+          "format": "wav",
+          "sha256": "0c7b718206f613f3aa648f899f339e4b2e47934c2eb53c60f89621badc9b5659"
+        }
+      }
+    ],
+    "boss-assembly-spawn": [
+      {
+        "source": {
+          "path": "art/audio/runtime-pack/masters/boss-assembly-spawn.wav",
+          "sha256": "a33eb907a45b5eca2f1c3a248893710f4a169271026f92048b623226157d6b7e",
+          "origin": "accepted-procedural-master",
+          "provenance": {
+            "catalog": "docs/SOUND_EVENT_CATALOG.md",
+            "regeneration": "immutable-accepted-bytes"
+          }
+        },
+        "runtime": {
+          "path": "assets/audio/sfx/boss-assembly-spawn.wav",
+          "format": "wav",
+          "sha256": "a33eb907a45b5eca2f1c3a248893710f4a169271026f92048b623226157d6b7e"
+        }
+      }
+    ]
+  }
+}

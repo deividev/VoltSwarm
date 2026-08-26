@@ -8,11 +8,12 @@ Bullet-heaven 3D estilo Vampire Survivors, mundo futurista de robots, empieza en
 - **Steam Demo (`codex/demo-map1`, separada; snapshot `0.13.39-demo`):** solo Scrapyard / Mapa 1. Boss derrotado → `SECTOR CLEARED`; timeout sin boss → `SECTOR HELD`. Nunca transiciona a Mapa 2.
 - Fin de agosto de 2026 es objetivo interno de RC de la Demo, no promesa pública ni confirmación de revisión/disponibilidad.
 
-## Estado vigente del juego completo — 0.30.6 (2026-08-25)
+## Estado vigente del juego completo — 0.30.7 (2026-08-26)
 
 - **Achievements:** catálogo de lanzamiento 20/20 implementado en `ACHIEVEMENT_REGISTRY`, con evaluación retroactiva/end-of-run y **Steam achievement transport** mediante `steamworks.js` `0.4.0`, IPC aislado, allowlist y outbox persistente/idempotente. SDK init, App ID, `electronEnableSteamOverlay`, packaging nativo e IPC son soporte auxiliar del desbloqueo, no features Steamworks independientes.
 - **Steamworks App Admin:** el mantenedor confirma que las 20 entradas correspondientes están creadas para App ID `4979220`. Esto NO demuestra que los últimos cambios estén publicados, que ambos iconos estén subidos o que el desbloqueo haya pasado smoke end-to-end en una build de producción.
-- **Pendientes Steam de lanzamiento:** confirmar externamente publicación e iconos y ejecutar el smoke de desbloqueo de achievements en producción. Las release flags `mapTransitionKey=true` y `finaleKey=true` siguen bloqueando `pnpm package`; no existe paquete `0.30.6`.
+- **Audio:** final levels, mix, and crossfade baseline accepted by the maintainer after human playtesting. The canonical pack reconstructs 50 events / 97 variants from 96 versioned masters. The acceptance does not invent diagnostic counters or quantitative route data that were not supplied.
+- **Remaining Steam launch work:** generate the package from the committed `0.30.7` candidate, externally confirm publication/icons, and run the production achievement-unlock smoke. `shortMaps=false`, `audioDiagnostics=false`, `mapTransitionKey=false`, and `finaleKey=false`; no `0.30.7` package is claimed yet.
 - **Otras APIs Steamworks:** Leaderboards, User Stats, Cloud, Workshop, Rich Presence, Friends/lobbies/networking, Steam Input, Inventory/DLC/microtransactions y cualquier otra integración no están implementadas y quedan fuera del lanzamiento. Solo se reconsideran post-lanzamiento con suficiente visibilidad/tracción; no hay compromiso ni promesa.
 
 ## ⚡ Lo primero que hay que mirar, según lo que te pidan
@@ -106,6 +107,7 @@ Regla general: si el pedido no encaja claro en una fila, `docs/PRD.md` primero (
 | `src/contracts.ts` | Sistema de contratos: tipos de objetivo, contratos firma, escaleras y colas de premios. Los umbrales viven en `config.ts CONTRACTS`, no aquí. |
 | `src/profile.ts` | `PROFILE` (desbloqueos/sockets) + `LIFETIME` (ledger de carrera) y su persistencia. Toda progresión entre runs pasa por acá. |
 | `docs/AUDIO_AUTHORING_PIPELINE.md` | Pipeline offline SFX determinista + Suno para música: masters/exports/manifiesto, reproducibilidad, provenance y reglas de licencia comercial. |
+| `docs/AUDIO_MIX_ACCEPTANCE_0.30.7.md` | Honest maintainer acceptance evidence for the final `0.30.7` levels, mix, and crossfade baseline, with explicit boundaries around data not supplied. |
 | `docs/MULTIPLAYER_FEASIBILITY.md` | Gate interno GO/NO-GO: 1–4 `PlayerId`, primero local exactamente 2P split-screen con cámaras independientes → Remote Play host si procede; online 4P posterior, no es promesa pública. |
 | `docs/SOUND_EVENT_CATALOG.md` | REESCRITO 2026-07-18: las 6 leyes de estilo de audio + catálogo completo con estado real (12 integrados / 10 hooks mudos / resto Fase 5). Fuente de verdad del audio. |
 | `docs/SOUND_DIRECTION.md` | ⚠️ SUPERSEDED: dirección "juguete industrial" vieja, pendiente de reescritura; ante conflicto manda `SOUND_EVENT_CATALOG.md`. |

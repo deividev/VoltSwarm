@@ -4,7 +4,7 @@
 
 **Juego completo (`codex/map-2`):** Mapa 1 / Scrapyard → Mapa 2 **Swarm Foundry** → **Hazard Marshal**. Hazard Marshal conserva `modelKey: 'final-boss'` y su baseline jugable quedó **CERRADA en el candidato 0.22.0**: llegada propia, arena despejada con muro, fuego retenido en las 11 armas, combate de tres fases, sweep/volley/assembly/overload, refuerzos, audio y desenlace. Solo quedan diferidos el balance fino con runs humanas y una posible arena reactiva/modular. Volt Warden es diseño histórico/futuro, no el boss final vigente.
 
-### Snapshot vigente — source/HEAD 0.30.6 (2026-08-25)
+### Snapshot vigente — source/HEAD 0.30.7 (2026-08-26)
 
 | Área | Estado real |
 | --- | --- |
@@ -13,10 +13,10 @@
 | Profile and content | Global weapons 2→3; global Cores 2→4; discards 3→4. 11 registered weapons / 10 playable (Oil disabled), 20 Cores, 17 Mods, and 29 declared / 29 active Contracts. Field Engineer, Rack Hauler, and Overclocker are final and CLOSED for the current release scope; Proving Ground and Two of a Kind unlock the two additional characters. |
 | Achievements / Steam | 20/20 launch achievements are implemented in `ACHIEVEMENT_REGISTRY`, including durable startup/end-of-run evaluation and the `steamworks.js` 0.4.0 **Steam achievement transport**. SDK init, App ID, `electronEnableSteamOverlay`, native packaging, IPC, allowlist, and outbox are auxiliary achievement-unlock infrastructure, not separate features. The maintainer confirms that the matching 20 entries are created in Steamworks App Admin for App ID `4979220`. Publication, uploaded icon state, and a production-build unlock smoke are not evidenced by the repository. Every other Steamworks product API—Leaderboards, User Stats, Cloud, Workshop, Rich Presence, Friends/lobbies/networking, Steam Input, Inventory/DLC/microtransactions, and any unlisted integration—is not implemented and outside launch scope; reconsider post-launch only with sufficient visibility/traction, with no commitment. |
 | Recompensas | Cofres pagados a 0.5× entregan Mods. Skip/descartes está implementado; Reroll y Banish siguen pendientes. Barrier Cell: 30 s base, −3 s por copias 7–10, mínimo 18 s, cap 10. La recomendación de arma del personaje se presenta como `Suggested Start`, nunca como obligación. |
-| Audio | Audio v1 aceptado. Las recetas y manifiestos están versionados, pero la reconstrucción completa del pack runtime activo aún no está unificada en un solo comando; `pnpm audio:generate` sí cubre foundation, navegación UI y `boss-assembly-open`. El finale tiene cues propias `boss-sweep-charge/warn/fire`, `boss-volley`, `boss-assembly-open/spawn` y `boss-overload-open/erupt`. Oil emite `oil-drop`, pero el evento no está enabled ni en el manifiesto y permanece silencioso. |
-| Entrega | Source/HEAD `0.30.6`; `shortMaps=false`; `mapTransitionKey=true` y `finaleKey=true`, por lo que `pnpm package` sigue bloqueado. No existe paquete 0.30.6. |
+| Audio | Audio v1 and the final `0.30.7` mix baseline are accepted by the maintainer after human playtesting. `pnpm audio:generate` reconstructs 50 events/97 variants from the versioned `audio-masters/runtime/` vault, with hashes/provenance, real format checks, exact coverage, orphan policy, and atomic promotion; runtime and packaging read `assets/audio/sfx/manifest.json`. `AudioDirector` performs a real menu→run overlap without changing the shared bus, cancels stale loads, and fades to silence at run end before the later menu fade-in. No diagnostic counters or quantitative route data were supplied or claimed; no distinct Foundry/boss beds exist. Oil remains disabled and `oil-drop` remains outside the pack. |
+| Delivery | Source/HEAD `0.30.7`; `shortMaps=false`, `audioDiagnostics=false`, `mapTransitionKey=false`, and `finaleKey=false`. Production-blocking shortcuts are off and the candidate is ready for post-commit validation/packaging; no `0.30.7` package is claimed yet. |
 
-**Next sequence:** completed human runs plus `pnpm stats` for balance/retention → cohesion pass for new audio → external Steamworks publication/icon confirmation, production achievement-unlock smoke, and technical close. The achievement catalog and Steam achievement transport are closed implementation work; external confirmation and RC validation are not. Other Steamworks APIs are not part of this sequence or the launch scope. Closed characters, the current Foundry visual state, and deferred enemy expansion are not active work items.
+**Next sequence:** completed human runs plus `pnpm stats` for balance/retention → package the committed `0.30.7` candidate → external Steamworks publication/icon confirmation, production achievement-unlock smoke, and technical close. Audio cohesion, the achievement catalog and Steam achievement transport are closed implementation work; external confirmation and RC validation are not. Other Steamworks APIs are not part of this sequence or the launch scope. Closed characters, the current Foundry visual state, and deferred enemy expansion are not active work items.
 
 ## Swarm Foundry — escenografía del Mapa 2 (2026-08-17, v0.13.49 → 0.13.55)
 
@@ -81,7 +81,7 @@ Fecha: 2026-07-02. Extiende el spec base (`CLAUDE_megabonk_3d.md`) con las decis
 1. ✅ **Foundation de audio** — implementada 2026-07-17, ver §"Audio Foundation" al final. No incluye el catálogo completo.
 2. ✅ **Perfil persistente + Contratos** — implementados 2026-07-25, ver §"Perfil persistente y Contratos". Es el motor de retención y sustituye al panel dev de Unlocks.
 3. ⏸️ **Preparación/viabilidad multijugador — DIFERIDA A POST-LANZAMIENTO (decisión del usuario 2026-07-25).** Consumía ~8 de las ~14 semanas restantes hasta el objetivo interno, para una feature que `MULTIPLAYER_FEASIBILITY.md` documenta como no diferenciadora, no prometida y que puede terminar NO-GO — mientras el contenido que decide si el juego vale su precio quedaba comprimido. Del gate se rescató solo la mitad barata: cobertura de smoke tests. **El determinismo de tick fijo, el RNG sembrado y los snapshots siguen sin implementar**, y por eso tampoco se guarda semilla en los registros de run. Si el gate se retoma y da GO, el primer objetivo sigue siendo exactamente 2 jugadores local split-screen; online peer-host exige aprobación posterior; hybrid y dedicated servers quedan fuera de alcance.
-4. 🟡 **NOW:** the full arc is playable and the Hazard Marshal baseline is closed in 0.22.0. The 20 launch achievements and their `steamworks.js` Steam achievement transport are implemented; the maintainer confirms 20/20 matching App Admin entries created. Next: balance/retention with completed human runs → cohesion pass for new audio → external Steamworks publication/icon confirmation, production achievement-unlock smoke, and technical close. Every other Steamworks product API is explicitly outside launch scope. All three launch characters, the current Foundry visual state, and the current Foundry replacement slice are closed.
+4. 🟡 **NOW:** the full arc is playable, the Hazard Marshal baseline is closed in 0.22.0, and audio cohesion is closed in 0.30.7 after maintainer playtesting. The 20 launch achievements and their `steamworks.js` Steam achievement transport are implemented; the maintainer confirms 20/20 matching App Admin entries created. Next: balance/retention with completed human runs → package the committed 0.30.7 candidate → external Steamworks publication/icon confirmation, production achievement-unlock smoke, and technical close. Every other Steamworks product API is explicitly outside launch scope. All three launch characters, the current Foundry visual state, and the current Foundry replacement slice are closed.
 
 ## P1 — Estructural
 
@@ -403,7 +403,9 @@ A level-up screen allows at most one branch for each weapon owner. When both soc
 
 UI navigation uses one semantic cue per action: quiet `ui-focus` on real hover/keyboard/Tab/gamepad target changes, `ui-back` for Back/Escape, and dedicated Resume/purchase cues without generic-confirm overlap.
 
-`Game` owns observer-style renderer audio; `Hud` does not. `AudioDirector` lazily creates/resumes Web Audio only from a gesture and silently no-ops without context/assets. Runtime selects cached pre-rendered assets only; offline deterministic SFX generation lives in `tools/audio/`. The validation pack covers representative semantic events and diagnostics, not the final audio catalog/music.
+`Game` owns observer-style renderer audio; `Hud` does not. `AudioDirector` lazily creates/resumes Web Audio only from a gesture and silently no-ops without context/assets. Runtime selects cached pre-rendered assets only. All music lifecycle transitions go through `transitionMusic`/`stopMusic`: the incoming keyed loop starts at zero, the outgoing loop lands at zero over `AUDIO.fades.musicCrossfadeS`, the two-voice music cap remains intact, and a revision token prevents stale fetch/decode work from resurrecting an obsolete bed. The only active beds remain menu + the shared run track; no Foundry/boss track is claimed.
+
+The canonical active pack is `audio-masters/runtime/` + `tools/audio/runtime-pack.json` → `public/assets/audio/sfx/`. `pnpm audio:generate` verifies source hashes/formats/provenance and exact enabled-event coverage in staging before atomic promotion; `pnpm audio:validate` verifies the public pack and `validate-runtime-pack.mjs --dist` verifies Vite/package input. Suno/ElevenLabs winners are immutable external masters, never regenerated from prompts. Final volume/cohesion listening remains a human gate documented in `AUDIO_AUTHORING_PIPELINE.md`; `pnpm audio:mix-sheet` binds pending evidence to pack, AUDIO config, source/diff and built-file hashes without claiming a verdict.
 
 ### Packaged audio swarm evidence (2026-07-17)
 
@@ -1386,19 +1388,21 @@ asset boss-sweep-charge: not in manifest
 voices boss-sweep-fire: started 0
 ```
 
-**Causa:** `public/assets/audio/prototypes/manifest.json` **lo reescribe
+**Causa histórica (SUPERSEDED por el pack canónico 2026-08-25):** `public/assets/audio/prototypes/manifest.json` **lo reescribía
 `prebuild`** en cada build (`audio:generate` → `tools/audio/ui-navigation.mjs`)
 desde la fuente `tools/audio/prototype-manifest.json`. Las entradas que había
 añadido a mano al de runtime sobrevivieron hasta el siguiente `pnpm build` y
 desaparecieron sin avisar. Los cinco cues quedaron **habilitados, emitidos y
 mudos**: todos los síntomas decían "sonó" menos los altavoces.
 
-**Arreglo:** registrados en el manifiesto FUENTE. Medido después: los assets
+**Arreglo de aquel incidente:** registrados en el manifiesto FUENTE. Medido después: los assets
 decodifican (0,60 / 0,40 / 1,00 s) y los cinco arrancan voces reales.
 
-**Dos guardas nuevas** (`tools/audio-selection.test.mjs`), que es lo que habría
-cazado esto en el minuto uno: todo id de `enabledEvents` debe tener entrada en el
-manifiesto fuente, y el generado no puede contener eventos que la fuente no tenga.
+**Guardas vigentes:** aquella cobertura pasó a `runtime-pack.json` +
+`validate-runtime-pack.mjs`; `tools/audio-selection.test.mjs` conserva la prueba
+de cobertura semántica. Esto es lo que habría cazado el fallo en el minuto uno:
+todo id de `enabledEvents` debe tener entrada en el manifiesto fuente, y el
+generado no puede contener eventos que la fuente no tenga.
 Y el chequeo de runtime ahora cuenta VOCES arrancadas, envolviendo
 `AudioDirector.play`, en vez de fiarse de `lastEvent`.
 
