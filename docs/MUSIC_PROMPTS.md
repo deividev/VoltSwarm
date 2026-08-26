@@ -1,9 +1,12 @@
 # Music Prompts — Suno Provenance
 
 Working log of the Suno prompts behind Voltswarm's music. Every generated take
-that survives into the game (or a soundtrack pack) must trace back to an entry
-here, per `AUDIO_AUTHORING_PIPELINE.md` (provenance + commercial-license rule:
-takes must be generated under a PAID Suno plan).
+that survives into the game must trace back to an entry here and to the
+hash-pinned runtime manifest, per `AUDIO_AUTHORING_PIPELINE.md`. For the
+Steam-only launch, private provider receipts, generation URLs/IDs,
+account/subscription records, and commercial-entitlement evidence are outside
+the launch gate by explicit maintainer risk acceptance. This log does not claim
+that those artifacts exist or prove legal entitlement.
 
 ## ✅ "Neon Horizon" — in-run combat bed (style anchor)
 

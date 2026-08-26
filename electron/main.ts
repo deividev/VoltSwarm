@@ -18,7 +18,6 @@ let telemetryClient: TelemetryClient | null = null;
 let telemetryShutdownRecorded = false;
 let pendingPlaytestResetEpoch: string | null = null;
 const APP_TITLE = 'Voltswarm';
-const benchmarkMode = app.isPackaged && process.argv.includes('--audio-benchmark');
 
 interface SteamworksModule {
   init(appId: number): SteamAchievementClient;
@@ -184,10 +183,7 @@ function createWindow(): void {
     fullscreen: initial.fullscreen,
     useContentSize: true,
     backgroundColor: '#0b0d12',
-    // Hidden windows are throttled to ~1 FPS on this Windows compositor even
-    // with backgroundThrottling disabled; the explicit benchmark flag is the
-    // one exception because it must measure real rendered frames.
-    show: benchmarkMode,
+    show: false,
     autoHideMenuBar: true,
     icon: path.join(__dirname, '..', '..', 'build', 'icon.ico'),
     webPreferences: {
@@ -196,7 +192,7 @@ function createWindow(): void {
       nodeIntegration: false,
       autoplayPolicy: 'no-user-gesture-required',
       devTools: !app.isPackaged,
-      backgroundThrottling: !benchmarkMode,
+      backgroundThrottling: true,
     },
   });
 
@@ -220,7 +216,7 @@ function createWindow(): void {
   mainWindow.on('move', notifyDisplayChange);
   screen.on('display-metrics-changed', notifyDisplayChange);
 
-  if (!benchmarkMode) mainWindow.once('ready-to-show', () => mainWindow?.show());
+  mainWindow.once('ready-to-show', () => mainWindow?.show());
 
   // A paid app must never die silently: offer a relaunch on renderer crash.
   mainWindow.webContents.on('render-process-gone', (_event, details) => {
@@ -243,9 +239,7 @@ function createWindow(): void {
   if (devServerUrl) {
     void mainWindow.loadURL(devServerUrl);
   } else {
-    void mainWindow.loadFile(path.join(__dirname, '..', '..', 'dist', 'index.html'), {
-      query: benchmarkMode ? { audioBenchmark: '1' } : {},
-    });
+    void mainWindow.loadFile(path.join(__dirname, '..', '..', 'dist', 'index.html'));
   }
 
   mainWindow.on('closed', () => {
@@ -257,7 +251,7 @@ function createWindow(): void {
 void app.whenReady().then(() => {
   const runtime = {
     packaged: app.isPackaged,
-    benchmark: benchmarkMode,
+    benchmark: false,
     buildVersion: app.getVersion(),
   };
   if (isPlaytestEligible(TELEMETRY_CONFIG, runtime)) {

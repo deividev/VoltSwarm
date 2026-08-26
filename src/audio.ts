@@ -128,9 +128,7 @@ export class AudioDirector {
     return this.preload(AUDIO.validation.enabledEvents as readonly AudioEventId[]);
   }
   emit(event: AudioEvent): void {
-    const benchmarkMode = typeof window !== 'undefined'
-      && new URLSearchParams(window.location.search).has('audioBenchmark');
-    if (!benchmarkMode && !AUDIO.validation.enabledEvents.includes(event.id)) return;
+    if (!AUDIO.validation.enabledEvents.includes(event.id)) return;
     this.attempts++;
     const now = performance.now() / 1000;
     const cooldown = AUDIO.cooldownS[event.id as keyof typeof AUDIO.cooldownS] ?? 0;

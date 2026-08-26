@@ -236,13 +236,6 @@ export class Game {
   private shakeAmp = 0;
   private readonly hud: Hud;
   private readonly audio: AudioDirector;
-  private benchmarkActive = false;
-  private benchmarkRandom: (() => number) | null = null;
-  private benchmarkOriginalRandom: (() => number) | null = null;
-  private benchmarkSacrificeS = 0;
-  private benchmarkKills = 0;
-  private benchmarkXpPickups = 0;
-  private benchmarkGoldPickups = 0;
 
   private settings: GameSettings = loadSettings();
   private stats: PlayerStats = defaultStats();
@@ -541,21 +534,16 @@ export class Game {
 
     this.renderer.setAnimationLoop(() => this.frame());
 
-    // Dev-only hook so automated smoke/performance tests can inspect state.
-    const benchmarkMode = new URLSearchParams(window.location.search).has('audioBenchmark');
-    if (import.meta.env.DEV || DEV_TOOLS.audioDiagnostics || benchmarkMode) {
+    // The full Game object is a development-server hook only. Vite replaces
+    // import.meta.env.DEV with false and eliminates this branch from releases.
+    if (import.meta.env.DEV) {
       (window as unknown as Record<string, unknown>)['__voltswarm'] = this;
+    }
+    if (import.meta.env.DEV || DEV_TOOLS.audioDiagnostics) {
       (window as unknown as Record<string, unknown>)['__voltswarmAudio'] = {
         diagnostics: () => this.audio.diagnostics(),
         gains: () => this.audio.debugBusGains(),
         burst: () => this.audio.diagnosticBurst(),
-      };
-    }
-    if (benchmarkMode) {
-      (window as unknown as Record<string, unknown>)['__voltswarmAudioBenchmark'] = {
-        start: () => this.startAudioBenchmark(),
-        snapshot: () => ({ enemies: this.enemies.activeCount, kills: this.benchmarkKills, xpPickups: this.benchmarkXpPickups, goldPickups: this.benchmarkGoldPickups, audio: this.audio.diagnostics() }),
-        cleanup: () => { this.benchmarkActive = false; this.restoreBenchmarkRandom(); this.state = 'paused'; this.enemies.reset(); this.audio.reset(); return this.audio.diagnostics(); },
       };
     }
   }
@@ -1114,51 +1102,6 @@ export class Game {
     });
   }
 
-  /** Packaged benchmark-only deterministic swarm; never reachable in normal builds. */
-  private startAudioBenchmark(): { scenario: string; seed: number; enemies: number; digest: string } {
-    this.installBenchmarkRandom(AUDIO.benchmark.seed);
-    this.buildRun(DEFAULT_CHARACTER_ID, 'bolt');
-    (Object.keys(this.weaponLevels) as WeaponId[]).forEach((id) => { this.weaponLevels[id] = 1; });
-    this.weaponDamage = emptyWeaponLevels();
-    const voltlingCount = AUDIO.benchmark.typeCounts[0] ?? 0;
-    const sparkrunnerCount = AUDIO.benchmark.typeCounts[1] ?? 0;
-    for (let index = 0; index < AUDIO.benchmark.enemyCount; index++) {
-      const typeIndex = index < voltlingCount ? 0 : index < voltlingCount + sparkrunnerCount ? 1 : 2;
-      const angle = (index * 2.399963229728653 + AUDIO.benchmark.seed) % (Math.PI * 2);
-      const radius = AUDIO.benchmark.spawnRadius + (index % 8) * 1.4;
-      const spawned = this.enemies.spawnAt(typeIndex, Math.cos(angle) * radius, Math.sin(angle) * radius, 1000);
-      const enemy = this.enemies.pool[spawned];
-      if (enemy) enemy.speed = 0;
-    }
-    this.hud.updateBuild(this.stats, this.player.maxHp, this.weaponLevels, this.modCounts, this.coreLevels, this.weaponBranches, this.currentCharacterId);
-    this.state = 'playing';
-    this.audio.resetDiagnostics();
-    this.benchmarkActive = true;
-    this.benchmarkSacrificeS = 0;
-    this.benchmarkKills = 0;
-    this.benchmarkXpPickups = 0;
-    this.benchmarkGoldPickups = 0;
-    this.audio.setMenu(false);
-    this.audio.setPaused(false);
-    this.audio.transitionMusic('foundation-music', 'foundation-run-loop', AUDIO.music.runLoopVolume);
-    this.timer.reset();
-    return { scenario: AUDIO.benchmark.scenario, seed: AUDIO.benchmark.seed, enemies: this.enemies.activeCount, digest: `${AUDIO.benchmark.seed}:${AUDIO.benchmark.typeCounts.join('-')}:${AUDIO.benchmark.sacrificeIntervalS}:${AUDIO.benchmark.sacrificeBatch}` };
-  }
-
-  private installBenchmarkRandom(seed: number): void {
-    this.restoreBenchmarkRandom();
-    let state = seed >>> 0;
-    this.benchmarkOriginalRandom = Math.random;
-    this.benchmarkRandom = () => { state = (state * 1664525 + 1013904223) >>> 0; return state / 0x100000000; };
-    Math.random = this.benchmarkRandom;
-  }
-
-  private restoreBenchmarkRandom(): void {
-    if (this.benchmarkOriginalRandom) Math.random = this.benchmarkOriginalRandom;
-    this.benchmarkOriginalRandom = null;
-    this.benchmarkRandom = null;
-  }
-
   /** Accumulates the pressure counters written onto the run record.
    *
    *  Enclosure is angular coverage, not a headcount: a wall of 30 enemies on
@@ -1195,18 +1138,6 @@ export class Game {
     if (occupied >= enclosedSectors) {
       this.runEnclosedS += dt;
       if (this.player.hp <= this.player.maxHp * lowHpFraction) this.runEnclosedLowHpS += dt;
-    }
-  }
-
-  private tickAudioBenchmark(dt: number): void {
-    if (!this.benchmarkActive) return;
-    this.benchmarkSacrificeS -= dt;
-    if (this.benchmarkSacrificeS > 0) return;
-    this.benchmarkSacrificeS = AUDIO.benchmark.sacrificeIntervalS;
-    for (let i = 0; i < AUDIO.benchmark.sacrificeBatch; i++) {
-      const angle = (this.benchmarkKills + i) * 1.7;
-      const index = this.enemies.spawnAt(0, Math.cos(angle) * 4, Math.sin(angle) * 4);
-      if (index !== -1) this.goldSys.spawn(Math.cos(angle) * 1.5, Math.sin(angle) * 1.5, GOLD.dropAmount);
     }
   }
 
@@ -1814,7 +1745,6 @@ export class Game {
     // any minute, and a run that ran +60% for its last 30 seconds is not the
     // same run as one that ran +60% throughout.
     this.runCursedIntegral += this.stats.cursedDifficulty * dt;
-    this.tickAudioBenchmark(dt);
     if (flowAction.type === 'transition') {
       this.beginMapTransition(flowAction.nextMapIndex);
       return;
@@ -2050,7 +1980,6 @@ export class Game {
 
     this.orbs.update(dt, px, pz, this.stats.pickupRange, (value) => {
       const gainedXp = Math.round(value * this.stats.xpGain);
-      if (this.benchmarkActive) this.benchmarkXpPickups++;
       this.damageNumbers.showGain(px, pz, gainedXp, 'xp');
       this.pendingLevelUps += this.progression.grantXp(gainedXp);
       this.audio.emit({ id: 'xp-pickup' });
@@ -2060,7 +1989,6 @@ export class Game {
     this.goldSys.update(dt, px, pz, this.stats.pickupRange, (value) => {
       this.gold += value;
       this.runGoldEarned += value;
-      if (this.benchmarkActive) this.benchmarkGoldPickups++;
       this.damageNumbers.showGain(px, pz, value, 'gold');
       this.hud.updateGold(this.gold);
       this.audio.emit({ id: 'gold-pickup' });
@@ -2671,7 +2599,6 @@ export class Game {
   }
 
   private onEnemyDeath(death: DeathInfo): void {
-    if (this.benchmarkActive) this.benchmarkKills++;
     // Hitstop trigger: a burst of deaths inside a short window. Fired here
     // rather than at the end of update() so the freeze starts on the exact
     // frame the kill lands.

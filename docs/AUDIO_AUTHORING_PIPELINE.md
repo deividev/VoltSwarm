@@ -4,7 +4,8 @@
 el runtime solo reproduce assets pre-renderizados. Los candidatos externos de
 ElevenLabs y la música Suno NO son reproducibles desde su prompt: se conservan
 como masters inmutables con hash y provenance. Este documento define qué se
-conserva para reconstruir, licenciar y mapear cada asset.
+conserva para reconstruir y mapear cada asset, y separa esa evidencia técnica
+de cualquier evidencia privada de derechos comerciales.
 
 > **Current status 2026-08-26:** `pnpm audio:generate` reconstructs the complete
 > active runtime pack (50 events, 97 variants) from accepted immutable masters,
@@ -46,12 +47,12 @@ candidato gana. Los thresholds numéricos de mix/runtime pertenecen a config.
 
 **Uso previsto:** música de menú, loop de run y capa/tema de boss. No usar prompts de imitación de artistas, bandas ni obras identificables; describir instrumentación, energía, arco y dirección “juguete industrial” propios.
 
-### Regla comercial y evidencia obligatoria
+### Evidence boundary for the shipped external masters
 
-- Generar bajo **Suno Pro o Premier activo en el momento de la generación** para uso comercial. No asumir licencia retroactiva por suscribirse después.
-- Por cada pista/versionado de loop conservar: WAV fuente, prompt completo, fecha/hora de generación, URL o ID de Suno, versión de edición/loop y notas de licencia.
-- Conservar evidencia del plan activo/recibo correspondiente a la generación y la referencia de source control que incorpora la exportación.
-- Los derechos comerciales no garantizan protección de copyright ni exclusividad; revisar los términos vigentes antes de publicar o licenciar.
+- **Required technical evidence:** immutable source bytes, SHA-256, provider/source classification, prompt or catalog provenance, and the exact runtime mapping.
+- **Maintainer-owned scope/risk decision (2026-08-26):** provider receipts, account/subscription records, generation URLs/IDs, and private commercial-entitlement evidence for the currently shipped Suno/ElevenLabs masters are outside the Steam launch gate. Their absence does not block RC.
+- This scope decision is **not** proof of commercial rights or legal entitlement and does not claim that any excluded artifact exists.
+- For future provider generations or a separately distributed soundtrack, archiving current terms and private entitlement evidence is recommended risk reduction, but it becomes a release gate only through a new explicit maintainer decision.
 
 Fuentes oficiales: [Suno commercial use / subscription](https://help.suno.com/en/articles/9601665) · [Suno ownership / commercial rights](https://help.suno.com/en/articles/2416769) · [Suno Terms of Service](https://suno.com/terms/).
 
@@ -59,7 +60,7 @@ Fuentes oficiales: [Suno commercial use / subscription](https://help.suno.com/en
 
 - [ ] SFX: receta, seed, generador, masters, exports y manifiesto reproducibles en source control.
 - [ ] SFX: `AudioDirector` solo reproduce exports pre-renderizados para IDs semánticos.
-- [ ] Música: evidencia de Pro/Premier activa al generar, WAV, prompt, fecha, Suno URL/ID, edición/loop y notas de licencia archivadas.
+- [x] External masters: immutable bytes, hashes, prompt/catalog provenance, and runtime mappings are versioned. Private provider receipts, URLs/IDs, account records, and commercial-entitlement evidence are excluded from this Steam launch gate by explicit maintainer risk acceptance; no legal-entitlement claim is made.
 - [ ] Música: prompts sin imitación de artistas; términos revisados para el uso previsto.
 - [ ] Runtime: `AUDIO.voiceCaps` config-owned y benchmark 400+/60 FPS registrado con drops de voz/fugas de fuentes.
 

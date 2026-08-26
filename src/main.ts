@@ -26,4 +26,12 @@ backfillGrantedRewards();
 const startupSettlement = settleContractsWithPersistence();
 if (startupSettlement.profileSaved) evaluateAchievements();
 
-new Game(container);
+const game = new Game(container);
+
+// Development-server benchmark only. Vite replaces import.meta.env.DEV with
+// false and removes both this branch and its dynamic import from production.
+if (import.meta.env.DEV) {
+  void import('./dev/audio-benchmark').then(({ installAudioBenchmark }) => {
+    installAudioBenchmark(game);
+  });
+}

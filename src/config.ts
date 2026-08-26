@@ -235,15 +235,6 @@ export const AUDIO = {
     stressEventCount: 10_000,
     stressPriority: 0,
   },
-  benchmark: {
-    scenario: 'audio-swarm-416',
-    seed: 4979220,
-    enemyCount: 400,
-    typeCounts: [240, 112, 48] as const,
-    spawnRadius: 22,
-    sacrificeIntervalS: 0.25,
-    sacrificeBatch: 4,
-  },
 } as const;
 
 /** Main-menu character model preview. This renderer is separate from gameplay,

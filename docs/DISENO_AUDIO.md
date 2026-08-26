@@ -185,7 +185,7 @@ La dificultad escala LINEAL (`difficultyScalar` es el knob único; waves 2.8s→
 ## 10a. Autoría aprobada (OFFLINE; no runtime)
 
 - **SFX:** generador procedural determinista offline con recetas/semillas versionadas; produce WAV masters y exports runtime pre-renderizados. No usar síntesis runtime.
-- **Música:** Suno solo bajo plan Pro/Premier activo en el momento de generar para uso comercial; conservar los artefactos y evidencia de licencia requeridos. No imitar artistas.
+- **Music:** do not imitate artists; retain the immutable masters, hashes, and technical provenance required by the pipeline. For the Suno/ElevenLabs masters already shipped in the Steam release candidate, receipts, URLs/IDs, account/subscription records, and private commercial-entitlement evidence are outside the gate by explicit maintainer risk acceptance; this neither proves rights nor claims that such evidence exists.
 - **Fuente canónica:** `docs/AUDIO_AUTHORING_PIPELINE.md` define manifiesto `evento semántico → asset`, variantes, normalización/fades, provenance y fuentes oficiales.
 
 ## 11. Requisitos para el catálogo completo (DESPUÉS de Fase 5)
@@ -220,7 +220,11 @@ Implemented authoring validation pack: deterministic offline Node generator with
 
 ## Benchmark packaged de Audio Foundation (2026-07-17)
 
-Benchmark evidence: packaged Electron uses the explicit `--audio-benchmark` flag, a real automated click for Web Audio, seeded `Math.random` for the full scenario, and writes `tmp/perf-audio-output/report.json`. PASS: seed 4979220, digest `4979220:240-112-48:0.25:4`, 404 peak / 411 minimum / 411 end enemies at 800x600, 3 s warmup + 10 s rAF; 120.10 mean FPS, 119 minimum complete 1 s bucket FPS and 8.5 ms p99 on Ryzen 7 3700X + RTX 2060 (D3D11). Actual paths: 9 kills, 7 XP pickups, 14 Gold pickups; audio 47 attempts / 27 accepted, peak 15 voices, 20 cooldown drops, 0 steals/load failures/leaks, cleanup 0 active voices. This validates this machine only. Gotcha: hidden Electron windows throttle rAF to ~1 FPS on this Windows compositor, so the explicit benchmark window is visible; ordinary production stays without benchmark API or DevTools.
+Historical `0.30.7/0.30.8` evidence: the former packaged Electron rig passed with seed 4979220 and digest `4979220:240-112-48:0.25:4`: 404 peak / 411 minimum / 411 end enemies at 800x600, 3 s warmup + 10 s rAF; 120.10 mean FPS, 119 minimum complete 1 s bucket FPS and 8.5 ms p99 on Ryzen 7 3700X + RTX 2060 (D3D11). Actual paths: 9 kills, 7 XP pickups, 14 Gold pickups; audio 47 attempts / 27 accepted, peak 15 voices, 20 cooldown drops, 0 steals/load failures/leaks, cleanup 0 active voices. This remains historical machine/scenario evidence only.
+
+Current `0.30.9` workflow: `pnpm benchmark:audio` starts a Vite development server and development Electron. The deterministic rig lives only in `src/dev/audio-benchmark.ts`, imported behind `import.meta.env.DEV`; release source has no CLI/query route, and `tools/check-release-bundle.mjs` rejects the hook, scenario or full-Game exposure in built output. Tooling-owned acceptance is mean FPS ≥60, every complete one-second bucket ≥50 FPS, p99 frame time >0 and ≤33.4 ms, minimum/end population ≥400, peak voices ≤22, at least one kill/XP/Gold/audio attempt/accepted event, zero load failures/leaked voices, and zero active voices after cleanup. A fixed 5 s rendered-frame warm-up pays first-use work before the fixed 10 s sample without selecting a window from observed FPS.
+
+The single controlled run after defining that policy is retained at `docs/evidence/audio-benchmark-dev-0.30.9.json` and **FAILED** overall: 105.20 mean FPS, 97 minimum complete bucket, 32.7 ms p99, 434 minimum / 448 end enemies, 10 kills, 8 XP pickups and 21 Gold pickups all passed; peak voices reached 24 against the ≤22 bound. Load failures, leaks and cleanup active voices were all zero. No retry or threshold tuning followed. This is DEV regression/load evidence only, NOT production-ASAR, Steam-performance or minimum-hardware proof.
 
 ## Canonical planning gate
 

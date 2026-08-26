@@ -1,0 +1,181 @@
+{
+  "timestamp": "2026-08-26T12:42:39.180Z",
+  "environment": "vite-development-server",
+  "scenario": {
+    "scenario": "audio-swarm-416",
+    "seed": 4979220,
+    "enemies": 400,
+    "digest": "4979220:240-112-48:0.25:4"
+  },
+  "scenarioDigest": "4979220:240-112-48:0.25:4",
+  "enemyMinimum": 434,
+  "enemyEnd": 448,
+  "warmupMs": 5000,
+  "durationMs": 10000,
+  "warmup": {
+    "requestedMs": 5000,
+    "actualMs": 5002.400000023841,
+    "renderedFrames": 163
+  },
+  "device": {
+    "cpu": "AMD Ryzen 7 3700X 8-Core Processor             ",
+    "platform": "win32 10.0.19045"
+  },
+  "metrics": {
+    "meanFps": 105.19579216831326,
+    "minimumBucketFps": 97,
+    "frameTimeP99Ms": 32.70000000000073,
+    "minimumEnemies": 434,
+    "resolution": "800x600",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) voltswarm/0.30.9 Chrome/150.0.7871.224 Electron/43.4.0 Safari/537.36",
+    "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 2060 (0x00001F08) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "end": {
+      "enemies": 448,
+      "kills": 10,
+      "xpPickups": 8,
+      "goldPickups": 21,
+      "audio": {
+        "activeVoices": 5,
+        "peakActiveVoices": 24,
+        "drops": 27,
+        "steals": 8,
+        "loadFailures": 0,
+        "leakedVoices": 0,
+        "attempts": 69,
+        "accepted": 42,
+        "contextState": "running"
+      }
+    }
+  },
+  "cleanup": {
+    "enemies": 0,
+    "kills": 10,
+    "xpPickups": 8,
+    "goldPickups": 21,
+    "audio": {
+      "activeVoices": 0,
+      "peakActiveVoices": 24,
+      "drops": 27,
+      "steals": 8,
+      "loadFailures": 0,
+      "leakedVoices": 0,
+      "attempts": 69,
+      "accepted": 42,
+      "contextState": "running"
+    }
+  },
+  "thresholds": {
+    "minimumMeanFps": 60,
+    "minimumBucketFps": 50,
+    "maximumP99FrameMs": 33.4,
+    "minimumEnemies": 400,
+    "maximumPeakVoices": 22,
+    "minimumKills": 1,
+    "minimumXpPickups": 1,
+    "minimumGoldPickups": 1,
+    "minimumAudioAttempts": 1,
+    "minimumAudioAccepted": 1,
+    "maximumLoadFailures": 0,
+    "maximumLeakedVoices": 0,
+    "maximumCleanupVoices": 0
+  },
+  "checks": [
+    {
+      "id": "mean-fps",
+      "actual": 105.19579216831326,
+      "expected": ">= 60",
+      "pass": true
+    },
+    {
+      "id": "minimum-bucket-fps",
+      "actual": 97,
+      "expected": ">= 50",
+      "pass": true
+    },
+    {
+      "id": "p99-frame-time-ms",
+      "actual": 32.70000000000073,
+      "expected": "> 0 and <= 33.4",
+      "pass": true
+    },
+    {
+      "id": "minimum-enemy-population",
+      "actual": 434,
+      "expected": ">= 400",
+      "pass": true
+    },
+    {
+      "id": "end-enemy-population",
+      "actual": 448,
+      "expected": ">= 400",
+      "pass": true
+    },
+    {
+      "id": "kills",
+      "actual": 10,
+      "expected": ">= 1",
+      "pass": true
+    },
+    {
+      "id": "xp-pickups",
+      "actual": 8,
+      "expected": ">= 1",
+      "pass": true
+    },
+    {
+      "id": "gold-pickups",
+      "actual": 21,
+      "expected": ">= 1",
+      "pass": true
+    },
+    {
+      "id": "audio-attempts",
+      "actual": 69,
+      "expected": ">= 1",
+      "pass": true
+    },
+    {
+      "id": "audio-accepted",
+      "actual": 42,
+      "expected": ">= 1",
+      "pass": true
+    },
+    {
+      "id": "peak-voices",
+      "actual": 24,
+      "expected": "<= 22",
+      "pass": false
+    },
+    {
+      "id": "load-failures",
+      "actual": 0,
+      "expected": "<= 0",
+      "pass": true
+    },
+    {
+      "id": "live-leaked-voices",
+      "actual": 0,
+      "expected": "<= 0",
+      "pass": true
+    },
+    {
+      "id": "cleanup-active-voices",
+      "actual": 0,
+      "expected": "<= 0",
+      "pass": true
+    },
+    {
+      "id": "cleanup-leaked-voices",
+      "actual": 0,
+      "expected": "<= 0",
+      "pass": true
+    },
+    {
+      "id": "cleanup-load-failures",
+      "actual": 0,
+      "expected": "<= 0",
+      "pass": true
+    }
+  ],
+  "pass": false
+}

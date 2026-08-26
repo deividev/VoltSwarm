@@ -12,6 +12,11 @@ import path from 'node:path';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const configPath = path.join(root, 'src', 'config.ts');
 const source = readFileSync(configPath, 'utf8');
+const productionSources = [
+  path.join(root, 'electron', 'main.ts'),
+  path.join(root, 'src', 'game.ts'),
+  path.join(root, 'src', 'audio.ts'),
+];
 
 /** Flags that must read `false` in a release build. `block` scopes the search to
  *  one exported table so a same-named key elsewhere cannot satisfy the check. */
@@ -54,6 +59,15 @@ for (const { block, key, why } of GUARDED) {
     problems.push(`${block}.${key} not found — the guard cannot verify it.`);
   } else if (match[1] === 'true') {
     problems.push(`${block}.${key} is true — ${why}.`);
+  }
+}
+
+for (const productionPath of productionSources) {
+  const productionSource = readFileSync(productionPath, 'utf8');
+  for (const token of ['--audio-benchmark', 'audioBenchmark', '__voltswarmAudioBenchmark', 'startAudioBenchmark']) {
+    if (productionSource.includes(token)) {
+      problems.push(`${path.relative(root, productionPath)} contains ${token} — the development benchmark must not have a production route.`);
+    }
   }
 }
 

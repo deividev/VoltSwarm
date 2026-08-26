@@ -15,6 +15,11 @@ test('every supported packaging entry point runs the release flag guard', () => 
   );
 });
 
+test('every supported packaging entry point scans built output for development hooks', () => {
+  assert.match(pkg.scripts.package, /check:release-bundle && electron-builder$/);
+  assert.match(pkg.scripts['package:dir'], /check:release-bundle && electron-builder --dir$/);
+});
+
 test('packaging keeps the native Steam runtime and excludes type-only dependencies', () => {
   assert.ok(pkg.dependencies['steamworks.js'], 'Steamworks must remain a production dependency');
   assert.ok(
