@@ -5,6 +5,10 @@ body * {
   user-select: none;
 }
 
+img {
+  -webkit-user-drag: none;
+}
+
 #hud {
   position: fixed;
   inset: 0;
