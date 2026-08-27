@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.13.45-demo",
+  "version": "0.13.46-demo",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -82,7 +82,7 @@
     ]
   },
   "build": {
-    "buildVersion": "0.13.45.0",
+    "buildVersion": "0.13.46.0",
     "appId": "com.davidseco.voltswarm.demo",
     "productName": "Voltswarm Demo",
     "directories": {
@@ -102,6 +102,8 @@
       "!node_modules/steamworks.js/LICENSE",
       "!dist/assets/audio/sfx/**",
       "!dist/assets/2d/ref-field-engineer-side-v1.png",
+      "!dist/assets/2d/ref-drone-back-v1.png",
+      "!dist/assets/2d/ref-drone-front.png",
       "!dist/assets/2d/ref-final-boss-front-v2.png",
       "!dist/assets/2d/ref-final-boss-side-v2.png",
       "!dist/assets/2d/ref-final-boss-back-v2.png",
