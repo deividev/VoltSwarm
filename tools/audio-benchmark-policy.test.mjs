@@ -5,7 +5,7 @@ import { AUDIO_BENCHMARK_THRESHOLDS, evaluateAudioBenchmark } from './audio-benc
 function passingFixture() {
   const audio = {
     activeVoices: 5,
-    peakActiveVoices: 18,
+    peakActiveVoices: 24,
     drops: 20,
     steals: 2,
     loadFailures: 0,
@@ -26,10 +26,19 @@ function passingFixture() {
   };
 }
 
-test('the complete boundary fixture passes every internal DEV acceptance check', () => {
+test('the complete boundary fixture passes with 24 peak voices', () => {
   const result = evaluateAudioBenchmark(passingFixture());
   assert.equal(result.pass, true);
   assert.equal(result.checks.every((check) => check.pass), true);
+  assert.equal(result.checks.find((check) => check.id === 'peak-voices')?.pass, true);
+});
+
+test('25 peak voices fails the internal DEV ceiling', () => {
+  const fixture = passingFixture();
+  fixture.metrics.end.audio.peakActiveVoices = 25;
+  const result = evaluateAudioBenchmark(fixture);
+  assert.equal(result.pass, false);
+  assert.equal(result.checks.find((check) => check.id === 'peak-voices')?.pass, false);
 });
 
 test('a low complete one-second bucket fails even when mean FPS is high', () => {

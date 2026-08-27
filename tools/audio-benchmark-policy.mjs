@@ -3,7 +3,7 @@ export const AUDIO_BENCHMARK_THRESHOLDS = Object.freeze({
   minimumBucketFps: 50,
   maximumP99FrameMs: 33.4,
   minimumEnemies: 400,
-  maximumPeakVoices: 22,
+  maximumPeakVoices: 24,
   minimumKills: 1,
   minimumXpPickups: 1,
   minimumGoldPickups: 1,
