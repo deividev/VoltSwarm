@@ -255,7 +255,7 @@ test('Fully Loaded requires the exact completed Rack Hauler character ID', () =>
   assert.equal(fullyLoaded.isComplete(lifetime({ completedCharacterIds: ['rack-hauler'] })), true);
   assert.equal(fullyLoaded.isComplete(lifetime({ completedCharacterIds: ['Rack Hauler'] })), false);
   assert.equal(fullyLoaded.isComplete(lifetime({
-    completedCharacterIds: ['ref-rack-hauler-front-v3-seafoam.png'],
+    completedCharacterIds: ['ref-rack-hauler-front-v4-seafoam.png'],
   })), false);
   assert.equal(fullyLoaded.isComplete(lifetime({ completedCharacterIds: null })), false);
   assert.equal(fullyLoaded.isComplete(lifetime({ completedCharacterIds: 'rack-hauler' })), false);

@@ -13,6 +13,11 @@ const OUTPUT_DIR = 'public/assets/2d';
 const SCALE = 12;
 const ROWS = 68;
 const FRONT_COLS = 41;
+// Keep the full source-derived silhouette inside a deliberate transparent
+// safety frame. The voxelizer measures the occupied alpha bbox, so this does
+// not change Rack Hauler's model proportions or gameplay geometry.
+const PAD_CELLS = 2;
+const OUTPUT_VERSION = 'v4-seafoam';
 const DEBUG = process.argv.includes('--debug');
 
 const COLORS = {
@@ -194,6 +199,13 @@ function colorComponents(grid, color) {
   return sizes.sort((a,b)=>b-a);
 }
 
+function addTransparentFrame(grid, cells) {
+  if (!Number.isInteger(cells) || cells < 1) throw new Error('Transparent frame must be at least one cell');
+  const empty = '.'.repeat(grid[0].length + cells * 2);
+  const framed = grid.map((row) => `${'.'.repeat(cells)}${row}${'.'.repeat(cells)}`);
+  return [...Array(cells).fill(empty), ...framed, ...Array(cells).fill(empty)];
+}
+
 let crcTable;
 function crc32(buf) {
   if (!crcTable) { crcTable = new Int32Array(256); for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xedb88320^(c>>>1):c>>>1;crcTable[n]=c;} }
@@ -229,6 +241,10 @@ for (const [name,file,fixedCols,fixedRows] of specs) {
     if (sockets.length !== 4) throw new Error(`Expected 4 top docking recesses, found ${sockets.length}`);
   }
   if (DEBUG) grid.forEach((r)=>console.log(r));
-  writePng(`${OUTPUT_DIR}/ref-rack-hauler-${name}-v3-seafoam.png`,grid);
+  // Frame the freshly resampled authoritative source, never the previous v3
+  // raster. This preserves every detected silhouette cell and gives reviewers
+  // an explicit alpha-clear edge on all four sides.
+  grid = addTransparentFrame(grid, PAD_CELLS);
+  writePng(`${OUTPUT_DIR}/ref-rack-hauler-${name}-${OUTPUT_VERSION}.png`,grid);
 }
 await browser.close();

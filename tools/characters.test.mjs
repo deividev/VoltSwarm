@@ -1,5 +1,6 @@
 import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'vite';
 import * as THREE from 'three';
@@ -538,10 +539,10 @@ test('both character rosters reuse approved front model references without mount
     readFile(new URL('../src/hud.ts', import.meta.url), 'utf8'),
     readFile(new URL('../src/ui.css', import.meta.url), 'utf8'),
     readFile(new URL('../public/assets/2d/ref-field-engineer-front-v1.png', import.meta.url)),
-    readFile(new URL('../public/assets/2d/ref-rack-hauler-front-v3-seafoam.png', import.meta.url)),
-    readFile(new URL('../public/assets/2d/ref-rack-hauler-side-v3-seafoam.png', import.meta.url)),
-    readFile(new URL('../public/assets/2d/ref-rack-hauler-back-v3-seafoam.png', import.meta.url)),
-    readFile(new URL('../public/assets/2d/ref-rack-hauler-top-v3-seafoam.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-rack-hauler-front-v4-seafoam.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-rack-hauler-side-v4-seafoam.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-rack-hauler-back-v4-seafoam.png', import.meta.url)),
+    readFile(new URL('../public/assets/2d/ref-rack-hauler-top-v4-seafoam.png', import.meta.url)),
     readFile(new URL('../public/assets/2d/ref-overclocker-front-v1.png', import.meta.url)),
     readFile(new URL('../public/assets/2d/ref-overclocker-side-v1.png', import.meta.url)),
     readFile(new URL('../public/assets/2d/ref-overclocker-back-v1.png', import.meta.url)),
@@ -581,13 +582,13 @@ test('both character rosters reuse approved front model references without mount
   assert.ok(registry.VOXEL_MODELS[characters.CHARACTER_REGISTRY['field-engineer'].modelKey]);
   const rack = characters.CHARACTER_REGISTRY['rack-hauler'];
   assert.equal(rack.modelKey, 'rack-hauler');
-  assert.equal(rack.portrait, 'assets/2d/ref-rack-hauler-front-v3-seafoam.png');
+  assert.equal(rack.portrait, 'assets/2d/ref-rack-hauler-front-v4-seafoam.png');
   assert.deepEqual(registry.VOXEL_MODELS[rack.modelKey], {
     kind: 'player',
-    ref: 'assets/2d/ref-rack-hauler-front-v3-seafoam.png',
-    sideProfileRef: 'assets/2d/ref-rack-hauler-side-v3-seafoam.png',
-    backPaintRef: 'assets/2d/ref-rack-hauler-back-v3-seafoam.png',
-    topPaintRef: 'assets/2d/ref-rack-hauler-top-v3-seafoam.png',
+    ref: 'assets/2d/ref-rack-hauler-front-v4-seafoam.png',
+    sideProfileRef: 'assets/2d/ref-rack-hauler-side-v4-seafoam.png',
+    backPaintRef: 'assets/2d/ref-rack-hauler-back-v4-seafoam.png',
+    topPaintRef: 'assets/2d/ref-rack-hauler-top-v4-seafoam.png',
     topPaintColors: [0x3b9b73, 0xbae8c6, 0x202830, 0xe9f6ff],
     sidePaint: true,
     targetWidth: 41,
@@ -612,8 +613,12 @@ test('both character rosters reuse approved front model references without mount
   }
   assert.deepEqual(
     [rackPortraitBytes, rackSideBytes, rackBackBytes, rackTopBytes].map((bytes) => [bytes.readUInt32BE(16), bytes.readUInt32BE(20)]),
-    [[492, 816], [192, 816], [492, 816], [492, 684]],
+    [[540, 864], [240, 864], [540, 864], [540, 732]],
   );
+  assert.equal(new Set(
+    [rackPortraitBytes, rackSideBytes, rackBackBytes, rackTopBytes]
+      .map((bytes) => createHash('sha256').update(bytes).digest('hex')),
+  ).size, 4);
   const overclocker = characters.CHARACTER_REGISTRY.overclocker;
   assert.equal(overclocker.modelKey, 'overclocker');
   assert.equal(overclocker.portrait, 'assets/2d/ref-overclocker-front-v1.png');

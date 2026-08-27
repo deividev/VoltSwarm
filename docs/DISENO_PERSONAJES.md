@@ -7,7 +7,7 @@
 | Character | Role | Gameplay | Art | Runtime |
 |---|---|---|---|---|
 | Field Engineer | Forgiving starting character | Implemented | Runtime v1 definitively approved in-game | Playable |
-| Rack Hauler | Broad weapon rack / shallow Core depth | Implemented | Seafoam v3 approved; Map 1/2 checked | Playable; specific 400+ gate passed |
+| Rack Hauler | Broad weapon rack / shallow Core depth | Implemented | Seafoam v4 framed exports; Map 1/2 checked | Playable; specific 400+ gate passed |
 | Overclocker | Premium loot / glass body | Final | Runtime v1 approved by explicit user acceptance | Closed; no separate 400+ result claimed |
 
 ## Field Engineer
@@ -54,7 +54,7 @@ Rack Hauler dobla la capacidad de build horizontal: carga un arma más y un Core
 - `src/socket-rewards.ts`, persistencia, liquidación de Contracts y pips de la UI de Contracts siguen globales. Seleccionar un personaje nunca mutará `PROFILE`.
 - Runs guardadas, replay y Boss Lab restauran `rack-hauler` por ID aunque el perfil actual esté bloqueado; IDs desconocidos sí conservan el fallback histórico a Field Engineer.
 - `Proving Ground` y `Two of a Kind` están activos. El catálogo queda en 29 Contracts declarados / 29 activos / 0 latentes.
-- Arte runtime final: `ref-rack-hauler-{front,side,back,top}-v3-seafoam.png`, paleta seafoam `#BAE8C6`, tool green `#3B9B73`, graphite `#202830` y visor `#E9F6FF`. El modelo medido usa 14.914 vóxeles / 13.120 triángulos por instancia.
+- Arte runtime final: `ref-rack-hauler-{front,side,back,top}-v4-seafoam.png`, regenerado desde las fuentes ortográficas aprobadas con marco alpha deliberado en los cuatro bordes; no deriva de ampliar los raster v3. Conserva la paleta seafoam `#BAE8C6`, tool green `#3B9B73`, graphite `#202830` y visor `#E9F6FF`. El voxelizador recorta por el bbox alpha ocupado, por lo que mantiene el modelo medido de 14.914 vóxeles / 13.120 triángulos por instancia.
 - Se verificaron previews cardinales 0°/90°/180°/270° y lectura real en Mapa 1 y Mapa 2. El harness read-only por hooks DEV seleccionó Rack Hauler real con desbloqueo solo en memoria y sostuvo 430 enemigos durante 12 s en Mapa 2: 430/430 movidos, modelo `rack-hauler` antes/después, 119.94 FPS medios, bucket mínimo 119.76, mediana 8.3 ms, p99 8.5 ms, 13.120 triángulos y 0 errores de página. Esto supera el gate específico 400+ de lectura/modelo sin degradación obvia. No equivale al benchmark canónico VFX-heavy de 65 s porque `tools/perf-stress.mjs` siempre confirma Field Engineer y no acepta personaje; parametrizarlo sigue siendo cobertura extendida, no un gate abierto de Rack.
 
 ### Checklist de integración

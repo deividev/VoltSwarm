@@ -138,7 +138,7 @@ export const CHARACTER_REGISTRY: Readonly<Record<CharacterId, CharacterDef>> = {
     name: 'Rack Hauler',
     archetype: 'Weapon Volume',
     shortDescription: 'A broad weapon carrier that trades Core depth for a larger arsenal.',
-    portrait: 'assets/2d/ref-rack-hauler-front-v3-seafoam.png',
+    portrait: 'assets/2d/ref-rack-hauler-front-v4-seafoam.png',
     modelKey: 'rack-hauler',
     maxHp: CHARACTER_BALANCE.rackHauler.maxHp,
     moveSpeed: CHARACTER_BALANCE.rackHauler.moveSpeed,

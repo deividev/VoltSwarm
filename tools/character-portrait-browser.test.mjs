@@ -448,7 +448,7 @@ try {
     assert.ok(Number(locked.progressNow) >= 0);
     assert.equal(locked.progressMax, '4');
     assert.equal(locked.header, 'Rack Hauler');
-    assert.equal(locked.portrait, 'assets/2d/ref-rack-hauler-front-v3-seafoam.png');
+    assert.equal(locked.portrait, 'assets/2d/ref-rack-hauler-front-v4-seafoam.png');
     assert.equal(locked.signature, 'Open Rack');
     assert.equal(locked.signatureIcon, 'assets/2d/icon-stat-projectiles-v2.png');
     assert.equal(locked.critChance, '3%');
