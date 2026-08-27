@@ -26,13 +26,33 @@ interface SteamworksModule {
 
 let steamClient: SteamAchievementClient | null = null;
 let achievementOutbox: AchievementOutbox | null = null;
+let steamworksModule: SteamworksModule | null = null;
+
+function loadSteamworks(): SteamworksModule {
+  if (steamworksModule) return steamworksModule;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  steamworksModule = require('steamworks.js') as SteamworksModule;
+  return steamworksModule;
+}
+
+const steamAppId = resolveSteamAppId(app.isPackaged, process.env['STEAM_APP_ID']);
+
+function enableSteamOverlay(): void {
+  if (steamAppId === null) return;
+  try {
+    loadSteamworks().electronEnableSteamOverlay();
+  } catch (error) {
+    console.warn('Steam overlay disabled:', (error as Error).message);
+  }
+}
+
+// steamworks.js configures Electron's GPU process here. This must run during
+// module evaluation, before app readiness and before the first BrowserWindow.
+enableSteamOverlay();
 
 function initSteam(appId: number): void {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const steamworks = require('steamworks.js') as SteamworksModule;
-    steamClient = steamworks.init(appId);
-    steamworks.electronEnableSteamOverlay();
+    steamClient = loadSteamworks().init(appId);
   } catch (error) {
     console.warn('Steam disabled:', (error as Error).message);
     steamClient = null;
@@ -435,7 +455,6 @@ void app.whenReady().then(() => {
     } satisfies AchievementSyncResult;
   });
 
-  const steamAppId = resolveSteamAppId(app.isPackaged, process.env['STEAM_APP_ID']);
   // Development is deliberately inert unless the developer supplies an App
   // ID explicitly. Do not even create a pending outbox entry: a normal dev run
   // must not become a production unlock when the player later launches Steam.
