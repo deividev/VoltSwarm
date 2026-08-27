@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      steamworks.js:
+        specifier: 0.4.0
+        version: 0.4.0
       three:
         specifier: ^0.169.0
         version: 0.169.0
@@ -1598,6 +1601,10 @@ packages:
   stat-mode@1.0.0:
     resolution: {integrity: sha512-jH9EhtKIjuXZ2cWxmXS8ZP80XyC3iasQxMDV8jzhNJpfDb7VbQLVW4Wvsxz9QZvzV+G4YoSfBUVKDOyxLzi/sg==}
     engines: {node: '>= 6'}
+
+  steamworks.js@0.4.0:
+    resolution: {integrity: sha512-O5TTRs7ucCRql4IA/kYUIQYeghTsXqf3rAm81sC22RDId264LQYqQjuaMEUSqL60I5LdULiGu0W2/A+ZDcKBKA==}
+    engines: {node: '>= 14'}
 
   string-width@4.2.3:
     resolution: {integrity: sha512-wKyQRQpjJ0sIp62ErSZdGsjMJWsap5oRNihHhu6G7JVO/9jIB6UyevL+tXuOqrng8j/cxKTWyWUwvSTriiZz/g==}
@@ -3509,6 +3516,10 @@ snapshots:
       minipass: 3.3.6
 
   stat-mode@1.0.0: {}
+
+  steamworks.js@0.4.0:
+    dependencies:
+      '@types/node': 22.20.1
 
   string-width@4.2.3:
     dependencies:

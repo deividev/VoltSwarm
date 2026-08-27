@@ -52,20 +52,55 @@ function fullGameStoreTarget(): string | null {
   }
 }
 
-// Steam SDK client, or null when Steam is disabled. `steamworks.js` is optional:
-// it is required lazily so the app builds and runs without the dependency.
-let steamClient: { achievement: { activate(name: string): boolean } } | null = null;
+interface SteamClient {
+  achievement: { activate(name: string): boolean };
+}
+
+interface SteamworksModule {
+  init(appId?: number): SteamClient;
+  electronEnableSteamOverlay(disableEachFrameInvalidation?: boolean): void;
+}
+
+let steamClient: SteamClient | null = null;
+let steamworksModule: SteamworksModule | null = null;
+
+function steamRuntimeEnabled(): boolean {
+  return app.isPackaged || process.env['STEAM_APP_ID'] !== undefined;
+}
+
+function explicitSteamAppId(): number | undefined {
+  const raw = process.env['STEAM_APP_ID'];
+  if (!raw || !/^\d+$/.test(raw)) return undefined;
+  const value = Number(raw);
+  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+
+function loadSteamworks(): SteamworksModule {
+  if (steamworksModule) return steamworksModule;
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  steamworksModule = require('steamworks.js') as SteamworksModule;
+  return steamworksModule;
+}
+
+function enableSteamOverlay(): void {
+  if (!steamRuntimeEnabled()) return;
+  try {
+    loadSteamworks().electronEnableSteamOverlay();
+  } catch (error) {
+    console.warn('Steam overlay disabled:', (error as Error).message);
+  }
+}
+
+// steamworks.js configures Electron's GPU process here. This must run during
+// module evaluation, before app readiness and before the first BrowserWindow.
+enableSteamOverlay();
 
 function initSteam(): void {
-  const appId = process.env['STEAM_APP_ID'];
-  if (!appId) return; // Steam stays disabled until an App ID is configured.
+  if (!steamRuntimeEnabled()) return;
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const steamworks = require('steamworks.js');
-    steamClient = steamworks.init(Number(appId));
-    if (typeof steamworks.electronEnableSteamOverlay === 'function') {
-      steamworks.electronEnableSteamOverlay();
-    }
+    const appId = explicitSteamAppId();
+    const steamworks = loadSteamworks();
+    steamClient = appId === undefined ? steamworks.init() : steamworks.init(appId);
   } catch (error) {
     console.warn('Steam disabled:', (error as Error).message);
     steamClient = null;
