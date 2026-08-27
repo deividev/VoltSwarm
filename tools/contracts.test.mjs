@@ -114,6 +114,30 @@ test('contract catalog exposes Map 2 branch rules and configured mastery copy', 
   assert.equal(preview['endurance-3'], null);
 });
 
+test('multi-weapon progress exposes only valid weapon ids that actually count', () => {
+  const mastery = config.CONTRACTS.ladders.masteryDamage;
+  const stats = structuredClone(lifetimeBaseline);
+  stats.damageByWeapon = { bolt: mastery, pulse: mastery - 1, ghost: mastery * 2, acid: mastery * 2 };
+  stats.runsByStartingWeapon = { tire: 1, pulse: 0, ghost: 3 };
+
+  const mastered = { type: 'weapons-mastered', n: 5 };
+  assert.deepEqual(contracts.creditedWeaponIds(mastered, stats), ['bolt', 'acid']);
+  assert.deepEqual(contracts.progressOf(mastered, stats), { current: 2, target: 5 });
+
+  const started = { type: 'distinct-starting-weapons', n: 3 };
+  assert.deepEqual(contracts.creditedWeaponIds(started, stats), ['tire']);
+  assert.deepEqual(contracts.progressOf(started, stats), { current: 1, target: 3 });
+
+  profile.LIFETIME.damageByWeapon = stats.damageByWeapon;
+  const arsenal = contracts.ALL_CONTRACTS.find(({ id }) => id === 'arsenal-5');
+  const evidence = hud.contractWeaponEvidenceHtml(arsenal);
+  assert.match(evidence, /COUNTED WEAPONS/);
+  assert.match(evidence, />2 \/ 5</);
+  assert.match(evidence, /icon-weapon-bolt\.png/);
+  assert.match(evidence, /icon-weapon-acid-drum\.png/);
+  assert.doesNotMatch(evidence, /icon-weapon-pulse\.png|ghost/);
+});
+
 test('socket rewards expose distinct canonical targets and settle once in signature order', () => {
   const secondWind = contracts.ALL_CONTRACTS.find(({ id }) => id === 'second-wind');
   const fullLoadout = contracts.ALL_CONTRACTS.find(({ id }) => id === 'full-loadout');

@@ -272,6 +272,20 @@ export function isContractId(value: unknown): value is string {
 /** Contracts the player can actually see and earn right now. */
 export const ACTIVE_CONTRACTS: Contract[] = ALL_CONTRACTS.filter((c) => !c.latent);
 
+/** Concrete weapon ids already credited by a multi-weapon objective. Keeping
+ * this beside progressOf guarantees the icon strip and numeric progress read
+ * the same terminal-run ledger instead of inventing a second definition. */
+export function creditedWeaponIds(objective: Objective, stats: LifetimeStats = LIFETIME): WeaponId[] {
+  const entries = objective.type === 'weapons-mastered'
+    ? Object.entries(stats.damageByWeapon).filter(([, damage]) => damage >= CONTRACTS.ladders.masteryDamage)
+    : objective.type === 'distinct-starting-weapons'
+      ? Object.entries(stats.runsByStartingWeapon).filter(([, runs]) => runs > 0)
+      : [];
+  return entries
+    .map(([id]) => id)
+    .filter((id): id is WeaponId => Object.prototype.hasOwnProperty.call(WEAPON_INFO, id));
+}
+
 /** Current and target for an objective. One function serves both "is it done?"
  *  and the progress bar, so the two can never disagree. */
 export function progressOf(objective: Objective, stats: LifetimeStats = LIFETIME): { current: number; target: number } {
@@ -302,11 +316,11 @@ export function progressOf(objective: Objective, stats: LifetimeStats = LIFETIME
     case 'flawless-run': return { current: stats.bestFlawlessRunS, target: objective.seconds };
     case 'weapons-mastered':
       return {
-        current: Object.values(stats.damageByWeapon).filter((d) => d >= CONTRACTS.ladders.masteryDamage).length,
+        current: creditedWeaponIds(objective, stats).length,
         target: objective.n,
       };
     case 'distinct-starting-weapons':
-      return { current: Object.keys(stats.runsByStartingWeapon).length, target: objective.n };
+      return { current: creditedWeaponIds(objective, stats).length, target: objective.n };
     case 'distinct-completed-characters':
       return { current: stats.completedCharacterIds.length, target: objective.n };
   }
