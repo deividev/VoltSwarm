@@ -31,12 +31,18 @@ type AchievementLifetime = Pick<
 
 type AchievementProfile = Pick<typeof PROFILE, 'weaponSockets' | 'coreSockets' | 'levelupDiscards'>;
 
+type AchievementIconRef = `art/concept/achievements/${string}.png`;
+
 interface AchievementDefinition {
   id: string;
   steamApiName: string;
   displayName: string;
   steamDescription: string;
   hidden: boolean;
+  iconRefs: {
+    readonly achieved: AchievementIconRef;
+    readonly locked: AchievementIconRef;
+  };
   isComplete(lifetime: AchievementLifetime, profile: AchievementProfile): boolean;
 }
 
@@ -47,6 +53,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'First Shift',
     steamDescription: 'Finish your first recorded run. Victories and defeats both count.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-first-shift-v1.png',
+      locked: 'art/concept/achievements/achievement-first-shift-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       lifetime.runsFinished >= ACHIEVEMENTS.firstShift.minimumRunsFinished,
   },
@@ -56,6 +66,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Crack the Cache',
     steamDescription: 'Open your first paid chest.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-crack-the-cache-v1.png',
+      locked: 'art/concept/achievements/achievement-crack-the-cache-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       sumPositive(lifetime.chestsByTier) >= ACHIEVEMENTS.cacheOpened.minimumPaidChests,
   },
@@ -65,6 +79,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Systems Online',
     steamDescription: 'Reach level 10 in a single run.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-systems-online-v1.png',
+      locked: 'art/concept/achievements/achievement-systems-online-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Number.isFinite(lifetime.bestLevel)
       && lifetime.bestLevel >= ACHIEVEMENTS.systemsOnline.minimumLevel,
@@ -75,6 +93,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Bigger They Fall',
     steamDescription: 'Defeat your first boss.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-bigger-they-fall-v1.png',
+      locked: 'art/concept/achievements/achievement-bigger-they-fall-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Number.isFinite(lifetime.bossesDefeated)
       && lifetime.bossesDefeated >= ACHIEVEMENTS.firstBossDown.minimumBossesDefeated,
@@ -85,6 +107,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Foundry Bound',
     steamDescription: 'Clear Scrapyard and enter Swarm Foundry.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-foundry-bound-v1.png',
+      locked: 'art/concept/achievements/achievement-foundry-bound-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Number.isFinite(lifetime.maxMapsReached)
       && lifetime.maxMapsReached >= ACHIEVEMENTS.foundryBound.minimumMapsReached,
@@ -95,6 +121,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Scrapyard Command',
     steamDescription: 'Defeat both Crusher King and Tesla Titan across your career.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-scrapyard-command-v1.png',
+      locked: 'art/concept/achievements/achievement-scrapyard-command-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Array.isArray(lifetime.bossTypesDefeated)
       && ACHIEVEMENTS.scrapyardCommand.requiredBossTypes.every(
@@ -107,6 +137,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Hazard Contained',
     steamDescription: 'Defeat the Hazard Marshal.',
     hidden: true,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-hazard-contained-v1.png',
+      locked: 'art/concept/achievements/achievement-hazard-contained-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Array.isArray(lifetime.bossTypesDefeated)
       && lifetime.bossTypesDefeated.includes(ACHIEVEMENTS.hazardContained.requiredBossType),
@@ -117,6 +151,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Full Circuit',
     steamDescription: 'Complete the full run by clearing both sectors in order.',
     hidden: true,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-full-circuit-v1.png',
+      locked: 'art/concept/achievements/achievement-full-circuit-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Number.isFinite(lifetime.runsCompleted)
       && lifetime.runsCompleted >= ACHIEVEMENTS.fullCircuit.minimumRunsCompleted,
@@ -127,6 +165,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Field Tested',
     steamDescription: 'Complete the full run as Field Engineer.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-field-tested-v1.png',
+      locked: 'art/concept/achievements/achievement-field-tested-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Array.isArray(lifetime.completedCharacterIds)
       && lifetime.completedCharacterIds.includes(ACHIEVEMENTS.fieldEngineerClear.requiredCharacterId),
@@ -137,6 +179,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Fully Loaded',
     steamDescription: 'Complete the full run as Rack Hauler.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-fully-loaded-v1.png',
+      locked: 'art/concept/achievements/achievement-fully-loaded-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Array.isArray(lifetime.completedCharacterIds)
       && lifetime.completedCharacterIds.includes(ACHIEVEMENTS.rackHaulerClear.requiredCharacterId),
@@ -147,6 +193,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Past Redline',
     steamDescription: 'Complete the full run as Overclocker.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-past-redline-v1.png',
+      locked: 'art/concept/achievements/achievement-past-redline-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Array.isArray(lifetime.completedCharacterIds)
       && lifetime.completedCharacterIds.includes(ACHIEVEMENTS.overclockerClear.requiredCharacterId),
@@ -157,6 +207,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Signed and Stamped',
     steamDescription: 'Complete your first Contract and receive its reward.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-signed-and-stamped-v1.png',
+      locked: 'art/concept/achievements/achievement-signed-and-stamped-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Array.isArray(lifetime.completedContracts)
       && lifetime.completedContracts.filter(isContractId).length
@@ -168,6 +222,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'No Empty Sockets',
     steamDescription: 'Unlock maximum Weapon and Core capacity, plus the extra level-up discard.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-no-empty-sockets-v1.png',
+      locked: 'art/concept/achievements/achievement-no-empty-sockets-locked-v1.png',
+    },
     isComplete: (_lifetime: AchievementLifetime, profile: AchievementProfile): boolean =>
       Number.isFinite(profile.weaponSockets)
       && profile.weaponSockets === PROFILE_CAPACITY.weaponSockets
@@ -182,6 +240,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Factory Specification',
     steamDescription: 'Raise any weapon to level 20 in a single run.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-factory-specification-v1.png',
+      locked: 'art/concept/achievements/achievement-factory-specification-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       hasPlayableWeaponAtReleaseCeiling(lifetime.weaponMaxLevel),
   },
@@ -191,6 +253,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Proven Hardware',
     steamDescription: 'Deal 50,000 lifetime damage with a single weapon.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-proven-hardware-v1.png',
+      locked: 'art/concept/achievements/achievement-proven-hardware-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       hasPlayableWeaponDamageAtMastery(lifetime.damageByWeapon),
   },
@@ -200,6 +266,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Core Array',
     steamDescription: 'Finish a recorded run carrying four distinct Cores.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-core-array-v1.png',
+      locked: 'art/concept/achievements/achievement-core-array-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Number.isInteger(lifetime.bestDistinctCoresHeld)
       && lifetime.bestDistinctCoresHeld === PROFILE_CAPACITY.coreSockets,
@@ -210,6 +280,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Custom Rig',
     steamDescription: 'Finish a recorded run carrying five distinct Mods.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-custom-rig-v1.png',
+      locked: 'art/concept/achievements/achievement-custom-rig-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Number.isInteger(lifetime.bestDistinctPermanentModsHeld)
       && lifetime.bestDistinctPermanentModsHeld >= ACHIEVEMENTS.fiveModRig.minimumDistinctMods,
@@ -220,6 +294,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Purist',
     steamDescription: 'Clear both sectors in one run with exactly one weapon and no Mods.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-purist-v1.png',
+      locked: 'art/concept/achievements/achievement-purist-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Number.isInteger(lifetime.bestPuristSectors)
       && lifetime.bestPuristSectors === CONTRACTS.puristSectors,
@@ -230,6 +308,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Untouchable',
     steamDescription: 'Survive for five minutes in a single run without taking damage.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-untouchable-v1.png',
+      locked: 'art/concept/achievements/achievement-untouchable-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       typeof lifetime.bestFlawlessRunS === 'number'
       && Number.isFinite(lifetime.bestFlawlessRunS)
@@ -241,6 +323,10 @@ export const ACHIEVEMENT_REGISTRY: readonly AchievementDefinition[] = [
     displayName: 'Overkill',
     steamDescription: 'Destroy 800 machines in a single run.',
     hidden: false,
+    iconRefs: {
+      achieved: 'art/concept/achievements/achievement-overkill-v1.png',
+      locked: 'art/concept/achievements/achievement-overkill-locked-v1.png',
+    },
     isComplete: (lifetime: AchievementLifetime): boolean =>
       Number.isInteger(lifetime.bestKillsInRun)
       && lifetime.bestKillsInRun >= CONTRACTS.overkillKillsInRun,
