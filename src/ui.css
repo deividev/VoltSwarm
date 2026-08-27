@@ -3660,6 +3660,58 @@ body:has(.menu-view:not(.hidden)) #build-panel {
   height: 10px; gap: 3px;
 }
 
+.contract-weapon-evidence {
+  margin-top: 10px;
+  padding-top: 9px;
+  border-top: 1px solid #2b3340;
+}
+
+.contract-weapon-evidence-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #8fa0b3;
+  font-size: 7px;
+  letter-spacing: 1px;
+}
+
+.contract-weapon-evidence-head strong {
+  margin: 0;
+  color: #7ee0ff;
+  font-size: 8px;
+}
+
+.contract-counted-weapons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.contract-counted-weapon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 1px solid #3fa9f5;
+  background: rgba(63, 169, 245, 0.1);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.025);
+}
+
+.contract-counted-weapon img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.contract-counted-empty {
+  color: #6f7b89;
+  font-size: 8px;
+}
+
 .contract-detail.done .contract-bar i::after {
   background: #5fd068;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 0 6px rgba(95, 208, 104, 0.45);

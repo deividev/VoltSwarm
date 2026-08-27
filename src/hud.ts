@@ -2,6 +2,7 @@ import { PROFILE, DEV_TOOLS, MENU_NAVIGATION, PICKUPS, PLAYER, WEAPON_INFO, avai
 import { LIFETIME, resetProfile, saveProfile } from './profile';
 import {
   ACTIVE_CONTRACTS,
+  creditedWeaponIds,
   describeObjective,
   describeReward,
   devCompleteAllContracts,
@@ -294,6 +295,21 @@ function cardIconHtml(cardId: string): string {
     image = (key ? STAT_ICON_IMAGES[key] : undefined) ?? CARD_ICON_IMAGES[cardId];
   }
   return image ? `<img class="card-icon" src="${image}" alt="" />` : '';
+}
+
+export function contractWeaponEvidenceHtml(contract: Contract): string {
+  const objective = contract.objective;
+  if (objective.type !== 'weapons-mastered' && objective.type !== 'distinct-starting-weapons') return '';
+  const counted = creditedWeaponIds(objective).slice(0, objective.n);
+  const icons = counted.map((id) => {
+    const src = WEAPON_ICON_IMAGES[id];
+    const label = WEAPON_INFO[id].title;
+    return `<span class="contract-counted-weapon" title="${label}" aria-label="${label}">${src ? `<img src="${src}" alt="" />` : ''}</span>`;
+  }).join('');
+  return '<div class="contract-weapon-evidence">' +
+    `<div class="contract-weapon-evidence-head"><span>COUNTED WEAPONS</span><strong>${counted.length} / ${objective.n}</strong></div>` +
+    `<div class="contract-counted-weapons">${icons || '<span class="contract-counted-empty">No weapons counted yet.</span>'}</div>` +
+  '</div>';
 }
 
 interface RigTileOptions {
@@ -1455,6 +1471,7 @@ export class Hud {
       '<div class="contract-detail-progress">' +
         `<strong>${fmtProgress(row.current, row.asTime)} / ${fmtProgress(row.target, row.asTime)}${row.done ? ' - SETTLED' : ''}</strong>` +
         segmentedContractBarHtml(row.current, row.target, `${row.contract.title} progress`, row.asTime) +
+        contractWeaponEvidenceHtml(row.contract) +
       '</div>' +
       `<div class="contract-detail-reward"><span>${row.done ? 'OWNED' : 'REWARD'}</span>${rewardLabelHtml(row.contract.reward, row.resolved, row.done)}</div>`;
     const title = detail.querySelector<HTMLElement>('.contract-detail-title');
