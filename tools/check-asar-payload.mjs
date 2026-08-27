@@ -19,8 +19,9 @@
 //
 // When it fails, the fix is always one of two things: wire the asset up, or add
 // a `!` negation pattern to `build.files` in package.json. There is deliberately
-// no allowlist in this file, so package.json stays the single source of truth
-// for what ships.
+// no broad allowlist in this file, so package.json stays the single source of
+// truth for what ships. The four Steamworks runtime files are the sole narrow
+// exception because asar.listPackage() also enumerates asarUnpack entries.
 //
 // Usage: automatic via `pnpm package`. Standalone:
 //   node tools/check-asar-payload.mjs <path-to-app.asar>
@@ -53,6 +54,15 @@ const TEXT_EXTENSIONS = new Set(['.js', '.mjs', '.cjs', '.css', '.html', '.json'
 
 /** Paperwork that must never ship, listed so the error names the real files. */
 const PAPERWORK_EXTENSIONS = new Set(['.md', '.markdown', '.txt']);
+
+const REQUIRED_STEAMWORKS_RUNTIME_PATHS = new Set([
+  'node_modules/steamworks.js/package.json',
+  'node_modules/steamworks.js/index.js',
+  'node_modules/steamworks.js/dist/win64/steam_api64.dll',
+  'node_modules/steamworks.js/dist/win64/steamworksjs.win32-x64-msvc.node',
+]);
+
+const isRequiredSteamworksRuntime = (file) => REQUIRED_STEAMWORKS_RUNTIME_PATHS.has(file.path);
 
 const toPosix = (entry) => entry.replace(/\\/g, '/').replace(/^\/+/, '');
 
@@ -96,7 +106,8 @@ export function inspectAsar(archive) {
     });
   }
 
-  const vendored = files.filter((f) => f.path.split('/').includes('node_modules'));
+  const vendored = files.filter((f) =>
+    f.path.split('/').includes('node_modules') && !isRequiredSteamworksRuntime(f));
   if (vendored.length > 0) {
     problems.push({
       rule: 'node_modules',
@@ -106,7 +117,8 @@ export function inspectAsar(archive) {
     });
   }
 
-  const strays = files.filter((f) => !ALLOWED_ROOTS.has(f.path.split('/')[0]));
+  const strays = files.filter((f) =>
+    !ALLOWED_ROOTS.has(f.path.split('/')[0]) && !isRequiredSteamworksRuntime(f));
   if (strays.length > 0) {
     problems.push({
       rule: 'unexpected-root',
