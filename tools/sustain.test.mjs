@@ -24,12 +24,12 @@ test('Sustain Core tiers and player-facing values are config-derived', () => {
   const lifesteal = card('lifesteal');
 
   assert.equal(config.PLAYER.regenTickS, 10);
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [2 / 6, 4 / 6, 6 / 6, 8 / 6, 10 / 6]);
   assert.deepEqual(
     config.CORE_TIER_MAGNITUDES.regen.map(config.regenHpPerMinute),
-    [1, 2, 3, 4, 5],
+    [2, 4, 6, 8, 10],
   );
-  assert.equal(regen.describe(config.CORE_TIER_MAGNITUDES.regen[0]), '+1 HP Regen/min');
+  assert.equal(regen.describe(config.CORE_TIER_MAGNITUDES.regen[0]), '+2 HP Regen/min');
 
   assert.equal(config.PLAYER.lifestealHealHp, 1);
   assert.equal(config.PLAYER.lifestealCooldownS, 1);
@@ -73,8 +73,8 @@ test('gameplay Field Repair excludes Hull Plates while other Core upgrades still
 });
 
 test('The runtime uses config-owned sustain values and feeds live Max HP into the stats sheet', async () => {
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen.map(config.regenHpPerMinute), [1, 2, 3, 4, 5]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [2 / 6, 4 / 6, 6 / 6, 8 / 6, 10 / 6]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen.map(config.regenHpPerMinute), [2, 4, 6, 8, 10]);
   assert.equal(config.PLAYER.regenTickS, 10);
   const [gameSource, hudSource] = await Promise.all([
     readFile(new URL('../src/game.ts', import.meta.url), 'utf8'),
