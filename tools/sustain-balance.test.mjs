@@ -71,7 +71,7 @@ test('stat sheet reads the live Max HP total after Hull Plates updates the playe
 });
 
 test('Leech Coil uses the reduced chance tiers while retaining its global cooldown', async () => {
-  assert.deepEqual(CORE_TIER_MAGNITUDES.lifesteal, [0.1, 0.5, 1, 1.5, 2]);
+  assert.deepEqual(CORE_TIER_MAGNITUDES.lifesteal, [0.25, 0.5, 1, 1.5, 2]);
   assert.equal(PLAYER.lifestealCooldownS, 1);
 
   const [leechCoil, gameSource] = await Promise.all([

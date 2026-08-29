@@ -173,13 +173,17 @@ test('Nanobot Swarm uses the increasing five-tier regen values and names its con
 test('Leech Coil uses the reduced five-tier chance values and retains its global cooldown', async () => {
   const leechCoil = upgrades.STAT_CARDS.find((card) => card.id === 'lifesteal');
   assert.ok(leechCoil);
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.lifesteal, [0.1, 0.5, 1, 1.5, 2]);
-  assert.deepEqual(leechCoil.magnitudes, [0.1, 0.5, 1, 1.5, 2]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.lifesteal, [0.25, 0.5, 1, 1.5, 2]);
+  assert.deepEqual(leechCoil.magnitudes, [0.25, 0.5, 1, 1.5, 2]);
   assert.equal(config.PLAYER.lifestealCooldownS, 1);
   assert.equal(
     leechCoil.describe(leechCoil.magnitudes[0]),
-    `+0.1% Lifesteal (0.1% chance on hit to heal 1 HP; ${config.PLAYER.lifestealCooldownS}s global cooldown)`,
+    `+0.25% Lifesteal (0.25% chance on hit to heal 1 HP; ${config.PLAYER.lifestealCooldownS}s global cooldown)`,
   );
+  const accumulated = stats.defaultStats();
+  leechCoil.apply(accumulated, {}, leechCoil.magnitudes[0]);
+  leechCoil.apply(accumulated, {}, leechCoil.magnitudes[1]);
+  assert.equal(accumulated.lifesteal, 0.75);
 
   const gameSource = await readFile(new URL('../src/game.ts', import.meta.url), 'utf8');
   assert.match(gameSource, /this\.player\.hp\s*=\s*Math\.min\(this\.player\.maxHp, this\.player\.hp \+ 1\);/);
@@ -189,6 +193,6 @@ test('Leech Coil uses the reduced five-tier chance values and retains its global
 test('Lifesteal stat formatting preserves fractional percentage points without trailing zeros', () => {
   assert.deepEqual(
     config.CORE_TIER_MAGNITUDES.lifesteal.map(hud.formatPercentPoints),
-    ['0.1%', '0.5%', '1%', '1.5%', '2%'],
+    ['0.25%', '0.5%', '1%', '1.5%', '2%'],
   );
 });
