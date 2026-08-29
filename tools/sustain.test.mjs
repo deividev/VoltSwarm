@@ -33,17 +33,21 @@ test('Sustain Core tiers and player-facing values are config-derived', () => {
 
   assert.equal(config.PLAYER.lifestealHealHp, 1);
   assert.equal(config.PLAYER.lifestealCooldownS, 1);
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.lifesteal, [0.1, 0.5, 1, 1.5, 2]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.lifesteal, [0.25, 0.5, 1, 1.5, 2]);
   assert.equal(
     lifesteal.describe(config.CORE_TIER_MAGNITUDES.lifesteal[0]),
-    '+0.1% Lifesteal (chance to restore 1 HP on hit; 1s global cooldown)',
+    '+0.25% Lifesteal (chance to restore 1 HP on hit; 1s global cooldown)',
   );
+  const accumulatedLifesteal = stats.defaultStats();
+  lifesteal.apply(accumulatedLifesteal, {}, config.CORE_TIER_MAGNITUDES.lifesteal[0]);
+  lifesteal.apply(accumulatedLifesteal, {}, config.CORE_TIER_MAGNITUDES.lifesteal[1]);
+  assert.equal(accumulatedLifesteal.lifesteal, 0.75);
 });
 
 test('Lifesteal stat formatting preserves fractional percentage points without trailing zeros', () => {
   assert.deepEqual(
     config.CORE_TIER_MAGNITUDES.lifesteal.map(hud.formatPercentPoints),
-    ['0.1%', '0.5%', '1%', '1.5%', '2%'],
+    ['0.25%', '0.5%', '1%', '1.5%', '2%'],
   );
 });
 
