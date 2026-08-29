@@ -81,7 +81,16 @@ test('Crusher size preserves voxel fidelity, boss hierarchy, and gate steering r
   const steeringCorridor = physicalOpening - 2 * (
     crusher.radius + config.ENEMIES.obstacleAvoidance.clearance
   );
-  assert.ok(steeringCorridor >= 0.75);
+  assert.ok(steeringCorridor >= 4);
+
+  const maxColliderOffset = Math.max(
+    ...config.CONTAINER_PROP.colliderOffsets.map((offset) => Math.abs(offset))
+  );
+  const gateReach = config.CONTAINER_PROP.gapHalf
+    + config.CONTAINER_PROP.length / 2
+    + maxColliderOffset
+    + config.CONTAINER_PROP.colliderRadius;
+  assert.ok(config.CONTAINER_PROP.minSeparation >= 2 * gateReach);
 });
 
 test('stationary boss CCD catches a full crossing on the entry side', () => {
