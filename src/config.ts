@@ -220,7 +220,7 @@ export const CONTAINER_PROP = {
   /** Capsule-approx collision: circles spaced along the long axis. */
   colliderRadius: 1.6,
   colliderOffsets: [-2.1, 0, 2.1],
-  gapHalf: 4.2,
+  gapHalf: 6,
   /** Random gate count per run, inclusive. Wider openings and stronger
    *  separation keep every boss-sized route traversable. */
   countRange: [10, 13] as [number, number],
@@ -228,7 +228,7 @@ export const CONTAINER_PROP = {
   minDistFromCenter: 18,
   maxDistFromCenter: ARENA_HALF_SIZE - 10,
   /** Minimum distance between gate centers so two funnels never overlap. */
-  minSeparation: 24,
+  minSeparation: 28,
   /** Clearance kept from the boss totem (placed independently per run in
    *  boss.ts) — a gate must never wall off the totem's summon zone. */
   totemClearance: 10,
