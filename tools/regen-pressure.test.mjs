@@ -80,7 +80,7 @@ test('Regen HP/min reports recovery against representative real incoming-damage 
   const rustbrute = byName('Rustbrute');
   const regenRates = CORE_TIER_MAGNITUDES.regen.map(regenHpPerMinute);
 
-  assert.deepEqual(regenRates, [1, 2, 3, 4, 5]);
+  assert.deepEqual(regenRates, [2, 4, 6, 8, 10]);
   for (let tier = 1; tier < regenRates.length; tier++) {
     assert.ok(regenRates[tier] > regenRates[tier - 1], `Regen tier ${tier + 1} must exceed tier ${tier}`);
   }
@@ -212,7 +212,7 @@ test('Regen HP/min reports recovery against representative real incoming-damage 
     `Map curves: Map 1 cap ${map1Close.maxActive} at difficulty ${map1Close.difficulty.toFixed(2)}; Map 2 opens at cap ${map2Open.maxActive} (difficulty ${map2Open.difficulty.toFixed(2)}) and closes at cap ${map2Close.maxActive} (difficulty ${map2Close.difficulty.toFixed(2)}).`,
   ].join('\n'));
 
-  assert.equal(recoverySeconds(PLAYER.contactDamage, regenRates[0]), 480);
-  assert.equal(recoverySeconds(PLAYER.contactDamage, regenRates[4]), 96);
-  assert.equal(recoverySeconds(GUNNER.projectileDamage, regenRates[4]), 120);
+  assert.equal(recoverySeconds(PLAYER.contactDamage, regenRates[0]), 240);
+  assert.equal(recoverySeconds(PLAYER.contactDamage, regenRates[4]), 48);
+  assert.equal(recoverySeconds(GUNNER.projectileDamage, regenRates[4]), 60);
 });

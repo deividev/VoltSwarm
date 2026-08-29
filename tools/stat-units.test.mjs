@@ -152,17 +152,22 @@ test('Hull Plates raises only Max HP and never advertises or grants an immediate
 test('Nanobot Swarm uses the increasing five-tier regen values and names its config-derived HP per minute', () => {
   const nanobotSwarm = upgrades.STAT_CARDS.find((card) => card.id === 'regen');
   assert.ok(nanobotSwarm);
-  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
-  assert.deepEqual(nanobotSwarm.magnitudes, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
+  assert.deepEqual(config.CORE_TIER_MAGNITUDES.regen, [2 / 6, 4 / 6, 6 / 6, 8 / 6, 10 / 6]);
+  assert.deepEqual(nanobotSwarm.magnitudes, [2 / 6, 4 / 6, 6 / 6, 8 / 6, 10 / 6]);
   assert.equal(config.PLAYER.regenTickS, 10);
   assert.equal(config.SECONDS_PER_MINUTE, 60);
   const hpPerMinute = nanobotSwarm.magnitudes.map(
     (value) => (value * config.SECONDS_PER_MINUTE) / config.PLAYER.regenTickS,
   );
-  assert.deepEqual(hpPerMinute, [1, 2, 3, 4, 5]);
+  assert.deepEqual(hpPerMinute, [2, 4, 6, 8, 10]);
   for (const [index, value] of nanobotSwarm.magnitudes.entries()) {
     assert.equal(nanobotSwarm.describe(value), `+${hpPerMinute[index]} HP/min`);
   }
+  const accumulated = stats.defaultStats();
+  nanobotSwarm.apply(accumulated, {}, nanobotSwarm.magnitudes[0]);
+  nanobotSwarm.apply(accumulated, {}, nanobotSwarm.magnitudes[1]);
+  assert.equal(accumulated.regen, 6 / 6);
+  assert.equal((accumulated.regen * config.SECONDS_PER_MINUTE) / config.PLAYER.regenTickS, 6);
 });
 
 test('Leech Coil uses the reduced five-tier chance values and retains its global cooldown', async () => {

@@ -34,7 +34,7 @@ test('gameplay Field Repair excludes Hull Plates while other Core upgrades still
 });
 
 test('Nanobot Swarm and the stat sheet state config-derived HP per minute', async () => {
-  assert.deepEqual(CORE_TIER_MAGNITUDES.regen, [1 / 6, 2 / 6, 3 / 6, 4 / 6, 5 / 6]);
+  assert.deepEqual(CORE_TIER_MAGNITUDES.regen, [2 / 6, 4 / 6, 6 / 6, 8 / 6, 10 / 6]);
   assert.equal(PLAYER.regenTickS, 10);
   assert.equal(SECONDS_PER_MINUTE, 60);
   const [nanobotSwarm, hudSource] = await Promise.all([
