@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   publish-wiki:
-    uses: deividev/VoltSwarm-wiki/.github/workflows/publish.yml@327ca08d62034546fe3476f0c1469e65ea7beaaa
+    uses: deividev/VoltSwarm-wiki/.github/workflows/publish.yml@803c881f12a837fda3e9d1b6f25817e255651231
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
