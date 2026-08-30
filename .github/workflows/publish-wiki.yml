@@ -1,0 +1,17 @@
+name: Notify Wiki of content update
+
+on:
+  push:
+    branches:
+      - codex/demo-map1
+      - codex/map-2
+
+permissions:
+  contents: read
+
+jobs:
+  publish-wiki:
+    uses: deividev/VoltSwarm-wiki/.github/workflows/publish.yml@db3d8664668810a1dfca593c94cceeb3725392b0
+    secrets:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
