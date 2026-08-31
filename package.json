@@ -1,6 +1,6 @@
 {
   "name": "voltswarm",
-  "version": "0.30.17",
+  "version": "0.30.18",
   "description": "Voltswarm - an industrial robot bullet heaven.",
   "type": "module",
   "main": "electron/dist/main.js",
@@ -101,6 +101,10 @@
       "!node_modules/steamworks.js/LICENSE",
       "!node_modules/@types/**",
       "!dist/assets/2d/ref-field-engineer-side-v1.png",
+      "!dist/assets/2d/ref-rack-hauler-front-v3-seafoam.png",
+      "!dist/assets/2d/ref-rack-hauler-back-v3-seafoam.png",
+      "!dist/assets/2d/ref-rack-hauler-side-v3-seafoam.png",
+      "!dist/assets/2d/ref-rack-hauler-top-v3-seafoam.png",
       "!dist/assets/2d/ref-final-boss-front-v2.png",
       "!dist/assets/2d/ref-final-boss-side-v2.png",
       "!dist/assets/2d/ref-final-boss-back-v2.png",

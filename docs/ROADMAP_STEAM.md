@@ -1,6 +1,6 @@
 # Voltswarm — Roadmap a Steam
 
-Updated: 2026-08-27. Full-game source/HEAD **0.30.14** is committed. `0.30.13` remains the latest packaged exact-byte baseline, and `0.30.14` is not packaged. Package the exact committed `0.30.14` bytes only if a new package is requested. Production release flags are off; the packaged audio-benchmark route is removed, its replacement is Vite-DEV-only, and the title is `Voltswarm`. Separate Demo branch: `codex/demo-map1` (`0.13.39-demo`).
+Updated: 2026-08-31. Full-game source/HEAD **0.30.18** is committed. It excludes exactly the four obsolete, unreferenced Rack Hauler v3 seafoam conversion sheets from Electron packaging while retaining the active v4 runtime sheets. Exact-byte `0.30.18` packaging is the current delivery gate: clean prior build output, package the committed bytes, and verify setup, portable, and ASAR payload. Source documentation does not claim a `0.30.18` package until external packaging evidence exists. Production release flags are off; the packaged audio-benchmark route is removed, its replacement is Vite-DEV-only, and the title is `Voltswarm`. Separate Demo branch: `codex/demo-map1` (`0.13.39-demo`).
 
 ## Alcance de variantes — decisión vigente
 

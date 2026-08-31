@@ -35,3 +35,29 @@ test('packaging keeps the native Steam runtime and excludes type-only dependenci
     'undici-types is pulled through steamworks.js type declarations and must not ship at runtime',
   );
 });
+
+test('packaging excludes obsolete Rack Hauler v3 sheets and keeps active v4 sheets', () => {
+  const obsoleteV3Exclusions = [
+    '!dist/assets/2d/ref-rack-hauler-front-v3-seafoam.png',
+    '!dist/assets/2d/ref-rack-hauler-back-v3-seafoam.png',
+    '!dist/assets/2d/ref-rack-hauler-side-v3-seafoam.png',
+    '!dist/assets/2d/ref-rack-hauler-top-v3-seafoam.png',
+  ];
+  const activeV4Exclusions = [
+    '!dist/assets/2d/ref-rack-hauler-front-v4-seafoam.png',
+    '!dist/assets/2d/ref-rack-hauler-back-v4-seafoam.png',
+    '!dist/assets/2d/ref-rack-hauler-side-v4-seafoam.png',
+    '!dist/assets/2d/ref-rack-hauler-top-v4-seafoam.png',
+  ];
+
+  assert.deepEqual(
+    obsoleteV3Exclusions.filter((entry) => !pkg.build.files.includes(entry)),
+    [],
+    'all four obsolete Rack Hauler v3 conversion sheets must be excluded from the package',
+  );
+  assert.deepEqual(
+    activeV4Exclusions.filter((entry) => pkg.build.files.includes(entry)),
+    [],
+    'active Rack Hauler v4 runtime sheets must remain packaged',
+  );
+});
